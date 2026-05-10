@@ -1,0 +1,23 @@
+openapi: 3.0.0
+info:
+  title: MoneyStory API Specification
+  version: 1.0.0
+  description: API for MoneyStory (SpendDiary) backend combining Node.js Orchestrator & AI Engine.
+paths:
+  /auth/login:
+    post:
+      summary: Ðang nh?p
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+      responses:
+        '200':
+          description: OK
+
