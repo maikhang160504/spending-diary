@@ -164,54 +164,67 @@ class StreakAchievement {
 
 class CalendarEntry {
   final int day;
-  final String imageUrl;
-  final int count;
+  final int month;
+  final int year;
+  final List<String> imageUrls; // stacked photos
+  final int totalAmount;
 
   const CalendarEntry({
     required this.day,
-    required this.imageUrl,
-    required this.count,
+    required this.month,
+    required this.year,
+    required this.imageUrls,
+    required this.totalAmount,
   });
+
+  int get count => imageUrls.length;
+}
+
+class MiMoResponse {
+  final String status; // Happy/Sad/Chill/Sassy/Thinking/Success
+  final String message;
+
+  const MiMoResponse({required this.status, required this.message});
 }
 
 class MockData {
   static const onboarding = [
     OnboardingItem(
-      title: 'Xin chao! Minh la Mimo 😊',
-      subtitle: 'Con ban ten gi nhi? Cho minh xin ten de de goi nha~',
-      caption: 'Tien nao! ✨',
+      title: 'Xin chào! Mình là Mimo 😊',
+      subtitle: 'Còn bạn tên gì nhỉ? Cho mình xin tên để dễ gọi nha~',
+      caption: 'Tiếp nào! ✨',
     ),
     OnboardingItem(
-      title: 'Thu nhap cua ban',
-      subtitle: 'De Mimo hieu ro tinh hinh tai chinh cua ban hon',
-      caption: 'Tiep tuc',
+      title: 'Thu nhập của bạn',
+      subtitle: 'Để Mimo hiểu rõ tình hình tài chính của bạn hơn',
+      caption: 'Tiếp tục',
     ),
     OnboardingItem(
-      title: 'Ban thich minh noi chuyen kieu nao?',
-      subtitle: 'Chon phong cach ma ban thay "vibe" nhat nha!',
-      caption: 'Tiep nao! ✨',
+      title: 'Bạn thích mình nói chuyện kiểu nào?',
+      subtitle: 'Chọn phong cách mà bạn thấy "vibe" nhất nha!',
+      caption: 'Tiếp nào! ✨',
     ),
     OnboardingItem(
-      title: 'Gioi han chi tieu',
-      subtitle: 'Dat gioi han cho tung danh muc (co the bo qua)',
-      caption: 'Tiep tuc',
+      title: 'Giới hạn chi tiêu',
+      subtitle: 'Đặt giới hạn cho từng danh mục (có thể bỏ qua)',
+      caption: 'Tiếp tục',
     ),
     OnboardingItem(
-      title: 'Thong tin ca nhan',
-      subtitle: 'De Mimo co the tu van phu hop voi ban nhat',
-      caption: 'Hoan thanh',
+      title: 'Thông tin cá nhân',
+      subtitle: 'Để Mimo có thể tư vấn phù hợp với bạn nhất',
+      caption: 'Hoàn thành',
     ),
   ];
 
   static const chatMessages = [
     ChatMessage(
-      text: 'Chao ban! Minh la Mimo day 😎 Ban muon hoi gi ve chi tieu khong?',
+      text: 'Chào bạn! Mình là Mimo đây 😎 Bạn muốn hỏi gì về chi tiêu không?',
       isUser: false,
       time: '00:23',
     ),
-    ChatMessage(text: 'Tuan nay sao?', isUser: true, time: '00:23'),
+    ChatMessage(text: 'Tuần này sao?', isUser: true, time: '00:23'),
     ChatMessage(
-      text: 'Hom qua ban tieu 3 lan tra sua roi ne 😱 Coi chung vuot limit do!',
+      text: 'Hôm qua bạn tiêu 3 lần trà sữa rồi nè 😱 Coi chừng vượt limit đó!',
       isUser: false,
       time: '00:23',
     ),
@@ -252,13 +265,13 @@ class MockData {
 
   static const goals = [
     GoalItem(
-      title: 'Mua iPhone moi',
+      title: 'Mua iPhone mới',
       emoji: '📱',
       targetAmount: 25000000,
       savedAmount: 8500000,
     ),
     GoalItem(
-      title: 'Du lich Da Lat',
+      title: 'Du lịch Đà Lạt',
       emoji: '✈️',
       targetAmount: 5000000,
       savedAmount: 3200000,
@@ -267,41 +280,41 @@ class MockData {
 
   static const homeStories = [
     HomeStory(
-      userName: 'Ban',
+      userName: 'Bạn',
       time: '28 thg 3 • 08:30',
-      title: 'Ca phe sang',
-      category: 'An uong',
+      title: 'Cà phê sáng',
+      category: 'Ăn uống',
       categoryEmoji: '🍔',
       imageUrl:
           'https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&w=800&q=80',
       amount: 45000,
-      aiMessage: 'Cafe gia nay hoi chat do, thu pha nha di ban oi~ Tiet kiem hon ma van ngon!',
+      aiMessage: 'Cafe giá này hơi chát đó, thử pha nhà đi bạn ơi~ Tiết kiệm hơn mà vẫn ngon! 🫖',
       aiPositive: false,
       isOwner: false,
     ),
     HomeStory(
-      userName: 'Ban',
+      userName: 'Bạn',
       time: '27 thg 3 • 14:20',
-      title: 'Ao moi',
-      category: 'Mua sam',
+      title: 'Áo mới',
+      category: 'Mua sắm',
       categoryEmoji: '🛍️',
       imageUrl:
           'https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=800&q=80',
       amount: 250000,
-      aiMessage: 'Hoi nhieu roi do~ Coi chung vuot budget nha 🤔',
+      aiMessage: 'Hơi nhiều rồi đó~ Coi chừng vượt budget nha 🤔',
       aiPositive: false,
       isOwner: false,
     ),
     HomeStory(
-      userName: 'Ban',
+      userName: 'Bạn',
       time: '27 thg 3 • 12:15',
-      title: 'Com trua',
-      category: 'An uong',
+      title: 'Cơm trưa',
+      category: 'Ăn uống',
       categoryEmoji: '🍔',
       imageUrl:
           'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=800&q=80',
       amount: 120000,
-      aiMessage: 'Hom nay an uong da can doi, good job!',
+      aiMessage: 'Hôm nay ăn uống đã cân đối, good job! 👍',
       aiPositive: true,
       isOwner: false,
     ),
@@ -309,55 +322,55 @@ class MockData {
 
   static const galleryItems = [
     GalleryItem(
-      title: 'Ca phe sang',
-      category: 'An uong',
+      title: 'Cà phê sáng',
+      category: 'Ăn uống',
       categoryEmoji: '🍔',
-      date: '28 thg 3',
+      date: '28-03',
       imageUrl:
           'https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&w=600&q=80',
       amount: 45000,
     ),
     GalleryItem(
-      title: 'Ao moi',
-      category: 'Mua sam',
+      title: 'Áo mới',
+      category: 'Mua sắm',
       categoryEmoji: '🛍️',
-      date: '27 thg 3',
+      date: '27-03',
       imageUrl:
           'https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=600&q=80',
       amount: 250000,
     ),
     GalleryItem(
-      title: 'Com trua',
-      category: 'An uong',
+      title: 'Cơm trưa',
+      category: 'Ăn uống',
       categoryEmoji: '🍔',
-      date: '27 thg 3',
+      date: '27-03',
       imageUrl:
           'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=600&q=80',
       amount: 120000,
     ),
     GalleryItem(
       title: 'Xem phim',
-      category: 'Giai tri',
+      category: 'Giải trí',
       categoryEmoji: '🎬',
-      date: '26 thg 3',
+      date: '26-03',
       imageUrl:
           'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=600&q=80',
       amount: 150000,
     ),
     GalleryItem(
-      title: 'Grab ve nha',
-      category: 'Di chuyen',
+      title: 'Grab về nhà',
+      category: 'Di chuyển',
       categoryEmoji: '🚗',
-      date: '26 thg 3',
+      date: '26-03',
       imageUrl:
           'https://images.unsplash.com/photo-1489515217757-5fd1be406fef?auto=format&fit=crop&w=600&q=80',
       amount: 60000,
     ),
     GalleryItem(
-      title: 'Tra sua',
-      category: 'An uong',
+      title: 'Trà sữa',
+      category: 'Ăn uống',
       categoryEmoji: '🍔',
-      date: '25 thg 3',
+      date: '25-03',
       imageUrl:
           'https://images.unsplash.com/photo-1527169402691-feff5539e52c?auto=format&fit=crop&w=600&q=80',
       amount: 55000,
@@ -376,28 +389,28 @@ class MockData {
 
   static const reportCategories = [
     ReportCategory(
-      label: 'An uong',
+      label: 'Ăn uống',
       emoji: '🍔',
       percent: 32.4,
       amount: 220000,
-      color: 0xFFEF77B9,
+      color: 0xFFEC4899,
     ),
     ReportCategory(
-      label: 'Mua sam',
+      label: 'Mua sắm',
       emoji: '🛍️',
       percent: 36.8,
       amount: 250000,
       color: 0xFFA78BFA,
     ),
     ReportCategory(
-      label: 'Di chuyen',
+      label: 'Di chuyển',
       emoji: '🚗',
       percent: 8.8,
       amount: 60000,
       color: 0xFF60A5FA,
     ),
     ReportCategory(
-      label: 'Giai tri',
+      label: 'Giải trí',
       emoji: '🎬',
       percent: 22.1,
       amount: 150000,
@@ -413,54 +426,129 @@ class MockData {
 
   static const streakAchievements = [
     StreakAchievement(
-      title: 'Tuan dau tien',
-      subtitle: 'Ghi chep 7 ngay lien tuc',
-      date: 'Dat duoc: 15 Apr 2026',
+      title: 'Tuần đầu tiên',
+      subtitle: 'Ghi chép 7 ngày liên tục',
+      date: 'Đạt được: 15 Apr 2026',
       emoji: '🔥',
       achieved: true,
     ),
     StreakAchievement(
-      title: 'Hai tuan kien tri',
-      subtitle: 'Ghi chep 14 ngay lien tuc',
-      date: 'Dat duoc: 22 Apr 2026',
+      title: 'Hai tuần kiên trì',
+      subtitle: 'Ghi chép 14 ngày liên tục',
+      date: 'Đạt được: 22 Apr 2026',
       emoji: '⭐',
       achieved: true,
     ),
     StreakAchievement(
-      title: 'Thang hoan hao',
-      subtitle: 'Ghi chep 30 ngay lien tuc',
+      title: 'Tháng hoàn hảo',
+      subtitle: 'Ghi chép 30 ngày liên tục',
       date: '',
       emoji: '🏆',
       achieved: false,
     ),
     StreakAchievement(
-      title: 'Ky luc 100 ngay',
-      subtitle: 'Ghi chep 100 ngay lien tuc',
+      title: 'Kỷ lục 100 ngày',
+      subtitle: 'Ghi chép 100 ngày liên tục',
       date: '',
       emoji: '💎',
       achieved: false,
     ),
   ];
 
+  // Calendar entries for current month (May 2026)
   static const calendarEntries = [
     CalendarEntry(
-      day: 26,
-      imageUrl:
-          'https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&w=100&q=80',
-      count: 1,
+      day: 3, month: 5, year: 2026,
+      imageUrls: ['https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&w=200&q=80'],
+      totalAmount: 45000,
     ),
     CalendarEntry(
-      day: 27,
-      imageUrl:
-          'https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=100&q=80',
-      count: 1,
+      day: 5, month: 5, year: 2026,
+      imageUrls: [
+        'https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=200&q=80',
+        'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=200&q=80',
+      ],
+      totalAmount: 370000,
     ),
     CalendarEntry(
-      day: 28,
-      imageUrl:
-          'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=100&q=80',
-      count: 2,
+      day: 7, month: 5, year: 2026,
+      imageUrls: ['https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=200&q=80'],
+      totalAmount: 150000,
     ),
+    CalendarEntry(
+      day: 9, month: 5, year: 2026,
+      imageUrls: [
+        'https://images.unsplash.com/photo-1527169402691-feff5539e52c?auto=format&fit=crop&w=200&q=80',
+        'https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&w=200&q=80',
+        'https://images.unsplash.com/photo-1489515217757-5fd1be406fef?auto=format&fit=crop&w=200&q=80',
+      ],
+      totalAmount: 620000,
+    ),
+    CalendarEntry(
+      day: 11, month: 5, year: 2026,
+      imageUrls: ['https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=200&q=80'],
+      totalAmount: 250000,
+    ),
+    CalendarEntry(
+      day: 14, month: 5, year: 2026,
+      imageUrls: [
+        'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=200&q=80',
+        'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=200&q=80',
+      ],
+      totalAmount: 270000,
+    ),
+    CalendarEntry(
+      day: 16, month: 5, year: 2026,
+      imageUrls: ['https://images.unsplash.com/photo-1527169402691-feff5539e52c?auto=format&fit=crop&w=200&q=80'],
+      totalAmount: 55000,
+    ),
+    CalendarEntry(
+      day: 19, month: 5, year: 2026,
+      imageUrls: [
+        'https://images.unsplash.com/photo-1489515217757-5fd1be406fef?auto=format&fit=crop&w=200&q=80',
+        'https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&w=200&q=80',
+      ],
+      totalAmount: 105000,
+    ),
+    CalendarEntry(
+      day: 21, month: 5, year: 2026,
+      imageUrls: ['https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=200&q=80'],
+      totalAmount: 180000,
+    ),
+    CalendarEntry(
+      day: 23, month: 5, year: 2026,
+      imageUrls: [
+        'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=200&q=80',
+        'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=200&q=80',
+        'https://images.unsplash.com/photo-1527169402691-feff5539e52c?auto=format&fit=crop&w=200&q=80',
+        'https://images.unsplash.com/photo-1489515217757-5fd1be406fef?auto=format&fit=crop&w=200&q=80',
+      ],
+      totalAmount: 890000,
+    ),
+    CalendarEntry(
+      day: 26, month: 5, year: 2026,
+      imageUrls: ['https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&w=200&q=80'],
+      totalAmount: 75000,
+    ),
+    CalendarEntry(
+      day: 28, month: 5, year: 2026,
+      imageUrls: [
+        'https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=200&q=80',
+        'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=200&q=80',
+      ],
+      totalAmount: 310000,
+    ),
+  ];
+
+  // MiMo mock responses (simulate server)
+  static const mimoResponses = [
+    MiMoResponse(status: 'Happy', message: 'Chi tiêu hợp lý lắm bạn ơi! 😊 Hôm nay kiểm soát tốt, tiếp tục nha~'),
+    MiMoResponse(status: 'Sad', message: 'Ôi hơi nhiều rồi đó bạn ơi 😢 Coi chừng vượt budget tháng này nha!'),
+    MiMoResponse(status: 'Chill', message: 'Okay nha~ Mức này vẫn trong tầm kiểm soát 😎 Keep it up!'),
+    MiMoResponse(status: 'Sassy', message: 'Lại café nữa rồi! Tháng này bạn uống bao nhiêu ly rồi vậy? 😏'),
+    MiMoResponse(status: 'Success', message: 'Xuất sắc! Chi tiêu tháng này giảm 15% so với tháng trước 🎉'),
+    MiMoResponse(status: 'Thinking', message: 'Hmm... Danh mục này đang chiếm hơn 30% ngân sách đó 🤔'),
+    MiMoResponse(status: 'Taunting', message: 'Lại mua sắm nữa hả? Tuần này bạn mua nhiều lắm rồi đó~ 😒'),
   ];
 
   static const streakDays = [

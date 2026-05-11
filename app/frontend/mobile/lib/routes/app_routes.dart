@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../screens/auth/login_screen.dart';
 import '../screens/auth/register_screen.dart';
@@ -11,6 +11,7 @@ import '../screens/goals/goal_screen.dart';
 import '../screens/home/home_calendar_screen.dart';
 import '../screens/home/home_gallery_screen.dart';
 import '../screens/home/home_screen.dart';
+import '../screens/limits/limits_screen.dart';
 import '../screens/onboarding/onboarding_screen_1.dart';
 import '../screens/onboarding/onboarding_screen_2.dart';
 import '../screens/onboarding/onboarding_screen_3.dart';
@@ -23,53 +24,84 @@ import '../screens/story/detail_story_screen.dart';
 import '../screens/streak/streak_screen.dart';
 import '../screens/wallet/share_wallet_screen.dart';
 
+/// Tất cả tên route tập trung tại đây
 class AppRoutes {
-  static const onboarding = '/';
+  // Auth / Onboarding
+  static const onboarding      = '/';
   static const onboardingStep2 = '/onboarding/step-2';
   static const onboardingStep3 = '/onboarding/step-3';
   static const onboardingStep4 = '/onboarding/step-4';
   static const onboardingStep5 = '/onboarding/step-5';
-  static const login = '/login';
-  static const register = '/register';
-  static const shell = '/app';
+  static const login           = '/login';
+  static const register        = '/register';
 
-  static const home = '/home';
-  static const homeCalendar = '/home/calendar';
-  static const homeGallery = '/home/gallery';
-  static const camera = '/camera';
-  static const cameraInput = '/camera/input';
+  // Shell tabs
+  static const home     = '/app/home';
+  static const report   = '/app/report';
+  static const goals    = '/app/goals';
+  static const settings = '/app/settings';
+
+  // Home sub-views
+  static const homeGallery  = '/app/home/gallery';
+  static const homeCalendar = '/app/home/calendar';
+
+  // Camera
+  static const camera        = '/camera';
+  static const cameraInput   = '/camera/input';
   static const cameraConfirm = '/camera/confirm';
-  static const chat = '/chat';
-  static const chatHistory = '/chat/history';
-  static const goals = '/goals';
-  static const shareWallet = '/wallet/share';
-  static const streak = '/streak';
-  static const settings = '/settings';
-  static const report = '/report';
-  static const storyDetail = '/story/detail';
 
-  static final Map<String, WidgetBuilder> routes = {
-    onboarding: (context) => const OnboardingStep1(),
-    onboardingStep2: (context) => const OnboardingStep2(),
-    onboardingStep3: (context) => const OnboardingStep3(),
-    onboardingStep4: (context) => const OnboardingStep4(),
-    onboardingStep5: (context) => const OnboardingStep5(),
-    login: (context) => const LoginScreen(),
-    register: (context) => const RegisterScreen(),
-    shell: (context) => const AppShell(),
-    home: (context) => const HomeScreen(),
-    homeCalendar: (context) => const HomeCalendarScreen(),
-    homeGallery: (context) => const HomeGalleryScreen(),
-    camera: (context) => const CameraScreen(),
-    cameraInput: (context) => const CameraInputScreen(),
-    cameraConfirm: (context) => const CameraConfirmScreen(),
-    chat: (context) => const ChatScreen(),
-    chatHistory: (context) => const ChatHistoryScreen(),
-    goals: (context) => const GoalScreen(),
-    shareWallet: (context) => const ShareWalletScreen(),
-    streak: (context) => const StreakScreen(),
-    settings: (context) => const SettingsScreen(),
-    report: (context) => const ReportScreen(),
-    storyDetail: (context) => const DetailStoryScreen(),
-  };
+  // Chat
+  static const chat        = '/chat';
+  static const chatHistory = '/chat/history';
+
+  // Full-screen overlays
+  static const limits      = '/limits';
+  static const shareWallet = '/wallet/share';
+  static const streak      = '/streak';
+  static const storyDetail = '/story/detail';
 }
+
+/// go_router instance — được dùng trong MaterialApp.router
+final GoRouter appRouter = GoRouter(
+  initialLocation: AppRoutes.onboarding,
+  routes: [
+    // ── Auth / Onboarding ────────────────────────────────────
+    GoRoute(path: AppRoutes.onboarding,      builder: (context, state) => const OnboardingStep1()),
+    GoRoute(path: AppRoutes.onboardingStep2, builder: (context, state) => const OnboardingStep2()),
+    GoRoute(path: AppRoutes.onboardingStep3, builder: (context, state) => const OnboardingStep3()),
+    GoRoute(path: AppRoutes.onboardingStep4, builder: (context, state) => const OnboardingStep4()),
+    GoRoute(path: AppRoutes.onboardingStep5, builder: (context, state) => const OnboardingStep5()),
+    GoRoute(path: AppRoutes.login,           builder: (context, state) => const LoginScreen()),
+    GoRoute(path: AppRoutes.register,        builder: (context, state) => const RegisterScreen()),
+
+    // ── Shell (bottom nav) ───────────────────────────────────
+    ShellRoute(
+      builder: (context, state, child) => AppShell(child: child),
+      routes: [
+        GoRoute(path: AppRoutes.home,     builder: (context, state) => const HomeScreen()),
+        GoRoute(path: AppRoutes.report,   builder: (context, state) => const ReportScreen()),
+        GoRoute(path: AppRoutes.goals,    builder: (context, state) => const GoalScreen()),
+        GoRoute(path: AppRoutes.settings, builder: (context, state) => const SettingsScreen()),
+      ],
+    ),
+
+    // ── Home sub-views ───────────────────────────────────────
+    GoRoute(path: AppRoutes.homeGallery,  builder: (context, state) => const HomeGalleryScreen()),
+    GoRoute(path: AppRoutes.homeCalendar, builder: (context, state) => const HomeCalendarScreen()),
+
+    // ── Camera ──────────────────────────────────────────────
+    GoRoute(path: AppRoutes.camera,        builder: (context, state) => const CameraScreen()),
+    GoRoute(path: AppRoutes.cameraInput,   builder: (context, state) => const CameraInputScreen()),
+    GoRoute(path: AppRoutes.cameraConfirm, builder: (context, state) => const CameraConfirmScreen()),
+
+    // ── Chat ────────────────────────────────────────────────
+    GoRoute(path: AppRoutes.chat,        builder: (context, state) => const ChatScreen()),
+    GoRoute(path: AppRoutes.chatHistory, builder: (context, state) => const ChatHistoryScreen()),
+
+    // ── Overlays / Full-screen ───────────────────────────────
+    GoRoute(path: AppRoutes.limits,      builder: (context, state) => const LimitsScreen()),
+    GoRoute(path: AppRoutes.shareWallet, builder: (context, state) => const ShareWalletScreen()),
+    GoRoute(path: AppRoutes.streak,      builder: (context, state) => const StreakScreen()),
+    GoRoute(path: AppRoutes.storyDetail, builder: (context, state) => const DetailStoryScreen()),
+  ],
+);

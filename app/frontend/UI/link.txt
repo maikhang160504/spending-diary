@@ -1,0 +1,14 @@
+link : https://detach-online-42718176.figma.site
+
+/login
+/register
+/onboarding
+/camera
+/home 
+/report
+/goals
+/limits
+/chat
+/chat-history
+/streak
+/settings

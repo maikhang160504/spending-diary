@@ -1,105 +1,80 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../routes/app_routes.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_radii.dart';
 import '../../theme/app_spacing.dart';
 
-class OnboardingStep4 extends StatelessWidget {
+class OnboardingStep4 extends StatefulWidget {
   const OnboardingStep4({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final categories = const [
-      _LimitItem('🍔', 'An uong'),
-      _LimitItem('🛍️', 'Mua sam'),
-      _LimitItem('🚗', 'Di chuyen'),
-      _LimitItem('🎬', 'Giai tri'),
-      _LimitItem('🧾', 'Khac'),
-    ];
+  State<OnboardingStep4> createState() => _OnboardingStep4State();
+}
 
+class _OnboardingStep4State extends State<OnboardingStep4> {
+  final _cats = [
+    _Cat('🍔', 'Ăn uống', const Color(0xFFEC4899), TextEditingController(text: '2.000.000')),
+    _Cat('🛍️', 'Mua sắm', const Color(0xFF8B5CF6), TextEditingController(text: '1.500.000')),
+    _Cat('🚗', 'Di chuyển', const Color(0xFF3B82F6), TextEditingController(text: '500.000')),
+    _Cat('🎬', 'Giải trí', const Color(0xFFF59E0B), TextEditingController(text: '800.000')),
+    _Cat('🧾', 'Khác', const Color(0xFF94A3B8), TextEditingController()),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(gradient: AppGradients.teal),
         child: SafeArea(
           child: Column(
             children: [
-              const _ProgressHeader(label: 'Buoc 4/5', percent: '80%', value: 0.8),
+              const _ProgressHeader(label: 'Bước 4/5', percent: '80%', value: 0.8),
               Expanded(
-                child: Center(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
                   child: Container(
-                    margin: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
                     padding: const EdgeInsets.all(AppSpacing.xxl),
-                    decoration: BoxDecoration(
-                      color: AppColors.card.withValues(alpha: 0.98),
-                      borderRadius: BorderRadius.circular(AppRadii.xl),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Color(0x33000000),
-                          blurRadius: 30,
-                          offset: Offset(0, 20),
-                        ),
-                      ],
-                    ),
+                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(AppRadii.xl),
+                        boxShadow: const [BoxShadow(color: Color(0x33000000), blurRadius: 30, offset: Offset(0, 20))]),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text('Gioi han chi tieu', style: Theme.of(context).textTheme.titleLarge),
+                        const Text('💰', style: TextStyle(fontSize: 44)),
+                        const SizedBox(height: 12),
+                        Text('Giới hạn chi tiêu', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
                         const SizedBox(height: 8),
-                        Text(
-                          'Dat gioi han cho tung danh muc (co the bo qua)',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
-                          textAlign: TextAlign.center,
-                        ),
+                        Text('Đặt giới hạn cho từng danh mục (có thể bỏ qua)',
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary), textAlign: TextAlign.center),
                         const SizedBox(height: 20),
-                        ...categories.map((item) => _LimitRow(item: item)),
-                        const SizedBox(height: 8),
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFE8F7F6),
-                            borderRadius: BorderRadius.circular(AppRadii.md),
-                          ),
-                          child: Row(
-                            children: [
-                              const Text('💡'),
+                        ..._cats.map((cat) => Padding(
+                          padding: const EdgeInsets.only(bottom: 14),
+                          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Row(children: [
+                              Container(width: 32, height: 32, decoration: BoxDecoration(color: cat.color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(8)),
+                                  child: Center(child: Text(cat.emoji, style: const TextStyle(fontSize: 16)))),
                               const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  'Ban co the thay doi gioi han nay bat cu luc nao trong Cai dat',
-                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.tealDark),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+                              Text(cat.label, style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+                            ]),
+                            const SizedBox(height: 8),
+                            TextField(controller: cat.controller, keyboardType: TextInputType.number,
+                                decoration: const InputDecoration(hintText: 'Nhập giới hạn...', prefixIcon: Icon(Icons.attach_money, size: 18), suffixText: 'đ')),
+                          ]),
+                        )),
+                        Container(padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(color: const Color(0xFFE8F7F6), borderRadius: BorderRadius.circular(AppRadii.md)),
+                            child: Row(children: [
+                              const Text('💡', style: TextStyle(fontSize: 16)), const SizedBox(width: 8),
+                              Expanded(child: Text('Bạn có thể thay đổi giới hạn này bất cứ lúc nào trong Cài đặt',
+                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.tealDark))),
+                            ])),
                       ],
                     ),
                   ),
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.all(AppSpacing.xxl),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () => Navigator.pop(context),
-                        icon: const Icon(Icons.chevron_left),
-                        label: const Text('Quay lai'),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: FilledButton.icon(
-                        onPressed: () => Navigator.pushNamed(context, AppRoutes.onboardingStep5),
-                        icon: const Text(''),
-                        label: const Text('Tiep tuc'),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              _NavButtons(onBack: () => context.pop(), onNext: () => context.push(AppRoutes.onboardingStep5)),
             ],
           ),
         ),
@@ -108,79 +83,54 @@ class OnboardingStep4 extends StatelessWidget {
   }
 }
 
-class _LimitItem {
-  final String emoji;
-  final String label;
-
-  const _LimitItem(this.emoji, this.label);
+class _Cat {
+  final String emoji, label;
+  final Color color;
+  final TextEditingController controller;
+  const _Cat(this.emoji, this.label, this.color, this.controller);
 }
 
-class _LimitRow extends StatelessWidget {
-  final _LimitItem item;
-
-  const _LimitRow({required this.item});
+class _NavButtons extends StatelessWidget {
+  final VoidCallback onBack, onNext;
+  const _NavButtons({required this.onBack, required this.onNext});
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text(item.emoji, style: const TextStyle(fontSize: 20)),
-              const SizedBox(width: 8),
-              Text(item.label, style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
-            ],
-          ),
-          const SizedBox(height: 8),
-          const TextField(
-            keyboardType: TextInputType.number,
-            decoration: InputDecoration(hintText: '2,000,000'),
-          ),
-        ],
-      ),
+      padding: const EdgeInsets.all(AppSpacing.xxl),
+      child: Row(children: [
+        Expanded(child: OutlinedButton.icon(onPressed: onBack,
+            icon: const Icon(Icons.chevron_left, color: Colors.white), label: const Text('Quay lại', style: TextStyle(color: Colors.white)),
+            style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.white54), padding: const EdgeInsets.symmetric(vertical: 14)))),
+        const SizedBox(width: 12),
+        Expanded(child: FilledButton(onPressed: onNext,
+            style: FilledButton.styleFrom(backgroundColor: Colors.white, foregroundColor: AppColors.teal, padding: const EdgeInsets.symmetric(vertical: 14)),
+            child: const Text('Tiếp tục', style: TextStyle(fontWeight: FontWeight.w600)))),
+      ]),
     );
   }
 }
 
-class _ProgressHeader extends StatelessWidget {
-  final String label;
-  final String percent;
-  final double value;
 
-  const _ProgressHeader({
-    required this.label,
-    required this.percent,
-    required this.value,
-  });
+class _ProgressHeader extends StatelessWidget {
+  final String label, percent;
+  final double value;
+  const _ProgressHeader({required this.label, required this.percent, required this.value});
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(label, style: const TextStyle(color: Colors.white, fontSize: 14)),
-              Text(percent, style: const TextStyle(color: Colors.white, fontSize: 14)),
-            ],
-          ),
-          const SizedBox(height: 8),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(999),
-            child: LinearProgressIndicator(
-              value: value,
-              backgroundColor: Colors.white.withValues(alpha: 0.2),
-              valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
-              minHeight: 6,
-            ),
-          ),
-        ],
-      ),
+      padding: const EdgeInsets.fromLTRB(24, 20, 24, 12),
+      child: Column(children: [
+        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+          Text(label, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500)),
+          Text(percent, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500)),
+        ]),
+        const SizedBox(height: 10),
+        ClipRRect(borderRadius: BorderRadius.circular(999),
+            child: LinearProgressIndicator(value: value, backgroundColor: Colors.white.withValues(alpha: 0.2),
+                valueColor: const AlwaysStoppedAnimation<Color>(Colors.white), minHeight: 6)),
+      ]),
     );
   }
 }

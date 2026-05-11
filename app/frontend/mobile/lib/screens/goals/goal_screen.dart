@@ -12,8 +12,10 @@ class GoalScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
       body: SafeArea(
         child: SingleChildScrollView(
+          padding: const EdgeInsets.only(bottom: 24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -22,14 +24,8 @@ class GoalScreen extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Muc tieu dang theo doi', style: Theme.of(context).textTheme.titleSmall),
-                    const SizedBox(height: 12),
                     ...MockData.goals.map((goal) => _GoalCard(goal: goal)),
-                    const SizedBox(height: 16),
-                    _AddGoalCard(),
-                    const SizedBox(height: 24),
                   ],
                 ),
               ),
@@ -61,13 +57,18 @@ class _GoalHeader extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Muc tieu', style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.white)),
+              Text('Mục tiêu', style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.white, fontWeight: FontWeight.w700)),
               const SizedBox(height: 6),
-              Text('Dat muc tieu va theo doi tien do tiet kiem', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white70)),
+              Text('Đặt mục tiêu và theo dõi tiến độ tiết kiệm', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white70)),
             ],
           ),
-          CircleAvatar(
-            backgroundColor: Colors.white.withValues(alpha: 0.2),
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.2),
+              shape: BoxShape.circle,
+            ),
             child: const Icon(Icons.add, color: Colors.white),
           ),
         ],
@@ -84,18 +85,22 @@ class _GoalCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final percent = goal.savedAmount / goal.targetAmount;
+    final remaining = goal.targetAmount - goal.savedAmount;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(AppRadii.lg),
-        border: Border.all(color: AppColors.border),
+        boxShadow: const [
+          BoxShadow(color: Color(0x0F000000), blurRadius: 10, offset: Offset(0, 4)),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Title row
           Row(
             children: [
               Container(
@@ -112,16 +117,28 @@ class _GoalCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(goal.title, style: Theme.of(context).textTheme.titleSmall),
-                    const SizedBox(height: 4),
-                    Text('${formatVnd(goal.savedAmount)} / ${formatVnd(goal.targetAmount)}', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary)),
+                    Text(goal.title, style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 2),
+                    Text('Mục tiêu: ${formatVnd(goal.targetAmount)}', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary)),
                   ],
                 ),
               ),
-              Text('${(percent * 100).toStringAsFixed(0)}%', style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
+          // Progress label row
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Tiến độ', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary)),
+              Text(
+                '${(percent * 100).toStringAsFixed(1)}%',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.teal, fontWeight: FontWeight.w700),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          // Progress bar
           ClipRRect(
             borderRadius: BorderRadius.circular(999),
             child: LinearProgressIndicator(
@@ -131,60 +148,63 @@ class _GoalCard extends StatelessWidget {
               valueColor: const AlwaysStoppedAnimation<Color>(AppColors.teal),
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
+          // Saved / Remaining boxes
           Row(
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: AppColors.teal.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(AppRadii.sm),
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF0FDFB),
+                    borderRadius: BorderRadius.circular(AppRadii.md),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Đã tiết kiệm', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary)),
+                      const SizedBox(height: 4),
+                      Text(formatVnd(goal.savedAmount), style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.teal, fontWeight: FontWeight.w700)),
+                    ],
+                  ),
                 ),
-                child: Text('Tiet kiem hang tuan', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.tealDark)),
               ),
-              const Spacer(),
-              Text('Con ${formatVnd(goal.targetAmount - goal.savedAmount)}', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.muted)),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(AppRadii.md),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Còn thiếu', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary)),
+                      const SizedBox(height: 4),
+                      Text(formatVnd(remaining), style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700)),
+                    ],
+                  ),
+                ),
+              ),
             ],
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _AddGoalCard extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(AppRadii.lg),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(AppRadii.md),
-            ),
-            child: const Icon(Icons.add, color: AppColors.teal),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Tao muc tieu moi', style: Theme.of(context).textTheme.titleSmall),
-                const SizedBox(height: 4),
-                Text('Bat dau tiet kiem cho ke hoach tiep theo', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary)),
-              ],
+          const SizedBox(height: 14),
+          // Add money button
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: () {},
+              icon: const Icon(Icons.add, size: 18),
+              label: const Text('Thêm tiền'),
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.teal,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadii.lg)),
+              ),
             ),
           ),
-          FilledButton(onPressed: () {}, child: const Text('Tao')),
         ],
       ),
     );

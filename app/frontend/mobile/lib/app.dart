@@ -8,11 +8,11 @@ class SpendDiaryApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return MaterialApp.router(
       title: 'SpendDiary',
       theme: AppTheme.build(),
-      initialRoute: AppRoutes.onboarding,
-      routes: AppRoutes.routes,
+      routerConfig: appRouter,
+      debugShowCheckedModeBanner: false,
     );
   }
 }

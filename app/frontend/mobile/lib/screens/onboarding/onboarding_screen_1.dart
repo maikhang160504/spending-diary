@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../routes/app_routes.dart';
 import '../../theme/app_colors.dart';
@@ -16,52 +17,48 @@ class OnboardingStep1 extends StatelessWidget {
         child: SafeArea(
           child: Column(
             children: [
-              const _ProgressHeader(label: 'Buoc 1/5', percent: '20%', value: 0.2),
+              const _ProgressHeader(label: 'Bước 1/5', percent: '20%', value: 0.2),
               Expanded(
                 child: Center(
                   child: Container(
                     margin: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
                     padding: const EdgeInsets.all(AppSpacing.xxl),
                     decoration: BoxDecoration(
-                      color: AppColors.card.withValues(alpha: 0.98),
+                      color: Colors.white,
                       borderRadius: BorderRadius.circular(AppRadii.xl),
                       boxShadow: const [
-                        BoxShadow(
-                          color: Color(0x33000000),
-                          blurRadius: 30,
-                          offset: Offset(0, 20),
-                        ),
+                        BoxShadow(color: Color(0x33000000), blurRadius: 30, offset: Offset(0, 20)),
                       ],
                     ),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Container(
-                          width: 56,
-                          height: 56,
+                          width: 64,
+                          height: 64,
                           decoration: BoxDecoration(
-                            color: AppColors.teal.withValues(alpha: 0.1),
+                            color: AppColors.teal,
                             borderRadius: BorderRadius.circular(AppRadii.lg),
                           ),
-                          child: const Center(child: Text('👋', style: TextStyle(fontSize: 28))),
+                          child: const Center(child: Text('👋', style: TextStyle(fontSize: 32))),
                         ),
-                        const SizedBox(height: 16),
-                        Text('Xin chao! Minh la Mimo 😊', style: Theme.of(context).textTheme.titleLarge, textAlign: TextAlign.center),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 20),
+                        Text('Xin chào! Mình là Mimo 😊', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700), textAlign: TextAlign.center),
+                        const SizedBox(height: 10),
                         Text(
-                          'Con ban ten gi nhi? Cho minh xin ten de de goi nha~',
+                          'Còn bạn tên gì nhỉ? Cho mình xin tên để dễ gọi nha~',
                           style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
                           textAlign: TextAlign.center,
                         ),
-                        const SizedBox(height: 20),
+                        const SizedBox(height: 24),
                         Align(
                           alignment: Alignment.centerLeft,
-                          child: Text('Ten cua ban', style: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
+                          child: Text('Tên của bạn', style: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
                         ),
                         const SizedBox(height: 8),
                         const TextField(
                           decoration: InputDecoration(
-                            hintText: 'Nguyen Van A, hoac goi ban la gi cung duoc',
+                            hintText: 'Nguyễn Văn A, hoặc gọi bạn là gì cũng được',
                           ),
                         ),
                       ],
@@ -74,8 +71,21 @@ class OnboardingStep1 extends StatelessWidget {
                 child: SizedBox(
                   width: double.infinity,
                   child: FilledButton(
-                    onPressed: () => Navigator.pushNamed(context, AppRoutes.onboardingStep2),
-                    child: const Text('Tiep nao! ✨'),
+                    onPressed: () => context.push(AppRoutes.onboardingStep2),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.white.withValues(alpha: 0.25),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadii.xl)),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: const [
+                        Text('Tiếp nào! ✨', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                        SizedBox(width: 6),
+                        Icon(Icons.arrow_forward_ios, size: 14),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -92,26 +102,22 @@ class _ProgressHeader extends StatelessWidget {
   final String percent;
   final double value;
 
-  const _ProgressHeader({
-    required this.label,
-    required this.percent,
-    required this.value,
-  });
+  const _ProgressHeader({required this.label, required this.percent, required this.value});
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
+      padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
       child: Column(
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(label, style: const TextStyle(color: Colors.white, fontSize: 14)),
-              Text(percent, style: const TextStyle(color: Colors.white, fontSize: 14)),
+              Text(label, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500)),
+              Text(percent, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500)),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           ClipRRect(
             borderRadius: BorderRadius.circular(999),
             child: LinearProgressIndicator(
