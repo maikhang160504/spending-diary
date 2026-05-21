@@ -105,14 +105,6 @@ class _MiMoOverlayState extends State<MiMoOverlay> with SingleTickerProviderStat
                 child: Stack(
                   alignment: Alignment.bottomCenter,
                   children: [
-                    // Background frame (transparent border frame)
-                    Positioned.fill(
-                      child: Image.asset(
-                        'assets/MiMo/background/background.png',
-                        fit: BoxFit.contain,
-                        errorBuilder: (ctx, e, st) => const SizedBox(),
-                      ),
-                    ),
                     // Status image
                     Positioned(
                       bottom: 0,
@@ -120,7 +112,7 @@ class _MiMoOverlayState extends State<MiMoOverlay> with SingleTickerProviderStat
                         'assets/MiMo/status/${widget.response.status}.png',
                         height: 90,
                         fit: BoxFit.contain,
-                        errorBuilder: (ctx, err, st) => Image.asset(
+                        errorBuilder: (ctx, e, st) => Image.asset(
                           'assets/MiMo/status/Happy.png',
                           height: 90,
                           fit: BoxFit.contain,

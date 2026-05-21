@@ -42,9 +42,9 @@ class _AppShellState extends State<AppShell> {
     context.go(routes[index]);
   }
 
-  // FAB → mở thẳng camera_input (bỏ add_transaction_screen)
+  // FAB → mở thẳng camera_screen
   void _onFabTap(BuildContext context) {
-    context.push(AppRoutes.cameraInput);
+    context.push(AppRoutes.camera);
   }
 
   @override

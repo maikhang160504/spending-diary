@@ -1,0 +1,70 @@
+"""Settings loaded from environment / .env file."""
+from __future__ import annotations
+
+import os
+from functools import lru_cache
+from pathlib import Path
+
+from dotenv import load_dotenv
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+HERE = Path(__file__).resolve()
+SERVICE_ROOT = HERE.parents[2]
+PROJECT_ROOT = SERVICE_ROOT.parent.parent
+EXPENSE_OCR_NLU_DIR = PROJECT_ROOT / "expense-ocr-nlu"
+
+
+_ENV_PATH = SERVICE_ROOT / ".env"
+if _ENV_PATH.exists():
+    load_dotenv(_ENV_PATH, override=False)
+
+
+class Settings(BaseSettings):
+    """Runtime configuration for the AI microservice."""
+
+    model_config = SettingsConfigDict(
+        env_file=str(_ENV_PATH) if _ENV_PATH.exists() else None,
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
+    )
+
+    app_name: str = Field(default="Expense AI Service")
+    environment: str = Field(default="local")
+    host: str = Field(default="0.0.0.0")
+    port: int = Field(default=8000)
+    log_level: str = Field(default="INFO")
+
+    use_real_nlu: bool = Field(default=False, description="Load full NLU pipeline (joblib + PhoBERT).")
+    use_real_ocr: bool = Field(default=False, description="Load PaddleOCR + VietOCR weights.")
+
+    expense_ocr_nlu_dir: str = Field(default=str(EXPENSE_OCR_NLU_DIR))
+    nlu_models_dir: str = Field(default="")
+    ocr_weights_path: str = Field(default="")
+
+    gemini_api_key: str | None = Field(default=None, alias="GEMINI_API_KEY")
+    gemini_model: str = Field(default="gemini-2.5-flash")
+    run_llm: bool = Field(default=False)
+
+    api_key: str | None = Field(
+        default=None,
+        description="Optional shared secret. When set, requests must send X-API-Key header.",
+    )
+    cors_origins: str = Field(default="*")
+
+    @property
+    def cors_origins_list(self) -> list[str]:
+        if not self.cors_origins or self.cors_origins == "*":
+            return ["*"]
+        return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+
+
+@lru_cache(maxsize=1)
+def get_settings() -> Settings:
+    return Settings()
+
+
+def get_expense_ocr_nlu_path() -> Path:
+    return Path(get_settings().expense_ocr_nlu_dir).resolve()

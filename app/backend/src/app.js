@@ -1,24 +1,62 @@
+'use strict';
+
 const express = require('express');
 const cors = require('cors');
-const helmet = require('helmet'); // B?o m?t Header
+const helmet = require('helmet');
+const morgan = require('morgan');
 
-// const storyRoutes = require('./routes/storyRoutes');
-// const authRoutes = require('./routes/authRoutes');
-const { errorHandler } = require('./middlewares/errorHandler');
+const env = require('./config/env');
+const logger = require('./config/logger');
+const swaggerSpec = require('./config/swagger');
+const swaggerUi = require('swagger-ui-express');
+
+const requestId = require('./middlewares/requestId');
+const requestLogger = require('./middlewares/requestLogger');
+const { notFound, errorHandler } = require('./middlewares/errorHandler');
+
+const router = require('./routes');
 
 const app = express();
 
-// Middlewares
-app.use(helmet());
-app.use(cors());
-app.use(express.json());
+app.disable('x-powered-by');
+app.use(
+  helmet({
+    crossOriginResourcePolicy: false,
+    contentSecurityPolicy: false,
+  })
+);
+app.use(
+  cors({
+    origin: env.cors.origins.includes('*') ? true : env.cors.origins,
+    credentials: true,
+  })
+);
+app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true }));
+app.use(requestId);
+if (env.nodeEnv !== 'test') {
+  app.use(morgan('tiny', { stream: { write: (msg) => logger.debug(msg.trim()) } }));
+}
+app.use(requestLogger);
 
-// Routes
-// app.use('/api/v1/auth', authRoutes);
-// app.use('/api/v1/stories', storyRoutes);
+// Swagger UI
+app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, { explorer: true }));
+app.get('/openapi.json', (_req, res) => res.json(swaggerSpec));
 
-// Error Handling (Luôn d?t cu?i cùng)
+// Root + meta
+app.get('/', (_req, res) =>
+  res.json({
+    success: true,
+    service: 'moneystory-backend',
+    docs: '/docs',
+    openapi: '/openapi.json',
+    api: '/api/v1',
+  })
+);
+
+app.use('/api/v1', router);
+
+app.use(notFound);
 app.use(errorHandler);
 
 module.exports = app;

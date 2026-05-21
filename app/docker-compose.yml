@@ -1,0 +1,83 @@
+# ---------------------------------------------------------------------------
+# Stack:
+#   - postgres   : DB local cho dev
+#   - ai-service : FastAPI (mock fallback bật sẵn, không cần GPU)
+#   - backend    : Node.js orchestrator + Swagger UI ở /docs
+#
+# Mỗi service đọc env từ file riêng (ai-service/.env, backend/.env);
+# các biến quan trọng có thể override qua docker compose .env ở thư mục `app/`.
+# ---------------------------------------------------------------------------
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-expense_ai}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-expense_ai}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  ai-service:
+    build:
+      context: ./ai-service
+    restart: unless-stopped
+    env_file:
+      - ./ai-service/.env
+    environment:
+      # Override những biến chỉ có ý nghĩa trong docker (network nội bộ).
+      HOST: 0.0.0.0
+      PORT: "8000"
+      # Trong container mặc định KHÔNG load model thật để image nhẹ.
+      # Bật real bằng cách: 1) build image kèm requirements-real.txt
+      # 2) mount expense-ocr-nlu/ + set USE_REAL_NLU=true ở .env
+      USE_REAL_NLU: ${USE_REAL_NLU:-false}
+      USE_REAL_OCR: ${USE_REAL_OCR:-false}
+    ports:
+      - "8000:8000"
+    volumes:
+      # Mount repo gốc để pipeline thật load được (chỉ dùng khi USE_REAL_*=true)
+      - ../expense-ocr-nlu:/expense-ocr-nlu:ro
+    healthcheck:
+      test:
+        ["CMD-SHELL", "python -c \"import urllib.request,sys; \\\nurllib.request.urlopen('http://localhost:8000/health'); sys.exit(0)\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ai-service:
+        condition: service_started
+    env_file:
+      - ./backend/.env
+    environment:
+      # Override URL khi chạy trong network docker
+      NODE_ENV: production
+      PORT: "4000"
+      DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-expense_ai}
+      DATABASE_SSL: "false"
+      AI_SERVICE_URL: http://ai-service:8000
+      AI_SERVICE_TIMEOUT_MS: "30000"
+      SCHEMA_SQL_PATH: /app/database/schema.sql
+    ports:
+      - "4000:4000"
+    volumes:
+      # Schema + migrations mounted so `npm run migrate` finds them inside the container.
+      - ./database:/app/database:ro
+      - ./backend/src/db/migrations:/app/src/db/migrations:ro
+
+volumes:
+  pgdata:

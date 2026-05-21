@@ -19,8 +19,8 @@ class HomeCalendarScreen extends StatefulWidget {
 class _HomeCalendarScreenState extends State<HomeCalendarScreen> {
   int _selectedDay = 26;
   String _selectedWallet = 'Ví riêng';
-  int _currentMonth = 3;
-  int _currentYear = 2026;
+  int _currentMonth = DateTime.now().month;
+  int _currentYear = DateTime.now().year;
 
   @override
   Widget build(BuildContext context) {
@@ -112,7 +112,7 @@ class _HomeCalendarScreenState extends State<HomeCalendarScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          '$_selectedDay tháng 0$_currentMonth $currentYear',
+                          '$_selectedDay tháng ${_currentMonth.toString().padLeft(2, '0')} $_currentYear',
                           style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
                         ),
                         Text(

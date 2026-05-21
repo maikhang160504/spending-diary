@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../data/mock_data.dart';
+import '../../services/api_client.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_radii.dart';
 import '../../theme/app_spacing.dart';
@@ -16,94 +17,128 @@ class ReportScreen extends StatefulWidget {
 
 class _ReportScreenState extends State<ReportScreen> {
   String _selectedRange = '7 ngày';
+  final _api = ApiClient();
+
+  // API data
+  bool _loading = true;
+  int _totalExpense = 0;
+  int _totalIncome = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadStats();
+  }
+
+  Future<void> _loadStats() async {
+    setState(() => _loading = true);
+    try {
+      final dashboard = await _api.getDashboard();
+      if (!mounted) return;
+      setState(() {
+        _totalExpense = ((dashboard['totalExpense'] ?? 0) is num) ? (dashboard['totalExpense'] as num).toInt() : 0;
+        _totalIncome = ((dashboard['totalIncome'] ?? 0) is num) ? (dashboard['totalIncome'] as num).toInt() : 0;
+      });
+    } catch (_) {}
+    if (mounted) setState(() => _loading = false);
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
       body: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const _ReportHeader(),
-              const SizedBox(height: 16),
-              _RangeTabs(
-                selected: _selectedRange,
-                onChanged: (v) => setState(() => _selectedRange = v),
-              ),
-              const SizedBox(height: 16),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Total card
-                    _TotalCard(),
-                    const SizedBox(height: 20),
-                    // Bar chart
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(AppRadii.lg),
-                        boxShadow: const [BoxShadow(color: Color(0x0A000000), blurRadius: 8, offset: Offset(0, 2))],
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Chi tiêu theo ngày', style: Theme.of(context).textTheme.titleSmall),
-                          const SizedBox(height: 16),
-                          _BarChart(bars: MockData.reportBars),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    // Donut chart
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(AppRadii.lg),
-                        boxShadow: const [BoxShadow(color: Color(0x0A000000), blurRadius: 8, offset: Offset(0, 2))],
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Chi tiêu theo danh mục', style: Theme.of(context).textTheme.titleSmall),
-                          const SizedBox(height: 20),
-                          _DonutChart(categories: MockData.reportCategories),
-                          const SizedBox(height: 16),
-                          _CategoryLegend(categories: MockData.reportCategories),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    // Top category card
-                    _TopCategoryCard(),
-                    const SizedBox(height: 20),
-                    // Trend card
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(AppRadii.lg),
-                        boxShadow: const [BoxShadow(color: Color(0x0A000000), blurRadius: 8, offset: Offset(0, 2))],
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Xu hướng tiết kiệm (3 tháng)', style: Theme.of(context).textTheme.titleSmall),
-                          const SizedBox(height: 16),
-                          _TrendChart(points: MockData.reportTrend),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                  ],
+        child: RefreshIndicator(
+          onRefresh: _loadStats,
+          color: AppColors.teal,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const _ReportHeader(),
+                const SizedBox(height: 16),
+                _RangeTabs(
+                  selected: _selectedRange,
+                  onChanged: (v) => setState(() => _selectedRange = v),
                 ),
-              ),
-            ],
+                const SizedBox(height: 16),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Total card — dynamic from API
+                      _TotalCard(
+                        totalExpense: _totalExpense,
+                        totalIncome: _totalIncome,
+                        loading: _loading,
+                      ),
+                      const SizedBox(height: 20),
+                      // Bar chart (mock for now)
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(AppRadii.lg),
+                          boxShadow: const [BoxShadow(color: Color(0x0A000000), blurRadius: 8, offset: Offset(0, 2))],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Chi tiêu theo ngày', style: Theme.of(context).textTheme.titleSmall),
+                            const SizedBox(height: 16),
+                            _BarChart(bars: MockData.reportBars),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      // Donut chart (mock for now)
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(AppRadii.lg),
+                          boxShadow: const [BoxShadow(color: Color(0x0A000000), blurRadius: 8, offset: Offset(0, 2))],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Chi tiêu theo danh mục', style: Theme.of(context).textTheme.titleSmall),
+                            const SizedBox(height: 20),
+                            _DonutChart(categories: MockData.reportCategories),
+                            const SizedBox(height: 16),
+                            _CategoryLegend(categories: MockData.reportCategories),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      // Top category card (mock for now)
+                      _TopCategoryCard(),
+                      const SizedBox(height: 20),
+                      // Trend chart (mock for now)
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(AppRadii.lg),
+                          boxShadow: const [BoxShadow(color: Color(0x0A000000), blurRadius: 8, offset: Offset(0, 2))],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Xu hướng tiết kiệm (3 tháng)', style: Theme.of(context).textTheme.titleSmall),
+                            const SizedBox(height: 16),
+                            _TrendChart(points: MockData.reportTrend),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -184,6 +219,12 @@ class _RangeTabs extends StatelessWidget {
 }
 
 class _TotalCard extends StatelessWidget {
+  final int totalExpense;
+  final int totalIncome;
+  final bool loading;
+
+  const _TotalCard({required this.totalExpense, required this.totalIncome, required this.loading});
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -200,26 +241,37 @@ class _TotalCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text('Tổng chi tiêu', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary)),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFECFDF5),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.arrow_downward, size: 12, color: Color(0xFF10B981)),
+              if (totalIncome > 0)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFECFDF5),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Row(children: [
+                    Icon(
+                      totalExpense < totalIncome ? Icons.arrow_downward : Icons.arrow_upward,
+                      size: 12,
+                      color: totalExpense < totalIncome ? const Color(0xFF10B981) : AppColors.danger,
+                    ),
                     const SizedBox(width: 2),
-                    Text('28.4%', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: const Color(0xFF10B981), fontWeight: FontWeight.w600)),
-                  ],
+                    Text(
+                      totalIncome > 0 ? '${((totalExpense / totalIncome) * 100).toStringAsFixed(1)}% thu nhập' : '',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: totalExpense < totalIncome ? const Color(0xFF10B981) : AppColors.danger,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ]),
                 ),
-              ),
             ],
           ),
           const SizedBox(height: 6),
-          Text('680.000 đ', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700, fontSize: 28)),
+          loading
+              ? Text('...', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700, fontSize: 28))
+              : Text(formatVnd(totalExpense), style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700, fontSize: 28)),
           const SizedBox(height: 4),
-          Text('So với kỳ trước: 950.000 đ', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.muted)),
+          Text('Thu nhập: ${loading ? '...' : formatVnd(totalIncome)}', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.muted)),
         ],
       ),
     );

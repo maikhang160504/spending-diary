@@ -1,0 +1,18 @@
+# Heavy deps to enable USE_REAL_NLU=true / USE_REAL_OCR=true.
+# Install on top of `requirements.txt` (or reuse the venv from `expense-ocr-nlu/`).
+# Keep versions aligned with `expense-ocr-nlu/.venv` to avoid double-installing
+# large wheels (PaddlePaddle, torch, transformers, ...).
+-r requirements.txt
+joblib>=1.3
+scikit-learn>=1.3
+pyvi>=0.1.1
+spacy>=3.7,<3.9
+torch>=2.0
+transformers>=4.40
+paddleocr>=3.0
+paddlepaddle>=3.0
+vietocr>=0.3.13
+opencv-python>=4.10
+Pillow>=10.0
+pandas>=2.0
+numpy>=1.26

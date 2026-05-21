@@ -1,70 +1,149 @@
-# Backend (Node.js + Express)
+# MoneyStory Backend (Node.js / Express)
 
-## Structure
+Orchestrator REST API cho hệ thống quản lý chi tiêu. Stack: **Express 4 + Postgres + JWT + Cloudflare R2**, có **Swagger UI** ở `/docs` và proxy đến **AI service** (`app/ai-service`).
 
-- src/routes
-- src/controllers
-- src/models
-- src/middleware
-- src/services
+## Cấu trúc
 
-## Implemented APIs
+```
+src/
+├── config/       # env, logger (pino), db pool (pg), swagger spec
+├── middlewares/  # auth (JWT), errorHandler, validate (zod), requestId, requestLogger
+├── utils/        # ApiError, asyncHandler, jwt helpers, paginate
+├── db/           # migrate.js (chạy schema.sql + migrations/), seed.js
+├── services/
+│   ├── aiClient.js   # axios -> http://ai-service:8000
+│   └── r2Client.js   # @aws-sdk/client-s3 + presigned URL
+├── modules/
+│   ├── auth/          # register, login, refresh, logout, me
+│   ├── categories/    # CRUD danh mục (system + user)
+│   ├── wallets/       # CRUD ví + members ví chung
+│   ├── transactions/  # CRUD + filter, multi-wallet
+│   ├── budgets/       # CRUD + summary (spent/remain/over)
+│   ├── stats/         # dashboard + by-month
+│   ├── ai/            # /nlu, /expense/from-text, /expense/from-bill, corrections, actions
+│   └── upload/        # /presign, /direct (R2)
+├── routes/index.js
+├── app.js            # express factory
+└── index.js          # main entry
+```
 
-User:
+## API tổng quan
 
-- POST /api/user/expense
-- GET /api/user/expenses
-- POST /api/user/chat
+Mọi endpoint dưới `/api/v1` đều dùng định dạng:
 
-Admin:
+```json
+{ "success": true, "data": ... }
+```
 
-- GET /api/admin/users
-- GET /api/admin/analytics
-- GET /api/admin/ai-logs
+hoặc khi lỗi:
 
-## Input-Expense Flow Rules
+```json
+{ "success": false, "error": { "code": "validation_error", "message": "...", "details": {} } }
+```
 
-Text:
+| Group | Endpoint chính |
+|------|----------------|
+| `auth/` | `POST /register`, `POST /login`, `POST /refresh`, `POST /logout`, `GET /me` |
+| `categories/` | `GET`, `POST`, `PATCH /:id`, `DELETE /:id` |
+| `wallets/` | `GET`, `POST`, `GET /:id`, `PATCH /:id`, `DELETE /:id`, `/:id/members*` |
+| `transactions/` | `GET` (filter), `POST`, `GET /:id`, `PATCH /:id`, `DELETE /:id` |
+| `budgets/` | `GET`, `GET /summary`, `POST`, `PATCH /:id`, `DELETE /:id` |
+| `stats/` | `GET /dashboard`, `GET /by-month` |
+| `ai/` | `GET /health`, `POST /nlu`, `POST /expense/from-text`, `POST /expense/from-bill`, `POST /corrections`, `POST /actions/confirm`, `POST /actions/reject`, `GET /actions/is-confirmed` |
+| `upload/` | `POST /presign`, `POST /direct` |
 
-- backend goi AI NLP (service: aiService.extractExpenseFromText)
-- extract amount + category
-- luu transaction
+Tất cả (trừ `/health`, `/docs`, `/openapi.json`, `auth/{register,login,refresh,logout}`) yêu cầu header `Authorization: Bearer <accessToken>`.
 
-Story image:
+## Setup local
 
-- backend KHONG goi AI
-- dung amount + category user nhap
-- luu transaction voi image_url + thumbnail_url
+```powershell
+cd app/backend
+copy .env.example .env       # sửa lại JWT_SECRET, AI_SERVICE_URL, DATABASE_URL...
+npm install
+```
 
-Scan bill:
+### 1) Khởi động Postgres + AI service (docker-compose)
 
-- backend goi AI vision (service: aiService.extractExpenseFromBill)
-- tra suggestion va requiresConfirmation=true
-- chi luu transaction sau khi confirm=true
+```powershell
+cd ..\
+docker compose up postgres ai-service -d
+```
 
-## AI architecture in backend
+### 2) Migrate + seed
 
-1. Input Processing
-2. Insight Engine (rule + light ML)
-3. Comment AI (LLM fallback)
-4. Emotion override -> tra emotion cho Flutter avatar
+```powershell
+cd backend
+npm run migrate
+npm run seed       # tuỳ chọn, tạo user demo@money.local / demo1234 + 5 giao dịch mẫu
+```
 
-## User learning
+### 3) Chạy dev
 
-- Neu text flow khong xac dinh duoc category: tra requiresCategorySelection
-- Khi user chon category, backend luu user_category_mapping
-- Lan sau uu tien mapping user truoc keyword rule
+```powershell
+npm run dev
+```
 
-## Security + Storage Rules
+→ Mở Swagger: http://localhost:4000/docs  
+→ Openapi JSON: http://localhost:4000/openapi.json
 
-- backend khong luu file image local
-- backend chi nhan URL image da upload cloud
-- GET /api/user/expenses bat buoc userId hop le truoc khi tra du lieu
-- neu OCR confidence thap, backend yeu cau user nhap amount thay vi suy doan
+### 4) Chạy production (Docker)
 
-## Run
+```powershell
+cd ..\
+docker compose up -d --build
+```
 
-1. npm install
-2. npm run dev
+## Smoke tests
 
-Server mac dinh: http://localhost:4000
+```powershell
+npm test
+```
+
+(Test chạy được mà không cần DB — chỉ dùng supertest gọi vào express factory để xác nhận route 401/404/200, schema validation, Swagger spec đầy đủ.)
+
+## Sample curl
+
+```powershell
+# 1) Login (sau khi seed)
+curl -X POST http://localhost:4000/api/v1/auth/login `
+  -H "Content-Type: application/json" `
+  -d '{"email":"demo@money.local","password":"demo1234"}'
+
+# 2) Lưu access token rồi gọi
+$TOKEN = "<accessToken>"
+curl http://localhost:4000/api/v1/wallets -H "Authorization: Bearer $TOKEN"
+
+# 3) Phân tích câu chi tiêu (NLU mock)
+curl -X POST http://localhost:4000/api/v1/ai/nlu `
+  -H "Authorization: Bearer $TOKEN" `
+  -H "Content-Type: application/json" `
+  -d '{"text":"ăn phở 45k"}'
+
+# 4) Lưu giao dịch từ text (auto-save khi AI đủ confidence)
+$WALLET = "<walletId>"
+curl -X POST http://localhost:4000/api/v1/ai/expense/from-text `
+  -H "Authorization: Bearer $TOKEN" `
+  -H "Content-Type: application/json" `
+  -d "{`"walletId`":`"$WALLET`",`"text`":`"trà sữa 35k`"}"
+
+# 5) Upload bill → OCR
+curl -X POST http://localhost:4000/api/v1/ai/expense/from-bill `
+  -H "Authorization: Bearer $TOKEN" `
+  -F "file=@./bill.jpg"
+```
+
+## Kết nối với CockroachDB cluster (file `.env` của bạn)
+
+```ini
+DATABASE_URL=postgresql://khangb2205881:...@spending-stories-15879.jxf.gcp-asia-southeast1.cockroachlabs.cloud:26257/spending-stories?sslmode=verify-full
+DATABASE_SSL=true
+```
+
+> Khi Cockroach yêu cầu CA cert riêng, set `DATABASE_SSL=no-verify` hoặc cài root cert + mount vào container.
+
+## Lưu ý security
+
+- JWT secret: đừng commit, hãy set `JWT_SECRET` mạnh trong production.
+- Helmet đã bật, CSP tắt vì Swagger UI cần inline scripts.
+- File upload giới hạn 8 MB (multer).
+- Refresh token lưu hash (sha256) + rotation (revoke khi dùng).

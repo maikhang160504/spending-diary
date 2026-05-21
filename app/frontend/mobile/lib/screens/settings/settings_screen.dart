@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../routes/app_routes.dart';
+import '../../services/api_client.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_radii.dart';
 import '../../theme/app_spacing.dart';
+import '../../utils/formatters.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -14,7 +18,88 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _notificationsEnabled = true;
   bool _darkModeEnabled = false;
-  String _selectedPersonality = 'Bạn Thân Nam';
+  String _selectedPersonality = 'Dui Dẻ';
+  final _api = ApiClient();
+
+  // API data
+  bool _loading = true;
+  String _userName = 'Người dùng SpendDiary';
+  String _email = 'user@email.com';
+  int _monthlyIncome = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfile();
+  }
+
+  Future<void> _loadProfile() async {
+    setState(() => _loading = true);
+    try {
+      final results = await Future.wait([
+        _api.getMe(),
+        _api.getSettings(),
+      ]);
+      final me = results[0];
+      final settings = results[1];
+      if (!mounted) return;
+      setState(() {
+        final user = me['user'] as Map<String, dynamic>?;
+        _userName = (user?['username'] as String?) ?? 'Người dùng SpendDiary';
+        _email = (user?['email'] as String?) ?? 'user@email.com';
+        _monthlyIncome = ((user?['income_fixed'] ?? 0) is num) ? (user!['income_fixed'] as num).toInt() : 0;
+        _selectedPersonality = (settings['verbal_style'] as String?) == 'strict' ? 'Dận Dữ' : 'Dui Dẻ';
+        _notificationsEnabled = (settings['notifications_enabled'] as bool?) ?? true;
+        _darkModeEnabled = (settings['theme_mode'] as bool?) ?? false;
+      });
+    } catch (_) {}
+    if (mounted) setState(() => _loading = false);
+  }
+
+  Future<void> _updateSetting(String key, dynamic value) async {
+    try {
+      await _api.updateSettings({key: value});
+    } catch (_) {}
+  }
+
+  Future<void> _logout() async {
+    try {
+      await _api.logout();
+    } catch (_) {
+      await _api.clearTokens();
+    }
+    if (!mounted) return;
+    context.go(AppRoutes.login);
+  }
+
+  void _showChangePassword() {
+    final currentCtrl = TextEditingController();
+    final newCtrl = TextEditingController();
+    final confirmCtrl = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Đổi mật khẩu'),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          TextField(controller: currentCtrl, obscureText: true, decoration: const InputDecoration(labelText: 'Mật khẩu hiện tại')),
+          const SizedBox(height: 8),
+          TextField(controller: newCtrl, obscureText: true, decoration: const InputDecoration(labelText: 'Mật khẩu mới')),
+          const SizedBox(height: 8),
+          TextField(controller: confirmCtrl, obscureText: true, decoration: const InputDecoration(labelText: 'Xác nhận mật khẩu')),
+        ]),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
+          FilledButton(onPressed: () {
+            // TODO: Call change password API when available
+            Navigator.pop(ctx);
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Chức năng sẽ sớm được hỗ trợ'), backgroundColor: AppColors.teal),
+            );
+          }, child: const Text('Xác nhận')),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -33,7 +118,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const SizedBox(height: 16),
-                    // Profile card
+                    // Profile card — dynamic from API
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
@@ -47,19 +132,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             width: 56,
                             height: 56,
                             decoration: BoxDecoration(
-                              color: AppColors.teal.withValues(alpha: 0.15),
+                              color: _avatarColor(_userName),
                               shape: BoxShape.circle,
                             ),
-                            child: const Icon(Icons.person, color: AppColors.teal, size: 28),
+                            child: Center(child: Text(
+                              _userName.isNotEmpty ? _userName[0].toUpperCase() : '?',
+                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 22),
+                            )),
                           ),
                           const SizedBox(width: 14),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text('Người dùng SpendDiary', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+                                Text(_userName, style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
                                 const SizedBox(height: 4),
-                                Text('user@email.com', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary)),
+                                Text(_email, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary)),
                               ],
                             ),
                           ),
@@ -78,8 +166,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                       child: Column(
                         children: [
-                          _SettingRow(icon: Icons.person_outline, label: 'Thông tin cá nhân', subtitle: 'user@email.com', showDivider: true),
-                          _SettingRow(icon: Icons.attach_money, label: 'Thu nhập hàng tháng', subtitle: '8.000.000 đ', showDivider: false),
+                          _SettingRow(icon: Icons.person_outline, label: 'Thông tin cá nhân', subtitle: _email, showDivider: true),
+                          _SettingRow(icon: Icons.attach_money, label: 'Thu nhập hàng tháng', subtitle: _monthlyIncome > 0 ? formatVnd(_monthlyIncome) : 'Chưa cài đặt', showDivider: false),
                         ],
                       ),
                     ),
@@ -95,7 +183,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                       child: Column(
                         children: [
-                          // AI personality
+                          // AI personality — synced with onboarding Dui Dẻ / Dận Dữ
                           Padding(
                             padding: const EdgeInsets.all(14),
                             child: Column(
@@ -104,8 +192,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 Row(
                                   children: [
                                     Container(
-                                      width: 36,
-                                      height: 36,
+                                      width: 36, height: 36,
                                       decoration: BoxDecoration(
                                         color: AppColors.teal.withValues(alpha: 0.12),
                                         borderRadius: BorderRadius.circular(10),
@@ -130,46 +217,44 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   children: [
                                     Expanded(
                                       child: GestureDetector(
-                                        onTap: () => setState(() => _selectedPersonality = 'Bạn Thân Nam'),
+                                        onTap: () {
+                                          setState(() => _selectedPersonality = 'Dui Dẻ');
+                                          _updateSetting('verbalStyle', 'funny');
+                                        },
                                         child: Container(
                                           padding: const EdgeInsets.symmetric(vertical: 12),
                                           decoration: BoxDecoration(
-                                            color: _selectedPersonality == 'Bạn Thân Nam' ? AppColors.teal.withValues(alpha: 0.1) : const Color(0xFFF8FAFC),
+                                            color: _selectedPersonality == 'Dui Dẻ' ? AppColors.teal.withValues(alpha: 0.1) : const Color(0xFFF8FAFC),
                                             borderRadius: BorderRadius.circular(AppRadii.md),
-                                            border: Border.all(
-                                              color: _selectedPersonality == 'Bạn Thân Nam' ? AppColors.teal : AppColors.border,
-                                            ),
+                                            border: Border.all(color: _selectedPersonality == 'Dui Dẻ' ? AppColors.teal : AppColors.border),
                                           ),
-                                          child: Column(
-                                            children: [
-                                              const Text('😎', style: TextStyle(fontSize: 22)),
-                                              const SizedBox(height: 4),
-                                              Text('Bạn Thân Nam', style: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
-                                            ],
-                                          ),
+                                          child: Column(children: [
+                                            const Text('😎', style: TextStyle(fontSize: 22)),
+                                            const SizedBox(height: 4),
+                                            Text('Dui Dẻ', style: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
+                                          ]),
                                         ),
                                       ),
                                     ),
                                     const SizedBox(width: 10),
                                     Expanded(
                                       child: GestureDetector(
-                                        onTap: () => setState(() => _selectedPersonality = 'Bạn Thân Nữ'),
+                                        onTap: () {
+                                          setState(() => _selectedPersonality = 'Dận Dữ');
+                                          _updateSetting('verbalStyle', 'strict');
+                                        },
                                         child: Container(
                                           padding: const EdgeInsets.symmetric(vertical: 12),
                                           decoration: BoxDecoration(
-                                            color: _selectedPersonality == 'Bạn Thân Nữ' ? AppColors.teal.withValues(alpha: 0.1) : const Color(0xFFF8FAFC),
+                                            color: _selectedPersonality == 'Dận Dữ' ? AppColors.teal.withValues(alpha: 0.1) : const Color(0xFFF8FAFC),
                                             borderRadius: BorderRadius.circular(AppRadii.md),
-                                            border: Border.all(
-                                              color: _selectedPersonality == 'Bạn Thân Nữ' ? AppColors.teal : AppColors.border,
-                                            ),
+                                            border: Border.all(color: _selectedPersonality == 'Dận Dữ' ? AppColors.teal : AppColors.border),
                                           ),
-                                          child: Column(
-                                            children: [
-                                              const Text('✨', style: TextStyle(fontSize: 22)),
-                                              const SizedBox(height: 4),
-                                              Text('Bạn Thân Nữ', style: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
-                                            ],
-                                          ),
+                                          child: Column(children: [
+                                            const Text('🔥', style: TextStyle(fontSize: 22)),
+                                            const SizedBox(height: 4),
+                                            Text('Dận Dữ', style: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
+                                          ]),
                                         ),
                                       ),
                                     ),
@@ -179,54 +264,54 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             ),
                           ),
                           const Divider(height: 1, color: Color(0xFFE2E8F0)),
-                          // Notifications toggle
+                          // Notifications toggle — persisted via API
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: 36,
-                                  height: 36,
-                                  decoration: BoxDecoration(
-                                    color: AppColors.teal.withValues(alpha: 0.12),
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: const Icon(Icons.notifications_outlined, color: AppColors.teal, size: 18),
+                            child: Row(children: [
+                              Container(
+                                width: 36, height: 36,
+                                decoration: BoxDecoration(
+                                  color: AppColors.teal.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(10),
                                 ),
-                                const SizedBox(width: 12),
-                                Expanded(child: Text('Thông báo', style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600))),
-                                Switch(
-                                  value: _notificationsEnabled,
-                                  onChanged: (v) => setState(() => _notificationsEnabled = v),
-                                  activeThumbColor: AppColors.teal,
-                                ),
-                              ],
-                            ),
+                                child: const Icon(Icons.notifications_outlined, color: AppColors.teal, size: 18),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(child: Text('Thông báo', style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600))),
+                              Switch(
+                                value: _notificationsEnabled,
+                                onChanged: (v) {
+                                  setState(() => _notificationsEnabled = v);
+                                  _updateSetting('notificationsEnabled', v);
+                                },
+                                activeThumbColor: AppColors.teal,
+                              ),
+                            ]),
                           ),
                           const Divider(height: 1, color: Color(0xFFE2E8F0)),
-                          // Dark mode toggle
+                          // Dark mode toggle — persisted via API
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: 36,
-                                  height: 36,
-                                  decoration: BoxDecoration(
-                                    color: AppColors.teal.withValues(alpha: 0.12),
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: const Icon(Icons.dark_mode_outlined, color: AppColors.teal, size: 18),
+                            child: Row(children: [
+                              Container(
+                                width: 36, height: 36,
+                                decoration: BoxDecoration(
+                                  color: AppColors.teal.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(10),
                                 ),
-                                const SizedBox(width: 12),
-                                Expanded(child: Text('Chế độ tối', style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600))),
-                                Switch(
-                                  value: _darkModeEnabled,
-                                  onChanged: (v) => setState(() => _darkModeEnabled = v),
-                                  activeThumbColor: AppColors.teal,
-                                ),
-                              ],
-                            ),
+                                child: const Icon(Icons.dark_mode_outlined, color: AppColors.teal, size: 18),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(child: Text('Chế độ tối', style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600))),
+                              Switch(
+                                value: _darkModeEnabled,
+                                onChanged: (v) {
+                                  setState(() => _darkModeEnabled = v);
+                                  _updateSetting('themeMode', v);
+                                },
+                                activeThumbColor: AppColors.teal,
+                              ),
+                            ]),
                           ),
                         ],
                       ),
@@ -235,20 +320,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     // Bảo mật section
                     Text('Bảo mật', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.muted, fontWeight: FontWeight.w600)),
                     const SizedBox(height: 8),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(AppRadii.lg),
-                        boxShadow: const [BoxShadow(color: Color(0x0A000000), blurRadius: 8, offset: Offset(0, 2))],
+                    GestureDetector(
+                      onTap: _showChangePassword,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(AppRadii.lg),
+                          boxShadow: const [BoxShadow(color: Color(0x0A000000), blurRadius: 8, offset: Offset(0, 2))],
+                        ),
+                        child: const _SettingRow(icon: Icons.shield_outlined, label: 'Đổi mật khẩu', showDivider: false),
                       ),
-                      child: const _SettingRow(icon: Icons.shield_outlined, label: 'Đổi mật khẩu', showDivider: false),
                     ),
                     const SizedBox(height: 24),
-                    // Logout button
+                    // Logout button — real API
                     SizedBox(
                       width: double.infinity,
                       child: OutlinedButton.icon(
-                        onPressed: () {},
+                        onPressed: _logout,
                         icon: const Icon(Icons.logout, color: AppColors.danger, size: 18),
                         label: const Text('Đăng xuất', style: TextStyle(color: AppColors.danger, fontWeight: FontWeight.w600)),
                         style: OutlinedButton.styleFrom(
@@ -270,6 +358,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
       ),
     );
+  }
+
+  Color _avatarColor(String name) {
+    if (name.isEmpty) return AppColors.teal;
+    final hash = name.codeUnits.fold<int>(0, (prev, c) => prev + c);
+    final colors = [
+      AppColors.teal, const Color(0xFF6366F1), const Color(0xFFEC4899),
+      const Color(0xFFF59E0B), const Color(0xFF3B82F6), const Color(0xFF10B981),
+    ];
+    return colors[hash % colors.length];
   }
 }
 
@@ -316,8 +414,7 @@ class _SettingRow extends StatelessWidget {
           child: Row(
             children: [
               Container(
-                width: 36,
-                height: 36,
+                width: 36, height: 36,
                 decoration: BoxDecoration(
                   color: AppColors.teal.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(10),

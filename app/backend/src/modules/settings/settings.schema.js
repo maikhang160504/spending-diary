@@ -1,0 +1,13 @@
+'use strict';
+
+const { z } = require('zod');
+
+const updateSettingsSchema = z.object({
+  verbalStyle: z.enum(['funny', 'gentle', 'serious', 'sarcastic']).optional(),
+  themeMode: z.boolean().optional(),
+  personality: z.string().min(1).max(20).optional(),
+  notificationsEnabled: z.boolean().optional(),
+  locale: z.string().min(2).max(10).optional(),
+});
+
+module.exports = { updateSettingsSchema };

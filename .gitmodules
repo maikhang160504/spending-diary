@@ -1,0 +1,3 @@
+[submodule "expense-ocr-nlu"]
+	path = expense-ocr-nlu
+	url = https://github.com/maikhang160504/genz-expense-ml

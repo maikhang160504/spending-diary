@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 
+import '../../services/api_client.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_radii.dart';
 import '../../theme/app_spacing.dart';
+import '../../theme/categories.dart';
 import '../../utils/formatters.dart';
+import '../../widgets/error_banner.dart';
+import '../../widgets/skeleton.dart';
 
 /// Spending Limits Screen - matches /limits route
 class LimitsScreen extends StatefulWidget {
@@ -14,157 +18,127 @@ class LimitsScreen extends StatefulWidget {
 }
 
 class _LimitsScreenState extends State<LimitsScreen> {
-  final List<_LimitItem> _limits = [
-    _LimitItem(emoji: '🍔', label: 'Ăn uống', color: const Color(0xFFEC4899), limit: 2000000, spent: 680000),
-    _LimitItem(emoji: '🛍️', label: 'Mua sắm', color: const Color(0xFF8B5CF6), limit: 1500000, spent: 1350000),
-    _LimitItem(emoji: '🚗', label: 'Di chuyển', color: const Color(0xFF3B82F6), limit: 500000, spent: 60000),
-    _LimitItem(emoji: '🎬', label: 'Giải trí', color: const Color(0xFFF59E0B), limit: 800000, spent: 150000),
-    _LimitItem(emoji: '🏠', label: 'Nhà ở', color: const Color(0xFF10B981), limit: 3000000, spent: 3000000),
-    _LimitItem(emoji: '💊', label: 'Sức khỏe', color: const Color(0xFFEF4444), limit: 500000, spent: 0),
-  ];
+  final _api = ApiClient();
+  List<_LimitItem> _limits = [];
+  bool _loading = true;
+  String? _error;
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.only(bottom: 24),
-          child: Column(
-            children: [
-              // Header
-              Container(
-                decoration: const BoxDecoration(
-                  gradient: AppGradients.teal,
-                  borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(AppRadii.xl),
-                    bottomRight: Radius.circular(AppRadii.xl),
-                  ),
-                ),
-                padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Giới hạn chi tiêu', style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.white, fontWeight: FontWeight.w700)),
-                            const SizedBox(height: 4),
-                            Text('Kiểm soát ngân sách theo danh mục', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white70)),
-                          ],
-                        ),
-                        Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), shape: BoxShape.circle),
-                          child: const Icon(Icons.add, color: Colors.white),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    // Summary chips
-                    Row(
-                      children: [
-                        _SummaryChip(
-                          label: 'Tổng ngân sách',
-                          value: formatVnd(_limits.fold(0, (s, l) => s + l.limit)),
-                        ),
-                        const SizedBox(width: 10),
-                        _SummaryChip(
-                          label: 'Đã chi',
-                          value: formatVnd(_limits.fold(0, (s, l) => s + l.spent)),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
+  void initState() {
+    super.initState();
+    _loadBudgets();
+  }
+
+  Future<void> _loadBudgets() async {
+    setState(() { _loading = true; _error = null; });
+    try {
+      final budgets = await _api.getBudgets();
+      _limits = budgets.map((b) {
+        final cat = b['category_code'] as String? ?? 'Other';
+        final style = CategoryTheme.of(cat);
+        return _LimitItem(
+          id: b['id'] as String,
+          emoji: style.emoji,
+          label: style.label,
+          color: style.color,
+          categoryCode: cat,
+          limit: ((b['amount_limit'] ?? 0) is num) ? (b['amount_limit'] as num).toInt() : 0,
+          spent: ((b['spent'] ?? 0) is num) ? (b['spent'] as num).toInt() : 0,
+        );
+      }).toList();
+    } on ApiException catch (e) {
+      _error = e.localizedMessage;
+    } catch (_) {
+      _error = 'Không thể tải giới hạn';
+    }
+    if (mounted) setState(() => _loading = false);
+  }
+
+  // Find the first category near its limit (≥ 85% spent, not over)
+  _LimitItem? get _warningItem {
+    try {
+      return _limits.firstWhere((l) {
+        final pct = l.limit > 0 ? l.spent / l.limit : 0.0;
+        return pct >= 0.85 && l.spent <= l.limit;
+      });
+    } catch (_) {
+      return null;
+    }
+  }
+
+  String get _currentMonth {
+    final now = DateTime.now();
+    return 'Tháng ${now.month}/${now.year}';
+  }
+
+  void _showAddBudget() {
+    final amountCtrl = TextEditingController();
+    String? selectedCategory;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadii.xl))),
+      builder: (ctx) {
+        return StatefulBuilder(builder: (ctx, setModalState) {
+          // Available categories (not already budgeted)
+          final existing = _limits.map((l) => l.categoryCode).toSet();
+          final available = CategoryTheme.styles.entries
+              .where((e) => !existing.contains(e.key) && !['salary', 'bonus', 'freelance', 'Ăn uống', 'Mua sắm', 'Di chuyển', 'Giải trí'].contains(e.key))
+              .toList();
+
+          return Padding(
+            padding: EdgeInsets.only(left: 20, right: 20, top: 20, bottom: MediaQuery.of(ctx).viewInsets.bottom + 20),
+            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('Thêm giới hạn mới', style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
               const SizedBox(height: 16),
-              // Status indicator
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
-                child: Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(AppRadii.lg),
-                    boxShadow: const [BoxShadow(color: Color(0x0A000000), blurRadius: 8, offset: Offset(0, 2))],
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFEF3C7),
-                          borderRadius: BorderRadius.circular(AppRadii.md),
-                        ),
-                        child: const Center(child: Text('⚠️', style: TextStyle(fontSize: 22))),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Mua sắm gần đạt giới hạn', style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
-                            const SizedBox(height: 2),
-                            Text('Còn lại 150.000 đ (10%)', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: const Color(0xFFD97706))),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+              DropdownButtonFormField<String>(
+                value: selectedCategory,
+                hint: const Text('Chọn danh mục'),
+                items: available.map((e) => DropdownMenuItem(
+                  value: e.key,
+                  child: Row(children: [
+                    Text(e.value.emoji, style: const TextStyle(fontSize: 18)),
+                    const SizedBox(width: 8),
+                    Text(e.value.label),
+                  ]),
+                )).toList(),
+                onChanged: (v) => setModalState(() => selectedCategory = v),
               ),
+              const SizedBox(height: 12),
+              TextField(controller: amountCtrl, keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: 'Số tiền giới hạn', hintText: 'VD: 2000000', suffixText: 'đ')),
               const SizedBox(height: 16),
-              // Limit list
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text('Giới hạn theo danh mục', style: Theme.of(context).textTheme.titleSmall),
-                        Text('Tháng 5/2026', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.muted)),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    ..._limits.map((item) => _LimitCard(item: item, onEdit: () => _showEditDialog(context, item))),
-                    const SizedBox(height: 12),
-                    // Add new limit
-                    GestureDetector(
-                      onTap: () {},
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(AppRadii.lg),
-                          border: Border.all(color: AppColors.teal, style: BorderStyle.solid),
-                          boxShadow: const [BoxShadow(color: Color(0x0A000000), blurRadius: 6, offset: Offset(0, 2))],
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.add_circle_outline, color: AppColors.teal, size: 20),
-                            const SizedBox(width: 8),
-                            Text('Thêm giới hạn mới', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.teal, fontWeight: FontWeight.w600)),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () async {
+                    if (selectedCategory == null) return;
+                    final amount = int.tryParse(amountCtrl.text.trim());
+                    if (amount == null || amount <= 0) return;
+                    Navigator.pop(ctx);
+                    try {
+                      // Get first wallet
+                      final wallets = await _api.getWallets();
+                      if (wallets.isEmpty) return;
+                      await _api.createBudget({
+                        'walletId': wallets[0]['id'],
+                        'categoryCode': selectedCategory,
+                        'amountLimit': amount,
+                        'period': 'month',
+                        'startDate': DateTime.now().toIso8601String().split('T')[0],
+                      });
+                      _loadBudgets();
+                    } catch (_) {}
+                  },
+                  style: FilledButton.styleFrom(backgroundColor: AppColors.teal, padding: const EdgeInsets.symmetric(vertical: 14)),
+                  child: const Text('Tạo giới hạn'),
                 ),
               ),
-            ],
-          ),
-        ),
-      ),
+            ]),
+          );
+        });
+      },
     );
   }
 
@@ -175,7 +149,155 @@ class _LimitsScreenState extends State<LimitsScreen> {
       backgroundColor: Colors.transparent,
       builder: (_) => _EditLimitSheet(item: item, onSave: (newLimit) {
         setState(() => item.limit = newLimit);
+        // TODO: PATCH /budgets/:id when endpoint available
       }),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final warning = _warningItem;
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
+      body: SafeArea(
+        child: RefreshIndicator(
+          onRefresh: _loadBudgets,
+          color: AppColors.teal,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.only(bottom: 24),
+            child: Column(
+              children: [
+                // Header
+                Container(
+                  decoration: const BoxDecoration(
+                    gradient: AppGradients.teal,
+                    borderRadius: BorderRadius.only(
+                      bottomLeft: Radius.circular(AppRadii.xl),
+                      bottomRight: Radius.circular(AppRadii.xl),
+                    ),
+                  ),
+                  padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Text('Giới hạn chi tiêu', style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.white, fontWeight: FontWeight.w700)),
+                            const SizedBox(height: 4),
+                            Text('Kiểm soát ngân sách theo danh mục', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white70)),
+                          ]),
+                          GestureDetector(
+                            onTap: _showAddBudget,
+                            child: Container(
+                              width: 40, height: 40,
+                              decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), shape: BoxShape.circle),
+                              child: const Icon(Icons.add, color: Colors.white),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      // Summary chips — dynamic
+                      Row(children: [
+                        _SummaryChip(label: 'Tổng ngân sách', value: _loading ? '...' : formatVnd(_limits.fold(0, (s, l) => s + l.limit))),
+                        const SizedBox(width: 10),
+                        _SummaryChip(label: 'Đã chi', value: _loading ? '...' : formatVnd(_limits.fold(0, (s, l) => s + l.spent))),
+                      ]),
+                    ],
+                  ),
+                ),
+                if (_error != null) ErrorBanner(message: _error!, onRetry: _loadBudgets),
+                const SizedBox(height: 16),
+                // Dynamic warning banner
+                if (warning != null)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
+                    child: Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(AppRadii.lg),
+                        boxShadow: const [BoxShadow(color: Color(0x0A000000), blurRadius: 8, offset: Offset(0, 2))],
+                      ),
+                      child: Row(children: [
+                        Container(
+                          width: 44, height: 44,
+                          decoration: BoxDecoration(color: const Color(0xFFFEF3C7), borderRadius: BorderRadius.circular(AppRadii.md)),
+                          child: const Center(child: Text('⚠️', style: TextStyle(fontSize: 22))),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Text('${warning.label} gần đạt giới hạn', style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Còn lại ${formatVnd(warning.limit - warning.spent)} (${((1 - warning.spent / warning.limit) * 100).toStringAsFixed(0)}%)',
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(color: const Color(0xFFD97706)),
+                          ),
+                        ])),
+                      ]),
+                    ),
+                  ),
+                const SizedBox(height: 16),
+                // Limit list
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                        Text('Giới hạn theo danh mục', style: Theme.of(context).textTheme.titleSmall),
+                        Text(_currentMonth, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.muted)),
+                      ]),
+                      const SizedBox(height: 12),
+                      if (_loading)
+                        ...List.generate(4, (_) => const Padding(
+                          padding: EdgeInsets.only(bottom: 12),
+                          child: SkeletonCard(height: 100),
+                        ))
+                      else if (_limits.isEmpty)
+                        EmptyState(
+                          emoji: '📊',
+                          title: 'Chưa có giới hạn nào',
+                          subtitle: 'Tạo giới hạn chi tiêu để kiểm soát ngân sách',
+                          action: FilledButton(
+                            onPressed: _showAddBudget,
+                            style: FilledButton.styleFrom(backgroundColor: AppColors.teal),
+                            child: const Text('Tạo giới hạn'),
+                          ),
+                        )
+                      else
+                        ..._limits.map((item) => _LimitCard(item: item, onEdit: () => _showEditDialog(context, item))),
+                      const SizedBox(height: 12),
+                      GestureDetector(
+                        onTap: _showAddBudget,
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(AppRadii.lg),
+                            border: Border.all(color: AppColors.teal),
+                            boxShadow: const [BoxShadow(color: Color(0x0A000000), blurRadius: 6, offset: Offset(0, 2))],
+                          ),
+                          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                            const Icon(Icons.add_circle_outline, color: AppColors.teal, size: 20),
+                            const SizedBox(width: 8),
+                            Text('Thêm giới hạn mới', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.teal, fontWeight: FontWeight.w600)),
+                          ]),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -190,31 +312,27 @@ class _SummaryChip extends StatelessWidget {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.2),
-          borderRadius: BorderRadius.circular(AppRadii.md),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(label, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white70)),
-            const SizedBox(height: 2),
-            Text(value, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.white, fontWeight: FontWeight.w700)),
-          ],
-        ),
+        decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(AppRadii.md)),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(label, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white70)),
+          const SizedBox(height: 2),
+          Text(value, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.white, fontWeight: FontWeight.w700)),
+        ]),
       ),
     );
   }
 }
 
 class _LimitItem {
+  final String id;
   final String emoji;
   final String label;
   final Color color;
+  final String categoryCode;
   int limit;
   final int spent;
 
-  _LimitItem({required this.emoji, required this.label, required this.color, required this.limit, required this.spent});
+  _LimitItem({required this.id, required this.emoji, required this.label, required this.color, required this.categoryCode, required this.limit, required this.spent});
 }
 
 class _LimitCard extends StatelessWidget {
@@ -238,67 +356,49 @@ class _LimitCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadii.lg),
         boxShadow: const [BoxShadow(color: Color(0x0A000000), blurRadius: 6, offset: Offset(0, 2))],
       ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: item.color.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(AppRadii.md),
-                ),
-                child: Center(child: Text(item.emoji, style: const TextStyle(fontSize: 22))),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(item.label, style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
-                    Text(
-                      isOverBudget ? 'Vượt ngân sách!' : 'Còn lại: ${formatVnd(remaining)}',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: isOverBudget ? AppColors.danger : AppColors.muted,
-                            fontWeight: isOverBudget ? FontWeight.w600 : FontWeight.normal,
-                          ),
-                    ),
-                  ],
-                ),
-              ),
-              GestureDetector(
-                onTap: onEdit,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(formatVnd(item.spent), style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700)),
-                    Text('/ ${formatVnd(item.limit)}', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.muted)),
-                  ],
-                ),
-              ),
-            ],
+      child: Column(children: [
+        Row(children: [
+          Container(
+            width: 44, height: 44,
+            decoration: BoxDecoration(color: item.color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(AppRadii.md)),
+            child: Center(child: Text(item.emoji, style: const TextStyle(fontSize: 22))),
           ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(999),
-                  child: LinearProgressIndicator(
-                    value: percent,
-                    minHeight: 8,
-                    backgroundColor: const Color(0xFFE2E8F0),
-                    valueColor: AlwaysStoppedAnimation<Color>(barColor),
-                  ),
-                ),
+          const SizedBox(width: 12),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(item.label, style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+            Text(
+              isOverBudget ? 'Vượt ngân sách!' : 'Còn lại: ${formatVnd(remaining)}',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: isOverBudget ? AppColors.danger : AppColors.muted,
+                fontWeight: isOverBudget ? FontWeight.w600 : FontWeight.normal,
               ),
-              const SizedBox(width: 8),
-              Text('${(percent * 100).toStringAsFixed(0)}%', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: barColor, fontWeight: FontWeight.w600)),
-            ],
+            ),
+          ])),
+          GestureDetector(
+            onTap: onEdit,
+            child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+              Text(formatVnd(item.spent), style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700)),
+              Text('/ ${formatVnd(item.limit)}', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.muted)),
+            ]),
           ),
-        ],
-      ),
+        ]),
+        const SizedBox(height: 12),
+        Row(children: [
+          Expanded(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(999),
+              child: LinearProgressIndicator(
+                value: percent,
+                minHeight: 8,
+                backgroundColor: const Color(0xFFE2E8F0),
+                valueColor: AlwaysStoppedAnimation<Color>(barColor),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text('${(percent * 100).toStringAsFixed(0)}%', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: barColor, fontWeight: FontWeight.w600)),
+        ]),
+      ]),
     );
   }
 }
@@ -334,43 +434,27 @@ class _EditLimitSheetState extends State<_EditLimitSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Text(widget.item.emoji, style: const TextStyle(fontSize: 28)),
-              const SizedBox(width: 10),
-              Text('Sửa giới hạn ${widget.item.label}', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
-            ],
-          ),
+          Row(children: [
+            Text(widget.item.emoji, style: const TextStyle(fontSize: 28)),
+            const SizedBox(width: 10),
+            Text('Sửa giới hạn ${widget.item.label}', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+          ]),
           const SizedBox(height: 16),
           Text('Số tiền giới hạn (đ)', style: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),
-          TextField(
-            controller: _controller,
-            keyboardType: TextInputType.number,
-            autofocus: true,
-            decoration: const InputDecoration(hintText: '0'),
-          ),
+          TextField(controller: _controller, keyboardType: TextInputType.number, autofocus: true, decoration: const InputDecoration(hintText: '0')),
           const SizedBox(height: 20),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Hủy'),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: FilledButton(
-                  onPressed: () {
-                    widget.onSave(int.tryParse(_controller.text) ?? widget.item.limit);
-                    Navigator.pop(context);
-                  },
-                  child: const Text('Lưu'),
-                ),
-              ),
-            ],
-          ),
+          Row(children: [
+            Expanded(child: OutlinedButton(onPressed: () => Navigator.pop(context), child: const Text('Hủy'))),
+            const SizedBox(width: 12),
+            Expanded(child: FilledButton(
+              onPressed: () {
+                widget.onSave(int.tryParse(_controller.text) ?? widget.item.limit);
+                Navigator.pop(context);
+              },
+              child: const Text('Lưu'),
+            )),
+          ]),
         ],
       ),
     );
