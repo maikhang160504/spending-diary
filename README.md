@@ -223,9 +223,4 @@ Mobile:
 2. flutter pub get
 3. flutter run
 
-## L? trình phát tri?n (14 Tu?n)
-1. **Tu?n 1-2**: Thi?t k? UI/UX & Database (PostgreSQL & SQLite).
-2. **Tu?n 3-6**: Xây d?ng Backend (FastAPI, Node.js), OCR, và NLP (Server-side).
-3. **Tu?n 7-10**: Phát tri?n App Mobile (Flutter), Thu?t toán tài chính (Z-score, Linear Regression) & Tích h?p Mascot.
-4. **Tu?n 11-14**: Ki?m th? h? th?ng, vi?t báo cáo tài li?u và làm Slide thuy?t trình d? án t?t nghi?p.
-*(Th?i bi?u m?i ngày: Sáng/Chi?u code d? án – T?i 20h-22h h?c Ti?ng Anh).*
+
