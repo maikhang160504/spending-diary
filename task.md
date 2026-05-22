@@ -17,7 +17,7 @@
 
 ## Phase 1 — Asset & Bug Fixes ✅
 - [x] A-01..A-05, B-01..B-05, B-08 — All done (see walkthrough)
-- [ ] B-07: CachedNetworkImage (deferred to Phase 11)
+- [x] B-07: CachedNetworkImage — all Image.network replaced ✅
 
 ## Phase 2 — Backend Modules ✅
 - [x] B1-B5: Settings, Goals, Stories, Chat + routes registered
@@ -87,8 +87,8 @@
 ### 8.7 Report Screen (Partial)
 - [x] RP-01: Total card shows real totalExpense/totalIncome from `GET /stats/dashboard`
 - [x] RP-02: RefreshIndicator + dynamic % of income calculation
-- [ ] RP-03: Charts still use MockData (needs per-category breakdown API)
-- [ ] RP-04: TopCategoryCard from sorted API data
+- [x] RP-03: GET /stats/by-category backend + Flutter wire to donut chart ✅
+- [x] RP-04: TopCategoryCard now uses real top category from API ✅
 - [ ] RP-05: Chart tap interactions
 
 ### 8.8 Chat Screen ✅
@@ -116,63 +116,67 @@
 - [ ] CAM-06: "Thư viện" → image_picker gallery
 - [ ] CAM-07: Auto-detect bill badge polish
 
-### 9.2 Camera Input Screen
-- [ ] CI-01: Receive imagePath from camera, replace background
-- [ ] CI-02: `_submit()` → `POST /ai/expense/from-text` → push confirm with data
-- [ ] CI-03: Error snackbar on API failure
+### 9.2 Camera Input Screen ✅
+- [x] CI-01: Receive imagePath from camera, replace background
+- [x] CI-02: `_submit()` → `POST /ai/expense/from-text` → push confirm with data
+- [x] CI-03: Error snackbar on API failure
 
-### 9.3 Camera Confirm Screen
-- [ ] CC-01: Convert to StatefulWidget, receive ExtractedExpense via route
-- [ ] CC-02: Render dynamic data (amount, category, confidence)
-- [ ] CC-03: "Chỉnh sửa" → BottomSheet to edit amount/category/note
-- [ ] CC-04: "Xác nhận" → `POST /transactions` + mascot emotion from response
-- [ ] CC-05: Confidence badge dynamic + warning if < 60%
+### 9.3 Camera Confirm Screen ✅
+- [x] CC-01: Convert to StatefulWidget, receive ExtractedExpense via route
+- [x] CC-02: Render dynamic data (amount, category, confidence)
+- [x] CC-03: "Chỉnh sửa" → BottomSheet to edit amount/category/note
+- [x] CC-04: "Xác nhận" → `POST /transactions` + mascot emotion from response
+- [x] CC-05: Confidence badge dynamic + warning if < 60%
 
 ## Phase 10 — Mobile: Chat + Mascot Polish (Priority: MEDIUM)
 
-### 10.1 Chat History
-- [ ] CHH-01: Load from `GET /chat/sessions` instead of mock
-- [ ] CHH-02: Tap thread → push to chat with sessionId
-- [ ] CHH-03: Search delegate for client-side filtering
+### 10.1 Chat History ✅
+- [x] CHH-01: Load from `GET /chat/sessions` instead of mock
+- [x] CHH-02: Tap thread → push to chat with sessionId
+- [x] CHH-03: Search delegate for client-side filtering
 
 ### 10.2 Mascot Feedback
 - [ ] M4-01: AI correction button on each AI-generated transaction
-- [ ] M4-02: Show mascot emotion based on `mascot_mood` from API response
+- [x] M4-02: Show mascot emotion based on `mascot_mood` from API response ✅
 - [ ] M4-03: Action popup confirm flow → `/ai/actions/confirm` or `/reject`
 
 ## Phase 11 — Mobile: Navigation + Polish (Priority: MEDIUM)
 
-### 11.1 Add Transaction Screen
-- [ ] AT-01: Register route `AppRoutes.addTransaction = '/add'` in GoRoute
-- [ ] AT-02: FAB → BottomSheet with "Nhập tay" and "Chụp bill" options
-- [ ] AT-03: Load categories from `GET /categories` instead of const
-- [ ] AT-04: "Lưu giao dịch" → `POST /transactions`
-- [ ] AT-05: Date/Time picker on tap
-- [ ] AT-06: Comma format on amount display
+### 11.1 Add Transaction Screen ✅
+- [x] AT-01: Register route `AppRoutes.addTransaction = '/add'` in GoRoute
+- [x] AT-02: FAB → BottomSheet with "Nhập tay" and "Chụp bill" options
+- [x] AT-03: Load categories from `GET /categories` instead of const
+- [x] AT-04: "Lưu giao dịch" → `POST /transactions`
+- [x] AT-05: Date/Time picker on tap
+- [x] AT-06: Comma format on amount display
 
-### 11.2 Detail Story
-- [ ] DS-01: Route receives storyId from path params
-- [ ] DS-02: Load `GET /stories/:id` with transactions
-- [ ] DS-03: "Chỉnh sửa" → push AddTransactionScreen with prefilled data
-- [ ] DS-04: "AI nhận nhầm" correction button → `/ai/corrections`
+### 11.2 Detail Story ✅
+- [x] DS-01: Route receives storyId from path params ✅
+- [x] DS-02: Load `GET /stories/:id` with transactions ✅
+- [x] DS-03: "Chỉnh sửa" → push AddTransactionScreen with prefilled data ✅
+- [x] DS-04: "AI nhận nhầm" correction button → `/ai/corrections` ✅
 
-### 11.3 Streak Screen
-- [ ] ST-01: Load streak data (placeholder until backend endpoint)
-- [ ] ST-02: Render `_StreakGrid` from actual streak data
-- [ ] ST-03: "Hôm nay" pill dynamic
-- [ ] ST-04: Achievements computed from streak data
+### 11.3 Streak Screen ✅
+- [x] ST-01: Load streak data from `GET /users/me/streak`
+- [x] ST-02: Render `_StreakGrid` from actual streak data
+- [x] ST-03: "Hôm nay" pill dynamic
+- [x] ST-04: Achievements computed from streak data
 
 ### 11.4 Onboarding Persist
 - [ ] O-01: Extract shared widgets to `widgets/onboarding_widgets.dart`
 - [ ] O-02: Create `state/onboarding_state.dart` (ChangeNotifier)
-- [ ] O-03: Step 5 "Hoàn thành" → `PATCH /auth/me` + `POST /budgets`
+- [x] O-03: Step 5 "Hoàn thành" → PATCH /users/me/settings before go(home) ✅
 - [ ] O-04: "Bỏ qua" button on optional steps
 
 ### 11.5 Global Polish
-- [ ] B-07: Replace all `Image.network` → `CachedNetworkImage`
-- [ ] X-10: Replace `Navigator.pop` → `context.pop()` consistently
-- [ ] SH-01: FAB → BottomSheet with 2 options
-- [ ] SH-02: Animate FAB icon rotation when sheet open
+- [x] B-07: Replace all `Image.network` → `CachedNetworkImage` ✅
+- [x] X-10: Replace `Navigator.pop` → `context.pop()` consistently ✅
+- [x] SH-01: FAB → BottomSheet with 2 options
+- [x] SH-02: Animate FAB icon rotation when sheet open
+- [x] A-10: CategoryTheme.iconOf() — all category emoji → MiMo/category PNG assets ✅
+- [x] A-11: MiMo status PNGs wired in mimo_overlay + onboarding step 1/3 ✅
+- [x] A-12: Logo.png + Title.png used in login + register screens ✅
+- [x] A-13: flutter analyze → No issues found ✅
 
 ## Phase 12 — expense-ocr-nlu Refinements (Priority: LOW)
 
@@ -188,8 +192,47 @@
 - [ ] N9: Load per-user model in adapter when user_id provided
 
 ### 12.3 Backend Enhancements
-- [ ] BE-01: `POST /auth/change-password` endpoint
-- [ ] BE-02: `GET /users/me/streak` endpoint with streak calculation
+- [x] BE-01: `POST /auth/change-password` endpoint
+- [x] BE-02: `GET /users/me/streak` endpoint with streak calculation
 - [ ] BE-03: `ai_processing_logs` detailed logging for from-bill pipeline
 - [ ] BE-04: Wallet member permission checks (only owner can edit budget/goal)
 - [ ] BE-05: Install jest as devDependency in Docker + run tests in CI
+
+---
+
+## Phase 13 — New Tasks (Proposed)
+
+### 13.1 Gallery & Calendar Real Data (Priority: HIGH)
+- [ ] HG-01: `GET /stories?walletId=` → map to GalleryItem (imageUrl, title, amount, category)
+- [ ] HC-01: `GET /transactions?groupBy=day` → map to CalendarEntry (day, imageUrls, totalAmount)
+- [ ] HC-02: CalendarEntry tap → pass real storyId from transactions
+
+### 13.2 Share Wallet Real Flow (Priority: HIGH)
+- [ ] SW-01: `GET /wallets/:id/members` → list members in ShareWalletScreen
+- [ ] SW-02: `POST /wallets/:id/invite` → invite by email
+- [ ] SW-03: `DELETE /wallets/:id/members/:userId` → remove member
+
+### 13.3 Camera Real Hardware (Priority: HIGH)
+- [ ] CAM-01..CAM-07: Wire real camera (see Phase 9.1 above)
+
+### 13.4 Report Screen Polish (Priority: MEDIUM)
+- [ ] RP-05: Range tabs reload chart data (7 ngày / Tháng / Năm)
+- [ ] RP-06: Bar chart from real `GET /stats/dashboard` byDay data
+- [ ] RP-07: Trend chart from real `GET /stats/by-month` data
+
+### 13.5 AI Corrections & Actions (Priority: MEDIUM)
+- [ ] M4-01: Per-transaction "AI nhận nhầm" button → `POST /ai/corrections`
+- [ ] M4-03: Action confirm/reject popup → `POST /ai/actions/confirm` or `/reject`
+- [ ] N4: `/api/v1/chat` LLM proxy in ai-service for richer Mimo responses
+
+### 13.6 Onboarding Persist Full Flow (Priority: LOW)
+- [ ] O-01: Extract shared onboarding widgets to `widgets/onboarding_widgets.dart`
+- [ ] O-02: `state/onboarding_state.dart` ChangeNotifier to carry data across steps
+- [ ] O-04: "Bỏ qua" skip button on optional steps 2-4
+
+### 13.7 Performance & Quality (Priority: LOW)
+- [ ] P-01: Replace `dynamic` maps in home_screen with typed models
+- [ ] P-02: `use_build_context_synchronously` fix in settings_screen dialog
+- [ ] P-03: `unnecessary_underscores` fix in detail_story_screen
+- [ ] P-04: Add flutter_test widget tests for critical screens (login, home, chat)
+- [ ] P-05: `go_router` redirect guard for expired JWT → auto-navigate to login
