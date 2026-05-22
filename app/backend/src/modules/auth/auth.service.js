@@ -136,4 +136,74 @@ async function logout({ refreshToken }) {
   }
 }
 
-module.exports = { register, login, refresh, logout, findUserById };
+async function changePassword(userId, { currentPassword, newPassword }) {
+  const r = await query('SELECT password_hash FROM users WHERE id = $1', [userId]);
+  const user = r.rows[0];
+  if (!user) throw ApiError.notFound('User not found.');
+  const ok = await bcrypt.compare(currentPassword, user.password_hash);
+  if (!ok) throw ApiError.unauthorized('Current password is incorrect.');
+  const newHash = await bcrypt.hash(newPassword, 10);
+  await query('UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2', [newHash, userId]);
+}
+
+async function getStreak(userId) {
+  // Get all distinct dates with transactions for this user (ordered desc)
+  const r = await query(
+    `SELECT DISTINCT DATE(t.occurred_at) AS day
+     FROM transactions t
+     JOIN wallet_members wm ON wm.wallet_id = t.wallet_id
+     WHERE wm.user_id = $1 AND t.deleted_at IS NULL
+     ORDER BY day DESC`,
+    [userId]
+  );
+  const dates = r.rows.map((row) => row.day); // Date objects from pg
+
+  if (dates.length === 0) {
+    return { currentStreak: 0, longestStreak: 0, totalDays: dates.length, lastActivityDate: null };
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  // Calculate current streak
+  let currentStreak = 0;
+  let checkDate = new Date(today);
+  for (const d of dates) {
+    const day = new Date(d);
+    day.setHours(0, 0, 0, 0);
+    const diff = Math.round((checkDate - day) / 86400000);
+    if (diff === 0 || diff === 1) {
+      currentStreak++;
+      checkDate = day;
+    } else {
+      break;
+    }
+  }
+
+  // Calculate longest streak
+  let longestStreak = 0;
+  let streak = 1;
+  for (let i = 1; i < dates.length; i++) {
+    const prev = new Date(dates[i - 1]);
+    const curr = new Date(dates[i]);
+    prev.setHours(0, 0, 0, 0);
+    curr.setHours(0, 0, 0, 0);
+    const diff = Math.round((prev - curr) / 86400000);
+    if (diff === 1) {
+      streak++;
+    } else {
+      longestStreak = Math.max(longestStreak, streak);
+      streak = 1;
+    }
+  }
+  longestStreak = Math.max(longestStreak, streak);
+
+  return {
+    currentStreak,
+    longestStreak,
+    totalDays: dates.length,
+    lastActivityDate: dates[0] ? new Date(dates[0]).toISOString().split('T')[0] : null,
+  };
+}
+
+module.exports = { register, login, refresh, logout, findUserById, changePassword, getStreak };

@@ -5,7 +5,7 @@ const express = require('express');
 const validate = require('../../middlewares/validate');
 const { requireAuth } = require('../../middlewares/auth');
 const controller = require('./auth.controller');
-const { registerSchema, loginSchema, refreshSchema } = require('./auth.schema');
+const { registerSchema, loginSchema, refreshSchema, changePasswordSchema } = require('./auth.schema');
 
 const router = express.Router();
 
@@ -104,6 +104,33 @@ const router = express.Router();
  *     responses:
  *       200: { description: OK }
  *       401: { description: Unauthorized }
+ *
+ * /api/v1/auth/change-password:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Đổi mật khẩu
+ *     security: [ { bearerAuth: [] } ]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [currentPassword, newPassword]
+ *             properties:
+ *               currentPassword: { type: string }
+ *               newPassword: { type: string, minLength: 8 }
+ *     responses:
+ *       200: { description: OK }
+ *       401: { description: Wrong current password }
+ *
+ * /api/v1/users/me/streak:
+ *   get:
+ *     tags: [Auth]
+ *     summary: Streak ghi chép của user
+ *     security: [ { bearerAuth: [] } ]
+ *     responses:
+ *       200: { description: OK }
  */
 
 router.post('/register', validate({ body: registerSchema }), controller.register);
@@ -111,5 +138,6 @@ router.post('/login', validate({ body: loginSchema }), controller.login);
 router.post('/refresh', validate({ body: refreshSchema }), controller.refresh);
 router.post('/logout', validate({ body: refreshSchema }), controller.logout);
 router.get('/me', requireAuth, controller.me);
+router.post('/change-password', requireAuth, validate({ body: changePasswordSchema }), controller.changePassword);
 
 module.exports = router;

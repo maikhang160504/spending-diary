@@ -15,3 +15,12 @@ exports.byMonth = asyncHandler(async (req, res) => {
   const data = await service.byMonth(req.user.id, { year: req.query.year });
   res.json({ success: true, data });
 });
+
+exports.byCategory = asyncHandler(async (req, res) => {
+  const data = await service.byCategory(req.user.id, {
+    from: req.query.from,
+    to: req.query.to,
+    range: req.query.range,
+  });
+  res.json({ success: true, data });
+});

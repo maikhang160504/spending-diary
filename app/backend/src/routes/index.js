@@ -14,6 +14,8 @@ const settingsRoutes = require('../modules/settings/settings.routes');
 const goalsRoutes = require('../modules/goals/goals.routes');
 const storiesRoutes = require('../modules/stories/stories.routes');
 const chatRoutes = require('../modules/chat/chat.routes');
+const authController = require('../modules/auth/auth.controller');
+const { requireAuth } = require('../middlewares/auth');
 
 const router = express.Router();
 
@@ -40,6 +42,7 @@ router.use('/stats', statsRoutes);
 router.use('/ai', aiRoutes);
 router.use('/upload', uploadRoutes);
 router.use('/users/me/settings', settingsRoutes);
+router.use('/users/me/streak', requireAuth, authController.getStreak);
 router.use('/goals', goalsRoutes);
 router.use('/stories', storiesRoutes);
 router.use('/chat', chatRoutes);

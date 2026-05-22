@@ -27,3 +27,13 @@ exports.me = asyncHandler(async (req, res) => {
   const user = await authService.findUserById(req.user.id);
   res.json({ success: true, data: { user } });
 });
+
+exports.changePassword = asyncHandler(async (req, res) => {
+  await authService.changePassword(req.user.id, req.body);
+  res.json({ success: true, message: 'Password changed successfully.' });
+});
+
+exports.getStreak = asyncHandler(async (req, res) => {
+  const data = await authService.getStreak(req.user.id);
+  res.json({ success: true, data });
+});

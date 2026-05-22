@@ -112,4 +112,40 @@ async function byMonth(userId, { year } = {}) {
   }));
 }
 
-module.exports = { dashboard, byMonth };
+async function byCategory(userId, { from, to, range } = {}) {
+  let start, end;
+  if (range === 'week') {
+    const now = new Date();
+    start = new Date(now - 7 * 24 * 60 * 60 * 1000).toISOString();
+    end = now.toISOString();
+  } else if (range === 'year') {
+    const y = new Date().getUTCFullYear();
+    start = `${y}-01-01T00:00:00Z`;
+    end = `${y + 1}-01-01T00:00:00Z`;
+  } else {
+    const r = parseRange(from, to);
+    start = r.start; end = r.end;
+  }
+  const r = await query(
+    `SELECT COALESCE(category_code, 'Others') AS category_code,
+            SUM(amount)::numeric AS total,
+            COUNT(*)::int AS count
+     FROM transactions t
+     WHERE t.is_deleted = FALSE
+       AND t.wallet_id IN (SELECT wallet_id FROM wallet_members WHERE user_id = $1)
+       AND t.occurred_at BETWEEN $2 AND $3
+       AND type = 'expense'
+     GROUP BY COALESCE(category_code, 'Others')
+     ORDER BY total DESC`,
+    [userId, start, end]
+  );
+  const total = r.rows.reduce((s, row) => s + Number(row.total), 0);
+  return r.rows.map((row) => ({
+    categoryCode: row.category_code,
+    total: Number(row.total),
+    count: row.count,
+    percent: total > 0 ? Math.round((Number(row.total) / total) * 100) : 0,
+  }));
+}
+
+module.exports = { dashboard, byMonth, byCategory };

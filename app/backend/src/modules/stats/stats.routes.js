@@ -32,5 +32,6 @@ const router = express.Router();
 router.use(requireAuth);
 router.get('/dashboard', controller.dashboard);
 router.get('/by-month', controller.byMonth);
+router.get('/by-category', controller.byCategory);
 
 module.exports = router;
