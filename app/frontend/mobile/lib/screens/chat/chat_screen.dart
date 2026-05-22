@@ -6,10 +6,14 @@ import '../../services/api_client.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_radii.dart';
 import '../../theme/app_spacing.dart';
+import '../../data/mock_data.dart';
 import '../../utils/formatters.dart';
+import '../../widgets/mimo_overlay.dart';
 
 class ChatScreen extends StatefulWidget {
-  const ChatScreen({super.key});
+  /// Optional sessionId passed from ChatHistoryScreen (CHH-02)
+  final String? sessionId;
+  const ChatScreen({super.key, this.sessionId});
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -38,10 +42,41 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _initSession() async {
+    // If sessionId passed from history, reuse it and load messages
+    if (widget.sessionId != null) {
+      _sessionId = widget.sessionId;
+      try {
+        final msgs = await _api.getChatMessages(_sessionId!);
+        if (!mounted) return;
+        setState(() {
+          for (final m in msgs) {
+            final role = m['role'] as String? ?? 'user';
+            final content = m['content'] as String? ?? '';
+            _messages.add(_ChatMsg(
+              text: content,
+              isUser: role == 'user',
+              time: _formatMsgTime(m['created_at'] as String?),
+            ));
+          }
+        });
+        _scrollToBottom();
+      } catch (_) {}
+      return;
+    }
     try {
       final session = await _api.createChatSession(title: 'Chat ${DateTime.now().day}/${DateTime.now().month}');
       _sessionId = session['id'] as String?;
     } catch (_) {}
+  }
+
+  String _formatMsgTime(String? iso) {
+    if (iso == null) return _now();
+    try {
+      final dt = DateTime.parse(iso).toLocal();
+      return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+    } catch (_) {
+      return _now();
+    }
   }
 
   void _scrollToBottom() {
@@ -82,6 +117,8 @@ class _ChatScreenState extends State<ChatScreen> {
       String replyText;
       _ChatMsg? previewCard;
 
+      final moodRaw = nlu['mascot_mood'] as String?;
+
       if (intent == 'Record' && amount != null) {
         final amountInt = (amount is num) ? amount.toInt() : 0;
         replyText = '📝 Mimo hiểu bạn muốn ghi nhận chi tiêu:';
@@ -113,6 +150,13 @@ class _ChatScreenState extends State<ChatScreen> {
         }
       });
       _scrollToBottom();
+
+      // M4-02: Show mascot mood from API response
+      final moodStatus = moodRaw ?? (intent == 'Record' ? 'Happy' : 'Chill');
+      mimoController.show(MiMoResponse(
+        status: moodStatus,
+        message: replyText.length > 60 ? '${replyText.substring(0, 60)}...' : replyText,
+      ));
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -346,7 +390,7 @@ class _DotsAnimationState extends State<_DotsAnimation> with SingleTickerProvide
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: _ctrl,
-      builder: (_, __) {
+      builder: (_, _) {
         final phase = _ctrl.value;
         return Row(mainAxisSize: MainAxisSize.min, children: List.generate(3, (i) {
           final offset = ((phase * 3 - i) % 3).clamp(0.0, 1.0);

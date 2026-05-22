@@ -87,19 +87,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
             child: Column(
               children: [
                 const SizedBox(height: 32),
-                Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(22),
-                    boxShadow: const [BoxShadow(color: Color(0x33000000), blurRadius: 20, offset: Offset(0, 8))],
-                  ),
-                  child: const Center(child: Text('✨', style: TextStyle(fontSize: 36))),
-                ),
-                const SizedBox(height: 16),
-                Text('Tạo tài khoản',
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(color: Colors.white, fontWeight: FontWeight.w800)),
+                Image.asset('assets/logo/Logo.png', width: 80, height: 80, fit: BoxFit.contain),
+                const SizedBox(height: 12),
+                Image.asset('assets/logo/Title.png', height: 40, fit: BoxFit.contain),
                 const SizedBox(height: 4),
                 Text('Bắt đầu quản lý chi tiêu thôi! 🚀',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.white.withValues(alpha: 0.85))),

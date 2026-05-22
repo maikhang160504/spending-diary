@@ -7,6 +7,7 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_radii.dart';
 import '../../theme/app_spacing.dart';
 import '../../utils/formatters.dart';
+import '../../widgets/skeleton.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -76,27 +77,58 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final currentCtrl = TextEditingController();
     final newCtrl = TextEditingController();
     final confirmCtrl = TextEditingController();
+    String? dialogError;
+
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Đổi mật khẩu'),
-        content: Column(mainAxisSize: MainAxisSize.min, children: [
-          TextField(controller: currentCtrl, obscureText: true, decoration: const InputDecoration(labelText: 'Mật khẩu hiện tại')),
-          const SizedBox(height: 8),
-          TextField(controller: newCtrl, obscureText: true, decoration: const InputDecoration(labelText: 'Mật khẩu mới')),
-          const SizedBox(height: 8),
-          TextField(controller: confirmCtrl, obscureText: true, decoration: const InputDecoration(labelText: 'Xác nhận mật khẩu')),
-        ]),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
-          FilledButton(onPressed: () {
-            // TODO: Call change password API when available
-            Navigator.pop(ctx);
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Chức năng sẽ sớm được hỗ trợ'), backgroundColor: AppColors.teal),
-            );
-          }, child: const Text('Xác nhận')),
-        ],
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text('Đổi mật khẩu'),
+          content: Column(mainAxisSize: MainAxisSize.min, children: [
+            if (dialogError != null) ...[
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                decoration: BoxDecoration(color: const Color(0xFFFEE2E2), borderRadius: BorderRadius.circular(8)),
+                child: Text(dialogError!, style: const TextStyle(color: AppColors.danger, fontSize: 13)),
+              ),
+              const SizedBox(height: 8),
+            ],
+            TextField(controller: currentCtrl, obscureText: true, decoration: const InputDecoration(labelText: 'Mật khẩu hiện tại')),
+            const SizedBox(height: 8),
+            TextField(controller: newCtrl, obscureText: true, decoration: const InputDecoration(labelText: 'Mật khẩu mới (≥ 8 ký tự)')),
+            const SizedBox(height: 8),
+            TextField(controller: confirmCtrl, obscureText: true, decoration: const InputDecoration(labelText: 'Xác nhận mật khẩu')),
+          ]),
+          actions: [
+            TextButton(onPressed: () => ctx.pop(), child: const Text('Hủy')),
+            FilledButton(
+              onPressed: () async {
+                if (newCtrl.text.length < 8) {
+                  setDialogState(() => dialogError = 'Mật khẩu mới phải ≥ 8 ký tự');
+                  return;
+                }
+                if (newCtrl.text != confirmCtrl.text) {
+                  setDialogState(() => dialogError = 'Mật khẩu xác nhận không khớp');
+                  return;
+                }
+                final messenger = ScaffoldMessenger.of(context);
+                try {
+                  await _api.changePassword(currentCtrl.text, newCtrl.text);
+                  if (!ctx.mounted) return;
+                  ctx.pop();
+                  messenger.showSnackBar(
+                    const SnackBar(content: Text('Đổi mật khẩu thành công ✓'), backgroundColor: AppColors.teal),
+                  );
+                } on ApiException catch (e) {
+                  setDialogState(() => dialogError = e.localizedMessage);
+                } catch (_) {
+                  setDialogState(() => dialogError = 'Không thể đổi mật khẩu');
+                }
+              },
+              child: const Text('Xác nhận'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -126,33 +158,35 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         borderRadius: BorderRadius.circular(AppRadii.lg),
                         boxShadow: const [BoxShadow(color: Color(0x0A000000), blurRadius: 8, offset: Offset(0, 2))],
                       ),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 56,
-                            height: 56,
-                            decoration: BoxDecoration(
-                              color: _avatarColor(_userName),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Center(child: Text(
-                              _userName.isNotEmpty ? _userName[0].toUpperCase() : '?',
-                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 22),
-                            )),
-                          ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                      child: _loading
+                          ? const SkeletonCard(height: 56)
+                          : Row(
                               children: [
-                                Text(_userName, style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
-                                const SizedBox(height: 4),
-                                Text(_email, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary)),
+                                Container(
+                                  width: 56,
+                                  height: 56,
+                                  decoration: BoxDecoration(
+                                    color: _avatarColor(_userName),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Center(child: Text(
+                                    _userName.isNotEmpty ? _userName[0].toUpperCase() : '?',
+                                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 22),
+                                  )),
+                                ),
+                                const SizedBox(width: 14),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(_userName, style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+                                      const SizedBox(height: 4),
+                                      Text(_email, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary)),
+                                    ],
+                                  ),
+                                ),
                               ],
                             ),
-                          ),
-                        ],
-                      ),
                     ),
                     const SizedBox(height: 24),
                     // Tài khoản section

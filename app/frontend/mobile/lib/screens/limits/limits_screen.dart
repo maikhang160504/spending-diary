@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../services/api_client.dart';
 import '../../theme/app_colors.dart';
@@ -93,12 +94,12 @@ class _LimitsScreenState extends State<LimitsScreen> {
               Text('Thêm giới hạn mới', style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
-                value: selectedCategory,
+                initialValue: selectedCategory,
                 hint: const Text('Chọn danh mục'),
                 items: available.map((e) => DropdownMenuItem(
                   value: e.key,
                   child: Row(children: [
-                    Text(e.value.emoji, style: const TextStyle(fontSize: 18)),
+                    CategoryTheme.iconOf(e.key, size: 22),
                     const SizedBox(width: 8),
                     Text(e.value.label),
                   ]),
@@ -116,7 +117,7 @@ class _LimitsScreenState extends State<LimitsScreen> {
                     if (selectedCategory == null) return;
                     final amount = int.tryParse(amountCtrl.text.trim());
                     if (amount == null || amount <= 0) return;
-                    Navigator.pop(ctx);
+                    ctx.pop();
                     try {
                       // Get first wallet
                       final wallets = await _api.getWallets();
@@ -361,7 +362,7 @@ class _LimitCard extends StatelessWidget {
           Container(
             width: 44, height: 44,
             decoration: BoxDecoration(color: item.color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(AppRadii.md)),
-            child: Center(child: Text(item.emoji, style: const TextStyle(fontSize: 22))),
+            child: Center(child: CategoryTheme.iconOf(item.categoryCode, size: 26)),
           ),
           const SizedBox(width: 12),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -435,7 +436,7 @@ class _EditLimitSheetState extends State<_EditLimitSheet> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(children: [
-            Text(widget.item.emoji, style: const TextStyle(fontSize: 28)),
+            SizedBox(width: 28, height: 28, child: CategoryTheme.iconOf(widget.item.categoryCode, size: 28)),
             const SizedBox(width: 10),
             Text('Sửa giới hạn ${widget.item.label}', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
           ]),
@@ -445,12 +446,12 @@ class _EditLimitSheetState extends State<_EditLimitSheet> {
           TextField(controller: _controller, keyboardType: TextInputType.number, autofocus: true, decoration: const InputDecoration(hintText: '0')),
           const SizedBox(height: 20),
           Row(children: [
-            Expanded(child: OutlinedButton(onPressed: () => Navigator.pop(context), child: const Text('Hủy'))),
+            Expanded(child: OutlinedButton(onPressed: () => context.pop(), child: const Text('Hủy'))),
             const SizedBox(width: 12),
             Expanded(child: FilledButton(
               onPressed: () {
                 widget.onSave(int.tryParse(_controller.text) ?? widget.item.limit);
-                Navigator.pop(context);
+                context.pop();
               },
               child: const Text('Lưu'),
             )),

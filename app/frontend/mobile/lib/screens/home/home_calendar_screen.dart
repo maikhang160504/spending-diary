@@ -1,9 +1,11 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../data/mock_data.dart';
 import '../../routes/app_routes.dart';
 import '../../theme/app_colors.dart';
+import '../../theme/categories.dart';
 import '../../theme/app_radii.dart';
 import '../../theme/app_spacing.dart';
 import '../../utils/formatters.dart';
@@ -201,7 +203,7 @@ class _TransactionRow extends StatelessWidget {
               color: AppColors.teal.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(AppRadii.md),
             ),
-            child: Center(child: Text(tx.emoji, style: const TextStyle(fontSize: 22))),
+            child: Center(child: CategoryTheme.iconOf(tx.category, size: 26)),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -268,7 +270,8 @@ class _CalendarGrid extends StatelessWidget {
                     alignment: Alignment.center,
                     children: [
                       ClipOval(
-                        child: Image.network(entry.imageUrls.first, width: 36, height: 36, fit: BoxFit.cover),
+                        child: CachedNetworkImage(imageUrl: entry.imageUrls.first, width: 36, height: 36, fit: BoxFit.cover,
+                          errorWidget: (ctx, url, e) => Container(color: const Color(0xFFCBD5E1))),
                       ),
                       if (entry.count > 1)
                         Positioned(

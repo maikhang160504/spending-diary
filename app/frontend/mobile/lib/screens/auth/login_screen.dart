@@ -61,21 +61,11 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Column(
               children: [
                 const SizedBox(height: 48),
-                // App icon
-                Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(22),
-                    boxShadow: const [BoxShadow(color: Color(0x33000000), blurRadius: 20, offset: Offset(0, 8))],
-                  ),
-                  child: const Center(child: Text('✨', style: TextStyle(fontSize: 36))),
-                ),
-                const SizedBox(height: 20),
-                Text('SpendDiary', style: Theme.of(context).textTheme.headlineMedium?.copyWith(color: Colors.white, fontWeight: FontWeight.w800)),
-                const SizedBox(height: 6),
-                Text('Nhật ký chi tiêu của bạn ✨', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.white.withValues(alpha: 0.85))),
+                // App logo
+                Image.asset('assets/logo/Logo.png', width: 96, height: 96, fit: BoxFit.contain),
+                const SizedBox(height: 16),
+                // App name + slogan
+                Image.asset('assets/logo/Title.png', height: 48, fit: BoxFit.contain),
                 const SizedBox(height: 40),
                 // Login card
                 Container(

@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -302,7 +303,9 @@ class _GalleryCard extends StatelessWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          Image.network(item.imageUrl, fit: BoxFit.cover),
+          CachedNetworkImage(imageUrl: item.imageUrl, fit: BoxFit.cover,
+            errorWidget: (ctx, url, e) => Container(color: const Color(0xFFCBD5E1)),
+          ),
           // Dark gradient overlay at bottom
           Positioned.fill(
             child: DecoratedBox(

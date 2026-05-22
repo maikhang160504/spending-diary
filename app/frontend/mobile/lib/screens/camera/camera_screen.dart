@@ -38,7 +38,7 @@ class _CameraScreenState extends State<CameraScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(children: [
                 GestureDetector(
-                  onTap: () => Navigator.pop(context),
+                  onTap: () => context.pop(),
                   child: Container(
                     width: 40, height: 40,
                     decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.15), shape: BoxShape.circle),

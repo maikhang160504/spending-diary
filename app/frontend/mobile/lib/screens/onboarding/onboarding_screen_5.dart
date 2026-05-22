@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../routes/app_routes.dart';
+import '../../services/api_client.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_radii.dart';
 import '../../theme/app_spacing.dart';
@@ -14,6 +15,8 @@ class OnboardingStep5 extends StatefulWidget {
 }
 
 class _OnboardingStep5State extends State<OnboardingStep5> {
+  final _api = ApiClient();
+  bool _saving = false;
   String? _selectedAge;
   String? _selectedJob;
 
@@ -21,6 +24,18 @@ class _OnboardingStep5State extends State<OnboardingStep5> {
   static const _ageEmojis = ['🎓', '💼', '👔', '🏢', '✨'];
   static const _jobs = ['Sinh viên', 'Văn phòng', 'Freelancer', 'Kinh doanh', 'Khác'];
   static const _jobEmojis = ['📚', '💻', '✨', '💼', '🎯'];
+
+  Future<void> _finish() async {
+    setState(() => _saving = true);
+    try {
+      await _api.updateSettings({
+        if (_selectedAge != null) 'ageGroup': _selectedAge,
+        if (_selectedJob != null) 'jobType': _selectedJob,
+      });
+    } catch (_) {}
+    if (!mounted) return;
+    context.go(AppRoutes.home);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -70,7 +85,11 @@ class _OnboardingStep5State extends State<OnboardingStep5> {
                   ),
                 ),
               ),
-              _NavButtons(onBack: () => context.pop(), onNext: () => context.go(AppRoutes.home), nextLabel: 'Hoàn thành 🎉'),
+              _NavButtons(
+                onBack: () => context.pop(),
+                onNext: _saving ? null : _finish,
+                nextLabel: _saving ? 'Đang lưu...' : 'Hoàn thành 🎉',
+              ),
             ],
           ),
         ),
@@ -115,7 +134,8 @@ class _OnboardingStep5State extends State<OnboardingStep5> {
 }
 
 class _NavButtons extends StatelessWidget {
-  final VoidCallback onBack, onNext;
+  final VoidCallback onBack;
+  final VoidCallback? onNext;
   final String nextLabel;
   const _NavButtons({required this.onBack, required this.onNext, this.nextLabel = 'Tiếp tục'});
 

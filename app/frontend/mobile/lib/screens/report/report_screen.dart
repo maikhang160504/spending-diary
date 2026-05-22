@@ -6,6 +6,7 @@ import '../../services/api_client.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_radii.dart';
 import '../../theme/app_spacing.dart';
+import '../../theme/categories.dart';
 import '../../utils/formatters.dart';
 
 class ReportScreen extends StatefulWidget {
@@ -23,6 +24,31 @@ class _ReportScreenState extends State<ReportScreen> {
   bool _loading = true;
   int _totalExpense = 0;
   int _totalIncome = 0;
+  List<ReportCategory> _categoryStats = [];
+
+  static const _catMeta = <String, Map<String, dynamic>>{
+    'Food':          {'label': 'Ăn uống',    'emoji': '🍔', 'color': 0xFFEC4899},
+    'Shopping':      {'label': 'Mua sắm',    'emoji': '🛍️', 'color': 0xFF8B5CF6},
+    'Transport':     {'label': 'Di chuyển',  'emoji': '🚗', 'color': 0xFF3B82F6},
+    'Entertainment': {'label': 'Giải trí',   'emoji': '🎬', 'color': 0xFFF59E0B},
+    'Housing':       {'label': 'Nhà ở',      'emoji': '🏠', 'color': 0xFF10B981},
+    'Health':        {'label': 'Sức khoẻ',   'emoji': '💊', 'color': 0xFFEF4444},
+    'Education':     {'label': 'Học tập',    'emoji': '📚', 'color': 0xFF6366F1},
+    'Travel':        {'label': 'Du lịch',    'emoji': '✈️', 'color': 0xFF14B8A6},
+    'Others':        {'label': 'Khác',       'emoji': '📦', 'color': 0xFF94A3B8},
+  };
+
+  ReportCategory _toCat(Map<String, dynamic> row) {
+    final code = row['categoryCode'] as String? ?? 'Others';
+    final meta = _catMeta[code] ?? _catMeta['Others']!;
+    return ReportCategory(
+      label: meta['label'] as String,
+      emoji: meta['emoji'] as String,
+      percent: (row['percent'] as num?)?.toDouble() ?? 0,
+      amount: (row['total'] as num?)?.toInt() ?? 0,
+      color: meta['color'] as int,
+    );
+  }
 
   @override
   void initState() {
@@ -33,11 +59,20 @@ class _ReportScreenState extends State<ReportScreen> {
   Future<void> _loadStats() async {
     setState(() => _loading = true);
     try {
-      final dashboard = await _api.getDashboard();
+      final rangeParam = _selectedRange == '7 ngày' ? 'week'
+          : _selectedRange == 'Tháng' ? null
+          : 'year';
+      final results = await Future.wait([
+        _api.getDashboard(),
+        _api.getStatsByCategory(range: rangeParam),
+      ]);
       if (!mounted) return;
+      final dashboard = results[0] as Map<String, dynamic>;
+      final cats = results[1] as List<dynamic>;
       setState(() {
         _totalExpense = ((dashboard['totalExpense'] ?? 0) is num) ? (dashboard['totalExpense'] as num).toInt() : 0;
         _totalIncome = ((dashboard['totalIncome'] ?? 0) is num) ? (dashboard['totalIncome'] as num).toInt() : 0;
+        _categoryStats = cats.map((c) => _toCat(c as Map<String, dynamic>)).toList();
       });
     } catch (_) {}
     if (mounted) setState(() => _loading = false);
@@ -93,7 +128,7 @@ class _ReportScreenState extends State<ReportScreen> {
                         ),
                       ),
                       const SizedBox(height: 20),
-                      // Donut chart (mock for now)
+                      // Donut chart — real API data
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
@@ -106,15 +141,21 @@ class _ReportScreenState extends State<ReportScreen> {
                           children: [
                             Text('Chi tiêu theo danh mục', style: Theme.of(context).textTheme.titleSmall),
                             const SizedBox(height: 20),
-                            _DonutChart(categories: MockData.reportCategories),
-                            const SizedBox(height: 16),
-                            _CategoryLegend(categories: MockData.reportCategories),
+                            _categoryStats.isEmpty
+                                ? const Center(child: Padding(
+                                    padding: EdgeInsets.symmetric(vertical: 24),
+                                    child: Text('Chưa có dữ liệu', style: TextStyle(color: AppColors.muted))))
+                                : _DonutChart(categories: _categoryStats),
+                            if (_categoryStats.isNotEmpty) ...[
+                              const SizedBox(height: 16),
+                              _CategoryLegend(categories: _categoryStats),
+                            ],
                           ],
                         ),
                       ),
                       const SizedBox(height: 20),
-                      // Top category card (mock for now)
-                      _TopCategoryCard(),
+                      // Top category card — real API data
+                      _TopCategoryCard(top: _categoryStats.isNotEmpty ? _categoryStats.first : null),
                       const SizedBox(height: 20),
                       // Trend chart (mock for now)
                       Container(
@@ -410,7 +451,7 @@ class _CategoryLegend extends StatelessWidget {
           const SizedBox(width: 6),
           Expanded(
             child: Text(
-              '${cat.emoji} ${cat.label}\n${cat.percent.toStringAsFixed(1)}% · ${formatVnd(cat.amount)}',
+              '${cat.label}\n${cat.percent.toStringAsFixed(1)}% · ${formatVnd(cat.amount)}',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary, fontSize: 11),
             ),
           ),
@@ -421,12 +462,17 @@ class _CategoryLegend extends StatelessWidget {
 }
 
 class _TopCategoryCard extends StatelessWidget {
+  final ReportCategory? top;
+  const _TopCategoryCard({this.top});
+
   @override
   Widget build(BuildContext context) {
+    if (top == null) return const SizedBox.shrink();
+    final catColor = Color(top!.color);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFF5F3FF),
+        color: catColor.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(AppRadii.lg),
         boxShadow: const [BoxShadow(color: Color(0x0A000000), blurRadius: 8, offset: Offset(0, 2))],
       ),
@@ -441,20 +487,21 @@ class _TopCategoryCard extends StatelessWidget {
                 width: 56,
                 height: 56,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFEDE9FE),
+                  color: catColor.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(AppRadii.lg),
                 ),
-                child: const Center(child: Text('🍔', style: TextStyle(fontSize: 28))),
+                child: Center(child: CategoryTheme.iconOf(top!.label, size: 32)),
               ),
               const SizedBox(width: 14),
-              Column(
+              Expanded(child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Ăn uống', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+                  Text(top!.label, style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
                   const SizedBox(height: 4),
-                  Text('220.000 đ', style: Theme.of(context).textTheme.titleSmall?.copyWith(color: const Color(0xFFEC4899), fontWeight: FontWeight.w700, fontSize: 20)),
+                  Text(formatVnd(top!.amount), style: Theme.of(context).textTheme.titleSmall?.copyWith(color: catColor, fontWeight: FontWeight.w700, fontSize: 20)),
+                  Text('${top!.percent.toStringAsFixed(0)}% tổng chi tiêu', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.muted)),
                 ],
-              ),
+              )),
             ],
           ),
         ],

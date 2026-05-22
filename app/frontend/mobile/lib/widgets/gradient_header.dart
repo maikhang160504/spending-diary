@@ -1,6 +1,7 @@
 // lib/widgets/common/gradient_scaffold.dart
 // Shared scaffold với header gradient và SafeArea
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../theme/app_colors.dart';
 import '../theme/app_radii.dart';
@@ -86,7 +87,7 @@ class HeaderBackButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return IconButton(
-      onPressed: onTap ?? () => Navigator.maybePop(context),
+      onPressed: onTap ?? () { if (context.canPop()) context.pop(); },
       icon: Container(
         width: 36,
         height: 36,

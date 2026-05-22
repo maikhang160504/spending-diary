@@ -1,8 +1,8 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import '../data/mock_data.dart';
 import '../routes/app_routes.dart';
-import '../theme/app_colors.dart';
 import '../theme/app_radii.dart';
 import '../theme/categories.dart';
 import '../utils/formatters.dart';
@@ -18,12 +18,12 @@ class GalleryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isPositive = item.amount >= 0;
     return GestureDetector(
-      onTap: () => context.push(AppRoutes.storyDetail),
+      onTap: () => context.push(AppRoutes.storyDetailOf('mock')),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(AppRadii.md),
         child: Stack(fit: StackFit.expand, children: [
-          Image.network(item.imageUrl, fit: BoxFit.cover,
-            errorBuilder: (ctx, e, st) => Container(color: const Color(0xFFCBD5E1)),
+          CachedNetworkImage(imageUrl: item.imageUrl, fit: BoxFit.cover,
+            errorWidget: (ctx, url, e) => Container(color: const Color(0xFFCBD5E1)),
           ),
           // Light gradient at top for badge
           Positioned.fill(child: DecoratedBox(decoration: BoxDecoration(

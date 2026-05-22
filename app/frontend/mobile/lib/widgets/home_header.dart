@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
 import '../theme/app_radii.dart';
-import '../theme/app_spacing.dart';
-import '../utils/formatters.dart';
 
 /// Reusable home header with gradient background, date, streak, wallet chips, and balance card.
 /// Extracted from home_screen, home_gallery_screen, home_calendar_screen (X-01, X-04).

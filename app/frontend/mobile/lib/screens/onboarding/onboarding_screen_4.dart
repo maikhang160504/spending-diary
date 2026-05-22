@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../routes/app_routes.dart';
 import '../../theme/app_colors.dart';
+import '../../theme/categories.dart';
 import '../../theme/app_radii.dart';
 import '../../theme/app_spacing.dart';
 
@@ -15,11 +16,11 @@ class OnboardingStep4 extends StatefulWidget {
 
 class _OnboardingStep4State extends State<OnboardingStep4> {
   final _cats = [
-    _Cat('🍔', 'Ăn uống', const Color(0xFFEC4899), TextEditingController(text: '2.000.000')),
-    _Cat('🛍️', 'Mua sắm', const Color(0xFF8B5CF6), TextEditingController(text: '1.500.000')),
-    _Cat('🚗', 'Di chuyển', const Color(0xFF3B82F6), TextEditingController(text: '500.000')),
-    _Cat('🎬', 'Giải trí', const Color(0xFFF59E0B), TextEditingController(text: '800.000')),
-    _Cat('🧾', 'Khác', const Color(0xFF94A3B8), TextEditingController()),
+    _Cat('Food',          'Ăn uống', const Color(0xFFEC4899), TextEditingController(text: '2.000.000')),
+    _Cat('Shopping',      'Mua sắm', const Color(0xFF8B5CF6), TextEditingController(text: '1.500.000')),
+    _Cat('Transport',     'Di chuyển', const Color(0xFF3B82F6), TextEditingController(text: '500.000')),
+    _Cat('Entertainment', 'Giải trí', const Color(0xFFF59E0B), TextEditingController(text: '800.000')),
+    _Cat('Others',        'Khác', const Color(0xFF94A3B8), TextEditingController()),
   ];
 
   @override
@@ -41,7 +42,7 @@ class _OnboardingStep4State extends State<OnboardingStep4> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Text('💰', style: TextStyle(fontSize: 44)),
+                        Image.asset('assets/MiMo/category/Savings.png', width: 56, height: 56, fit: BoxFit.contain),
                         const SizedBox(height: 12),
                         Text('Giới hạn chi tiêu', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
                         const SizedBox(height: 8),
@@ -53,7 +54,7 @@ class _OnboardingStep4State extends State<OnboardingStep4> {
                           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                             Row(children: [
                               Container(width: 32, height: 32, decoration: BoxDecoration(color: cat.color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(8)),
-                                  child: Center(child: Text(cat.emoji, style: const TextStyle(fontSize: 16)))),
+                                  child: Center(child: CategoryTheme.iconOf(cat.code, size: 20))),
                               const SizedBox(width: 8),
                               Text(cat.label, style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
                             ]),
@@ -84,10 +85,10 @@ class _OnboardingStep4State extends State<OnboardingStep4> {
 }
 
 class _Cat {
-  final String emoji, label;
+  final String code, label;
   final Color color;
   final TextEditingController controller;
-  const _Cat(this.emoji, this.label, this.color, this.controller);
+  const _Cat(this.code, this.label, this.color, this.controller);
 }
 
 class _NavButtons extends StatelessWidget {

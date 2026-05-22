@@ -23,6 +23,7 @@ import '../screens/shell/app_shell.dart';
 import '../screens/story/detail_story_screen.dart';
 import '../screens/streak/streak_screen.dart';
 import '../screens/wallet/share_wallet_screen.dart';
+import '../screens/add/add_transaction_screen.dart';
 
 /// Tất cả tên route tập trung tại đây
 class AppRoutes {
@@ -55,10 +56,14 @@ class AppRoutes {
   static const chatHistory = '/chat/history';
 
   // Full-screen overlays
-  static const limits      = '/limits';
-  static const shareWallet = '/wallet/share';
-  static const streak      = '/streak';
-  static const storyDetail = '/story/detail';
+  static const limits         = '/limits';
+  static const shareWallet    = '/wallet/share';
+  static const streak         = '/streak';
+  static const storyDetail    = '/story/:storyId';
+  static const addTransaction = '/add';
+
+  /// Build the story detail path with a real [storyId]
+  static String storyDetailOf(String storyId) => '/story/$storyId';
 }
 
 /// go_router instance — được dùng trong MaterialApp.router
@@ -92,16 +97,33 @@ final GoRouter appRouter = GoRouter(
     // ── Camera ──────────────────────────────────────────────
     GoRoute(path: AppRoutes.camera,        builder: (context, state) => const CameraScreen()),
     GoRoute(path: AppRoutes.cameraInput,   builder: (context, state) => const CameraInputScreen()),
-    GoRoute(path: AppRoutes.cameraConfirm, builder: (context, state) => const CameraConfirmScreen()),
+    GoRoute(
+      path: AppRoutes.cameraConfirm,
+      builder: (context, state) => CameraConfirmScreen(
+        extractedData: state.extra as Map<String, dynamic>?,
+      ),
+    ),
 
     // ── Chat ────────────────────────────────────────────────
-    GoRoute(path: AppRoutes.chat,        builder: (context, state) => const ChatScreen()),
+    GoRoute(
+      path: AppRoutes.chat,
+      builder: (context, state) {
+        final extra = state.extra as Map<String, dynamic>?;
+        return ChatScreen(sessionId: extra?['sessionId'] as String?);
+      },
+    ),
     GoRoute(path: AppRoutes.chatHistory, builder: (context, state) => const ChatHistoryScreen()),
 
     // ── Overlays / Full-screen ───────────────────────────────
-    GoRoute(path: AppRoutes.limits,      builder: (context, state) => const LimitsScreen()),
-    GoRoute(path: AppRoutes.shareWallet, builder: (context, state) => const ShareWalletScreen()),
-    GoRoute(path: AppRoutes.streak,      builder: (context, state) => const StreakScreen()),
-    GoRoute(path: AppRoutes.storyDetail, builder: (context, state) => const DetailStoryScreen()),
+    GoRoute(path: AppRoutes.limits,         builder: (context, state) => const LimitsScreen()),
+    GoRoute(path: AppRoutes.shareWallet,    builder: (context, state) => const ShareWalletScreen()),
+    GoRoute(path: AppRoutes.streak,         builder: (context, state) => const StreakScreen()),
+    GoRoute(
+      path: AppRoutes.storyDetail,
+      builder: (context, state) => DetailStoryScreen(
+        storyId: state.pathParameters['storyId'] ?? '',
+      ),
+    ),
+    GoRoute(path: AppRoutes.addTransaction, builder: (context, state) => const AddTransactionScreen()),
   ],
 );

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../services/api_client.dart';
 import '../../theme/app_colors.dart';
@@ -77,7 +78,7 @@ class _GoalScreenState extends State<GoalScreen> {
                 final name = nameCtrl.text.trim();
                 final amount = double.tryParse(amountCtrl.text.trim());
                 if (name.isEmpty || amount == null || amount <= 0) return;
-                Navigator.pop(ctx);
+                ctx.pop();
                 try {
                   await _api.createGoal({'name': name, 'targetAmount': amount, 'emoji': emoji});
                   _loadGoals();
@@ -112,7 +113,7 @@ class _GoalScreenState extends State<GoalScreen> {
               onPressed: () async {
                 final amount = double.tryParse(amountCtrl.text.trim());
                 if (amount == null || amount <= 0) return;
-                Navigator.pop(ctx);
+                ctx.pop();
                 try {
                   await _api.contributeGoal(goalId, amount);
                   _loadGoals();

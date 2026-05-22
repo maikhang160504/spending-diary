@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -28,7 +29,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _loading = true;
   String? _error;
   String _userName = '';
-  int _streakDays = 0;
+  final int _streakDays = 0;
   List<dynamic> _wallets = [];
   Map<String, dynamic> _dashboard = {};
   List<dynamic> _transactions = [];
@@ -328,7 +329,10 @@ class _TransactionStoryCard extends StatelessWidget {
     final isExpense = type == 'expense';
     final catStyle = CategoryTheme.of(category);
 
-    return Container(
+    final storyId = tx['story_id'] as String? ?? tx['id'] as String? ?? '';
+    return GestureDetector(
+      onTap: storyId.isNotEmpty ? () => context.push(AppRoutes.storyDetailOf(storyId)) : null,
+      child: Container(
       margin: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl, vertical: 6),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -344,7 +348,7 @@ class _TransactionStoryCard extends StatelessWidget {
               color: catStyle.color.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(AppRadii.md),
             ),
-            child: Center(child: Text(catStyle.emoji, style: const TextStyle(fontSize: 20))),
+            child: Center(child: CategoryTheme.iconOf(category, size: 24)),
           ),
           const SizedBox(width: 12),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -356,7 +360,7 @@ class _TransactionStoryCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(color: catStyle.color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(999)),
-                child: Text('${catStyle.emoji} $category', style: TextStyle(color: catStyle.color, fontSize: 10, fontWeight: FontWeight.w600)),
+                child: Text(catStyle.label, style: TextStyle(color: catStyle.color, fontSize: 10, fontWeight: FontWeight.w600)),
               ),
               const SizedBox(width: 6),
               if (createdAt.isNotEmpty)
@@ -372,7 +376,7 @@ class _TransactionStoryCard extends StatelessWidget {
           ),
         ]),
       ),
-    );
+    ));
   }
 
   String _formatTime(String isoDate) {
@@ -471,12 +475,12 @@ class _GalleryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isPositive = item.amount >= 0;
     return GestureDetector(
-      onTap: () => context.push(AppRoutes.storyDetail),
+      onTap: () => context.push(AppRoutes.storyDetailOf('mock')),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(AppRadii.md),
         child: Stack(fit: StackFit.expand, children: [
-          Image.network(item.imageUrl, fit: BoxFit.cover,
-            errorBuilder: (ctx, e, st) => Container(color: const Color(0xFFCBD5E1)),
+          CachedNetworkImage(imageUrl: item.imageUrl, fit: BoxFit.cover,
+            errorWidget: (ctx, url, e) => Container(color: const Color(0xFFCBD5E1)),
           ),
           Positioned.fill(child: DecoratedBox(decoration: BoxDecoration(
             gradient: LinearGradient(
@@ -623,12 +627,12 @@ class _InlineCalendarViewState extends State<_InlineCalendarView> {
               );
               final url = allImages[idx];
               return GestureDetector(
-                onTap: () => context.push(AppRoutes.storyDetail),
+                onTap: () => context.push(AppRoutes.storyDetailOf('mock')),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(AppRadii.md),
                   child: Stack(fit: StackFit.expand, children: [
-                    Image.network(url, fit: BoxFit.cover,
-                      errorBuilder: (ctx, e, st) => Container(color: const Color(0xFFCBD5E1)),
+                    CachedNetworkImage(imageUrl: url, fit: BoxFit.cover,
+                      errorWidget: (ctx, u, e) => Container(color: const Color(0xFFCBD5E1)),
                     ),
                     Positioned.fill(child: DecoratedBox(decoration: BoxDecoration(
                       gradient: LinearGradient(
@@ -694,9 +698,9 @@ class _StackedPhotoCell extends StatelessWidget {
                     ),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(4.5),
-                      child: Image.network(
-                        photos[i], fit: BoxFit.cover,
-                        errorBuilder: (ctx, e, st) => Container(color: const Color(0xFFCBD5E1)),
+                      child: CachedNetworkImage(
+                        imageUrl: photos[i], fit: BoxFit.cover,
+                        errorWidget: (ctx, u, e) => Container(color: const Color(0xFFCBD5E1)),
                       ),
                     ),
                   ),

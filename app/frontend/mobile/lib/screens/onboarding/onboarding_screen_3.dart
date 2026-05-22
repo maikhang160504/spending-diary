@@ -18,13 +18,13 @@ class _OnboardingStep3State extends State<OnboardingStep3> {
 
   static const _styles = [
     _Style(
-      '😎',
+      'assets/MiMo/status/Happy.png',
       'Dui Dẻ',
       'Vui vẻ, hài hước, thoải mái',
       '"Tiêu kiểu này là cuối tháng ăn mì nha bro! 😂"',
     ),
     _Style(
-      '🔥',
+      'assets/MiMo/status/Angry.png',
       'Dận Dữ',
       'Nghiêm túc, sắc sảo, thẳng thắn',
       '"Chi nhiều vậy là vượt ngân sách rồi đó! 🧐"',
@@ -110,8 +110,8 @@ class _OnboardingStep3State extends State<OnboardingStep3> {
 }
 
 class _Style {
-  final String emoji, title, subtitle, sample;
-  const _Style(this.emoji, this.title, this.subtitle, this.sample);
+  final String statusAsset, title, subtitle, sample;
+  const _Style(this.statusAsset, this.title, this.subtitle, this.sample);
 }
 
 class _StyleCard extends StatelessWidget {
@@ -144,7 +144,7 @@ class _StyleCard extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(style.emoji, style: const TextStyle(fontSize: 28)),
+            Image.asset(style.statusAsset, width: 48, height: 48, fit: BoxFit.contain),
             const SizedBox(width: 12),
             Expanded(
               child: Column(

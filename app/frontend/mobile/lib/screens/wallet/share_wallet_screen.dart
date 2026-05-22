@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -283,7 +284,7 @@ class _SharedStoryCard extends StatelessWidget {
   const _SharedStoryCard({required this.story});
   @override
   Widget build(BuildContext context) => GestureDetector(
-    onTap: () => context.push(AppRoutes.storyDetail),
+    onTap: () => context.push(AppRoutes.storyDetailOf('mock')),
     child: Container(
       margin: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl, vertical: 6),
       decoration: BoxDecoration(
@@ -323,7 +324,7 @@ class _SharedStoryCard extends StatelessWidget {
           ]),
         ),
         Padding(padding: const EdgeInsets.fromLTRB(14, 6, 14, 10), child: Text(story.title)),
-        ClipRRect(child: Image.network(story.imageUrl, height: 180, width: double.infinity, fit: BoxFit.cover)),
+        ClipRRect(child: CachedNetworkImage(imageUrl: story.imageUrl, height: 180, width: double.infinity, fit: BoxFit.cover)),
         Padding(
           padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
           child: Text('-${formatVnd(story.amount)}',
@@ -350,11 +351,12 @@ class _SharedGalleryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => GestureDetector(
-    onTap: () => context.push(AppRoutes.storyDetail),
+    onTap: () => context.push(AppRoutes.storyDetailOf('mock')),
     child: ClipRRect(
       borderRadius: BorderRadius.circular(AppRadii.md),
       child: Stack(fit: StackFit.expand, children: [
-        Image.network(item.imageUrl, fit: BoxFit.cover),
+        CachedNetworkImage(imageUrl: item.imageUrl, fit: BoxFit.cover,
+          errorWidget: (ctx, url, e) => Container(color: const Color(0xFFCBD5E1))),
         Positioned(left: 4, top: 4,
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),

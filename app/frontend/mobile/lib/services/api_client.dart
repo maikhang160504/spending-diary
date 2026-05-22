@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
@@ -149,6 +148,18 @@ class ApiClient {
     await clearTokens();
   }
 
+  Future<void> changePassword(String currentPassword, String newPassword) async {
+    await _request('POST', '/auth/change-password', body: {
+      'currentPassword': currentPassword,
+      'newPassword': newPassword,
+    });
+  }
+
+  Future<Map<String, dynamic>> getStreak() async {
+    final result = await _request('GET', '/users/me/streak');
+    return result['data'] as Map<String, dynamic>;
+  }
+
   // ─── Wallets ──────────────────────────────────────────────────────
   Future<List<dynamic>> getWallets() async {
     final result = await _request('GET', '/wallets');
@@ -169,8 +180,8 @@ class ApiClient {
   // ─── Transactions ─────────────────────────────────────────────────
   Future<Map<String, dynamic>> getTransactions({String? walletId, String? type, int pageSize = 20, int page = 1}) async {
     final result = await _request('GET', '/transactions', queryParams: {
-      if (walletId != null) 'walletId': walletId,
-      if (type != null) 'type': type,
+      'walletId': ?walletId,
+      'type': ?type,
       'pageSize': '$pageSize',
       'page': '$page',
     });
@@ -194,7 +205,7 @@ class ApiClient {
   // ─── Stats ────────────────────────────────────────────────────────
   Future<Map<String, dynamic>> getDashboard({String? walletId}) async {
     final result = await _request('GET', '/stats/dashboard', queryParams: {
-      if (walletId != null) 'walletId': walletId,
+      'walletId': ?walletId,
     });
     return result['data'] as Map<String, dynamic>;
   }
@@ -272,7 +283,7 @@ class ApiClient {
   }
 
   Future<Map<String, dynamic>> createChatSession({String? title}) async {
-    final result = await _request('POST', '/chat/sessions', body: {if (title != null) 'title': title});
+    final result = await _request('POST', '/chat/sessions', body: {'title': ?title});
     return result['data'] as Map<String, dynamic>;
   }
 
@@ -289,7 +300,7 @@ class ApiClient {
   // ─── Stories ──────────────────────────────────────────────────────
   Future<List<dynamic>> getStories({String? walletId}) async {
     final result = await _request('GET', '/stories', queryParams: {
-      if (walletId != null) 'walletId': walletId,
+      'walletId': ?walletId,
     });
     return result['data'] as List<dynamic>;
   }
@@ -297,6 +308,14 @@ class ApiClient {
   Future<Map<String, dynamic>> getStory(String id) async {
     final result = await _request('GET', '/stories/$id');
     return result['data'] as Map<String, dynamic>;
+  }
+
+  // ─── Stats ────────────────────────────────────────────────────────
+  Future<List<dynamic>> getStatsByCategory({String? range}) async {
+    final result = await _request('GET', '/stats/by-category', queryParams: {
+      'range': ?range,
+    });
+    return result['data'] as List<dynamic>;
   }
 }
 

@@ -33,16 +33,8 @@ class OnboardingStep1 extends StatelessWidget {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Container(
-                          width: 64,
-                          height: 64,
-                          decoration: BoxDecoration(
-                            color: AppColors.teal,
-                            borderRadius: BorderRadius.circular(AppRadii.lg),
-                          ),
-                          child: const Center(child: Text('👋', style: TextStyle(fontSize: 32))),
-                        ),
-                        const SizedBox(height: 20),
+                        Image.asset('assets/MiMo/status/Hello.png', width: 100, height: 100, fit: BoxFit.contain),
+                        const SizedBox(height: 12),
                         Text('Xin chào! Mình là Mimo 😊', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700), textAlign: TextAlign.center),
                         const SizedBox(height: 10),
                         Text(
