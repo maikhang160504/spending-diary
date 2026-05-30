@@ -37,3 +37,12 @@ exports.getStreak = asyncHandler(async (req, res) => {
   const data = await authService.getStreak(req.user.id);
   res.json({ success: true, data });
 });
+
+exports.googleLogin = asyncHandler(async (req, res) => {
+  const result = await authService.googleLogin(req.body);
+  res.json({ success: true, data: result });
+});
+exports.updateProfile = asyncHandler(async (req, res) => {
+  const user = await authService.updateProfile(req.user.id, req.body);
+  res.json({ success: true, data: { user } });
+});

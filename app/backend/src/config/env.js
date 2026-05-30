@@ -81,6 +81,10 @@ const env = {
     username: process.env.SEED_DEMO_USER_NAME || 'Demo User',
   },
 
+  google: {
+    clientId: process.env.GOOGLE_CLIENT_ID || null,
+  },
+
   isProd: process.env.NODE_ENV === 'production',
 };
 

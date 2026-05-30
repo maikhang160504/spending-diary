@@ -2,6 +2,7 @@
 
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
+const { OAuth2Client } = require('google-auth-library');
 
 const { query, withTransaction } = require('../../config/db');
 const ApiError = require('../../utils/ApiError');
@@ -11,6 +12,8 @@ const {
   verifyRefreshToken,
 } = require('../../utils/jwt');
 const env = require('../../config/env');
+
+const _googleClient = new OAuth2Client();
 
 function hashToken(token) {
   return crypto.createHash('sha256').update(token).digest('hex');
@@ -23,7 +26,8 @@ async function findUserByEmail(email) {
 
 async function findUserById(id) {
   const r = await query(
-    `SELECT id, email, username, avatar_url, preferred_vibe, role, is_active, created_at
+    `SELECT id, email, username, avatar_url, preferred_vibe, role, is_active, created_at,
+            income_amount, job_title
      FROM users WHERE id = $1`,
     [id]
   );
@@ -149,10 +153,17 @@ async function changePassword(userId, { currentPassword, newPassword }) {
 async function getStreak(userId) {
   // Get all distinct dates with transactions for this user (ordered desc)
   const r = await query(
-    `SELECT DISTINCT DATE(t.occurred_at) AS day
-     FROM transactions t
-     JOIN wallet_members wm ON wm.wallet_id = t.wallet_id
-     WHERE wm.user_id = $1 AND t.deleted_at IS NULL
+    `SELECT DISTINCT day FROM (
+       SELECT DATE(t.occurred_at) AS day
+       FROM transactions t
+       JOIN wallet_members wm ON wm.wallet_id = t.wallet_id
+       WHERE wm.user_id = $1 AND t.is_deleted = FALSE
+       UNION
+       SELECT DATE(cm.created_at) AS day
+       FROM chat_messages cm
+       JOIN chat_sessions cs ON cs.id = cm.session_id
+       WHERE cs.user_id = $1 AND cm.role = 'user'
+     ) active_days
      ORDER BY day DESC`,
     [userId]
   );
@@ -165,18 +176,29 @@ async function getStreak(userId) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  // Calculate current streak
+  const startOfDay = (d) => {
+    const x = new Date(d);
+    x.setHours(0, 0, 0, 0);
+    return x;
+  };
+
+  // Calculate current streak — KHOAN HỒNG 1 NGÀY:
+  // bỏ lỡ đúng 1 ngày sẽ KHÔNG làm streak về 0 (chấp nhận khoảng cách ≤ 2 ngày).
   let currentStreak = 0;
-  let checkDate = new Date(today);
-  for (const d of dates) {
-    const day = new Date(d);
-    day.setHours(0, 0, 0, 0);
-    const diff = Math.round((checkDate - day) / 86400000);
-    if (diff === 0 || diff === 1) {
-      currentStreak++;
-      checkDate = day;
-    } else {
-      break;
+  // dates đã sort giảm dần → dates[0] là ngày hoạt động gần nhất.
+  const daysSinceLast = Math.round((today - startOfDay(dates[0])) / 86400000);
+  if (daysSinceLast <= 2) {
+    currentStreak = 1;
+    for (let i = 1; i < dates.length; i++) {
+      const prev = startOfDay(dates[i - 1]);
+      const curr = startOfDay(dates[i]);
+      const diff = Math.round((prev - curr) / 86400000);
+      // diff === 1: liên tiếp; diff === 2: nghỉ đúng 1 ngày → vẫn giữ streak.
+      if (diff <= 2) {
+        currentStreak++;
+      } else {
+        break;
+      }
     }
   }
 
@@ -206,4 +228,113 @@ async function getStreak(userId) {
   };
 }
 
-module.exports = { register, login, refresh, logout, findUserById, changePassword, getStreak };
+async function googleLogin({ idToken }) {
+  if (!idToken) throw ApiError.badRequest('idToken is required.');
+
+  let payload;
+  try {
+    const ticket = await _googleClient.verifyIdToken({
+      idToken,
+      audience: env.google.clientId || undefined,
+    });
+    payload = ticket.getPayload();
+  } catch (err) {
+    throw ApiError.unauthorized('Invalid Google token.', { reason: err.message });
+  }
+
+  const googleId = payload.sub;
+  const email = payload.email;
+  const name = payload.name || payload.email.split('@')[0];
+  const avatarUrl = payload.picture || null;
+
+  // 1. Find by google_id
+  let userRow = (await query('SELECT * FROM users WHERE google_id = $1', [googleId])).rows[0];
+
+  // 2. Find by email → link google_id
+  if (!userRow && email) {
+    userRow = await findUserByEmail(email);
+    if (userRow) {
+      await query('UPDATE users SET google_id = $1, updated_at = NOW() WHERE id = $2', [googleId, userRow.id]);
+      userRow.google_id = googleId;
+    }
+  }
+
+  // 3. Create new user (no password)
+  if (!userRow) {
+    const result = await withTransaction(async (client) => {
+      const userInsert = await client.query(
+        `INSERT INTO users (email, google_id, username, avatar_url, preferred_vibe)
+         VALUES ($1, $2, $3, $4, 'funny')
+         RETURNING id, email, username, avatar_url, preferred_vibe, role, created_at`,
+        [email, googleId, name, avatarUrl]
+      );
+      const user = userInsert.rows[0];
+      const wallet = await client.query(
+        `INSERT INTO wallets (owner_id, name, type, currency)
+         VALUES ($1, 'Ví cá nhân', 'personal', 'VND') RETURNING id`,
+        [user.id]
+      );
+      await client.query(
+        `INSERT INTO wallet_members (wallet_id, user_id, role) VALUES ($1, $2, 'owner')`,
+        [wallet.rows[0].id, user.id]
+      );
+      return user;
+    });
+    userRow = result;
+  }
+
+  if (!userRow.is_active && userRow.is_active !== undefined) {
+    throw ApiError.unauthorized('Account is disabled.');
+  }
+
+  await query('UPDATE users SET last_login_at = NOW() WHERE id = $1', [userRow.id]);
+  return issueTokens(userRow);
+}
+
+async function updateProfile(userId, payload) {
+  const fields = [];
+  const values = [userId];
+  let idx = 2;
+
+  if (payload.username !== undefined) {
+    fields.push(`username = $${idx++}`);
+    values.push(payload.username);
+  }
+  if (payload.avatarUrl !== undefined) {
+    fields.push(`avatar_url = $${idx++}`);
+    values.push(payload.avatarUrl);
+  }
+  if (payload.preferredVibe !== undefined) {
+    fields.push(`preferred_vibe = $${idx++}`);
+    values.push(payload.preferredVibe);
+  }
+  if (payload.age !== undefined) {
+    fields.push(`age = $${idx++}`);
+    values.push(payload.age ? parseInt(payload.age) : null);
+  }
+  if (payload.jobTitle !== undefined) {
+    fields.push(`job_title = $${idx++}`);
+    values.push(payload.jobTitle);
+  }
+  if (payload.incomeAmount !== undefined) {
+    fields.push(`income_amount = $${idx++}`);
+    values.push(payload.incomeAmount ? parseFloat(payload.incomeAmount) : 0);
+  }
+  if (payload.incomeType !== undefined) {
+    fields.push(`income_type = $${idx++}`);
+    values.push(payload.incomeType);
+  }
+
+  if (fields.length === 0) {
+    return findUserById(userId);
+  }
+
+  fields.push('updated_at = NOW()');
+  const r = await query(
+    `UPDATE users SET ${fields.join(', ')} WHERE id = $1 RETURNING id, email, username, avatar_url, preferred_vibe, role, created_at, age, job_title, income_amount, income_type`,
+    values
+  );
+  return r.rows[0];
+}
+
+module.exports = { register, login, refresh, logout, findUserById, changePassword, getStreak, googleLogin, updateProfile };

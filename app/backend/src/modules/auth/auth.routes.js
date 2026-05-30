@@ -131,6 +131,25 @@ const router = express.Router();
  *     security: [ { bearerAuth: [] } ]
  *     responses:
  *       200: { description: OK }
+ *
+ * /api/v1/auth/google:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Đăng nhập bằng Google (Google ID Token)
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [idToken]
+ *             properties:
+ *               idToken: { type: string, description: Google ID Token từ GoogleSignIn }
+ *     responses:
+ *       200:
+ *         description: Trả về accessToken, refreshToken, user
+ *       401:
+ *         description: Invalid Google token
  */
 
 router.post('/register', validate({ body: registerSchema }), controller.register);
@@ -138,6 +157,8 @@ router.post('/login', validate({ body: loginSchema }), controller.login);
 router.post('/refresh', validate({ body: refreshSchema }), controller.refresh);
 router.post('/logout', validate({ body: refreshSchema }), controller.logout);
 router.get('/me', requireAuth, controller.me);
+router.patch('/me', requireAuth, controller.updateProfile);
 router.post('/change-password', requireAuth, validate({ body: changePasswordSchema }), controller.changePassword);
+router.post('/google', controller.googleLogin);
 
 module.exports = router;
