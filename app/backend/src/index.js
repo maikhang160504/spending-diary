@@ -6,6 +6,7 @@ const app = require('./app');
 const env = require('./config/env');
 const logger = require('./config/logger');
 const { ping, pool } = require('./config/db');
+const { attachWsServer } = require('./services/wsHub');
 
 async function start() {
   if (env.database.url) {
@@ -24,6 +25,7 @@ async function start() {
       { port: env.port, env: env.nodeEnv, docs: `http://localhost:${env.port}/docs` },
       'backend listening'
     );
+    attachWsServer(server);
   });
 
   const shutdown = async (signal) => {

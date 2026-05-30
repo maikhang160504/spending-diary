@@ -76,4 +76,12 @@ async function archiveSession(userId, sessionId) {
   if (r.rowCount === 0) throw ApiError.notFound('Session not found.');
 }
 
-module.exports = { listSessions, createSession, getMessages, addMessage, archiveSession };
+async function deleteSession(userId, sessionId) {
+  const r = await query(
+    `DELETE FROM chat_sessions WHERE id = $1 AND user_id = $2 RETURNING id`,
+    [sessionId, userId]
+  );
+  if (r.rowCount === 0) throw ApiError.notFound('Session not found.');
+}
+
+module.exports = { listSessions, createSession, getMessages, addMessage, archiveSession, deleteSession };

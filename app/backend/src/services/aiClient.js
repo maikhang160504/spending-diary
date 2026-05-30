@@ -64,45 +64,63 @@ async function inferText(payload) {
   });
 }
 
-async function ocrImage(buffer, filename = 'bill.jpg', mime = 'image/jpeg') {
-  const form = new FormData();
-  form.append('file', buffer, { filename, contentType: mime });
-  const r = await client.post('/api/v1/ocr/image', form, {
-    headers: { ...form.getHeaders() },
-    maxContentLength: Infinity,
-    maxBodyLength: Infinity,
-  });
-  return r.data;
-}
-
 async function expenseFromText(payload) {
   return withRetry(async () => {
-    const r = await client.post('/api/v1/expense/from-text', payload);
-    return r.data;
+    const r = await client.post('/api/v1/nlu/infer', {
+      text: payload.text,
+      profile: payload.profile || null,
+      run_llm: true,
+      user_id: payload.user_id,
+      emotion: payload.emotion,
+    });
+    const nlu = r.data;
+    return {
+      extracted: {
+        amount:      nlu.amount_spent || nlu.amount || 0,
+        category:    nlu.category    || 'Other',
+        note:        nlu.clean_content || payload.text,
+        confidence:  nlu.intent_confidence ?? nlu.confidence ?? 0,
+        record_type: nlu.record_type || 'Expense',
+      },
+      nlu,
+      requires_category_selection: !nlu.category,
+    };
   });
 }
 
 async function aiChat(messages, userId, options = {}) {
+  const lastUserMsg = [...messages].reverse().find((m) => m.role === 'user');
   return withRetry(async () => {
-    const r = await client.post('/api/v1/chat', {
-      messages,
+    const r = await client.post('/api/v1/nlu/infer', {
+      text: lastUserMsg?.content || '',
       user_id: userId,
+      run_llm: true,
       ...options,
     });
     return r.data;
   });
 }
 
-async function expenseFromBill(buffer, filename = 'bill.jpg', userId = undefined, mime = 'image/jpeg') {
-  const form = new FormData();
-  form.append('file', buffer, { filename, contentType: mime });
-  if (userId) form.append('user_id', userId);
-  const r = await client.post('/api/v1/expense/from-bill', form, {
-    headers: { ...form.getHeaders() },
-    maxContentLength: Infinity,
-    maxBodyLength: Infinity,
+async function ocrImage() {
+  throw ApiError.upstream('OCR chưa được triển khai', { code: 'OCR_NOT_IMPLEMENTED' });
+}
+
+async function expenseFromBill(fileBuffer, filename, userId, contentType) {
+  return withRetry(async () => {
+    const form = new FormData();
+    form.append('file', fileBuffer, {
+      filename: filename || 'bill.jpg',
+      contentType: contentType || 'image/jpeg',
+    });
+    if (userId) {
+      form.append('user_id', String(userId));
+    }
+
+    const r = await client.post('/api/v1/expense/from-bill', form, {
+      headers: form.getHeaders(),
+    });
+    return r.data;
   });
-  return r.data;
 }
 
 module.exports = { health, inferText, ocrImage, expenseFromText, expenseFromBill, aiChat };

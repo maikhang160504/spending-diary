@@ -27,3 +27,8 @@ exports.archiveSession = asyncHandler(async (req, res) => {
   await service.archiveSession(req.user.id, req.params.id);
   res.json({ success: true });
 });
+
+exports.deleteSession = asyncHandler(async (req, res) => {
+  await service.deleteSession(req.user.id, req.params.id);
+  res.json({ success: true });
+});

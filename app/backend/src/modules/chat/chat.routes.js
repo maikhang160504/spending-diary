@@ -66,5 +66,6 @@ router.post('/sessions', validate({ body: createSessionSchema }), controller.cre
 router.get('/sessions/:id/messages', controller.getMessages);
 router.post('/sessions/:id/messages', validate({ body: createMessageSchema }), controller.addMessage);
 router.post('/sessions/:id/archive', controller.archiveSession);
+router.delete('/sessions/:id', controller.deleteSession);
 
 module.exports = router;

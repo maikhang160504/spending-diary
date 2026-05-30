@@ -22,13 +22,16 @@ exports.expenseFromText = asyncHandler(async (req, res) => {
 
 exports.expenseFromBill = asyncHandler(async (req, res) => {
   if (!req.file) throw ApiError.badRequest('Field "file" is required.');
+  const walletId = req.body?.walletId || req.query?.walletId || null;
+  if (!walletId) throw ApiError.badRequest('walletId is required.');
   const data = await service.expenseFromBill(
     req.user.id,
     req.file.buffer,
     req.file.originalname,
-    req.file.mimetype
+    req.file.mimetype,
+    walletId
   );
-  res.json({ success: true, data });
+  res.status(202).json({ success: true, data });
 });
 
 exports.saveCorrection = asyncHandler(async (req, res) => {

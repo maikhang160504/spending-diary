@@ -68,7 +68,7 @@ const router = express.Router();
  * /api/v1/ai/expense/from-bill:
  *   post:
  *     tags: [AI]
- *     summary: OCR hóa đơn → suggestion (requires_confirmation=true)
+ *     summary: "Upload bill ảnh → tạo giao dịch PENDING ngay (HTTP 202); OCR+LLM chạy ngầm; kết quả trả qua WebSocket /ws"
  *     security: [ { bearerAuth: [] } ]
  *     requestBody:
  *       required: true
@@ -76,11 +76,30 @@ const router = express.Router();
  *         multipart/form-data:
  *           schema:
  *             type: object
- *             required: [file]
+ *             required: [file, walletId]
  *             properties:
  *               file:
  *                 type: string
  *                 format: binary
+ *               walletId:
+ *                 type: string
+ *                 format: uuid
+ *                 description: Ví sẽ ghi giao dịch vào
+ *     responses:
+ *       202:
+ *         description: Giao dịch PENDING đã được tạo; lắng nghe WebSocket để nhận kết quả
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean }
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     transactionId: { type: string, format: uuid }
+ *                     status: { type: string, enum: [pending] }
+ *                     imageUrl: { type: string, nullable: true }
  *
  * /api/v1/ai/corrections:
  *   post:
