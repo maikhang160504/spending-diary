@@ -12,3 +12,9 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+
+#skill agent
+.agents
+
+#codegraph
+.codegraph/
