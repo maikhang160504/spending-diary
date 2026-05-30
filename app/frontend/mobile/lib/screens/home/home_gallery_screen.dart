@@ -2,20 +2,53 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../data/mock_data.dart';
 import '../../routes/app_routes.dart';
 import '../../theme/app_colors.dart';
+import '../../theme/app_palette.dart';
 import '../../theme/app_radii.dart';
 import '../../theme/app_spacing.dart';
 import '../../utils/formatters.dart';
+import '../../services/api_client.dart';
+import '../../widgets/loading_indicator.dart';
 
-class HomeGalleryScreen extends StatelessWidget {
+class HomeGalleryScreen extends StatefulWidget {
   const HomeGalleryScreen({super.key});
+
+  @override
+  State<HomeGalleryScreen> createState() => _HomeGalleryScreenState();
+}
+
+class _HomeGalleryScreenState extends State<HomeGalleryScreen> {
+  final _api = ApiClient();
+  List<dynamic> _stories = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadStories();
+  }
+
+  Future<void> _loadStories() async {
+    try {
+      final res = await _api.getStories();
+      if (mounted) {
+        setState(() {
+          _stories = res.where((s) =>
+            (s['cover_image_url'] as String? ?? s['coverImageUrl'] as String? ?? '').isNotEmpty
+          ).toList();
+          _loading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: context.palette.bg,
       body: SafeArea(
         child: SingleChildScrollView(
           child: Column(
@@ -43,18 +76,31 @@ class HomeGalleryScreen extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 12),
-                    GridView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: MockData.galleryItems.length,
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 3,
-                        mainAxisSpacing: 6,
-                        crossAxisSpacing: 6,
-                        childAspectRatio: 0.72,
-                      ),
-                      itemBuilder: (context, index) => _GalleryCard(item: MockData.galleryItems[index]),
-                    ),
+                    _loading
+                        ? const Center(child: Padding(
+                            padding: EdgeInsets.symmetric(vertical: 40),
+                            child: LoadingIndicator(),
+                          ))
+                        : _stories.isEmpty
+                            ? Center(
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 40),
+                                  child: Text('Chưa có story nào',
+                                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.muted)),
+                                ),
+                              )
+                            : GridView.builder(
+                                shrinkWrap: true,
+                                physics: const NeverScrollableScrollPhysics(),
+                                itemCount: _stories.length,
+                                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: 3,
+                                  mainAxisSpacing: 6,
+                                  crossAxisSpacing: 6,
+                                  childAspectRatio: 0.72,
+                                ),
+                                itemBuilder: (context, index) => _GalleryCard(story: _stories[index]),
+                              ),
                     const SizedBox(height: 24),
                   ],
                 ),
@@ -140,7 +186,7 @@ class _HeaderSection extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: context.palette.card,
               borderRadius: BorderRadius.circular(AppRadii.lg),
             ),
             child: Column(
@@ -231,12 +277,12 @@ class _SegmentTabs extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: Colors.white,
+      color: context.palette.bg,
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl, vertical: 12),
       child: Container(
         padding: const EdgeInsets.all(4),
         decoration: BoxDecoration(
-          color: const Color(0xFFF1F5F9),
+          color: context.palette.surfaceAlt,
           borderRadius: BorderRadius.circular(AppRadii.lg),
         ),
         child: Row(
@@ -269,7 +315,7 @@ class _SegmentItem extends StatelessWidget {
           decoration: BoxDecoration(
             color: isSelected ? Colors.white : Colors.transparent,
             borderRadius: BorderRadius.circular(AppRadii.md),
-            boxShadow: isSelected ? const [BoxShadow(color: Color(0x14000000), blurRadius: 6, offset: Offset(0, 3))] : null,
+            boxShadow: isSelected ? AppShadows.soft : null,
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -292,94 +338,130 @@ class _SegmentItem extends StatelessWidget {
 }
 
 class _GalleryCard extends StatelessWidget {
-  final GalleryItem item;
+  final Map<String, dynamic> story;
 
-  const _GalleryCard({required this.item});
+  const _GalleryCard({required this.story});
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(AppRadii.md),
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          CachedNetworkImage(imageUrl: item.imageUrl, fit: BoxFit.cover,
-            errorWidget: (ctx, url, e) => Container(color: const Color(0xFFCBD5E1)),
-          ),
-          // Dark gradient overlay at bottom
-          Positioned.fill(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [Colors.transparent, Colors.black.withValues(alpha: 0.65)],
-                  stops: const [0.5, 1.0],
+    final id = story['id'] as String? ?? '';
+    final title = story['title'] as String? ?? 'Story';
+    final category = story['category_code'] as String? ?? story['categoryCode'] as String? ?? '';
+    final imageUrl = story['cover_image_url'] as String? ?? story['coverImageUrl'] as String? ?? '';
+    final occurredOn = story['occurred_on'] as String? ?? story['occurredOn'] as String? ?? '';
+    final amount = ((story['total_amount'] ?? story['totalAmount'] ?? 0) is num)
+        ? ((story['total_amount'] ?? story['totalAmount'] ?? 0) as num).toInt()
+        : 0;
+
+    String dateStr = '';
+    if (occurredOn.isNotEmpty) {
+      try {
+        final dt = DateTime.parse(occurredOn);
+        dateStr = '${dt.day.toString().padLeft(2, '0')}-${dt.month.toString().padLeft(2, '0')}';
+      } catch (_) {}
+    }
+
+    return GestureDetector(
+      onTap: id.isNotEmpty ? () => context.push(AppRoutes.storyDetailOf(id)) : null,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(AppRadii.md),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            imageUrl.isNotEmpty
+                ? CachedNetworkImage(
+                    imageUrl: imageUrl,
+                    fit: BoxFit.cover,
+                    memCacheWidth: 600,
+                    errorWidget: (ctx, url, e) => Container(
+                      color: const Color(0xFFCBD5E1),
+                      child: const Icon(Icons.photo_camera_outlined, color: Colors.white54, size: 24),
+                    ),
+                  )
+                : Container(
+                    color: const Color(0xFFCBD5E1),
+                    child: const Icon(Icons.photo_camera_outlined, color: Colors.white54, size: 24),
+                  ),
+            // Dark gradient overlay at bottom
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Colors.transparent, Colors.black.withValues(alpha: 0.7)],
+                    stops: const [0.4, 1.0],
+                  ),
                 ),
               ),
             ),
-          ),
-          // Category badge top-left
-          Positioned(
-            left: 6,
-            top: 6,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-              decoration: BoxDecoration(
-                color: _categoryColor(item.category),
-                borderRadius: BorderRadius.circular(999),
+            // Date top-left
+            if (dateStr.isNotEmpty)
+              Positioned(
+                left: 5,
+                top: 5,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.55),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(dateStr, style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.w600)),
+                ),
               ),
-              child: Row(
+            // Category top-right
+            if (category.isNotEmpty)
+              Positioned(
+                right: 5,
+                top: 5,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: AppColors.teal.withValues(alpha: 0.85),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    category.length > 8 ? '${category.substring(0, 6)}...' : category,
+                    style: const TextStyle(color: Colors.white, fontSize: 7, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ),
+            // Amount bottom-left (prominent)
+            Positioned(
+              left: 5,
+              right: 5,
+              bottom: 5,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(item.categoryEmoji, style: const TextStyle(fontSize: 9)),
-                  const SizedBox(width: 3),
-                  Text(item.category, style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w600)),
+                  if (amount > 0)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AppColors.danger.withValues(alpha: 0.9),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        '-${formatVnd(amount)}',
+                        style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  if (title.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      title,
+                      style: const TextStyle(color: Colors.white70, fontSize: 9),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 ],
               ),
             ),
-          ),
-          // Date top-right
-          Positioned(
-            right: 6,
-            top: 6,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-              decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.45),
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: Text(item.date, style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.w500)),
-            ),
-          ),
-          // Amount and title at bottom
-          Positioned(
-            left: 6,
-            right: 6,
-            bottom: 6,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '-${formatVnd(item.amount)}',
-                  style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700),
-                ),
-                Text(item.title, style: const TextStyle(color: Colors.white70, fontSize: 10)),
-              ],
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
-  }
-
-  Color _categoryColor(String category) {
-    switch (category) {
-      case 'Ăn uống': return const Color(0xFFEC4899);
-      case 'Mua sắm': return const Color(0xFF8B5CF6);
-      case 'Di chuyển': return const Color(0xFF3B82F6);
-      case 'Giải trí': return const Color(0xFFF59E0B);
-      default: return AppColors.teal;
-    }
   }
 }

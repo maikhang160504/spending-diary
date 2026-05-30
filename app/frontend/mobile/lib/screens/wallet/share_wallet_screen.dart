@@ -2,29 +2,141 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../data/mock_data.dart';
 import '../../routes/app_routes.dart';
+import '../../services/api_client.dart';
 import '../../theme/app_colors.dart';
+import '../../theme/app_palette.dart';
 import '../../theme/app_radii.dart';
 import '../../theme/app_spacing.dart';
 import '../../utils/formatters.dart';
+import '../../widgets/loading_indicator.dart';
 
 class ShareWalletScreen extends StatefulWidget {
-  const ShareWalletScreen({super.key});
+  final String? walletId;
+  const ShareWalletScreen({super.key, this.walletId});
   @override
   State<ShareWalletScreen> createState() => _ShareWalletScreenState();
 }
 
 class _ShareWalletScreenState extends State<ShareWalletScreen> {
+  final _api = ApiClient();
   String _tab = 'Story';
   bool _showMembers = false;
+  bool _loading = true;
+  Map<String, dynamic> _wallet = {};
+  List<dynamic> _members = [];
+  List<dynamic> _stories = [];
+  String? _error;
 
-  static const _members = ['An', 'Lan', 'Minh', 'Khánh'];
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    final id = widget.walletId;
+    if (id == null || id.isEmpty) {
+      setState(() { _loading = false; _error = 'Không tìm thấy ví'; });
+      return;
+    }
+    setState(() { _loading = true; _error = null; });
+    try {
+      final results = await Future.wait([
+        _api.getWallet(id),
+        _api.getWalletMembers(id),
+        _api.getStories(walletId: id),
+      ]);
+      if (!mounted) return;
+      setState(() {
+        _wallet = results[0] as Map<String, dynamic>;
+        _members = results[1] as List<dynamic>;
+        _stories = results[2] as List<dynamic>;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() { _loading = false; _error = 'Không thể tải dữ liệu ví'; });
+    }
+  }
+
+  Future<void> _showInviteDialog() async {
+    final emailCtrl = TextEditingController();
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Mời thành viên'),
+        content: TextField(
+          controller: emailCtrl,
+          keyboardType: TextInputType.emailAddress,
+          decoration: const InputDecoration(
+            hintText: 'Email người dùng',
+            prefixIcon: Icon(Icons.email_outlined),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Huỷ')),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, emailCtrl.text.trim()),
+            child: const Text('Mời'),
+          ),
+        ],
+      ),
+    );
+    if (result == null || result.isEmpty || !mounted) return;
+    try {
+      final updated = await _api.inviteWalletMember(widget.walletId!, result);
+      if (!mounted) return;
+      setState(() => _members = updated);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Đã mời thành viên thành công')));
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.localizedMessage)));
+    }
+  }
+
+  Future<void> _confirmRemove(Map<String, dynamic> member) async {
+    final name = member['username'] as String? ?? member['email'] as String? ?? 'thành viên này';
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Xoá thành viên'),
+        content: Text('Bạn có chắc muốn xoá $name khỏi ví không?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Huỷ')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Xoá', style: TextStyle(color: AppColors.danger)),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true || !mounted) return;
+    try {
+      await _api.removeWalletMember(widget.walletId!, member['id'] as String);
+      if (!mounted) return;
+      setState(() => _members.removeWhere((m) => m['id'] == member['id']));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Đã xoá thành viên')));
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.localizedMessage)));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    if (_loading) {
+      return const Scaffold(body: Center(child: LoadingIndicator()));
+    }
+    if (_error != null) {
+      return Scaffold(body: Center(child: Text(_error!, style: const TextStyle(color: AppColors.danger))));
+    }
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: context.palette.bg,
       body: SafeArea(
         child: Stack(
           children: [
@@ -34,31 +146,40 @@ class _ShareWalletScreenState extends State<ShareWalletScreen> {
                 SliverToBoxAdapter(child: _buildSegmentTabs()),
                 const SliverToBoxAdapter(child: SizedBox(height: 16)),
                 if (_tab == 'Story')
-                  SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (ctx, i) => _SharedStoryCard(story: MockData.homeStories[i]),
-                      childCount: MockData.homeStories.length,
-                    ),
-                  ),
+                  _stories.isEmpty
+                    ? SliverToBoxAdapter(child: Padding(
+                        padding: const EdgeInsets.all(40),
+                        child: Center(child: Text('Chưa có story nào', style: TextStyle(color: AppColors.muted))),
+                      ))
+                    : SliverList(
+                        delegate: SliverChildBuilderDelegate(
+                          (ctx, i) => _SharedStoryCard(story: _stories[i] as Map<String, dynamic>),
+                          childCount: _stories.length,
+                        ),
+                      ),
                 if (_tab == 'Gallery')
-                  SliverPadding(
-                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
-                    sliver: SliverGrid(
-                      delegate: SliverChildBuilderDelegate(
-                        (ctx, i) => _SharedGalleryCard(item: MockData.galleryItems[i]),
-                        childCount: MockData.galleryItems.length,
+                  _stories.isEmpty
+                    ? SliverToBoxAdapter(child: Padding(
+                        padding: const EdgeInsets.all(40),
+                        child: Center(child: Text('Chưa có ảnh nào', style: TextStyle(color: AppColors.muted))),
+                      ))
+                    : SliverPadding(
+                        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
+                        sliver: SliverGrid(
+                          delegate: SliverChildBuilderDelegate(
+                            (ctx, i) => _SharedGalleryCard(story: _stories[i] as Map<String, dynamic>),
+                            childCount: _stories.length,
+                          ),
+                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 3, mainAxisSpacing: 5, crossAxisSpacing: 5, childAspectRatio: 0.75,
+                          ),
+                        ),
                       ),
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 3, mainAxisSpacing: 5, crossAxisSpacing: 5, childAspectRatio: 0.75,
-                      ),
-                    ),
-                  ),
                 if (_tab == 'Calendar')
                   SliverToBoxAdapter(child: _buildCalendar()),
                 const SliverToBoxAdapter(child: SizedBox(height: 80)),
               ],
             ),
-            // Member list drawer (slide in from right)
             if (_showMembers)
               GestureDetector(
                 onTap: () => setState(() => _showMembers = false),
@@ -67,9 +188,9 @@ class _ShareWalletScreenState extends State<ShareWalletScreen> {
             if (_showMembers)
               Positioned(
                 right: 0, top: 0, bottom: 0,
-                width: 240,
+                width: 260,
                 child: Container(
-                  color: Colors.white,
+                  color: context.palette.card,
                   child: SafeArea(
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       Padding(
@@ -81,24 +202,46 @@ class _ShareWalletScreenState extends State<ShareWalletScreen> {
                         ]),
                       ),
                       const Divider(height: 1),
-                      ..._members.map((name) => ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: AppColors.teal.withValues(alpha: 0.15),
-                          child: Text(name[0], style: const TextStyle(color: AppColors.teal, fontWeight: FontWeight.w700)),
+                      Expanded(
+                        child: ListView(
+                          children: [
+                            ..._members.map((m) {
+                              final member = m as Map<String, dynamic>;
+                              final name = member['username'] as String? ?? member['email'] as String? ?? '?';
+                              final role = member['role'] as String? ?? 'member';
+                              final isOwner = role == 'owner';
+                              return ListTile(
+                                leading: CircleAvatar(
+                                  backgroundColor: AppColors.teal.withValues(alpha: 0.15),
+                                  backgroundImage: member['avatarUrl'] != null
+                                      ? NetworkImage(member['avatarUrl'] as String) : null,
+                                  child: member['avatarUrl'] == null
+                                      ? Text(name[0].toUpperCase(), style: const TextStyle(color: AppColors.teal, fontWeight: FontWeight.w700))
+                                      : null,
+                                ),
+                                title: Text(name, style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+                                subtitle: Text(
+                                  isOwner ? 'Chủ ví 👑' : role,
+                                  style: TextStyle(fontSize: 11, color: isOwner ? AppColors.teal : AppColors.muted),
+                                ),
+                                trailing: isOwner ? null : IconButton(
+                                  icon: const Icon(Icons.person_remove_outlined, size: 18, color: AppColors.danger),
+                                  onPressed: () => _confirmRemove(member),
+                                ),
+                              );
+                            }),
+                            const Divider(height: 1),
+                            ListTile(
+                              leading: Container(
+                                width: 40, height: 40,
+                                decoration: BoxDecoration(border: Border.all(color: AppColors.teal, width: 1.5), shape: BoxShape.circle),
+                                child: const Icon(Icons.person_add_alt_1, color: AppColors.teal, size: 20),
+                              ),
+                              title: const Text('Mời thành viên', style: TextStyle(color: AppColors.teal, fontWeight: FontWeight.w600, fontSize: 14)),
+                              onTap: () { setState(() => _showMembers = false); _showInviteDialog(); },
+                            ),
+                          ],
                         ),
-                        title: Text(name, style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
-                        subtitle: name == 'An' ? const Text('Chủ ví 👑', style: TextStyle(fontSize: 11, color: AppColors.teal)) : null,
-                        trailing: name == 'An' ? null : IconButton(icon: const Icon(Icons.more_vert, size: 18, color: AppColors.muted), onPressed: () {}),
-                      )),
-                      const Divider(height: 1),
-                      ListTile(
-                        leading: Container(
-                          width: 40, height: 40,
-                          decoration: BoxDecoration(border: Border.all(color: AppColors.teal, width: 1.5), shape: BoxShape.circle),
-                          child: const Icon(Icons.person_add_alt_1, color: AppColors.teal, size: 20),
-                        ),
-                        title: const Text('Mời thành viên', style: TextStyle(color: AppColors.teal, fontWeight: FontWeight.w600, fontSize: 14)),
-                        onTap: () {},
                       ),
                     ]),
                   ),
@@ -111,6 +254,8 @@ class _ShareWalletScreenState extends State<ShareWalletScreen> {
   }
 
   Widget _buildHeader() {
+    final walletName = _wallet['name'] as String? ?? 'Ví chung';
+    final balance = (_wallet['balance'] as num?)?.toInt() ?? 0;
     return Container(
       decoration: const BoxDecoration(
         gradient: AppGradients.teal,
@@ -129,13 +274,12 @@ class _ShareWalletScreenState extends State<ShareWalletScreen> {
           ),
           const SizedBox(width: 4),
           Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('Ví chung · Gia đình', style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.white, fontWeight: FontWeight.w700)),
+            Text(walletName, style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.white, fontWeight: FontWeight.w700)),
             Text('${_members.length} thành viên', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white70)),
           ]),
           const Spacer(),
-          // Add member
           GestureDetector(
-            onTap: () {},
+            onTap: _showInviteDialog,
             child: Container(
               width: 36, height: 36,
               decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), shape: BoxShape.circle),
@@ -143,7 +287,6 @@ class _ShareWalletScreenState extends State<ShareWalletScreen> {
             ),
           ),
           const SizedBox(width: 8),
-          // Member list
           GestureDetector(
             onTap: () => setState(() => _showMembers = true),
             child: Container(
@@ -154,10 +297,9 @@ class _ShareWalletScreenState extends State<ShareWalletScreen> {
           ),
         ]),
         const SizedBox(height: 16),
-        // Balance card
         Container(
           padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(AppRadii.lg)),
+          decoration: BoxDecoration(color: context.palette.card, borderRadius: BorderRadius.circular(AppRadii.lg)),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(children: [
               const Icon(Icons.account_balance_wallet_outlined, color: AppColors.teal, size: 16),
@@ -165,13 +307,7 @@ class _ShareWalletScreenState extends State<ShareWalletScreen> {
               Text('Số dư ví chung', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary)),
             ]),
             const SizedBox(height: 8),
-            Text('12.850.000 đ', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700, fontSize: 24)),
-            const SizedBox(height: 12),
-            Row(children: [
-              Expanded(child: _Stat(label: 'Đã nạp', value: '5.200.000 đ', color: AppColors.teal)),
-              Container(width: 1, height: 28, color: AppColors.border),
-              Expanded(child: _Stat(label: 'Đã chi', value: '3.150.000 đ', color: AppColors.danger)),
-            ]),
+            Text(formatVnd(balance), style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700, fontSize: 24)),
           ]),
         ),
       ]),
@@ -180,11 +316,11 @@ class _ShareWalletScreenState extends State<ShareWalletScreen> {
 
   Widget _buildSegmentTabs() {
     return Container(
-      color: Colors.white,
+      color: context.palette.bg,
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl, vertical: 12),
       child: Container(
         padding: const EdgeInsets.all(4),
-        decoration: BoxDecoration(color: const Color(0xFFF1F5F9), borderRadius: BorderRadius.circular(AppRadii.lg)),
+        decoration: BoxDecoration(color: context.palette.surfaceAlt, borderRadius: BorderRadius.circular(AppRadii.lg)),
         child: Row(children: [
           _TabItem(label: 'Story', icon: Icons.article_outlined, isSelected: _tab == 'Story', onTap: () => setState(() => _tab = 'Story')),
           _TabItem(label: 'Gallery', icon: Icons.grid_view, isSelected: _tab == 'Gallery', onTap: () => setState(() => _tab = 'Gallery')),
@@ -237,21 +373,6 @@ class _ShareWalletScreenState extends State<ShareWalletScreen> {
   }
 }
 
-class _Stat extends StatelessWidget {
-  final String label, value;
-  final Color color;
-  const _Stat({required this.label, required this.value, required this.color});
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 12),
-    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(label, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary)),
-      const SizedBox(height: 4),
-      Text(value, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: color, fontWeight: FontWeight.w700)),
-    ]),
-  );
-}
-
 class _TabItem extends StatelessWidget {
   final String label;
   final IconData icon;
@@ -267,7 +388,7 @@ class _TabItem extends StatelessWidget {
         decoration: BoxDecoration(
           color: isSelected ? Colors.white : Colors.transparent,
           borderRadius: BorderRadius.circular(AppRadii.md),
-          boxShadow: isSelected ? const [BoxShadow(color: Color(0x14000000), blurRadius: 6, offset: Offset(0, 3))] : null,
+          boxShadow: isSelected ? AppShadows.soft : null,
         ),
         child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
           Icon(icon, size: 15, color: isSelected ? AppColors.teal : AppColors.muted),
@@ -280,99 +401,81 @@ class _TabItem extends StatelessWidget {
 }
 
 class _SharedStoryCard extends StatelessWidget {
-  final HomeStory story;
+  final Map<String, dynamic> story;
   const _SharedStoryCard({required this.story});
   @override
-  Widget build(BuildContext context) => GestureDetector(
-    onTap: () => context.push(AppRoutes.storyDetailOf('mock')),
-    child: Container(
-      margin: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(AppRadii.lg),
-        boxShadow: const [BoxShadow(color: Color(0x0A000000), blurRadius: 8, offset: Offset(0, 2))],
-      ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(14, 14, 8, 0),
-          child: Row(children: [
-            SizedBox(
-              width: 40, height: 40,
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  CircleAvatar(radius: 18, backgroundColor: AppColors.teal,
-                    child: Text(story.userName[0], style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700))),
-                  if (story.isOwner)
-                    Positioned(
-                      right: -2, top: -2,
-                      child: Container(
-                        padding: const EdgeInsets.all(1),
-                        decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-                        child: const Text('👑', style: TextStyle(fontSize: 10)),
-                      ),
-                    ),
-                ],
-              ),
+  Widget build(BuildContext context) {
+    final id = story['id'] as String? ?? '';
+    final title = story['title'] as String? ?? 'Story';
+    final imageUrl = story['cover_image_url'] as String? ?? '';
+    final occurredOn = story['occurred_on'] as String? ?? '';
+    return GestureDetector(
+      onTap: id.isNotEmpty ? () => context.push(AppRoutes.storyDetailOf(id)) : null,
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl, vertical: 6),
+        decoration: BoxDecoration(
+          color: context.palette.card,
+          borderRadius: BorderRadius.circular(AppRadii.lg),
+          boxShadow: context.palette.softShadow,
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 14, 8, 10),
+            child: Row(children: [
+              const Icon(Icons.article_outlined, color: AppColors.teal, size: 18),
+              const SizedBox(width: 8),
+              Expanded(child: Text(title, style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600))),
+              Text(occurredOn.length >= 10 ? occurredOn.substring(5, 10) : '',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.muted)),
+            ]),
+          ),
+          if (imageUrl.isNotEmpty)
+            ClipRRect(
+              borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(AppRadii.lg), bottomRight: Radius.circular(AppRadii.lg)),
+              child: CachedNetworkImage(imageUrl: imageUrl, height: 160, width: double.infinity, fit: BoxFit.cover, memCacheWidth: 1080,
+                errorWidget: (ctx, url, e) => Container(height: 80, color: const Color(0xFFCBD5E1))),
             ),
-            const SizedBox(width: 10),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(story.userName, style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
-              Text(story.time, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.muted)),
-            ])),
-            IconButton(onPressed: () {}, icon: const Icon(Icons.more_horiz, color: AppColors.muted)),
-          ]),
-        ),
-        Padding(padding: const EdgeInsets.fromLTRB(14, 6, 14, 10), child: Text(story.title)),
-        ClipRRect(child: CachedNetworkImage(imageUrl: story.imageUrl, height: 180, width: double.infinity, fit: BoxFit.cover)),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
-          child: Text('-${formatVnd(story.amount)}',
-              style: const TextStyle(color: AppColors.danger, fontWeight: FontWeight.w700, fontSize: 18)),
-        ),
-      ]),
-    ),
-  );
+          if (imageUrl.isEmpty) const SizedBox(height: 8),
+        ]),
+      ),
+    );
+  }
 }
 
 class _SharedGalleryCard extends StatelessWidget {
-  final GalleryItem item;
-  const _SharedGalleryCard({required this.item});
-
-  Color _catColor(String cat) {
-    switch (cat) {
-      case 'Ăn uống': return const Color(0xFFEC4899);
-      case 'Mua sắm': return const Color(0xFF8B5CF6);
-      case 'Di chuyển': return const Color(0xFF3B82F6);
-      case 'Giải trí': return const Color(0xFFF59E0B);
-      default: return AppColors.teal;
-    }
-  }
+  final Map<String, dynamic> story;
+  const _SharedGalleryCard({required this.story});
 
   @override
-  Widget build(BuildContext context) => GestureDetector(
-    onTap: () => context.push(AppRoutes.storyDetailOf('mock')),
-    child: ClipRRect(
-      borderRadius: BorderRadius.circular(AppRadii.md),
-      child: Stack(fit: StackFit.expand, children: [
-        CachedNetworkImage(imageUrl: item.imageUrl, fit: BoxFit.cover,
-          errorWidget: (ctx, url, e) => Container(color: const Color(0xFFCBD5E1))),
-        Positioned(left: 4, top: 4,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-            decoration: BoxDecoration(color: _catColor(item.category), borderRadius: BorderRadius.circular(999)),
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              Text(item.categoryEmoji, style: const TextStyle(fontSize: 8)),
-              const SizedBox(width: 2),
-              Text(item.category, style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.w600)),
-            ]),
-          ),
-        ),
-        Positioned(left: 4, bottom: 4,
-          child: Text('-${formatVnd(item.amount)}',
-            style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w700,
-              shadows: [Shadow(color: Colors.black54, blurRadius: 4)]))),
-      ]),
-    ),
-  );
+  Widget build(BuildContext context) {
+    final id = story['id'] as String? ?? '';
+    final title = story['title'] as String? ?? '';
+    final imageUrl = story['cover_image_url'] as String? ?? '';
+    return GestureDetector(
+      onTap: id.isNotEmpty ? () => context.push(AppRoutes.storyDetailOf(id)) : null,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(AppRadii.md),
+        child: Stack(fit: StackFit.expand, children: [
+          imageUrl.isNotEmpty
+              ? CachedNetworkImage(imageUrl: imageUrl, fit: BoxFit.cover, memCacheWidth: 600,
+                  errorWidget: (ctx, url, e) => Container(color: const Color(0xFFCBD5E1)))
+              : Container(color: const Color(0xFFCBD5E1),
+                  child: const Icon(Icons.photo_camera_outlined, color: Colors.white54, size: 24)),
+          Positioned.fill(child: DecoratedBox(decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter, end: Alignment.bottomCenter,
+              colors: [Colors.transparent, Colors.black.withValues(alpha: 0.55)],
+              stops: const [0.5, 1.0],
+            ),
+          ))),
+          if (title.isNotEmpty)
+            Positioned(left: 5, bottom: 5, right: 5,
+              child: Text(title,
+                style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w700,
+                  shadows: [Shadow(color: Colors.black54, blurRadius: 4)]),
+                maxLines: 2, overflow: TextOverflow.ellipsis)),
+        ]),
+      ),
+    );
+  }
 }

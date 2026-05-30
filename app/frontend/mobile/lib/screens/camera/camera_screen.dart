@@ -1,33 +1,184 @@
+import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../../routes/app_routes.dart';
+import '../../services/api_client.dart';
 import '../../theme/app_colors.dart';
 
 class CameraScreen extends StatefulWidget {
-  const CameraScreen({super.key});
+  final bool returnOnlyImagePath;
+  const CameraScreen({super.key, this.returnOnlyImagePath = false});
   @override
   State<CameraScreen> createState() => _CameraScreenState();
 }
 
-class _CameraScreenState extends State<CameraScreen> {
+class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver {
   String _mode = 'Ảnh';
+  CameraController? _controller;
+  List<CameraDescription> _cameras = [];
+  int _cameraIndex = 0;
   double _zoomLevel = 1.0;
+  double _minZoom = 1.0;
+  double _maxZoom = 5.0;
   Offset? _focusPoint;
   bool _showFocusRing = false;
+  bool _permissionDenied = false;
+  bool _isInitialized = false;
+  bool _isTakingPhoto = false;
+  FlashMode _flashMode = FlashMode.off;
+  final _api = ApiClient();
+  String? _billError;
 
-  void _onTapToFocus(TapDownDetails d, BoxConstraints box) {
-    setState(() {
-      _focusPoint = d.localPosition;
-      _showFocusRing = true;
-    });
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _initCamera();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _controller?.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final ctrl = _controller;
+    if (ctrl == null || !ctrl.value.isInitialized) return;
+    if (state == AppLifecycleState.inactive) {
+      ctrl.dispose();
+    } else if (state == AppLifecycleState.resumed) {
+      _initCameraController(_cameras[_cameraIndex]);
+    }
+  }
+
+  Future<void> _initCamera() async {
+    final status = await Permission.camera.request();
+    if (!status.isGranted) {
+      if (mounted) setState(() => _permissionDenied = true);
+      return;
+    }
+    _cameras = await availableCameras();
+    if (_cameras.isEmpty) {
+      if (mounted) setState(() => _permissionDenied = true);
+      return;
+    }
+    await _initCameraController(_cameras[_cameraIndex]);
+  }
+
+  Future<void> _initCameraController(CameraDescription camera) async {
+    // Full HD (1920×1080) — đủ nét cho OCR bill, nhẹ hơn ultraHigh/max.
+    final ctrl = CameraController(camera, ResolutionPreset.veryHigh, enableAudio: false);
+    _controller = ctrl;
+    try {
+      await ctrl.initialize();
+      _minZoom = await ctrl.getMinZoomLevel();
+      _maxZoom = await ctrl.getMaxZoomLevel();
+      await ctrl.setFlashMode(_flashMode);
+      if (mounted) setState(() { _isInitialized = true; _zoomLevel = _minZoom; });
+    } catch (_) {
+      if (mounted) setState(() => _permissionDenied = true);
+    }
+  }
+
+  Future<void> _onTapToFocus(TapDownDetails d, BoxConstraints box) async {
+    setState(() { _focusPoint = d.localPosition; _showFocusRing = true; });
     Future.delayed(const Duration(milliseconds: 800), () {
       if (mounted) setState(() => _showFocusRing = false);
     });
+    if (_controller == null || !_controller!.value.isInitialized) return;
+    final x = (d.localPosition.dx / box.maxWidth).clamp(0.0, 1.0);
+    final y = (d.localPosition.dy / box.maxHeight).clamp(0.0, 1.0);
+    try {
+      await _controller!.setFocusPoint(Offset(x, y));
+      await _controller!.setExposurePoint(Offset(x, y));
+    } catch (_) {}
+  }
+
+  Future<void> _setZoom(double scale) async {
+    final z = (_zoomLevel * scale).clamp(_minZoom, _maxZoom);
+    setState(() => _zoomLevel = z);
+    try { await _controller?.setZoomLevel(z); } catch (_) {}
+  }
+
+  Future<void> _flipCamera() async {
+    if (_cameras.length < 2) return;
+    setState(() { _isInitialized = false; _cameraIndex = (_cameraIndex + 1) % _cameras.length; });
+    await _controller?.dispose();
+    await _initCameraController(_cameras[_cameraIndex]);
+  }
+
+  Future<void> _toggleFlash() async {
+    final next = _flashMode == FlashMode.off ? FlashMode.torch : FlashMode.off;
+    setState(() => _flashMode = next);
+    try { await _controller?.setFlashMode(next); } catch (_) {}
+  }
+
+  Future<void> _handleImagePath(String imagePath) async {
+    if (widget.returnOnlyImagePath) {
+      context.pop(imagePath);
+      return;
+    }
+    if (_mode == 'Bill') {
+      setState(() { _isTakingPhoto = true; _billError = null; });
+      try {
+        final wallets = await _api.getWallets();
+        final walletId = wallets.isNotEmpty ? wallets[0]['id'] as String : '';
+        final result = await _api.aiExpenseFromBill(walletId: walletId, filePath: imagePath);
+        if (!mounted) return;
+        context.push(AppRoutes.cameraConfirm, extra: result);
+      } on ApiException catch (e) {
+        if (mounted) setState(() => _billError = e.localizedMessage);
+      } catch (_) {
+        if (mounted) setState(() => _billError = 'Không thể upload bill. Thử lại sau.');
+      } finally {
+        if (mounted) setState(() => _isTakingPhoto = false);
+      }
+    } else {
+      context.push(AppRoutes.cameraInput, extra: {'imagePath': imagePath, 'isBill': false});
+    }
+  }
+
+  Future<void> _takePhoto() async {
+    if (_isTakingPhoto || _controller == null || !_controller!.value.isInitialized) return;
+    setState(() => _isTakingPhoto = true);
+    try {
+      final xFile = await _controller!.takePicture();
+      if (!mounted) return;
+      await _handleImagePath(xFile.path);
+    } catch (_) {
+    } finally {
+      if (mounted) setState(() => _isTakingPhoto = false);
+    }
+  }
+
+  Future<void> _pickFromGallery() async {
+    final picker = ImagePicker();
+    final xFile = await picker.pickImage(source: ImageSource.gallery, imageQuality: 90);
+    if (xFile == null || !mounted) return;
+    await _handleImagePath(xFile.path);
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_permissionDenied) {
+      return Scaffold(
+        backgroundColor: Colors.black,
+        body: Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          const Icon(Icons.no_photography_outlined, color: Colors.white54, size: 56),
+          const SizedBox(height: 16),
+          const Text('Cần quyền truy cập camera', style: TextStyle(color: Colors.white, fontSize: 15)),
+          const SizedBox(height: 8),
+          TextButton(onPressed: openAppSettings, child: const Text('Mở cài đặt', style: TextStyle(color: AppColors.teal))),
+          TextButton(onPressed: () => context.pop(), child: const Text('Quay lại', style: TextStyle(color: Colors.white54))),
+        ])),
+      );
+    }
     return Scaffold(
       backgroundColor: Colors.black,
       body: SafeArea(
@@ -55,87 +206,101 @@ class _CameraScreenState extends State<CameraScreen> {
                   ]),
                 ),
                 const Spacer(),
-                const SizedBox(width: 40),
+                GestureDetector(
+                  onTap: _toggleFlash,
+                  child: Container(
+                    width: 40, height: 40,
+                    decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.15), shape: BoxShape.circle),
+                    child: Icon(
+                      _flashMode == FlashMode.off ? Icons.flash_off : Icons.flash_on,
+                      color: _flashMode == FlashMode.off ? Colors.white54 : Colors.yellow,
+                      size: 20,
+                    ),
+                  ),
+                ),
               ]),
             ),
 
-            // ── Camera Viewfinder ─────────────────────────────────
+            // ── Camera Viewfinder (tỉ lệ 4:3, bo góc 16, không khung) ──
             Expanded(
-              child: GestureDetector(
-                // Zoom via vertical drag
-                onScaleUpdate: (d) => setState(() => _zoomLevel = (_zoomLevel * d.scale).clamp(1.0, 5.0)),
-                child: LayoutBuilder(builder: (ctx, box) {
-                  return GestureDetector(
-                    onTapDown: (d) => _onTapToFocus(d, box),
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        // Simulated camera preview
-                        Container(
-                          color: const Color(0xFF0D1117),
-                          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                            Icon(Icons.camera_alt_outlined, size: 56, color: Colors.white.withValues(alpha: 0.2)),
-                            const SizedBox(height: 10),
-                            Text('Camera đang hoạt động', style: TextStyle(color: Colors.white.withValues(alpha: 0.25), fontSize: 13)),
-                          ]),
-                        ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                child: Center(
+                  child: AspectRatio(
+                    aspectRatio: 3 / 4, // ảnh đứng tỉ lệ 4:3
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: GestureDetector(
+                        onScaleUpdate: (d) => _setZoom(d.scale),
+                        child: LayoutBuilder(builder: (ctx, box) {
+                          return GestureDetector(
+                            onTapDown: (d) => _onTapToFocus(d, box),
+                            child: Stack(
+                              fit: StackFit.expand,
+                              children: [
+                                // Real camera preview or loading indicator
+                                if (_isInitialized && _controller != null)
+                                  FittedBox(
+                                    fit: BoxFit.cover,
+                                    child: SizedBox(
+                                      width: _controller!.value.previewSize?.height ?? box.maxWidth,
+                                      height: _controller!.value.previewSize?.width ?? (box.maxWidth * _controller!.value.aspectRatio),
+                                      child: CameraPreview(_controller!),
+                                    ),
+                                  )
+                                else
+                                  Container(
+                                    color: const Color(0xFF0D1117),
+                                    child: const Center(child: CircularProgressIndicator(color: AppColors.teal, strokeWidth: 2)),
+                                  ),
 
-                        // Bill framing overlay
-                        if (_mode == 'Bill')
-                          Center(
-                            child: Container(
-                              width: 280, height: 180,
-                              decoration: BoxDecoration(
-                                border: Border.all(color: AppColors.teal, width: 2),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                                const Icon(Icons.receipt_long, color: AppColors.teal, size: 32),
-                                const SizedBox(height: 8),
-                                Text('Đặt bill vào khung', style: TextStyle(color: AppColors.teal.withValues(alpha: 0.85), fontSize: 12)),
-                              ]),
+                                // Focus ring
+                                if (_focusPoint != null && _showFocusRing)
+                                  Positioned(
+                                    left: _focusPoint!.dx - 30,
+                                    top: _focusPoint!.dy - 30,
+                                    child: Container(
+                                      width: 60, height: 60,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        border: Border.all(color: Colors.yellow, width: 1.5),
+                                      ),
+                                    ),
+                                  ),
+
+                                // Bill error banner
+                                if (_billError != null)
+                                  Positioned(top: 12, left: 16, right: 16,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                      decoration: BoxDecoration(color: Colors.red.withValues(alpha: 0.85), borderRadius: BorderRadius.circular(8)),
+                                      child: Row(children: [
+                                        const Icon(Icons.error_outline, color: Colors.white, size: 16),
+                                        const SizedBox(width: 8),
+                                        Expanded(child: Text(_billError!, style: const TextStyle(color: Colors.white, fontSize: 12))),
+                                        GestureDetector(onTap: () => setState(() => _billError = null),
+                                          child: const Icon(Icons.close, color: Colors.white, size: 16)),
+                                      ]),
+                                    ),
+                                  ),
+
+                                // Zoom indicator
+                                if (_zoomLevel > 1.05)
+                                  Positioned(bottom: 16, left: 0, right: 0,
+                                    child: Center(child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                      decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(999)),
+                                      child: Text('${_zoomLevel.toStringAsFixed(1)}×', style: const TextStyle(color: Colors.white, fontSize: 13)),
+                                    )),
+                                  ),
+                              ],
                             ),
-                          ),
-
-                        // Corner brackets for bill mode
-                        if (_mode == 'Bill') ...[
-                          Positioned(left: (box.maxWidth - 280) / 2 - 2, top: (box.maxHeight - 180) / 2 - 2,
-                            child: _Corner(topLeft: true)),
-                          Positioned(right: (box.maxWidth - 280) / 2 - 2, top: (box.maxHeight - 180) / 2 - 2,
-                            child: _Corner(topRight: true)),
-                          Positioned(left: (box.maxWidth - 280) / 2 - 2, bottom: (box.maxHeight - 180) / 2 - 2,
-                            child: _Corner(bottomLeft: true)),
-                          Positioned(right: (box.maxWidth - 280) / 2 - 2, bottom: (box.maxHeight - 180) / 2 - 2,
-                            child: _Corner(bottomRight: true)),
-                        ],
-
-                        // Focus ring
-                        if (_focusPoint != null && _showFocusRing)
-                          Positioned(
-                            left: _focusPoint!.dx - 30,
-                            top: _focusPoint!.dy - 30,
-                            child: Container(
-                              width: 60, height: 60,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                border: Border.all(color: Colors.yellow, width: 1.5),
-                              ),
-                            ),
-                          ),
-
-                        // Zoom indicator
-                        if (_zoomLevel > 1.05)
-                          Positioned(bottom: 16, left: 0, right: 0,
-                            child: Center(child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                              decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(999)),
-                              child: Text('${_zoomLevel.toStringAsFixed(1)}×', style: const TextStyle(color: Colors.white, fontSize: 13)),
-                            )),
-                          ),
-                      ],
+                          );
+                        }),
+                      ),
                     ),
-                  );
-                }),
+                  ),
+                ),
               ),
             ),
 
@@ -144,22 +309,25 @@ class _CameraScreenState extends State<CameraScreen> {
               color: Colors.black,
               padding: const EdgeInsets.fromLTRB(40, 20, 40, 28),
               child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                // Gallery / upload
-                _CtrlBtn(icon: Icons.photo_library_outlined, label: 'Thư viện', onTap: () {}),
-                // Shutter
+                _CtrlBtn(icon: Icons.photo_library_outlined, label: 'Thư viện', onTap: _pickFromGallery),
                 GestureDetector(
-                  onTap: () => context.push(AppRoutes.cameraInput),
+                  onTap: _takePhoto,
                   child: Container(
                     width: 72, height: 72,
-                    decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 3)),
-                    child: Center(child: Container(
-                      width: 56, height: 56,
-                      decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-                    )),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: AppColors.teal, width: 3),
+                      boxShadow: [
+                        BoxShadow(color: AppColors.teal.withValues(alpha: 0.35), blurRadius: 16, spreadRadius: 2),
+                      ],
+                    ),
+                    child: Center(child: _isTakingPhoto
+                      ? const SizedBox(width: 32, height: 32, child: CircularProgressIndicator(color: AppColors.teal, strokeWidth: 2))
+                      : Container(width: 56, height: 56, decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle)),
+                    ),
                   ),
                 ),
-                // Flip
-                _CtrlBtn(icon: Icons.cameraswitch_outlined, label: 'Xoay cam', onTap: () {}),
+                _CtrlBtn(icon: Icons.cameraswitch_outlined, label: 'Xoay cam', onTap: _flipCamera),
               ]),
             ),
           ],
@@ -167,34 +335,6 @@ class _CameraScreenState extends State<CameraScreen> {
       ),
     );
   }
-}
-
-class _Corner extends StatelessWidget {
-  final bool topLeft, topRight, bottomLeft, bottomRight;
-  const _Corner({this.topLeft = false, this.topRight = false, this.bottomLeft = false, this.bottomRight = false});
-  @override
-  Widget build(BuildContext context) {
-    return CustomPaint(
-      size: const Size(20, 20),
-      painter: _CornerPainter(topLeft: topLeft, topRight: topRight, bottomLeft: bottomLeft, bottomRight: bottomRight),
-    );
-  }
-}
-
-class _CornerPainter extends CustomPainter {
-  final bool topLeft, topRight, bottomLeft, bottomRight;
-  _CornerPainter({this.topLeft = false, this.topRight = false, this.bottomLeft = false, this.bottomRight = false});
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = AppColors.teal..strokeWidth = 3..style = PaintingStyle.stroke;
-    const len = 20.0;
-    if (topLeft) { canvas.drawLine(Offset.zero, Offset(len, 0), paint); canvas.drawLine(Offset.zero, Offset(0, len), paint); }
-    if (topRight) { canvas.drawLine(Offset(size.width, 0), Offset(size.width - len, 0), paint); canvas.drawLine(Offset(size.width, 0), Offset(size.width, len), paint); }
-    if (bottomLeft) { canvas.drawLine(Offset(0, size.height), Offset(len, size.height), paint); canvas.drawLine(Offset(0, size.height), Offset(0, size.height - len), paint); }
-    if (bottomRight) { canvas.drawLine(Offset(size.width, size.height), Offset(size.width - len, size.height), paint); canvas.drawLine(Offset(size.width, size.height), Offset(size.width, size.height - len), paint); }
-  }
-  @override
-  bool shouldRepaint(_) => false;
 }
 
 class _CtrlBtn extends StatelessWidget {

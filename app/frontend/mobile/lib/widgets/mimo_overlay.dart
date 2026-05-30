@@ -32,8 +32,8 @@ class _MiMoOverlayState extends State<MiMoOverlay> with SingleTickerProviderStat
         .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutBack));
 
     _ctrl.forward();
-    // Auto-hide after 5 seconds
-    _autoHide = Timer(const Duration(seconds: 5), _dismiss);
+    // Auto-hide after 12 seconds
+    _autoHide = Timer(const Duration(seconds: 12), _dismiss);
   }
 
   void _dismiss() {
@@ -109,11 +109,11 @@ class _MiMoOverlayState extends State<MiMoOverlay> with SingleTickerProviderStat
                     Positioned(
                       bottom: 0,
                       child: Image.asset(
-                        'assets/MiMo/status/${widget.response.status}.png',
+                        'assets/MiMo/emotions/${widget.response.status}.png',
                         height: 90,
                         fit: BoxFit.contain,
                         errorBuilder: (ctx, e, st) => Image.asset(
-                          'assets/MiMo/status/Happy.png',
+                          'assets/MiMo/emotions/Happy.png',
                           height: 90,
                           fit: BoxFit.contain,
                           errorBuilder: (ctx2, e2, st2) => const SizedBox(

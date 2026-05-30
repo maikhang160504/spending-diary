@@ -86,14 +86,37 @@ class _RegisterScreenState extends State<RegisterScreen> {
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
             child: Column(
               children: [
-                const SizedBox(height: 32),
-                Image.asset('assets/logo/Logo.png', width: 80, height: 80, fit: BoxFit.contain),
-                const SizedBox(height: 12),
-                Image.asset('assets/logo/Title.png', height: 40, fit: BoxFit.contain),
-                const SizedBox(height: 4),
+                const SizedBox(height: 24),
+                // Logo + Title card (white bg so logo is visible on teal)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 20),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.95),
+                    borderRadius: BorderRadius.circular(28),
+                    border: Border.all(color: Colors.white, width: 1.5),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.08),
+                        blurRadius: 16,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      Image.asset('assets/logo/Logo.png', width: 72, height: 72, fit: BoxFit.contain,
+                        errorBuilder: (context, error, stack) => const Icon(Icons.savings_outlined, color: AppColors.teal, size: 56)),
+                      const SizedBox(height: 10),
+                      Image.asset('assets/logo/Title.png', height: 36, fit: BoxFit.contain,
+                        errorBuilder: (context, error, stack) => const Text('Spending Diary',
+                          style: TextStyle(color: AppColors.teal, fontSize: 20, fontWeight: FontWeight.w700))),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
                 Text('Bắt đầu quản lý chi tiêu thôi! 🚀',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.white.withValues(alpha: 0.85))),
-                const SizedBox(height: 28),
+                const SizedBox(height: 20),
                 Container(
                   padding: const EdgeInsets.all(AppSpacing.xxl),
                   decoration: BoxDecoration(

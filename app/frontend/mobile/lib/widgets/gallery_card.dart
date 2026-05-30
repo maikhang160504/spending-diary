@@ -22,7 +22,7 @@ class GalleryCard extends StatelessWidget {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(AppRadii.md),
         child: Stack(fit: StackFit.expand, children: [
-          CachedNetworkImage(imageUrl: item.imageUrl, fit: BoxFit.cover,
+          CachedNetworkImage(imageUrl: item.imageUrl, fit: BoxFit.cover, memCacheWidth: 600,
             errorWidget: (ctx, url, e) => Container(color: const Color(0xFFCBD5E1)),
           ),
           // Light gradient at top for badge

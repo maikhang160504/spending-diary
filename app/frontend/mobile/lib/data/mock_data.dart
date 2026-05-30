@@ -121,6 +121,7 @@ class ReportBar {
 }
 
 class ReportCategory {
+  final String code;
   final String label;
   final String emoji;
   final double percent;
@@ -128,6 +129,7 @@ class ReportCategory {
   final int color;
 
   const ReportCategory({
+    this.code = 'Other',
     required this.label,
     required this.emoji,
     required this.percent,
@@ -181,10 +183,32 @@ class CalendarEntry {
 }
 
 class MiMoResponse {
-  final String status; // Happy/Sad/Chill/Sassy/Thinking/Success
+  final String status; // Happy/Sad/Chill/Sassy/Thinking/Success/Taunting
   final String message;
 
   const MiMoResponse({required this.status, required this.message});
+}
+
+/// Map API mascot_mood (PascalCase từ LLM emotion field, hoặc legacy vui/buon/...)
+/// sang Flutter asset name cho MiMoOverlay (assets/MiMo/emotions/{name}.png).
+String mapApiStatusToAsset(String? value, {String fallback = 'Chill'}) {
+  if (value == null || value.isEmpty) return fallback;
+  const validAssets = {
+    'Alert', 'Angry', 'Approved', 'Celebrate', 'Chill', 'Cooking', 'Cool',
+    'Determined', 'Error', 'Excited', 'Gigle', 'Happy', 'Hello', 'Loading',
+    'Love', 'Proud', 'Relax', 'Sad', 'Sleepy', 'Sassy', 'Shopping', 'Travel',
+    'Sorry', 'Success', 'Taunting', 'Thankful', 'Thinking', 'Working', 'Worried',
+  };
+  if (validAssets.contains(value)) return value;
+  const legacyMap = {
+    'vui': 'Happy',
+    'buon': 'Sad',
+    'canh_bao': 'Thinking',
+    'trung_lap': 'Chill',
+    'Giggle': 'Gigle',
+    'giggle': 'Gigle',
+  };
+  return legacyMap[value] ?? fallback;
 }
 
 class MockData {

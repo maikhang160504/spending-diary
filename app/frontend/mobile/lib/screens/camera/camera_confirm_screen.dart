@@ -1,15 +1,22 @@
+import 'dart:async';
+import 'dart:convert';
 import 'dart:math';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:web_socket_channel/web_socket_channel.dart';
 
 import '../../data/mock_data.dart';
 import '../../routes/app_routes.dart';
 import '../../services/api_client.dart';
+import '../../services/transaction_notifier.dart';
 import '../../theme/app_colors.dart';
+import '../../theme/app_palette.dart';
 import '../../theme/app_radii.dart';
 import '../../theme/app_spacing.dart';
+import '../../theme/categories.dart';
 import '../../utils/formatters.dart';
+import '../../widgets/loading_indicator.dart';
 import '../../widgets/mimo_overlay.dart';
 
 class CameraConfirmScreen extends StatefulWidget {
@@ -27,47 +34,169 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
   bool _saving = false;
   String? _saveError;
 
+  // Async bill flow state
+  bool _isPending = false;
+  bool _processingDone = false;
+  String? _processingError;
+  String? _transactionId;
+  WebSocketChannel? _wsChannel;
+  StreamSubscription? _wsSub;
+  Timer? _wsTimeout;
+  Map<String, dynamic>? _wsData;
+
   // Editable fields
   late int _amount;
   late String _category;
   late String _note;
   late double _confidence;
+  late String _recordType;
 
   @override
   void initState() {
     super.initState();
-    final extracted = widget.extractedData?['extracted'] as Map<String, dynamic>?;
-    _amount = ((extracted?['amount'] ?? 0) is num) ? (extracted!['amount'] as num).toInt() : 0;
-    _category = extracted?['category'] as String? ?? 'Others';
-    _note = extracted?['note'] as String? ?? '';
-    _confidence = ((extracted?['confidence'] ?? 0.0) is num) ? (extracted!['confidence'] as num).toDouble() : 0.0;
+    final data = widget.extractedData;
+    if (data?['status'] == 'pending') {
+      _isPending = true;
+      _transactionId = data!['transactionId'] as String?;
+      _amount = 0;
+      _category = 'Others';
+      _note = '';
+      _confidence = 0.0;
+      _recordType = 'Expense';
+      _connectWebSocket();
+    } else {
+      final extracted = data?['extracted'] as Map<String, dynamic>?;
+      _amount = extracted != null && extracted['amount'] is num ? (extracted['amount'] as num).toInt() : 0;
+      _category = extracted?['category'] as String? ?? 'Others';
+      _note = extracted?['note'] as String? ?? '';
+      _confidence = extracted != null && extracted['confidence'] is num ? (extracted['confidence'] as num).toDouble() : 0.0;
+      _recordType = extracted?['record_type'] as String? ?? 'Expense';
+    }
+  }
+
+  Future<void> _connectWebSocket() async {
+    final token = await _api.accessToken;
+    if (token == null || !mounted) return;
+    final wsUrl = Uri.parse(
+      '${_api.baseUrl.replaceFirst(RegExp(r'^http'), 'ws').replaceFirst('/api/v1', '')}/ws?token=$token',
+    );
+    _wsChannel = WebSocketChannel.connect(wsUrl);
+    // Phòng khi server không phản hồi: dừng trạng thái "đang xử lý" sau 45s.
+    _wsTimeout = Timer(const Duration(seconds: 45), () {
+      if (mounted && !_processingDone && _processingError == null) {
+        setState(() => _processingError = 'Xử lý quá lâu, vui lòng thử lại');
+      }
+      _wsSub?.cancel();
+      _wsChannel?.sink.close();
+    });
+    _wsSub = _wsChannel!.stream.listen(
+      (msg) {
+        if (!mounted) return;
+        try {
+          final json = jsonDecode(msg as String) as Map<String, dynamic>;
+          if (json['type'] == 'transaction_done' && json['transactionId'] == _transactionId) {
+            final d = json['data'] as Map<String, dynamic>? ?? {};
+            setState(() {
+              _processingDone = true;
+              _wsData = d;
+              _amount = ((d['amount'] ?? 0) is num) ? (d['amount'] as num).toInt() : 0;
+              _category = d['category'] as String? ?? 'Others';
+              _note = d['note'] as String? ?? '';
+              _confidence = 0.85;
+              _recordType = d['record_type'] as String? ?? 'Expense';
+            });
+            _wsTimeout?.cancel();
+            _wsSub?.cancel();
+            _wsChannel?.sink.close();
+            final mood = d['mascot_mood'] as String?;
+            final story = d['story'] as String?;
+            Future.delayed(const Duration(milliseconds: 300), () {
+              if (!mounted) return;
+              mimoController.show(MiMoResponse(
+                status: mapApiStatusToAsset(mood, fallback: 'Success'),
+                message: story?.substring(0, story.length.clamp(0, 80)) ?? '✅ Bill đã được xử lý xong!',
+              ));
+            });
+          } else if (json['type'] == 'transaction_failed' && json['transactionId'] == _transactionId) {
+            setState(() => _processingError = json['error']?.toString() ?? 'Xử lý thất bại');
+          }
+        } catch (_) {}
+      },
+      onError: (_) {
+        if (mounted && !_processingDone) setState(() => _processingError = 'Mất kết nối WebSocket');
+      },
+      onDone: () {
+        // Server đóng kết nối trước khi có kết quả → coi như thất bại.
+        if (mounted && !_processingDone && _processingError == null) {
+          setState(() => _processingError = 'Mất kết nối khi đang xử lý, vui lòng thử lại');
+        }
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _wsTimeout?.cancel();
+    _wsSub?.cancel();
+    _wsChannel?.sink.close();
+    super.dispose();
   }
 
   Future<void> _onConfirm() async {
+    if (_isPending && _processingDone) {
+      context.go(AppRoutes.home);
+      Future.delayed(const Duration(milliseconds: 400), () {
+        final moodAsset = mapApiStatusToAsset(_wsData?['mascot_mood'] as String?, fallback: 'Success');
+        final llmStory = _wsData?['story'] as String?;
+        const msgs = ['✅ Bill đã lưu!', '🎉 MiMo ghi nhận rồi nhé!'];
+        final fallbackMsg = msgs[Random().nextInt(msgs.length)];
+        mimoController.show(MiMoResponse(status: moodAsset, message: llmStory ?? fallbackMsg));
+      });
+      return;
+    }
     setState(() { _saving = true; _saveError = null; });
     try {
       final wallets = await _api.getWallets();
       if (wallets.isEmpty) throw Exception('Không có ví nào');
+      
+      String? imageUrl;
+      final imagePath = widget.extractedData?['imagePath'] as String?;
+      if (imagePath != null) {
+        try {
+          final uploadRes = await _api.uploadFile(imagePath);
+          imageUrl = uploadRes['publicUrl'] as String?;
+        } catch (_) {}
+      }
+
+      final nluMeta = widget.extractedData?['nlu'] as Map<String, dynamic>?;
       await _api.createTransaction({
         'walletId': wallets[0]['id'],
         'amount': _amount,
-        'type': 'expense',
+        'type': _recordType == 'Income' ? 'income' : 'expense',
         'categoryCode': _category,
         'note': _note,
-        'source': 'text',
+        'source': imageUrl != null ? 'story' : 'text',
+        'imageUrl': imageUrl,
+        // Lưu kèm emotion + comment LLM để story feed / detail hiển thị đúng mascot.
+        if (nluMeta != null) 'aiMeta': {'nlu': nluMeta},
       });
       if (!mounted) return;
       setState(() => _saving = false);
+      notifyTransactionChanged();
       context.go(AppRoutes.home);
 
-      // Show MiMo overlay using MiMoResponse
-      final mimoMessages = [
-        MiMoResponse(message: '✅ Đã lưu! Mimo ghi nhận rồi nhé 😊', status: 'Happy'),
-        MiMoResponse(message: '💾 Giao dịch đã được lưu thành công!', status: 'Happy'),
-        MiMoResponse(message: '🎉 Tốt lắm! Tiếp tục theo dõi chi tiêu nhé!', status: 'Happy'),
-      ];
+      // Show MiMo overlay using mascot_mood + LLM story from NLU API response
+      final nluData = widget.extractedData?['nlu'] as Map<String, dynamic>?;
+      final apiMood = nluData?['mascot_mood'] as String?;
+      final moodAsset = mapApiStatusToAsset(apiMood, fallback: 'Success');
+      final llmStory = (nluData?['gemini_json'] as Map?)? ['story'] as String?;
+      final nlgResponse = nluData?['nlg_response'] as String?;
+      final mimoMsg = llmStory ?? nlgResponse ?? '✅ Đã lưu! Mimo ghi nhận rồi nhé 😊';
       Future.delayed(const Duration(milliseconds: 400), () {
-        mimoController.show(mimoMessages[Random().nextInt(mimoMessages.length)]);
+        mimoController.show(MiMoResponse(
+          status: moodAsset,
+          message: mimoMsg,
+        ));
       });
     } on ApiException catch (e) {
       if (!mounted) return;
@@ -92,9 +221,9 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
           padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
           child: Container(
             padding: const EdgeInsets.all(AppSpacing.xl),
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadii.xl)),
+            decoration: BoxDecoration(
+              color: ctx.palette.card,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadii.xl)),
             ),
             child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
               Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(2)))),
@@ -107,6 +236,34 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
                 controller: amountCtrl,
                 keyboardType: TextInputType.number,
                 decoration: const InputDecoration(hintText: 'Nhập số tiền', suffixText: 'đ'),
+              ),
+              const SizedBox(height: 12),
+              Text('Danh mục', style: Theme.of(ctx).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<String>(
+                value: CategoryTheme.styles.containsKey(editCategory) ? editCategory : 'Other',
+                decoration: InputDecoration(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadii.md)),
+                ),
+                items: CategoryTheme.styles.entries
+                    .where((e) => CategoryTheme.primaryCodes.contains(e.key))
+                    .map((e) => DropdownMenuItem<String>(
+                          value: e.key,
+                          child: Row(children: [
+                            CategoryTheme.iconOf(e.key, size: 22),
+                            const SizedBox(width: 8),
+                            Text(e.value.label),
+                          ]),
+                        ))
+                    .toList(),
+                onChanged: (val) {
+                  if (val != null) {
+                    setSheetState(() {
+                      editCategory = val;
+                    });
+                  }
+                },
               ),
               const SizedBox(height: 12),
               Text('Ghi chú', style: Theme.of(ctx).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
@@ -146,6 +303,49 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isPending && !_processingDone && _processingError == null) {
+      return Scaffold(
+        backgroundColor: Colors.black,
+        body: Center(
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            const LoadingIndicator(size: 120),
+            const SizedBox(height: 16),
+            Text('MiMo đang đọc bill...', style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.white)),
+            const SizedBox(height: 8),
+            Text('AI đang phân tích hóa đơn, vui lòng chờ', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white54)),
+            if (_wsData != null) ...[
+              const SizedBox(height: 8),
+              Text('Đã nhận: ${_wsData!['category'] ?? ''}', style: const TextStyle(color: Colors.white38, fontSize: 12)),
+            ],
+          ]),
+        ),
+      );
+    }
+
+    if (_processingError != null) {
+      return Scaffold(
+        backgroundColor: Colors.black,
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              const Icon(Icons.error_outline, color: AppColors.danger, size: 56),
+              const SizedBox(height: 16),
+              Text('Xử lý bill thất bại', style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.white)),
+              const SizedBox(height: 8),
+              Text(_processingError!, style: const TextStyle(color: Colors.white54, fontSize: 13), textAlign: TextAlign.center),
+              const SizedBox(height: 24),
+              FilledButton(
+                onPressed: () => context.pop(),
+                style: FilledButton.styleFrom(backgroundColor: AppColors.teal),
+                child: const Text('Quay lại'),
+              ),
+            ]),
+          ),
+        ),
+      );
+    }
+
     final confidencePct = (_confidence * 100).toStringAsFixed(0);
     final isLowConfidence = _confidence < 0.6;
 
@@ -156,6 +356,7 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
             child: CachedNetworkImage(
               imageUrl: 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&w=1200&q=80',
               fit: BoxFit.cover,
+              memCacheWidth: 1080,
               errorWidget: (ctx, url, e) => Container(color: Colors.black87),
             ),
           ),
@@ -252,7 +453,7 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
                         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                           Text('Giao dịch mới', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white70)),
                           const SizedBox(height: 4),
-                          Text(_note.isNotEmpty ? _note : _category,
+                          Text(_note.isNotEmpty ? _note : CategoryTheme.of(_category).label,
                               style: Theme.of(context).textTheme.titleSmall?.copyWith(color: Colors.white, fontWeight: FontWeight.w700),
                               maxLines: 1, overflow: TextOverflow.ellipsis),
                         ])),
@@ -261,7 +462,7 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
                       const SizedBox(height: 16),
                       const Divider(color: Colors.white24, height: 1),
                       const SizedBox(height: 16),
-                      _DetailRow(label: 'Danh mục', value: _category),
+                      _DetailRow(label: 'Danh mục', value: CategoryTheme.of(_category).label),
                       _DetailRow(label: 'Số tiền', value: formatVnd(_amount)),
                       if (_note.isNotEmpty) _DetailRow(label: 'Ghi chú', value: _note),
                       _DetailRow(label: 'Thời gian', value: _formatNow()),

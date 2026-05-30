@@ -5,6 +5,7 @@ import '../../routes/app_routes.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_radii.dart';
 import '../../theme/app_spacing.dart';
+import '../../services/api_client.dart';
 
 class OnboardingStep2 extends StatefulWidget {
   const OnboardingStep2({super.key});
@@ -14,8 +15,49 @@ class OnboardingStep2 extends StatefulWidget {
 }
 
 class _OnboardingStep2State extends State<OnboardingStep2> {
-  bool _isFixed = true;
-  final _amountController = TextEditingController(text: '8.000.000');
+  final _api = ApiClient();
+  String _selected = 'Dui Dẻ';
+  bool _saving = false;
+
+  static const _styles = [
+    _Style(
+      'assets/MiMo/emotions/Happy.png',
+      'Dui Dẻ',
+      'Vui vẻ, hài hước, thoải mái',
+      '"Tiêu kiểu này là cuối tháng ăn mì nha bro! 😂"',
+    ),
+    _Style(
+      'assets/MiMo/emotions/Angry.png',
+      'Dận Dữ',
+      'Nghiêm túc, sắc sảo, thẳng thắn',
+      '"Chi nhiều vậy là vượt ngân sách rồi đó! 🧐"',
+    ),
+  ];
+
+  Future<void> _submit() async {
+    final styleMap = {
+      'Dui Dẻ': 'funny',
+      'Dận Dữ': 'gentle', // gentler and polite, gentler than sarcastic
+    };
+    final style = styleMap[_selected] ?? 'funny';
+    setState(() => _saving = true);
+    try {
+      await _api.updateProfile({'preferredVibe': style});
+      await _api.updateSettings({'verbalStyle': style});
+      if (mounted) context.push(AppRoutes.onboardingStep3);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi: ${e.toString()}'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -25,88 +67,185 @@ class _OnboardingStep2State extends State<OnboardingStep2> {
         child: SafeArea(
           child: Column(
             children: [
-              const _ProgressHeader(label: 'Bước 2/5', percent: '40%', value: 0.4),
+              _ProgressHeader(
+                label: 'Bước 2/4',
+                percent: '50%',
+                value: 0.5,
+                onSkip: () => context.go(AppRoutes.onboardingStep4),
+              ),
               Expanded(
-                child: Center(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
-                    child: Container(
-                      padding: const EdgeInsets.all(AppSpacing.xxl),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(AppRadii.xl),
-                        boxShadow: const [BoxShadow(color: Color(0x33000000), blurRadius: 30, offset: Offset(0, 20))],
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            width: 60,
-                            height: 60,
-                            decoration: BoxDecoration(color: AppColors.teal, borderRadius: BorderRadius.circular(AppRadii.lg)),
-                            child: const Center(child: Text('💼', style: TextStyle(fontSize: 28))),
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.xxl,
+                  ),
+                  child: Container(
+                    padding: const EdgeInsets.all(AppSpacing.xxl),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(AppRadii.xl),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x33000000),
+                          blurRadius: 30,
+                          offset: Offset(0, 20),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text('🎭', style: TextStyle(fontSize: 44)),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Bạn thích mình nói chuyện kiểu nào?',
+                          style: Theme.of(context).textTheme.titleLarge
+                              ?.copyWith(fontWeight: FontWeight.w700),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Chọn phong cách mà bạn thấy "vibe" nhất nha!',
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(color: AppColors.textSecondary),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 20),
+                        ..._styles.map(
+                          (s) => Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: _StyleCard(
+                              style: s,
+                              isSelected: _selected == s.title,
+                              onTap: () => setState(() => _selected = s.title),
+                            ),
                           ),
-                          const SizedBox(height: 16),
-                          Text('Thu nhập của bạn', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
-                          const SizedBox(height: 8),
-                          Text('Để Mimo hiểu rõ tình hình tài chính của bạn hơn',
-                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary), textAlign: TextAlign.center),
-                          const SizedBox(height: 20),
-                          Row(
-                            children: [
-                              Expanded(child: _typeCard('💼', 'Cố định', _isFixed, () => setState(() => _isFixed = true))),
-                              const SizedBox(width: 12),
-                              Expanded(child: _typeCard('📊', 'Không cố định', !_isFixed, () => setState(() => _isFixed = false))),
-                            ],
-                          ),
-                          const SizedBox(height: 20),
-                          Align(alignment: Alignment.centerLeft, child: Text('Số tiền (VND)', style: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600))),
-                          const SizedBox(height: 8),
-                          TextField(controller: _amountController, keyboardType: TextInputType.number,
-                              decoration: const InputDecoration(hintText: '8.000.000', prefixIcon: Icon(Icons.attach_money))),
-                          const SizedBox(height: 6),
-                          Align(alignment: Alignment.centerLeft,
-                              child: Text('${_amountController.text} đ/tháng', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.teal, fontWeight: FontWeight.w600))),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
               ),
-              _NavButtons(onBack: () => context.pop(), onNext: () => context.push(AppRoutes.onboardingStep3)),
+              _NavButtons(
+                onBack: () => context.pop(),
+                onNext: _saving ? () {} : _submit,
+                nextLabel: _saving ? 'Đang lưu...' : 'Tiếp nào! ✨',
+              ),
             ],
           ),
         ),
       ),
     );
   }
+}
 
-  Widget _typeCard(String emoji, String label, bool isSelected, VoidCallback onTap) {
+class _Style {
+  final String statusAsset, title, subtitle, sample;
+  const _Style(this.statusAsset, this.title, this.subtitle, this.sample);
+}
+
+class _StyleCard extends StatelessWidget {
+  final _Style style;
+  final bool isSelected;
+  final VoidCallback onTap;
+  const _StyleCard({
+    required this.style,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(vertical: 14),
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.teal.withValues(alpha: 0.1) : const Color(0xFFF8FAFC),
+          color: isSelected
+              ? AppColors.teal.withValues(alpha: 0.06)
+              : const Color(0xFFF8FAFC),
           borderRadius: BorderRadius.circular(AppRadii.lg),
-          border: Border.all(color: isSelected ? AppColors.teal : AppColors.border, width: isSelected ? 2 : 1),
+          border: Border.all(
+            color: isSelected ? AppColors.teal : AppColors.border,
+            width: isSelected ? 2 : 1,
+          ),
         ),
-        child: Column(children: [
-          Text(emoji, style: const TextStyle(fontSize: 22)),
-          const SizedBox(height: 4),
-          Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isSelected ? AppColors.teal : AppColors.textPrimary)),
-        ]),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Image.asset(style.statusAsset, width: 48, height: 48, fit: BoxFit.contain),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        style.title,
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const Spacer(),
+                      if (isSelected)
+                        Container(
+                          width: 20,
+                          height: 20,
+                          decoration: const BoxDecoration(
+                            color: AppColors.teal,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.check,
+                            color: Colors.white,
+                            size: 12,
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    style.subtitle,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? AppColors.teal.withValues(alpha: 0.08)
+                          : AppColors.surface,
+                      borderRadius: BorderRadius.circular(AppRadii.md),
+                    ),
+                    child: Text(
+                      style.sample,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        fontStyle: FontStyle.italic,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
 class _NavButtons extends StatelessWidget {
-  final VoidCallback onBack;
-  final VoidCallback onNext;
-
-  const _NavButtons({required this.onBack, required this.onNext});
+  final VoidCallback onBack, onNext;
+  final String nextLabel;
+  const _NavButtons({
+    required this.onBack,
+    required this.onNext,
+    this.nextLabel = 'Tiếp tục',
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -118,16 +257,29 @@ class _NavButtons extends StatelessWidget {
             child: OutlinedButton.icon(
               onPressed: onBack,
               icon: const Icon(Icons.chevron_left, color: Colors.white),
-              label: const Text('Quay lại', style: TextStyle(color: Colors.white)),
-              style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.white54), padding: const EdgeInsets.symmetric(vertical: 14)),
+              label: const Text(
+                'Quay lại',
+                style: TextStyle(color: Colors.white),
+              ),
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: Colors.white54),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
             ),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: FilledButton(
               onPressed: onNext,
-              style: FilledButton.styleFrom(backgroundColor: Colors.white, foregroundColor: AppColors.teal, padding: const EdgeInsets.symmetric(vertical: 14)),
-              child: const Text('Tiếp tục', style: TextStyle(fontWeight: FontWeight.w600)),
+              style: FilledButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: AppColors.teal,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+              child: Text(
+                nextLabel,
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
             ),
           ),
         ],
@@ -137,27 +289,61 @@ class _NavButtons extends StatelessWidget {
 }
 
 class _ProgressHeader extends StatelessWidget {
-  final String label;
-  final String percent;
+  final String label, percent;
   final double value;
-  const _ProgressHeader({required this.label, required this.percent, required this.value});
+  final VoidCallback? onSkip;
+  const _ProgressHeader({
+    required this.label,
+    required this.percent,
+    required this.value,
+    this.onSkip,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 20, 24, 12),
-      child: Column(children: [
-        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          Text(label, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500)),
-          Text(percent, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500)),
-        ]),
-        const SizedBox(height: 10),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(999),
-          child: LinearProgressIndicator(value: value, backgroundColor: Colors.white.withValues(alpha: 0.2),
-              valueColor: const AlwaysStoppedAnimation<Color>(Colors.white), minHeight: 6),
-        ),
-      ]),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              if (onSkip != null)
+                GestureDetector(
+                  onTap: onSkip,
+                  child: const Text('Bỏ qua', style: TextStyle(color: Colors.white70, fontSize: 13, decoration: TextDecoration.underline, decorationColor: Colors.white70)),
+                )
+              else
+                Text(
+                  percent,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(999),
+            child: LinearProgressIndicator(
+              value: value,
+              backgroundColor: Colors.white.withValues(alpha: 0.2),
+              valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+              minHeight: 6,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

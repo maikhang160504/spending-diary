@@ -1,7 +1,9 @@
 import 'package:go_router/go_router.dart';
 
+import '../services/api_client.dart';
 import '../screens/auth/login_screen.dart';
 import '../screens/auth/register_screen.dart';
+import '../screens/auth/splash_screen.dart';
 import '../screens/camera/camera_confirm_screen.dart';
 import '../screens/camera/camera_input_screen.dart';
 import '../screens/camera/camera_screen.dart';
@@ -16,23 +18,21 @@ import '../screens/onboarding/onboarding_screen_1.dart';
 import '../screens/onboarding/onboarding_screen_2.dart';
 import '../screens/onboarding/onboarding_screen_3.dart';
 import '../screens/onboarding/onboarding_screen_4.dart';
-import '../screens/onboarding/onboarding_screen_5.dart';
 import '../screens/report/report_screen.dart';
 import '../screens/settings/settings_screen.dart';
 import '../screens/shell/app_shell.dart';
 import '../screens/story/detail_story_screen.dart';
 import '../screens/streak/streak_screen.dart';
 import '../screens/wallet/share_wallet_screen.dart';
-import '../screens/add/add_transaction_screen.dart';
 
 /// Tất cả tên route tập trung tại đây
 class AppRoutes {
   // Auth / Onboarding
+  static const splash          = '/splash';
   static const onboarding      = '/';
   static const onboardingStep2 = '/onboarding/step-2';
   static const onboardingStep3 = '/onboarding/step-3';
   static const onboardingStep4 = '/onboarding/step-4';
-  static const onboardingStep5 = '/onboarding/step-5';
   static const login           = '/login';
   static const register        = '/register';
 
@@ -60,7 +60,6 @@ class AppRoutes {
   static const shareWallet    = '/wallet/share';
   static const streak         = '/streak';
   static const storyDetail    = '/story/:storyId';
-  static const addTransaction = '/add';
 
   /// Build the story detail path with a real [storyId]
   static String storyDetailOf(String storyId) => '/story/$storyId';
@@ -68,14 +67,42 @@ class AppRoutes {
 
 /// go_router instance — được dùng trong MaterialApp.router
 final GoRouter appRouter = GoRouter(
-  initialLocation: AppRoutes.onboarding,
+  initialLocation: AppRoutes.splash,
+  redirect: (context, state) async {
+    final protectedPrefixes = ['/app/', '/camera', '/chat', '/limits', '/wallet', '/streak', '/story'];
+    
+    final isOnboarding = state.matchedLocation == AppRoutes.onboarding ||
+                         state.matchedLocation == AppRoutes.onboardingStep2 ||
+                         state.matchedLocation == AppRoutes.onboardingStep3 ||
+                         state.matchedLocation == AppRoutes.onboardingStep4;
+
+    final api = ApiClient();
+    bool loggedIn = await api.isLoggedIn;
+
+    if (isOnboarding && loggedIn) {
+      final bypassed = await api.checkOnboardingBypassed();
+      if (bypassed) {
+        return AppRoutes.home;
+      }
+      // Re-evaluate loggedIn in case checkOnboardingBypassed cleared tokens due to 401
+      loggedIn = await api.isLoggedIn;
+    }
+
+    final isProtected = isOnboarding || protectedPrefixes.any((p) => state.matchedLocation.startsWith(p));
+
+    if (!isProtected) return null;
+    if (!loggedIn) return AppRoutes.login;
+    return null;
+  },
   routes: [
+    // ── Splash ──────────────────────────────────────────────
+    GoRoute(path: AppRoutes.splash, builder: (context, state) => const SplashScreen()),
+
     // ── Auth / Onboarding ────────────────────────────────────
     GoRoute(path: AppRoutes.onboarding,      builder: (context, state) => const OnboardingStep1()),
     GoRoute(path: AppRoutes.onboardingStep2, builder: (context, state) => const OnboardingStep2()),
     GoRoute(path: AppRoutes.onboardingStep3, builder: (context, state) => const OnboardingStep3()),
     GoRoute(path: AppRoutes.onboardingStep4, builder: (context, state) => const OnboardingStep4()),
-    GoRoute(path: AppRoutes.onboardingStep5, builder: (context, state) => const OnboardingStep5()),
     GoRoute(path: AppRoutes.login,           builder: (context, state) => const LoginScreen()),
     GoRoute(path: AppRoutes.register,        builder: (context, state) => const RegisterScreen()),
 
@@ -95,8 +122,25 @@ final GoRouter appRouter = GoRouter(
     GoRoute(path: AppRoutes.homeCalendar, builder: (context, state) => const HomeCalendarScreen()),
 
     // ── Camera ──────────────────────────────────────────────
-    GoRoute(path: AppRoutes.camera,        builder: (context, state) => const CameraScreen()),
-    GoRoute(path: AppRoutes.cameraInput,   builder: (context, state) => const CameraInputScreen()),
+    GoRoute(
+      path: AppRoutes.camera,
+      builder: (context, state) {
+        final extra = state.extra as Map<String, dynamic>?;
+        return CameraScreen(
+          returnOnlyImagePath: extra?['returnOnlyImagePath'] as bool? ?? false,
+        );
+      },
+    ),
+    GoRoute(
+      path: AppRoutes.cameraInput,
+      builder: (context, state) {
+        final extra = state.extra as Map<String, dynamic>?;
+        return CameraInputScreen(
+          imagePath: extra?['imagePath'] as String?,
+          isBill: extra?['isBill'] as bool? ?? false,
+        );
+      },
+    ),
     GoRoute(
       path: AppRoutes.cameraConfirm,
       builder: (context, state) => CameraConfirmScreen(
@@ -116,14 +160,24 @@ final GoRouter appRouter = GoRouter(
 
     // ── Overlays / Full-screen ───────────────────────────────
     GoRoute(path: AppRoutes.limits,         builder: (context, state) => const LimitsScreen()),
-    GoRoute(path: AppRoutes.shareWallet,    builder: (context, state) => const ShareWalletScreen()),
+    GoRoute(
+      path: AppRoutes.shareWallet,
+      builder: (context, state) {
+        final extra = state.extra as Map<String, dynamic>?;
+        return ShareWalletScreen(walletId: extra?['walletId'] as String?);
+      },
+    ),
     GoRoute(path: AppRoutes.streak,         builder: (context, state) => const StreakScreen()),
     GoRoute(
       path: AppRoutes.storyDetail,
-      builder: (context, state) => DetailStoryScreen(
-        storyId: state.pathParameters['storyId'] ?? '',
-      ),
+      builder: (context, state) {
+        final extra = state.extra as Map<String, dynamic>?;
+        return DetailStoryScreen(
+          storyId: state.pathParameters['storyId'] ?? '',
+          storyIds: (extra?['storyIds'] as List?)?.cast<String>(),
+          initialIndex: extra?['initialIndex'] as int? ?? 0,
+        );
+      },
     ),
-    GoRoute(path: AppRoutes.addTransaction, builder: (context, state) => const AddTransactionScreen()),
   ],
 );

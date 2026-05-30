@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../routes/app_routes.dart';
 import '../../services/api_client.dart';
 import '../../theme/app_colors.dart';
+import '../../theme/app_palette.dart';
 import '../../theme/app_radii.dart';
 import '../../theme/app_spacing.dart';
 import '../../widgets/skeleton.dart';
@@ -52,6 +53,29 @@ class _ChatHistoryScreenState extends State<ChatHistoryScreen> {
     if (mounted) setState(() => _loading = false);
   }
 
+  Future<void> _deleteSession(String sessionId) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Xóa cuộc trò chuyện?'),
+        content: const Text('Tất cả tin nhắn sẽ bị xóa vĩnh viễn.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hủy')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Xóa', style: TextStyle(color: Colors.red))),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await _api.deleteChatSession(sessionId);
+      if (!mounted) return;
+      setState(() {
+        _sessions.removeWhere((s) => s['id'] == sessionId);
+        _filtered.removeWhere((s) => s['id'] == sessionId);
+      });
+    } catch (_) {}
+  }
+
   // CHH-03: Client-side search filter
   void _onSearch() {
     final q = _searchCtrl.text.toLowerCase().trim();
@@ -84,7 +108,7 @@ class _ChatHistoryScreenState extends State<ChatHistoryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: context.palette.bg,
       body: SafeArea(
         child: Column(children: [
           // Header
@@ -209,14 +233,53 @@ class _ChatHistoryScreenState extends State<ChatHistoryScreen> {
                           itemCount: _filtered.length,
                           separatorBuilder: (_, idx) => const SizedBox(height: 10),
                           // CHH-02: Tap → push to chat with sessionId
-                          itemBuilder: (ctx, i) => _SessionCard(
-                            session: _filtered[i],
-                            timeStr: _formatTime(_filtered[i]['created_at'] as String?),
-                            onTap: () {
-                              context.pop();
-                              context.push(AppRoutes.chat, extra: {'sessionId': _filtered[i]['id']});
-                            },
-                          ),
+                          itemBuilder: (ctx, i) {
+                            final session = _filtered[i];
+                            final sessionId = session['id'] as String;
+                            return Dismissible(
+                              key: ValueKey(sessionId),
+                              direction: DismissDirection.endToStart,
+                              background: Container(
+                                alignment: Alignment.centerRight,
+                                padding: const EdgeInsets.only(right: 20),
+                                decoration: BoxDecoration(
+                                  color: Colors.red.shade400,
+                                  borderRadius: BorderRadius.circular(AppRadii.lg),
+                                ),
+                                child: const Icon(Icons.delete_outline, color: Colors.white),
+                              ),
+                              confirmDismiss: (_) async {
+                                final ok = await showDialog<bool>(
+                                  context: context,
+                                  builder: (c) => AlertDialog(
+                                    title: const Text('Xóa cuộc trò chuyện?'),
+                                    content: const Text('Tất cả tin nhắn sẽ bị xóa vĩnh viễn.'),
+                                    actions: [
+                                      TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Hủy')),
+                                      TextButton(onPressed: () => Navigator.pop(c, true), child: const Text('Xóa', style: TextStyle(color: Colors.red))),
+                                    ],
+                                  ),
+                                );
+                                return ok == true;
+                              },
+                              onDismissed: (_) async {
+                                try { await _api.deleteChatSession(sessionId); } catch (_) {}
+                                setState(() {
+                                  _sessions.removeWhere((s) => s['id'] == sessionId);
+                                  _filtered.removeWhere((s) => s['id'] == sessionId);
+                                });
+                              },
+                              child: _SessionCard(
+                                session: session,
+                                timeStr: _formatTime(session['created_at'] as String?),
+                                onTap: () {
+                                  context.pop();
+                                  context.push(AppRoutes.chat, extra: {'sessionId': sessionId});
+                                },
+                                onDelete: () => _deleteSession(sessionId),
+                              ),
+                            );
+                          },
                         ),
                       ),
           ),
@@ -230,22 +293,24 @@ class _SessionCard extends StatelessWidget {
   final dynamic session;
   final String timeStr;
   final VoidCallback onTap;
+  final VoidCallback? onDelete;
 
-  const _SessionCard({required this.session, required this.timeStr, required this.onTap});
+  const _SessionCard({required this.session, required this.timeStr, required this.onTap, this.onDelete});
 
   @override
   Widget build(BuildContext context) {
     final title = session['title'] as String? ?? 'Cuộc trò chuyện';
-    final msgCount = (session['message_count'] ?? 0) as int;
+    final rawCount = session['message_count'];
+    final msgCount = rawCount is int ? rawCount : int.tryParse(rawCount?.toString() ?? '') ?? 0;
 
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: context.palette.card,
           borderRadius: BorderRadius.circular(AppRadii.lg),
-          boxShadow: const [BoxShadow(color: Color(0x0A000000), blurRadius: 6, offset: Offset(0, 2))],
+          boxShadow: context.palette.softShadow,
         ),
         child: Row(children: [
           Container(
@@ -269,8 +334,16 @@ class _SessionCard extends StatelessWidget {
               ],
             ]),
           ])),
-          const SizedBox(width: 8),
-          const Icon(Icons.chevron_right, color: AppColors.muted, size: 20),
+          if (onDelete != null)
+            GestureDetector(
+              onTap: onDelete,
+              child: const Padding(
+                padding: EdgeInsets.only(left: 4),
+                child: Icon(Icons.delete_outline, color: AppColors.muted, size: 20),
+              ),
+            )
+          else
+            const Icon(Icons.chevron_right, color: AppColors.muted, size: 20),
         ]),
       ),
     );

@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../services/api_client.dart';
 import '../../theme/app_colors.dart';
+import '../../theme/app_palette.dart';
 import '../../theme/app_radii.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/categories.dart';
@@ -35,7 +36,7 @@ class _LimitsScreenState extends State<LimitsScreen> {
     try {
       final budgets = await _api.getBudgets();
       _limits = budgets.map((b) {
-        final cat = b['category_code'] as String? ?? 'Other';
+        final cat = b['categoryCode'] as String? ?? b['category_code'] as String? ?? 'Other';
         final style = CategoryTheme.of(cat);
         return _LimitItem(
           id: b['id'] as String,
@@ -43,7 +44,9 @@ class _LimitsScreenState extends State<LimitsScreen> {
           label: style.label,
           color: style.color,
           categoryCode: cat,
-          limit: ((b['amount_limit'] ?? 0) is num) ? (b['amount_limit'] as num).toInt() : 0,
+          limit: ((b['amountLimit'] ?? b['amount_limit'] ?? 0) is num)
+              ? (b['amountLimit'] ?? b['amount_limit'] as num).toInt()
+              : 0,
           spent: ((b['spent'] ?? 0) is num) ? (b['spent'] as num).toInt() : 0,
         );
       }).toList();
@@ -85,7 +88,7 @@ class _LimitsScreenState extends State<LimitsScreen> {
           // Available categories (not already budgeted)
           final existing = _limits.map((l) => l.categoryCode).toSet();
           final available = CategoryTheme.styles.entries
-              .where((e) => !existing.contains(e.key) && !['salary', 'bonus', 'freelance', 'Ăn uống', 'Mua sắm', 'Di chuyển', 'Giải trí'].contains(e.key))
+              .where((e) => CategoryTheme.primaryCodes.contains(e.key) && !existing.contains(e.key))
               .toList();
 
           return Padding(
@@ -107,15 +110,20 @@ class _LimitsScreenState extends State<LimitsScreen> {
                 onChanged: (v) => setModalState(() => selectedCategory = v),
               ),
               const SizedBox(height: 12),
-              TextField(controller: amountCtrl, keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'Số tiền giới hạn', hintText: 'VD: 2000000', suffixText: 'đ')),
+              TextField(
+                controller: amountCtrl,
+                keyboardType: TextInputType.number,
+                inputFormatters: [MoneyTextInputFormatter()],
+                decoration: const InputDecoration(labelText: 'Số tiền giới hạn', hintText: 'VD: 2,000,000', suffixText: 'đ'),
+              ),
               const SizedBox(height: 16),
               SizedBox(
                 width: double.infinity,
                 child: FilledButton(
                   onPressed: () async {
                     if (selectedCategory == null) return;
-                    final amount = int.tryParse(amountCtrl.text.trim());
+                    final rawText = amountCtrl.text.replaceAll(',', '').trim();
+                    final amount = int.tryParse(rawText);
                     if (amount == null || amount <= 0) return;
                     ctx.pop();
                     try {
@@ -148,9 +156,12 @@ class _LimitsScreenState extends State<LimitsScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _EditLimitSheet(item: item, onSave: (newLimit) {
+      builder: (_) => _EditLimitSheet(item: item, onSave: (newLimit) async {
         setState(() => item.limit = newLimit);
-        // TODO: PATCH /budgets/:id when endpoint available
+        try {
+          await _api.updateBudget(item.id, {'amountLimit': newLimit});
+          _loadBudgets();
+        } catch (_) {}
       }),
     );
   }
@@ -160,7 +171,7 @@ class _LimitsScreenState extends State<LimitsScreen> {
     final warning = _warningItem;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: context.palette.bg,
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: _loadBudgets,
@@ -186,6 +197,14 @@ class _LimitsScreenState extends State<LimitsScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
+                          GestureDetector(
+                            onTap: () => context.pop(),
+                            child: Container(
+                              width: 36, height: 36,
+                              decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), shape: BoxShape.circle),
+                              child: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 16),
+                            ),
+                          ),
                           Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                             Text('Giới hạn chi tiêu', style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.white, fontWeight: FontWeight.w700)),
                             const SizedBox(height: 4),
@@ -220,9 +239,9 @@ class _LimitsScreenState extends State<LimitsScreen> {
                     child: Container(
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: context.palette.card,
                         borderRadius: BorderRadius.circular(AppRadii.lg),
-                        boxShadow: const [BoxShadow(color: Color(0x0A000000), blurRadius: 8, offset: Offset(0, 2))],
+                        boxShadow: context.palette.softShadow,
                       ),
                       child: Row(children: [
                         Container(
@@ -279,10 +298,10 @@ class _LimitsScreenState extends State<LimitsScreen> {
                           width: double.infinity,
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: context.palette.card,
                             borderRadius: BorderRadius.circular(AppRadii.lg),
                             border: Border.all(color: AppColors.teal),
-                            boxShadow: const [BoxShadow(color: Color(0x0A000000), blurRadius: 6, offset: Offset(0, 2))],
+                            boxShadow: context.palette.softShadow,
                           ),
                           child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                             const Icon(Icons.add_circle_outline, color: AppColors.teal, size: 20),
@@ -353,9 +372,9 @@ class _LimitCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.palette.card,
         borderRadius: BorderRadius.circular(AppRadii.lg),
-        boxShadow: const [BoxShadow(color: Color(0x0A000000), blurRadius: 6, offset: Offset(0, 2))],
+        boxShadow: context.palette.softShadow,
       ),
       child: Column(children: [
         Row(children: [
@@ -427,9 +446,9 @@ class _EditLimitSheetState extends State<_EditLimitSheet> {
     return Container(
       margin: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       padding: const EdgeInsets.all(24),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadii.xl)),
+      decoration: BoxDecoration(
+        color: context.palette.card,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadii.xl)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -443,14 +462,21 @@ class _EditLimitSheetState extends State<_EditLimitSheet> {
           const SizedBox(height: 16),
           Text('Số tiền giới hạn (đ)', style: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),
-          TextField(controller: _controller, keyboardType: TextInputType.number, autofocus: true, decoration: const InputDecoration(hintText: '0')),
+          TextField(
+            controller: _controller,
+            keyboardType: TextInputType.number,
+            autofocus: true,
+            inputFormatters: [MoneyTextInputFormatter()],
+            decoration: const InputDecoration(hintText: '0'),
+          ),
           const SizedBox(height: 20),
           Row(children: [
             Expanded(child: OutlinedButton(onPressed: () => context.pop(), child: const Text('Hủy'))),
             const SizedBox(width: 12),
             Expanded(child: FilledButton(
               onPressed: () {
-                widget.onSave(int.tryParse(_controller.text) ?? widget.item.limit);
+                final rawText = _controller.text.replaceAll(',', '').trim();
+                widget.onSave(int.tryParse(rawText) ?? widget.item.limit);
                 context.pop();
               },
               child: const Text('Lưu'),

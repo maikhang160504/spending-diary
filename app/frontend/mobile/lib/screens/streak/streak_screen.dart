@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lottie/lottie.dart';
 
 import '../../services/api_client.dart';
 import '../../theme/app_colors.dart';
+import '../../theme/app_palette.dart';
 import '../../theme/app_radii.dart';
 import '../../theme/app_spacing.dart';
 import '../../widgets/skeleton.dart';
@@ -54,7 +56,7 @@ class _StreakScreenState extends State<StreakScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: context.palette.bg,
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: _loadStreak,
@@ -93,12 +95,23 @@ class _StreakScreenState extends State<StreakScreen> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: context.palette.card,
                       borderRadius: BorderRadius.circular(AppRadii.lg),
-                      boxShadow: const [BoxShadow(color: Color(0x0A000000), blurRadius: 8, offset: Offset(0, 2))],
+                      boxShadow: context.palette.softShadow,
                     ),
                     child: Column(children: [
-                      const Text('🔥', style: TextStyle(fontSize: 48)),
+                      // Fire animation chạy khi đang giữ chuỗi thành công
+                      SizedBox(
+                        height: 96,
+                        child: _currentStreak > 0
+                            ? Lottie.asset(
+                                'assets/animations/Fire.json',
+                                height: 96,
+                                repeat: true,
+                                errorBuilder: (_, __, ___) => const Text('🔥', style: TextStyle(fontSize: 48)),
+                              )
+                            : const Center(child: Text('🔥', style: TextStyle(fontSize: 48))),
+                      ),
                       const SizedBox(height: 8),
                       _loading
                           ? const SkeletonLine(width: 80, height: 52)
@@ -125,9 +138,9 @@ class _StreakScreenState extends State<StreakScreen> {
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: context.palette.card,
                       borderRadius: BorderRadius.circular(AppRadii.lg),
-                      boxShadow: const [BoxShadow(color: Color(0x0A000000), blurRadius: 8, offset: Offset(0, 2))],
+                      boxShadow: context.palette.softShadow,
                     ),
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
@@ -210,7 +223,7 @@ class _StreakGrid extends StatelessWidget {
             Expanded(
               child: Container(
                 decoration: BoxDecoration(
-                  color: isActive ? AppColors.teal : const Color(0xFFE2E8F0),
+                  color: isActive ? AppColors.teal : context.palette.surfaceAlt,
                   shape: BoxShape.circle,
                 ),
                 child: isActive
@@ -239,7 +252,7 @@ class _StatBox extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 14),
-      decoration: BoxDecoration(color: const Color(0xFFF5F7FA), borderRadius: BorderRadius.circular(AppRadii.md)),
+      decoration: BoxDecoration(color: context.palette.surfaceAlt, borderRadius: BorderRadius.circular(AppRadii.md)),
       child: Column(children: [
         Icon(icon, color: AppColors.teal, size: 22),
         const SizedBox(height: 4),
@@ -266,15 +279,15 @@ class _AchievementCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.palette.card,
         borderRadius: BorderRadius.circular(AppRadii.lg),
-        boxShadow: const [BoxShadow(color: Color(0x0A000000), blurRadius: 6, offset: Offset(0, 2))],
+        boxShadow: context.palette.softShadow,
       ),
       child: Row(children: [
         Container(
           width: 52, height: 52,
           decoration: BoxDecoration(
-            color: item.achieved ? AppColors.teal.withValues(alpha: 0.12) : const Color(0xFFF1F5F9),
+            color: item.achieved ? AppColors.teal.withValues(alpha: 0.12) : context.palette.surfaceAlt,
             borderRadius: BorderRadius.circular(AppRadii.md),
           ),
           child: Center(child: Text(item.emoji, style: const TextStyle(fontSize: 24))),

@@ -6,8 +6,66 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_radii.dart';
 import '../../theme/app_spacing.dart';
 
-class OnboardingStep1 extends StatelessWidget {
+import '../../services/api_client.dart';
+
+class OnboardingStep1 extends StatefulWidget {
   const OnboardingStep1({super.key});
+
+  @override
+  State<OnboardingStep1> createState() => _OnboardingStep1State();
+}
+
+class _OnboardingStep1State extends State<OnboardingStep1> {
+  final _controller = TextEditingController();
+  final _api = ApiClient();
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkOnboarding();
+  }
+
+  Future<void> _checkOnboarding() async {
+    try {
+      final loggedIn = await _api.isLoggedIn;
+      if (!loggedIn) return;
+      final settings = await _api.getSettings();
+      final ageGroup = settings['ageGroup'] as String? ?? settings['age_group'] as String?;
+      final jobType = settings['jobType'] as String? ?? settings['job_type'] as String?;
+      if ((ageGroup != null && ageGroup.isNotEmpty) || (jobType != null && jobType.isNotEmpty)) {
+        if (mounted) {
+          context.go(AppRoutes.home);
+        }
+      }
+    } catch (_) {}
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final name = _controller.text.trim();
+    if (name.isEmpty) return;
+    setState(() => _saving = true);
+    try {
+      await _api.updateProfile({'username': name});
+      if (mounted) context.push(AppRoutes.onboardingStep2);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi: ${e.toString()}'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    }
+    if (mounted) setState(() => _saving = false);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -17,11 +75,11 @@ class OnboardingStep1 extends StatelessWidget {
         child: SafeArea(
           child: Column(
             children: [
-              const _ProgressHeader(label: 'Bước 1/5', percent: '20%', value: 0.2),
+              const _ProgressHeader(label: 'Bước 1/4', percent: '25%', value: 0.25),
               Expanded(
-                child: Center(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
                   child: Container(
-                    margin: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
                     padding: const EdgeInsets.all(AppSpacing.xxl),
                     decoration: BoxDecoration(
                       color: Colors.white,
@@ -33,12 +91,12 @@ class OnboardingStep1 extends StatelessWidget {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Image.asset('assets/MiMo/status/Hello.png', width: 100, height: 100, fit: BoxFit.contain),
+                        Image.asset('assets/MiMo/emotions/Hello.png', width: 100, height: 100, fit: BoxFit.contain),
                         const SizedBox(height: 12),
                         Text('Xin chào! Mình là Mimo 😊', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700), textAlign: TextAlign.center),
                         const SizedBox(height: 10),
                         Text(
-                          'Còn bạn tên gì nhỉ? Cho mình xin tên để dễ gọi nha~',
+                           'Còn bạn tên gì nhỉ? Cho mình xin tên để dễ gọi nha~',
                           style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
                           textAlign: TextAlign.center,
                         ),
@@ -48,8 +106,9 @@ class OnboardingStep1 extends StatelessWidget {
                           child: Text('Tên của bạn', style: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
                         ),
                         const SizedBox(height: 8),
-                        const TextField(
-                          decoration: InputDecoration(
+                        TextField(
+                          controller: _controller,
+                          decoration: const InputDecoration(
                             hintText: 'Nguyễn Văn A, hoặc gọi bạn là gì cũng được',
                           ),
                         ),
@@ -62,22 +121,28 @@ class OnboardingStep1 extends StatelessWidget {
                 padding: const EdgeInsets.all(AppSpacing.xxl),
                 child: SizedBox(
                   width: double.infinity,
-                  child: FilledButton(
-                    onPressed: () => context.push(AppRoutes.onboardingStep2),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: Colors.white.withValues(alpha: 0.25),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadii.xl)),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: const [
-                        Text('Tiếp nào! ✨', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-                        SizedBox(width: 6),
-                        Icon(Icons.arrow_forward_ios, size: 14),
-                      ],
-                    ),
+                  child: ListenableBuilder(
+                    listenable: _controller,
+                    builder: (ctx, child) {
+                      final hasText = _controller.text.trim().isNotEmpty;
+                      return FilledButton(
+                        onPressed: hasText && !_saving ? _submit : null,
+                        style: FilledButton.styleFrom(
+                          backgroundColor: Colors.white.withValues(alpha: hasText ? 1.0 : 0.25),
+                          foregroundColor: AppColors.teal,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadii.xl)),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(_saving ? 'Đang lưu...' : 'Tiếp nào! ✨', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                            const SizedBox(width: 6),
+                            const Icon(Icons.arrow_forward_ios, size: 14),
+                          ],
+                        ),
+                      );
+                    }
                   ),
                 ),
               ),

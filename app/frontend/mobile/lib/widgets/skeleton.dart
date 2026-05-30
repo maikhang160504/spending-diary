@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
 
+import '../theme/app_palette.dart';
 import '../theme/app_radii.dart';
 
 /// Shimmer skeleton placeholders for loading states (X-11).
@@ -19,14 +20,15 @@ class SkeletonCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.palette;
     return Shimmer.fromColors(
-      baseColor: const Color(0xFFE2E8F0),
-      highlightColor: const Color(0xFFF1F5F9),
+      baseColor: p.surfaceAlt,
+      highlightColor: p.border,
       child: Container(
         height: height,
         width: width ?? double.infinity,
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: p.card,
           borderRadius: BorderRadius.circular(borderRadius),
         ),
       ),
@@ -42,14 +44,15 @@ class SkeletonLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.palette;
     return Shimmer.fromColors(
-      baseColor: const Color(0xFFE2E8F0),
-      highlightColor: const Color(0xFFF1F5F9),
+      baseColor: p.surfaceAlt,
+      highlightColor: p.border,
       child: Container(
         width: width,
         height: height,
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: p.card,
           borderRadius: BorderRadius.circular(4),
         ),
       ),
@@ -66,12 +69,12 @@ class SkeletonListTile extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
       child: Row(children: [
         Shimmer.fromColors(
-          baseColor: const Color(0xFFE2E8F0),
-          highlightColor: const Color(0xFFF1F5F9),
+          baseColor: context.palette.surfaceAlt,
+          highlightColor: context.palette.border,
           child: Container(
             width: 44, height: 44,
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: context.palette.card,
               borderRadius: BorderRadius.circular(AppRadii.md),
             ),
           ),

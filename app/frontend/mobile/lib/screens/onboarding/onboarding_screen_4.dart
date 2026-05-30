@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../routes/app_routes.dart';
+import '../../services/api_client.dart';
 import '../../theme/app_colors.dart';
-import '../../theme/categories.dart';
 import '../../theme/app_radii.dart';
 import '../../theme/app_spacing.dart';
 
@@ -15,13 +15,37 @@ class OnboardingStep4 extends StatefulWidget {
 }
 
 class _OnboardingStep4State extends State<OnboardingStep4> {
-  final _cats = [
-    _Cat('Food',          'Ăn uống', const Color(0xFFEC4899), TextEditingController(text: '2.000.000')),
-    _Cat('Shopping',      'Mua sắm', const Color(0xFF8B5CF6), TextEditingController(text: '1.500.000')),
-    _Cat('Transport',     'Di chuyển', const Color(0xFF3B82F6), TextEditingController(text: '500.000')),
-    _Cat('Entertainment', 'Giải trí', const Color(0xFFF59E0B), TextEditingController(text: '800.000')),
-    _Cat('Others',        'Khác', const Color(0xFF94A3B8), TextEditingController()),
-  ];
+  final _api = ApiClient();
+  bool _saving = false;
+  String? _selectedAge;
+  String? _selectedJob;
+
+  static const _ages = ['18-22 tuổi', '23-30 tuổi', '31-40 tuổi', '41-50 tuổi', 'Trên 50'];
+  static const _ageEmojis = ['🎓', '💼', '👔', '🏢', '✨'];
+  static const _jobs = ['Sinh viên', 'Văn phòng', 'Freelancer', 'Kinh doanh', 'Khác'];
+  static const _jobEmojis = ['📚', '💻', '✨', '💼', '🎯'];
+
+  Future<void> _finish() async {
+    setState(() => _saving = true);
+    try {
+      await _api.updateSettings({
+        if (_selectedAge != null) 'ageGroup': _selectedAge,
+        if (_selectedJob != null) 'jobType': _selectedJob,
+      });
+      if (mounted) context.go(AppRoutes.home);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi: ${e.toString()}'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -31,7 +55,7 @@ class _OnboardingStep4State extends State<OnboardingStep4> {
         child: SafeArea(
           child: Column(
             children: [
-              const _ProgressHeader(label: 'Bước 4/5', percent: '80%', value: 0.8),
+              const _ProgressHeader(label: 'Bước 4/4', percent: '100%', value: 1.0),
               Expanded(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
@@ -42,32 +66,28 @@ class _OnboardingStep4State extends State<OnboardingStep4> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Image.asset('assets/MiMo/category/Savings.png', width: 56, height: 56, fit: BoxFit.contain),
-                        const SizedBox(height: 12),
-                        Text('Giới hạn chi tiêu', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+                        Container(width: 60, height: 60,
+                            decoration: BoxDecoration(color: AppColors.teal, borderRadius: BorderRadius.circular(AppRadii.lg)),
+                            child: const Center(child: Text('👤', style: TextStyle(fontSize: 28)))),
+                        const SizedBox(height: 16),
+                        Text('Thông tin cá nhân', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
                         const SizedBox(height: 8),
-                        Text('Đặt giới hạn cho từng danh mục (có thể bỏ qua)',
+                        Text('Để Mimo có thể tư vấn phù hợp với bạn nhất',
                             style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary), textAlign: TextAlign.center),
+                        const SizedBox(height: 24),
+                        _sectionLabel(context, 'Độ tuổi của bạn'),
+                        const SizedBox(height: 12),
+                        _optionGrid(_ages, _ageEmojis, _selectedAge, (v) => setState(() => _selectedAge = v)),
                         const SizedBox(height: 20),
-                        ..._cats.map((cat) => Padding(
-                          padding: const EdgeInsets.only(bottom: 14),
-                          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                            Row(children: [
-                              Container(width: 32, height: 32, decoration: BoxDecoration(color: cat.color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(8)),
-                                  child: Center(child: CategoryTheme.iconOf(cat.code, size: 20))),
-                              const SizedBox(width: 8),
-                              Text(cat.label, style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
-                            ]),
-                            const SizedBox(height: 8),
-                            TextField(controller: cat.controller, keyboardType: TextInputType.number,
-                                decoration: const InputDecoration(hintText: 'Nhập giới hạn...', prefixIcon: Icon(Icons.attach_money, size: 18), suffixText: 'đ')),
-                          ]),
-                        )),
+                        _sectionLabel(context, 'Nghề nghiệp'),
+                        const SizedBox(height: 12),
+                        _optionGrid(_jobs, _jobEmojis, _selectedJob, (v) => setState(() => _selectedJob = v)),
+                        const SizedBox(height: 16),
                         Container(padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(color: const Color(0xFFE8F7F6), borderRadius: BorderRadius.circular(AppRadii.md)),
                             child: Row(children: [
                               const Text('💡', style: TextStyle(fontSize: 16)), const SizedBox(width: 8),
-                              Expanded(child: Text('Bạn có thể thay đổi giới hạn này bất cứ lúc nào trong Cài đặt',
+                              Expanded(child: Text('Thông tin này giúp AI nhận xét chính xác hơn về chi tiêu của bạn',
                                   style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.tealDark))),
                             ])),
                       ],
@@ -75,25 +95,59 @@ class _OnboardingStep4State extends State<OnboardingStep4> {
                   ),
                 ),
               ),
-              _NavButtons(onBack: () => context.pop(), onNext: () => context.push(AppRoutes.onboardingStep5)),
+              _NavButtons(
+                onBack: () => context.pop(),
+                onNext: _saving ? null : _finish,
+                nextLabel: _saving ? 'Đang lưu...' : 'Hoàn thành 🎉',
+              ),
             ],
           ),
         ),
       ),
     );
   }
-}
 
-class _Cat {
-  final String code, label;
-  final Color color;
-  final TextEditingController controller;
-  const _Cat(this.code, this.label, this.color, this.controller);
+  Widget _sectionLabel(BuildContext context, String label) {
+    return Align(alignment: Alignment.centerLeft, child: Text(label, style: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w700)));
+  }
+
+  Widget _optionGrid(List<String> labels, List<String> emojis, String? selected, ValueChanged<String> onTap) {
+    return GridView.count(
+      crossAxisCount: 3,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      mainAxisSpacing: 8,
+      crossAxisSpacing: 8,
+      childAspectRatio: 1.6,
+      children: List.generate(labels.length, (i) {
+        final isSelected = selected == labels[i];
+        return GestureDetector(
+          onTap: () => onTap(labels[i]),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            decoration: BoxDecoration(
+              color: isSelected ? AppColors.teal.withValues(alpha: 0.1) : const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(AppRadii.md),
+              border: Border.all(color: isSelected ? AppColors.teal : AppColors.border, width: isSelected ? 2 : 1),
+            ),
+            child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+              Text(emojis[i], style: const TextStyle(fontSize: 18)),
+              const SizedBox(height: 2),
+              Text(labels[i], style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: isSelected ? AppColors.teal : AppColors.textSecondary),
+                  textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
+            ]),
+          ),
+        );
+      }),
+    );
+  }
 }
 
 class _NavButtons extends StatelessWidget {
-  final VoidCallback onBack, onNext;
-  const _NavButtons({required this.onBack, required this.onNext});
+  final VoidCallback onBack;
+  final VoidCallback? onNext;
+  final String nextLabel;
+  const _NavButtons({required this.onBack, required this.onNext, this.nextLabel = 'Tiếp tục'});
 
   @override
   Widget build(BuildContext context) {
@@ -106,12 +160,11 @@ class _NavButtons extends StatelessWidget {
         const SizedBox(width: 12),
         Expanded(child: FilledButton(onPressed: onNext,
             style: FilledButton.styleFrom(backgroundColor: Colors.white, foregroundColor: AppColors.teal, padding: const EdgeInsets.symmetric(vertical: 14)),
-            child: const Text('Tiếp tục', style: TextStyle(fontWeight: FontWeight.w600)))),
+            child: Text(nextLabel, style: const TextStyle(fontWeight: FontWeight.w700)))),
       ]),
     );
   }
 }
-
 
 class _ProgressHeader extends StatelessWidget {
   final String label, percent;

@@ -2,8 +2,10 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../data/mock_data.dart';
-import '../../services/api_client.dart';
+import '../../services/app_queries.dart';
+import '../../services/transaction_notifier.dart';
 import '../../theme/app_colors.dart';
+import '../../theme/app_palette.dart';
 import '../../theme/app_radii.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/categories.dart';
@@ -18,35 +20,26 @@ class ReportScreen extends StatefulWidget {
 
 class _ReportScreenState extends State<ReportScreen> {
   String _selectedRange = '7 ngày';
-  final _api = ApiClient();
 
   // API data
   bool _loading = true;
   int _totalExpense = 0;
   int _totalIncome = 0;
   List<ReportCategory> _categoryStats = [];
-
-  static const _catMeta = <String, Map<String, dynamic>>{
-    'Food':          {'label': 'Ăn uống',    'emoji': '🍔', 'color': 0xFFEC4899},
-    'Shopping':      {'label': 'Mua sắm',    'emoji': '🛍️', 'color': 0xFF8B5CF6},
-    'Transport':     {'label': 'Di chuyển',  'emoji': '🚗', 'color': 0xFF3B82F6},
-    'Entertainment': {'label': 'Giải trí',   'emoji': '🎬', 'color': 0xFFF59E0B},
-    'Housing':       {'label': 'Nhà ở',      'emoji': '🏠', 'color': 0xFF10B981},
-    'Health':        {'label': 'Sức khoẻ',   'emoji': '💊', 'color': 0xFFEF4444},
-    'Education':     {'label': 'Học tập',    'emoji': '📚', 'color': 0xFF6366F1},
-    'Travel':        {'label': 'Du lịch',    'emoji': '✈️', 'color': 0xFF14B8A6},
-    'Others':        {'label': 'Khác',       'emoji': '📦', 'color': 0xFF94A3B8},
-  };
+  List<ReportBar> _reportBars = [];
+  List<TrendPoint> _trendPoints = [];
 
   ReportCategory _toCat(Map<String, dynamic> row) {
     final code = row['categoryCode'] as String? ?? 'Others';
-    final meta = _catMeta[code] ?? _catMeta['Others']!;
+    // Dùng CategoryTheme làm nguồn chuẩn để khớp ảnh trong assets/MiMo/category.
+    final style = CategoryTheme.of(code);
     return ReportCategory(
-      label: meta['label'] as String,
-      emoji: meta['emoji'] as String,
+      code: code,
+      label: style.label,
+      emoji: style.emoji,
       percent: (row['percent'] as num?)?.toDouble() ?? 0,
       amount: (row['total'] as num?)?.toInt() ?? 0,
-      color: meta['color'] as int,
+      color: style.color.toARGB32(),
     );
   }
 
@@ -54,25 +47,55 @@ class _ReportScreenState extends State<ReportScreen> {
   void initState() {
     super.initState();
     _loadStats();
+    transactionNotifier.addListener(_onTransactionChanged);
+  }
+
+  @override
+  void dispose() {
+    transactionNotifier.removeListener(_onTransactionChanged);
+    super.dispose();
+  }
+
+  void _onTransactionChanged() {
+    if (!mounted) return;
+    AppQueries.invalidateWalletData();
+    _loadStats();
   }
 
   Future<void> _loadStats() async {
-    setState(() => _loading = true);
+    // Nếu đã có cache thì không hiện loading (tránh chớp khi quay lại màn hình).
+    final rangeParam = _selectedRange == '7 ngày' ? 'week'
+        : _selectedRange == '30 ngày' ? 'month'
+        : null;
+    final hasCache = AppQueries.statsByCategory(rangeParam).state.data != null;
+    setState(() => _loading = !hasCache);
     try {
-      final rangeParam = _selectedRange == '7 ngày' ? 'week'
-          : _selectedRange == 'Tháng' ? null
-          : 'year';
-      final results = await Future.wait([
-        _api.getDashboard(),
-        _api.getStatsByCategory(range: rangeParam),
-      ]);
+      final dashF = AppQueries.dashboard(null).result;
+      final catsF = AppQueries.statsByCategory(rangeParam).result;
+      final monthlyF = AppQueries.statsByMonth(DateTime.now().year).result;
+      final dashboard = (await dashF).data ?? <String, dynamic>{};
+      final cats = (await catsF).data ?? <dynamic>[];
+      final monthly = (await monthlyF).data ?? <dynamic>[];
       if (!mounted) return;
-      final dashboard = results[0] as Map<String, dynamic>;
-      final cats = results[1] as List<dynamic>;
+      final totals = dashboard['totals'] as Map<String, dynamic>?;
+      final byDay = (dashboard['byDay'] as List<dynamic>?) ?? [];
       setState(() {
-        _totalExpense = ((dashboard['totalExpense'] ?? 0) is num) ? (dashboard['totalExpense'] as num).toInt() : 0;
-        _totalIncome = ((dashboard['totalIncome'] ?? 0) is num) ? (dashboard['totalIncome'] as num).toInt() : 0;
+        _totalExpense = (totals?['expense'] as num?)?.toInt() ?? 0;
+        _totalIncome = (totals?['income'] as num?)?.toInt() ?? 0;
         _categoryStats = cats.map((c) => _toCat(c as Map<String, dynamic>)).toList();
+        _reportBars = byDay.map((d) {
+          final e = d as Map<String, dynamic>;
+          final dayStr = e['day'] as String? ?? '';
+          final label = dayStr.length >= 10 ? dayStr.substring(8, 10) : '';
+          return ReportBar(label: label, amount: (e['expense'] as num?)?.toInt() ?? 0);
+        }).toList();
+        _trendPoints = monthly.map((m) {
+          final e = m as Map<String, dynamic>;
+          final month = e['month'] as int? ?? 0;
+          final income = (e['income'] as num?)?.toInt() ?? 0;
+          final expense = (e['expense'] as num?)?.toInt() ?? 0;
+          return TrendPoint(label: 'T$month', amount: income - expense);
+        }).toList();
       });
     } catch (_) {}
     if (mounted) setState(() => _loading = false);
@@ -81,7 +104,7 @@ class _ReportScreenState extends State<ReportScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: context.palette.bg,
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: _loadStats,
@@ -95,7 +118,10 @@ class _ReportScreenState extends State<ReportScreen> {
                 const SizedBox(height: 16),
                 _RangeTabs(
                   selected: _selectedRange,
-                  onChanged: (v) => setState(() => _selectedRange = v),
+                  onChanged: (v) {
+                    setState(() => _selectedRange = v);
+                    _loadStats();
+                  },
                 ),
                 const SizedBox(height: 16),
                 Padding(
@@ -114,16 +140,20 @@ class _ReportScreenState extends State<ReportScreen> {
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: context.palette.card,
                           borderRadius: BorderRadius.circular(AppRadii.lg),
-                          boxShadow: const [BoxShadow(color: Color(0x0A000000), blurRadius: 8, offset: Offset(0, 2))],
+                          boxShadow: context.palette.softShadow,
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text('Chi tiêu theo ngày', style: Theme.of(context).textTheme.titleSmall),
                             const SizedBox(height: 16),
-                            _BarChart(bars: MockData.reportBars),
+                            _reportBars.isEmpty
+                                ? const Center(child: Padding(
+                                    padding: EdgeInsets.symmetric(vertical: 24),
+                                    child: Text('Chưa có dữ liệu', style: TextStyle(color: AppColors.muted))))
+                                : _BarChart(bars: _reportBars),
                           ],
                         ),
                       ),
@@ -132,9 +162,9 @@ class _ReportScreenState extends State<ReportScreen> {
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: context.palette.card,
                           borderRadius: BorderRadius.circular(AppRadii.lg),
-                          boxShadow: const [BoxShadow(color: Color(0x0A000000), blurRadius: 8, offset: Offset(0, 2))],
+                          boxShadow: context.palette.softShadow,
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -161,16 +191,20 @@ class _ReportScreenState extends State<ReportScreen> {
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: context.palette.card,
                           borderRadius: BorderRadius.circular(AppRadii.lg),
-                          boxShadow: const [BoxShadow(color: Color(0x0A000000), blurRadius: 8, offset: Offset(0, 2))],
+                          boxShadow: context.palette.softShadow,
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text('Xu hướng tiết kiệm (3 tháng)', style: Theme.of(context).textTheme.titleSmall),
                             const SizedBox(height: 16),
-                            _TrendChart(points: MockData.reportTrend),
+                            _trendPoints.isEmpty
+                                ? const Center(child: Padding(
+                                    padding: EdgeInsets.symmetric(vertical: 24),
+                                    child: Text('Chưa có dữ liệu', style: TextStyle(color: AppColors.muted))))
+                                : _TrendChart(points: _trendPoints),
                           ],
                         ),
                       ),
@@ -193,6 +227,7 @@ class _ReportHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
+      width: double.infinity,
       decoration: const BoxDecoration(
         gradient: AppGradients.teal,
         borderRadius: BorderRadius.only(
@@ -200,13 +235,13 @@ class _ReportHeader extends StatelessWidget {
           bottomRight: Radius.circular(AppRadii.xl),
         ),
       ),
-      padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+      padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Báo cáo chi tiêu', style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.white, fontWeight: FontWeight.w700)),
-          const SizedBox(height: 6),
-          Text('Phân tích và theo dõi thói quen chi tiêu', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white70)),
+          Text('Báo cáo', style: Theme.of(context).textTheme.headlineSmall?.copyWith(color: Colors.white, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 4),
+          Text('Phân tích và theo dõi thói quen chi tiêu', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.white70)),
         ],
       ),
     );
@@ -227,7 +262,7 @@ class _RangeTabs extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(4),
         decoration: BoxDecoration(
-          color: const Color(0xFFF1F5F9),
+          color: context.palette.surfaceAlt,
           borderRadius: BorderRadius.circular(AppRadii.lg),
         ),
         child: Row(
@@ -237,9 +272,9 @@ class _RangeTabs extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 decoration: BoxDecoration(
-                  color: selected == label ? Colors.white : Colors.transparent,
+                  color: selected == label ? context.palette.card : Colors.transparent,
                   borderRadius: BorderRadius.circular(AppRadii.md),
-                  boxShadow: selected == label ? const [BoxShadow(color: Color(0x14000000), blurRadius: 6, offset: Offset(0, 3))] : null,
+                  boxShadow: selected == label ? context.palette.softShadow : null,
                 ),
                 child: Center(
                   child: Text(
@@ -271,9 +306,9 @@ class _TotalCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.palette.card,
         borderRadius: BorderRadius.circular(AppRadii.lg),
-        boxShadow: const [BoxShadow(color: Color(0x0A000000), blurRadius: 8, offset: Offset(0, 2))],
+        boxShadow: context.palette.softShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -444,11 +479,15 @@ class _CategoryLegend extends StatelessWidget {
       children: categories.map((cat) => Row(
         children: [
           Container(
-            width: 12,
-            height: 12,
-            decoration: BoxDecoration(color: Color(cat.color), shape: BoxShape.circle),
+            width: 28,
+            height: 28,
+            decoration: BoxDecoration(
+              color: Color(cat.color).withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Center(child: CategoryTheme.iconOf(cat.code, size: 18)),
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: 8),
           Expanded(
             child: Text(
               '${cat.label}\n${cat.percent.toStringAsFixed(1)}% · ${formatVnd(cat.amount)}',
@@ -474,7 +513,7 @@ class _TopCategoryCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: catColor.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(AppRadii.lg),
-        boxShadow: const [BoxShadow(color: Color(0x0A000000), blurRadius: 8, offset: Offset(0, 2))],
+        boxShadow: context.palette.softShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -490,7 +529,7 @@ class _TopCategoryCard extends StatelessWidget {
                   color: catColor.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(AppRadii.lg),
                 ),
-                child: Center(child: CategoryTheme.iconOf(top!.label, size: 32)),
+                child: Center(child: CategoryTheme.iconOf(top!.code, size: 32)),
               ),
               const SizedBox(width: 14),
               Expanded(child: Column(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../routes/app_routes.dart';
 import '../../services/api_client.dart';
@@ -19,6 +20,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passCtrl = TextEditingController();
   bool _obscurePassword = true;
   bool _loading = false;
+  bool _googleLoading = false;
   String? _error;
 
   @override
@@ -26,6 +28,48 @@ class _LoginScreenState extends State<LoginScreen> {
     _emailCtrl.dispose();
     _passCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _loginWithGoogle() async {
+    setState(() { _googleLoading = true; _error = null; });
+    try {
+      final googleSignIn = GoogleSignIn(
+        scopes: ['email', 'profile'],
+        serverClientId: '388012082045-3t6pakclihrq25focvubq4eb6t2fbnap.apps.googleusercontent.com',
+      );
+      final account = await googleSignIn.signIn();
+      if (account == null) {
+        setState(() => _googleLoading = false);
+        return;
+      }
+      final auth = await account.authentication;
+      final idToken = auth.idToken;
+      if (idToken == null) {
+        setState(() { _googleLoading = false; _error = 'Không lấy được Google token'; });
+        return;
+      }
+      final api = ApiClient();
+      await api.loginWithGoogle(idToken);
+      if (!mounted) return;
+      
+      try {
+        final settings = await api.getSettings();
+        final ageGroup = settings['ageGroup'] as String? ?? settings['age_group'] as String?;
+        final jobType = settings['jobType'] as String? ?? settings['job_type'] as String?;
+        if ((ageGroup != null && ageGroup.isNotEmpty) || (jobType != null && jobType.isNotEmpty)) {
+          context.go(AppRoutes.home);
+          return;
+        }
+      } catch (_) {}
+      
+      context.go(AppRoutes.onboarding);
+    } on ApiException catch (e) {
+      setState(() => _error = e.localizedMessage);
+    } catch (e) {
+      setState(() => _error = 'Đăng nhập Google thất bại, thử lại sau');
+    } finally {
+      if (mounted) setState(() => _googleLoading = false);
+    }
   }
 
   Future<void> _login() async {
@@ -40,7 +84,18 @@ class _LoginScreenState extends State<LoginScreen> {
       final api = ApiClient();
       await api.login(email, pass);
       if (!mounted) return;
-      context.go(AppRoutes.home);
+      
+      try {
+        final settings = await api.getSettings();
+        final ageGroup = settings['ageGroup'] as String? ?? settings['age_group'] as String?;
+        final jobType = settings['jobType'] as String? ?? settings['job_type'] as String?;
+        if ((ageGroup != null && ageGroup.isNotEmpty) || (jobType != null && jobType.isNotEmpty)) {
+          context.go(AppRoutes.home);
+          return;
+        }
+      } catch (_) {}
+      
+      context.go(AppRoutes.onboarding);
     } on ApiException catch (e) {
       setState(() => _error = e.localizedMessage);
     } catch (e) {
@@ -60,13 +115,34 @@ class _LoginScreenState extends State<LoginScreen> {
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
             child: Column(
               children: [
-                const SizedBox(height: 48),
-                // App logo
-                Image.asset('assets/logo/Logo.png', width: 96, height: 96, fit: BoxFit.contain),
-                const SizedBox(height: 16),
-                // App name + slogan
-                Image.asset('assets/logo/Title.png', height: 48, fit: BoxFit.contain),
-                const SizedBox(height: 40),
+                const SizedBox(height: 32),
+                // Logo + Title card (white bg so logo is visible on teal)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.95),
+                    borderRadius: BorderRadius.circular(32),
+                    border: Border.all(color: Colors.white, width: 1.5),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.08),
+                        blurRadius: 16,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      Image.asset('assets/logo/Logo.png', width: 88, height: 88, fit: BoxFit.contain,
+                        errorBuilder: (context, error, stack) => const Icon(Icons.savings_outlined, color: AppColors.teal, size: 72)),
+                      const SizedBox(height: 12),
+                      Image.asset('assets/logo/Title.png', height: 40, fit: BoxFit.contain,
+                        errorBuilder: (context, error, stack) => const Text('Spending Diary',
+                          style: TextStyle(color: AppColors.teal, fontSize: 22, fontWeight: FontWeight.w700))),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 32),
                 // Login card
                 Container(
                   padding: const EdgeInsets.all(AppSpacing.xxl),
@@ -161,16 +237,18 @@ class _LoginScreenState extends State<LoginScreen> {
                       SizedBox(
                         width: double.infinity,
                         child: OutlinedButton(
-                          onPressed: () {},
+                          onPressed: _googleLoading ? null : _loginWithGoogle,
                           style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 13)),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Text('G', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Color(0xFF4285F4))),
-                              const SizedBox(width: 8),
-                              Text('Đăng nhập với Google', style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
-                            ],
-                          ),
+                          child: _googleLoading
+                              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                              : Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Text('G', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Color(0xFF4285F4))),
+                                    const SizedBox(width: 8),
+                                    Text('Đăng nhập với Google', style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+                                  ],
+                                ),
                         ),
                       ),
                       const SizedBox(height: 16),
