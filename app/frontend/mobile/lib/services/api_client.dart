@@ -3,20 +3,31 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+import '../utils/image_compressor.dart';
+
 /// Centralized API client for all backend calls.
 /// Replaces old `BackendApiService` with proper JWT auth flow.
 class ApiClient {
-  static const _defaultBaseUrl = 'http://10.0.2.2:4000/api/v1';
+  static const _defaultBaseUrl = 'http://10.0.2.2:4000';
 
   final String baseUrl;
   final FlutterSecureStorage _storage;
   final http.Client _http;
 
+  static String _normalizeBaseUrl(String url) {
+    final trimmed = url.endsWith('/') ? url.substring(0, url.length - 1) : url;
+    return trimmed.endsWith('/api/v1') ? trimmed : '$trimmed/api/v1';
+  }
+
+  static bool? _isOnboardingBypassed;
+
   ApiClient({
     String? baseUrl,
     FlutterSecureStorage? storage,
     http.Client? httpClient,
-  })  : baseUrl = baseUrl ?? const String.fromEnvironment('API_BASE_URL', defaultValue: _defaultBaseUrl),
+  })  : baseUrl = _normalizeBaseUrl(
+          baseUrl ?? const String.fromEnvironment('API_BASE_URL', defaultValue: _defaultBaseUrl),
+        ),
         _storage = storage ?? const FlutterSecureStorage(),
         _http = httpClient ?? http.Client();
 
@@ -84,10 +95,11 @@ class ApiClient {
     final jsonBody = jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
 
     if (response.statusCode >= 400) {
+      final errMap = jsonBody['error'] as Map<String, dynamic>?;
       throw ApiException(
         statusCode: response.statusCode,
-        message: jsonBody['message'] as String? ?? 'Request failed',
-        code: jsonBody['code'] as String?,
+        message: errMap?['message'] as String? ?? jsonBody['message'] as String? ?? 'Request failed',
+        code: errMap?['code'] as String? ?? jsonBody['code'] as String?,
       );
     }
 
@@ -118,6 +130,7 @@ class ApiClient {
 
   // ─── Auth ─────────────────────────────────────────────────────────
   Future<Map<String, dynamic>> login(String email, String password) async {
+    _isOnboardingBypassed = null;
     final result = await _request('POST', '/auth/login',
         body: {'email': email, 'password': password}, requireAuth: false);
     final data = result['data'] as Map<String, dynamic>;
@@ -125,7 +138,17 @@ class ApiClient {
     return data;
   }
 
+  Future<Map<String, dynamic>> loginWithGoogle(String idToken) async {
+    _isOnboardingBypassed = null;
+    final result = await _request('POST', '/auth/google',
+        body: {'idToken': idToken}, requireAuth: false);
+    final data = result['data'] as Map<String, dynamic>;
+    await _saveTokens(data['accessToken'], data['refreshToken']);
+    return data;
+  }
+
   Future<Map<String, dynamic>> register(String email, String password, String username) async {
+    _isOnboardingBypassed = null;
     final result = await _request('POST', '/auth/register',
         body: {'email': email, 'password': password, 'username': username}, requireAuth: false);
     final data = result['data'] as Map<String, dynamic>;
@@ -139,6 +162,7 @@ class ApiClient {
   }
 
   Future<void> logout() async {
+    _isOnboardingBypassed = null;
     final rToken = await refreshToken;
     if (rToken != null) {
       try {
@@ -166,6 +190,11 @@ class ApiClient {
     return result['data'] as List<dynamic>;
   }
 
+  Future<Map<String, dynamic>> getWallet(String id) async {
+    final result = await _request('GET', '/wallets/$id');
+    return result['data'] as Map<String, dynamic>;
+  }
+
   Future<Map<String, dynamic>> createWallet(Map<String, dynamic> body) async {
     final result = await _request('POST', '/wallets', body: body);
     return result['data'] as Map<String, dynamic>;
@@ -178,12 +207,14 @@ class ApiClient {
   }
 
   // ─── Transactions ─────────────────────────────────────────────────
-  Future<Map<String, dynamic>> getTransactions({String? walletId, String? type, int pageSize = 20, int page = 1}) async {
+  Future<Map<String, dynamic>> getTransactions({String? walletId, String? type, int pageSize = 20, int page = 1, String? from, String? to}) async {
     final result = await _request('GET', '/transactions', queryParams: {
       'walletId': ?walletId,
       'type': ?type,
       'pageSize': '$pageSize',
       'page': '$page',
+      'from': ?from,
+      'to': ?to,
     });
     return result;
   }
@@ -210,14 +241,10 @@ class ApiClient {
     return result['data'] as Map<String, dynamic>;
   }
 
-  Future<Map<String, dynamic>> getStatsByMonth({required int year}) async {
-    final result = await _request('GET', '/stats/by-month', queryParams: {'year': '$year'});
-    return result['data'] as Map<String, dynamic>;
-  }
 
   // ─── Budgets ──────────────────────────────────────────────────────
   Future<List<dynamic>> getBudgets() async {
-    final result = await _request('GET', '/budgets');
+    final result = await _request('GET', '/budgets/summary');
     return result['data'] as List<dynamic>;
   }
 
@@ -226,8 +253,27 @@ class ApiClient {
     return result;
   }
 
+  Future<bool> checkOnboardingBypassed() async {
+    if (_isOnboardingBypassed == true) return true;
+    try {
+      final settings = await getSettings();
+      final ageGroup = settings['ageGroup'] as String? ?? settings['age_group'] as String?;
+      final jobType = settings['jobType'] as String? ?? settings['job_type'] as String?;
+      if ((ageGroup != null && ageGroup.isNotEmpty) || (jobType != null && jobType.isNotEmpty)) {
+        _isOnboardingBypassed = true;
+        return true;
+      }
+    } catch (_) {}
+    return false;
+  }
+
   Future<Map<String, dynamic>> createBudget(Map<String, dynamic> body) async {
     final result = await _request('POST', '/budgets', body: body);
+    return result['data'] as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> updateBudget(String id, Map<String, dynamic> body) async {
+    final result = await _request('PATCH', '/budgets/$id', body: body);
     return result['data'] as Map<String, dynamic>;
   }
 
@@ -247,6 +293,10 @@ class ApiClient {
     return result['data'] as Map<String, dynamic>;
   }
 
+  Future<void> deleteGoal(String id) async {
+    await _request('DELETE', '/goals/$id');
+  }
+
   // ─── AI ───────────────────────────────────────────────────────────
   Future<Map<String, dynamic>> aiNlu(String text, {bool runLlm = false}) async {
     final result = await _request('POST', '/ai/nlu', body: {'text': text, 'runLlm': runLlm});
@@ -260,9 +310,65 @@ class ApiClient {
     return result['data'] as Map<String, dynamic>;
   }
 
+  Future<Map<String, dynamic>> aiExpenseFromBill({required String walletId, required String filePath}) async {
+    final token = await accessToken;
+    // Bill OCR: giữ cạnh dài lớn hơn để chữ trên hoá đơn vẫn đọc được.
+    final uploadPath = await compressForUpload(filePath, maxSize: 1600, quality: 85);
+    final uri = Uri.parse('$baseUrl/ai/expense/from-bill?walletId=$walletId');
+    final req = http.MultipartRequest('POST', uri)
+      ..headers['Authorization'] = 'Bearer ${token ?? ''}'
+      ..fields['walletId'] = walletId
+      ..files.add(await http.MultipartFile.fromPath('file', uploadPath));
+    final streamed = await req.send();
+    final response = await http.Response.fromStream(streamed);
+    final jsonBody = jsonDecode(response.body) as Map<String, dynamic>;
+    if (response.statusCode >= 400) {
+      throw ApiException(
+        statusCode: response.statusCode,
+        message: jsonBody['message'] as String? ?? 'Bill upload failed',
+        code: jsonBody['code'] as String?,
+      );
+    }
+    return jsonBody['data'] as Map<String, dynamic>;
+  }
+
   Future<Map<String, dynamic>> aiCorrection(Map<String, dynamic> body) async {
     final result = await _request('POST', '/ai/corrections', body: body);
     return result['data'] as Map<String, dynamic>;
+  }
+
+  Future<void> aiConfirmAction(String actionSignature, {String? actionType}) async {
+    await _request('POST', '/ai/actions/confirm', body: {
+      'actionSignature': actionSignature,
+      'actionType': ?actionType,
+    });
+  }
+
+  Future<Map<String, dynamic>> uploadFile(String filePath) async {
+    final token = await accessToken;
+    final uploadPath = await compressForUpload(filePath);
+    final uri = Uri.parse('$baseUrl/upload/direct');
+    final req = http.MultipartRequest('POST', uri)
+      ..headers['Authorization'] = 'Bearer ${token ?? ''}'
+      ..files.add(await http.MultipartFile.fromPath('file', uploadPath));
+    final streamed = await req.send();
+    final response = await http.Response.fromStream(streamed);
+    final jsonBody = jsonDecode(response.body) as Map<String, dynamic>;
+    if (response.statusCode >= 400) {
+      throw ApiException(
+        statusCode: response.statusCode,
+        message: jsonBody['message'] as String? ?? 'Upload failed',
+        code: jsonBody['code'] as String?,
+      );
+    }
+    return jsonBody['data'] as Map<String, dynamic>;
+  }
+
+  Future<void> aiRejectAction({String? text, Map<String, dynamic>? predicted}) async {
+    await _request('POST', '/ai/actions/reject', body: {
+      'text': ?text,
+      'predicted': ?predicted,
+    });
   }
 
   // ─── User Settings ────────────────────────────────────────────────
@@ -273,6 +379,17 @@ class ApiClient {
 
   Future<Map<String, dynamic>> updateSettings(Map<String, dynamic> body) async {
     final result = await _request('PATCH', '/users/me/settings', body: body);
+    final data = result['data'] as Map<String, dynamic>;
+    final ageGroup = data['ageGroup'] as String? ?? data['age_group'] as String?;
+    final jobType = data['jobType'] as String? ?? data['job_type'] as String?;
+    if ((ageGroup != null && ageGroup.isNotEmpty) || (jobType != null && jobType.isNotEmpty)) {
+      _isOnboardingBypassed = true;
+    }
+    return data;
+  }
+
+  Future<Map<String, dynamic>> updateProfile(Map<String, dynamic> body) async {
+    final result = await _request('PATCH', '/auth/me', body: body);
     return result['data'] as Map<String, dynamic>;
   }
 
@@ -297,6 +414,15 @@ class ApiClient {
     return result['data'] as Map<String, dynamic>;
   }
 
+  Future<Map<String, dynamic>> sendChatMessageRaw(String sessionId, Map<String, dynamic> payload) async {
+    final result = await _request('POST', '/chat/sessions/$sessionId/messages', body: payload);
+    return result['data'] as Map<String, dynamic>;
+  }
+
+  Future<void> deleteChatSession(String sessionId) async {
+    await _request('DELETE', '/chat/sessions/$sessionId');
+  }
+
   // ─── Stories ──────────────────────────────────────────────────────
   Future<List<dynamic>> getStories({String? walletId}) async {
     final result = await _request('GET', '/stories', queryParams: {
@@ -316,6 +442,28 @@ class ApiClient {
       'range': ?range,
     });
     return result['data'] as List<dynamic>;
+  }
+
+  Future<List<dynamic>> getStatsByMonth({int? year}) async {
+    final params = year != null ? {'year': '$year'} : <String, String>{};
+    final result = await _request('GET', '/stats/by-month', queryParams: params);
+    return result['data'] as List<dynamic>;
+  }
+
+  // ─── Wallet Members ───────────────────────────────────────────────
+  Future<List<dynamic>> getWalletMembers(String walletId) async {
+    final result = await _request('GET', '/wallets/$walletId/members');
+    return result['data'] as List<dynamic>;
+  }
+
+  Future<List<dynamic>> inviteWalletMember(String walletId, String email, {String role = 'member'}) async {
+    final result = await _request('POST', '/wallets/$walletId/invite',
+        body: {'email': email, 'role': role});
+    return result['data'] as List<dynamic>;
+  }
+
+  Future<void> removeWalletMember(String walletId, String memberId) async {
+    await _request('DELETE', '/wallets/$walletId/members/$memberId');
   }
 }
 

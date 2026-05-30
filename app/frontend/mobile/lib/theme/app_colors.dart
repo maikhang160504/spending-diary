@@ -3,7 +3,10 @@ import 'package:flutter/material.dart';
 class AppColors {
   static const Color teal = Color(0xFF14B8A6);
   static const Color tealDark = Color(0xFF0F766E);
-  static const Color surface = Color(0xFFF5F5F5);
+  // Nền chung — đồng bộ với giá trị các màn hình đang dùng (#F5F7FA),
+  // khắc phục lệch sắc nền giữa theme và screen (Color Consistency Lock).
+  static const Color surface = Color(0xFFF5F7FA);
+  static const Color surfaceAlt = Color(0xFFEEF2F7);
   static const Color card = Color(0xFFFFFFFF);
   static const Color textPrimary = Color(0xFF0F172A);
   static const Color textSecondary = Color(0xFF475569);
@@ -11,6 +14,9 @@ class AppColors {
   static const Color muted = Color(0xFF94A3B8);
   static const Color success = Color(0xFF16A34A);
   static const Color danger = Color(0xFFDC2626);
+
+  /// Shadow nhuốm theo nền (slate, không dùng đen tuyền) — cảm giác mềm & premium.
+  static const Color shadow = Color(0x14334155); // slate-700 ~8%
 }
 
 class AppGradients {
@@ -19,4 +25,14 @@ class AppGradients {
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
+}
+
+/// Bộ shadow dùng chung — thay cho các shadow đen tuyền rải rác.
+class AppShadows {
+  static const List<BoxShadow> card = [
+    BoxShadow(color: AppColors.shadow, blurRadius: 16, offset: Offset(0, 6)),
+  ];
+  static const List<BoxShadow> soft = [
+    BoxShadow(color: AppColors.shadow, blurRadius: 10, offset: Offset(0, 3)),
+  ];
 }

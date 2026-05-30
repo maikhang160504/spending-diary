@@ -43,6 +43,15 @@ dependencies:
   flutter_secure_storage: ^10.2.0
   shimmer: ^3.0.0
   image_picker: ^1.1.2
+  camera: ^0.11.1
+  permission_handler: ^11.3.1
+  google_sign_in: ^6.2.1
+  web_socket_channel: ^3.0.1
+  lottie: ^3.3.1
+  cached_query: ^2.0.2
+  cached_query_flutter: ^2.0.2
+  flutter_image_compress: ^2.4.0
+  path_provider: ^2.1.5
 
 dev_dependencies:
   flutter_test:
@@ -68,11 +77,11 @@ flutter:
 
   # To add assets to your application, add an assets section, like this:
   assets:
-    - assets/MiMo/status/
+    - assets/MiMo/emotions/
     - assets/MiMo/category/
-    - assets/MiMo/background/
-    - assets/logo/
-    - assets/category/
+    - assets/logo/Logo.png
+    - assets/logo/Title.png
+    - assets/animations/
 
 
   # An image asset can refer to one or more resolution-specific "variants", see
