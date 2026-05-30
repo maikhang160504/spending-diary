@@ -9,6 +9,7 @@ const {
   createWalletSchema,
   updateWalletSchema,
   addMemberSchema,
+  inviteMemberSchema,
 } = require('./wallets.schema');
 
 const router = express.Router();
@@ -104,6 +105,11 @@ router.post(
   '/:id/members',
   validate({ body: addMemberSchema }),
   controller.addMember
+);
+router.post(
+  '/:id/invite',
+  validate({ body: inviteMemberSchema }),
+  controller.inviteMember
 );
 router.delete('/:id/members/:memberId', controller.removeMember);
 

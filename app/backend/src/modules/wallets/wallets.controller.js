@@ -38,6 +38,11 @@ exports.addMember = asyncHandler(async (req, res) => {
   res.json({ success: true, data });
 });
 
+exports.inviteMember = asyncHandler(async (req, res) => {
+  const data = await service.inviteMember(req.user.id, req.params.id, req.body);
+  res.json({ success: true, data });
+});
+
 exports.removeMember = asyncHandler(async (req, res) => {
   await service.removeMember(req.user.id, req.params.id, req.params.memberId);
   res.json({ success: true });

@@ -6,7 +6,10 @@ const ApiError = require('../../utils/ApiError');
 async function list(userId, walletId) {
   let sql = `SELECT s.*, 
     (SELECT COUNT(*) FROM story_items si WHERE si.story_id = s.id) AS item_count,
-    (SELECT COUNT(*) FROM transactions t WHERE t.story_item_id IN (SELECT si2.id FROM story_items si2 WHERE si2.story_id = s.id) AND NOT t.is_deleted) AS tx_count
+    (SELECT COUNT(*) FROM transactions t WHERE t.story_item_id IN (SELECT si2.id FROM story_items si2 WHERE si2.story_id = s.id) AND NOT t.is_deleted) AS tx_count,
+    (SELECT content_text FROM ai_comments ac WHERE ac.story_id = s.id ORDER BY ac.created_at DESC LIMIT 1) AS ai_message,
+    (SELECT emotion FROM ai_comments ac WHERE ac.story_id = s.id ORDER BY ac.created_at DESC LIMIT 1) AS ai_emotion,
+    (SELECT raw_text FROM story_items si WHERE si.story_id = s.id ORDER BY si.created_at ASC LIMIT 1) AS description
     FROM stories s WHERE s.user_id = $1`;
   const params = [userId];
   if (walletId) {
@@ -33,7 +36,14 @@ async function getById(userId, storyId) {
     [storyId]
   );
 
-  return { ...r.rows[0], items: items.rows };
+  const comments = await query(
+    `SELECT content_text, emotion FROM ai_comments WHERE story_id = $1 ORDER BY created_at DESC LIMIT 1`,
+    [storyId]
+  );
+  const ai_message = comments.rows[0]?.content_text || null;
+  const ai_emotion = comments.rows[0]?.emotion || null;
+
+  return { ...r.rows[0], items: items.rows, ai_message, ai_emotion };
 }
 
 async function create(userId, payload) {

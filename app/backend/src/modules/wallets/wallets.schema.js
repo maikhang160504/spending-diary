@@ -21,4 +21,9 @@ const addMemberSchema = z.object({
   role: z.enum(['owner', 'member', 'viewer']).default('member'),
 });
 
-module.exports = { createWalletSchema, updateWalletSchema, addMemberSchema };
+const inviteMemberSchema = z.object({
+  email: z.string().email(),
+  role: z.enum(['owner', 'member', 'viewer']).default('member'),
+});
+
+module.exports = { createWalletSchema, updateWalletSchema, addMemberSchema, inviteMemberSchema };

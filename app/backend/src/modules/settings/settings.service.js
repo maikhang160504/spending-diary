@@ -46,6 +46,14 @@ async function update(userId, payload) {
     fields.push(`locale = $${idx++}`);
     values.push(payload.locale);
   }
+  if (payload.ageGroup !== undefined) {
+    fields.push(`age_group = $${idx++}`);
+    values.push(payload.ageGroup);
+  }
+  if (payload.jobType !== undefined) {
+    fields.push(`job_type = $${idx++}`);
+    values.push(payload.jobType);
+  }
 
   if (fields.length === 0) {
     return get(userId);

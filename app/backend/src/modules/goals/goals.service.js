@@ -77,7 +77,7 @@ async function remove(userId, goalId) {
 async function contribute(userId, goalId, amount) {
   const goal = await getById(userId, goalId);
   const newAmount = parseFloat(goal.current_amount) + amount;
-  const status = newAmount >= parseFloat(goal.target_amount) ? 'done' : 'active';
+  const status = newAmount >= parseFloat(goal.target_amount) ? 'completed' : 'active';
 
   const r = await query(
     `UPDATE goals SET current_amount = $3, status = $4, updated_at = NOW()

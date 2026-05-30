@@ -134,6 +134,19 @@ async function addMember(userId, walletId, payload) {
   return listMembers(userId, walletId);
 }
 
+async function inviteMember(userId, walletId, payload) {
+  await assertMember(walletId, userId, ['owner']);
+  const u = await query('SELECT id FROM users WHERE email = $1', [payload.email]);
+  if (u.rowCount === 0) throw ApiError.notFound('User with that email not found.');
+  await query(
+    `INSERT INTO wallet_members (wallet_id, user_id, role)
+     VALUES ($1, $2, $3)
+     ON CONFLICT (wallet_id, user_id) DO UPDATE SET role = EXCLUDED.role`,
+    [walletId, u.rows[0].id, payload.role || 'member']
+  );
+  return listMembers(userId, walletId);
+}
+
 async function removeMember(userId, walletId, memberId) {
   await assertMember(walletId, userId, ['owner']);
   if (memberId === userId) {
@@ -155,5 +168,6 @@ module.exports = {
   archive,
   listMembers,
   addMember,
+  inviteMember,
   removeMember,
 };

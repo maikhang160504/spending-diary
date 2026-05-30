@@ -12,7 +12,8 @@ src/
 ├── db/           # migrate.js (chạy schema.sql + migrations/), seed.js
 ├── services/
 │   ├── aiClient.js   # axios -> http://ai-service:8000
-│   └── r2Client.js   # @aws-sdk/client-s3 + presigned URL
+│   ├── r2Client.js   # @aws-sdk/client-s3 + presigned URL
+│   └── wsHub.js      # WebSocket server (ws pkg) — real-time bill processing updates
 ├── modules/
 │   ├── auth/          # register, login, refresh, logout, me
 │   ├── categories/    # CRUD danh mục (system + user)
@@ -141,9 +142,44 @@ DATABASE_SSL=true
 
 > Khi Cockroach yêu cầu CA cert riêng, set `DATABASE_SSL=no-verify` hoặc cài root cert + mount vào container.
 
+## Biến môi trường quan trọng
+
+| Biến | Mô tả |
+|------|-------|
+| `DATABASE_URL` | PostgreSQL / CockroachDB connection string |
+| `JWT_SECRET` | Secret ký JWT — đặt mạnh ở production |
+| `AI_SERVICE_URL` | URL của ai-service (mặc định `http://localhost:8000`) |
+| `GOOGLE_CLIENT_ID` | OAuth 2.0 Client ID từ Google Cloud Console — cần cho `POST /auth/google` |
+
+> **GL-07 (manual):** Để Google Sign-In hoạt động trên mobile, cần thêm:
+> - Android: `android/app/google-services.json` (tải từ Firebase Console)
+> - iOS: `ios/Runner/GoogleService-Info.plist`
+
+## WebSocket — Real-time Bill Processing
+
+Server expose WebSocket tại `ws://<host>/ws` (chia sẻ cùng HTTP port).
+
+**Kết nối:**
+```
+ws://localhost:4000/ws?token=<accessToken>
+```
+
+**Server → Client messages:**
+
+| type | Mô tả | Payload |
+|------|--------|---------|
+| `transaction_done` | OCR+LLM hoàn tất | `{ transactionId, data: { amount, category, note, imageUrl, mascot_mood, story } }` |
+| `transaction_failed` | Job thất bại | `{ transactionId, error }` |
+
+**Flow `POST /ai/expense/from-bill`:**
+1. BE tạo tx `processing_status='pending'` → trả `{ transactionId, status:'pending' }` HTTP 202 ngay lập tức
+2. Background job (`setImmediate`): OCR → ML → LLM → `UPDATE tx processing_status='done'` → `sendToUser`
+3. Flutter lắng nghe WebSocket → khi nhận `transaction_done` → cập nhật UI
+
 ## Lưu ý security
 
 - JWT secret: đừng commit, hãy set `JWT_SECRET` mạnh trong production.
 - Helmet đã bật, CSP tắt vì Swagger UI cần inline scripts.
 - File upload giới hạn 8 MB (multer).
 - Refresh token lưu hash (sha256) + rotation (revoke khi dùng).
+- `password_hash` là nullable sau migration 003 — user Google đăng nhập không có password.

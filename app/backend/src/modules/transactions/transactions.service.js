@@ -21,11 +21,12 @@ function row(r) {
     aiExtracted: r.ai_extracted,
     aiConfidence: r.ai_confidence !== null ? Number(r.ai_confidence) : null,
     aiMeta: r.ai_meta || {},
-    mascotMood: r.mascot_mood,
-    aiComment: r.ai_comment,
+    mascotMood: r.ai_emotion || r.mascot_mood || null,
+    aiComment: r.ai_message || r.ai_comment || null,
     occurredAt: r.occurred_at,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
+    storyId: r.story_id || null,
   };
 }
 
@@ -48,32 +49,96 @@ async function create(userId, payload) {
   await walletService.assertMember(payload.walletId, userId, ['owner', 'member']);
   const categoryId = await findCategoryByCode(userId, payload.categoryCode, payload.type);
 
-  const r = await query(
-    `INSERT INTO transactions
-       (wallet_id, creator_id, category_id, category_code, amount, type, source,
-        note, image_url, thumbnail_url, ai_extracted, ai_confidence, ai_meta,
-        occurred_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13,
-             COALESCE($14::timestamptz, NOW()))
-     RETURNING *`,
-    [
-      payload.walletId,
-      userId,
-      categoryId,
-      payload.categoryCode || null,
-      payload.amount,
-      payload.type,
-      payload.source,
-      payload.note || null,
-      payload.imageUrl || null,
-      payload.thumbnailUrl || null,
-      payload.aiExtracted || false,
-      payload.aiConfidence || null,
-      payload.aiMeta || {},
-      payload.occurredAt || null,
-    ]
-  );
-  return row(r.rows[0]);
+  return withTransaction(async (client) => {
+    // 1. Create a story
+    const storyTitle = payload.note || payload.categoryCode || 'Giao dịch mới';
+    const storyRes = await client.query(
+      `INSERT INTO stories (user_id, wallet_id, title, total_amount, cover_image_url, occurred_on)
+       VALUES ($1, $2, $3, $4, $5, COALESCE($6::date, CURRENT_DATE))
+       RETURNING id`,
+      [
+        userId,
+        payload.walletId,
+        storyTitle,
+        payload.amount,
+        payload.imageUrl || null,
+        payload.occurredAt ? payload.occurredAt.split('T')[0] : null,
+      ]
+    );
+    const storyId = storyRes.rows[0].id;
+
+    // 2. Create a story item
+    const itemRes = await client.query(
+      `INSERT INTO story_items (story_id, raw_text, media_url, media_type)
+       VALUES ($1, $2, $3, $4)
+       RETURNING id`,
+      [
+        storyId,
+        payload.note || null,
+        payload.imageUrl || null,
+        payload.imageUrl ? 'image' : 'text',
+      ]
+    );
+    const storyItemId = itemRes.rows[0].id;
+
+    // 3. Create an AI comment if LLM story is in aiMeta
+    const nlu = payload.aiMeta?.nlu;
+    const llmStory = nlu?.gemini_json?.story || nlu?.nlg_response || nlu?.response || payload.aiComment;
+    let mascotMood = nlu?.gemini_json?.emotion || nlu?.llama_json?.emotion || nlu?.mascot_mood || nlu?.emotion || payload.mascotMood || 'Chill';
+    const verbalToPascal = {
+      'hai_huoc': 'Sassy',
+      'dong_cam': 'Approved',
+      'nghiem_tuc': 'Thinking',
+      'cham_choc': 'Taunting',
+      'dan_doi': 'Sad',
+    };
+    if (verbalToPascal[mascotMood]) {
+      mascotMood = verbalToPascal[mascotMood];
+    }
+    if (llmStory) {
+      await client.query(
+        `INSERT INTO ai_comments (story_id, content_text, visual_state, emotion)
+         VALUES ($1, $2, $3, $4)`,
+        [
+          storyId,
+          llmStory,
+          mascotMood,
+          mascotMood,
+        ]
+      );
+    }
+
+    // 4. Create the transaction and link it to storyItemId
+    const r = await client.query(
+      `INSERT INTO transactions
+         (wallet_id, creator_id, category_id, category_code, amount, type, source,
+          note, image_url, thumbnail_url, ai_extracted, ai_confidence, ai_meta,
+          occurred_at, story_item_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13,
+               COALESCE($14::timestamptz, NOW()), $15)
+       RETURNING *`,
+      [
+        payload.walletId,
+        userId,
+        categoryId,
+        payload.categoryCode || null,
+        payload.amount,
+        payload.type,
+        payload.source,
+        payload.note || null,
+        payload.imageUrl || null,
+        payload.thumbnailUrl || null,
+        payload.aiExtracted || false,
+        payload.aiConfidence || null,
+        payload.aiMeta || {},
+        payload.occurredAt || null,
+        storyItemId,
+      ]
+    );
+    const tx = r.rows[0];
+    tx.story_id = storyId;
+    return row(tx);
+  });
 }
 
 async function listForUser(userId, filters) {
@@ -114,7 +179,13 @@ async function listForUser(userId, filters) {
   const totalQ = await query(`SELECT COUNT(*)::int AS c FROM transactions t WHERE ${where}`, values);
   values.push(limit, offset);
   const dataQ = await query(
-    `SELECT t.* FROM transactions t WHERE ${where}
+    `SELECT t.*, si.story_id,
+            ac.content_text AS ai_message,
+            ac.emotion AS ai_emotion
+     FROM transactions t
+     LEFT JOIN story_items si ON t.story_item_id = si.id
+     LEFT JOIN ai_comments ac ON ac.story_id = si.story_id
+     WHERE ${where}
      ORDER BY t.occurred_at DESC, t.created_at DESC
      LIMIT $${values.length - 1} OFFSET $${values.length}`,
     values
