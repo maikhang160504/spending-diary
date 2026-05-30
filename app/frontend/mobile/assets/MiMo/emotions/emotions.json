@@ -1,0 +1,147 @@
+[
+    {
+        "name": "Alert",
+        "emoji": "assets/MiMo/emotions/Alert.png",
+        "vi": "Cảnh báo"
+    },
+    {
+        "name": "Angry",
+        "emoji": "assets/MiMo/emotions/Angry.png",
+        "vi": "Tức giận"
+    },
+    {
+        "name": "Approved",
+        "emoji": "assets/MiMo/emotions/Approved.png",
+        "vi": "Đồng ý"
+    },
+    {
+        "name": "Celebrate",
+        "emoji": "assets/MiMo/emotions/Celebrate.png",
+        "vi": "Chúc mừng"
+    },
+    {
+        "name": "Chill",
+        "emoji": "assets/MiMo/emotions/Chill.png",
+        "vi": "Thư giãn"
+    },
+    {
+        "name": "Cooking",
+        "emoji": "assets/MiMo/emotions/Cooking.png",
+        "vi": "Nấu ăn"
+    },
+    {
+        "name": "Cool",
+        "emoji": "assets/MiMo/emotions/Cool.png",
+        "vi": "Ngầu"
+    },
+    {
+        "name": "Determined",
+        "emoji": "assets/MiMo/emotions/Determined.png",
+        "vi": "Kiên quyết"
+    },
+    {
+        "name": "Error",
+        "emoji": "assets/MiMo/emotions/Error.png",
+        "vi": "Lỗi"
+    },
+    {
+        "name": "Excited",
+        "emoji": "assets/MiMo/emotions/Excited.png",
+        "vi": "Háo hức"
+    },
+    {
+        "name": "Giggle",
+        "emoji": "assets/MiMo/emotions/Giggle.png",
+        "vi": "Cười khúc khích"
+    },
+    {
+        "name": "Happy",
+        "emoji": "assets/MiMo/emotions/Happy.png",
+        "vi": "Hạnh phúc"
+    },
+    {
+        "name": "Hello",
+        "emoji": "assets/MiMo/emotions/Hello.png",
+        "vi": "Xin chào"
+    },
+    {
+        "name": "Loading",
+        "emoji": "assets/MiMo/emotions/Loading.gif",
+        "vi": "Đang tải"
+    },
+    {
+        "name": "Love",
+        "emoji": "assets/MiMo/emotions/Love.png",
+        "vi": "Yêu thích"
+    },
+    {
+        "name": "Proud",
+        "emoji": "assets/MiMo/emotions/Proud.png",
+        "vi": "Tự hào"
+    },
+    {
+        "name": "Relax",
+        "emoji": "assets/MiMo/emotions/Relax.png",
+        "vi": "Thư giãn"
+    },
+    {
+        "name": "Sad",
+        "emoji": "assets/MiMo/emotions/Sad.png",
+        "vi": "Buồn"
+    },
+    {
+        "name": "Sleepy",
+        "emoji": "assets/MiMo/emotions/Sleepy.png",
+        "vi": "Ngủ"
+    },
+    {
+        "name": "Sassy",
+        "emoji": "assets/MiMo/emotions/Sassy.png",
+        "vi": "Xéo xắt"
+    },
+    {
+        "name": "Shopping",
+        "emoji": "assets/MiMo/emotions/Shopping.png",
+        "vi": "Mua sắm"
+    },
+    {
+        "name": "Travel",
+        "emoji": "assets/MiMo/emotions/Travel.png",
+        "vi": "Du lịch"
+    },
+    {
+        "name": "Sorry",
+        "emoji": "assets/MiMo/emotions/Work.png",
+        "vi": "Xin lỗi"
+    },
+    {
+        "name": "Success",
+        "emoji": "assets/MiMo/emotions/Success.png",
+        "vi": "Thành công"
+    },
+    {
+        "name": "Taunting",
+        "emoji": "assets/MiMo/emotions/Taunting.png",
+        "vi": "Trêu chọc, Cà khịa"
+    },
+    {
+        "name": "Thankful",
+        "emoji": "assets/MiMo/emotions/Thankful.png",
+        "vi": "Biết ơn"
+    },
+    {
+        "name": "Thinking",
+        "emoji": "assets/MiMo/emotions/Thinking.png",
+        "vi": "Suy nghĩ"
+    },
+    {
+        "name": "Working",
+        "emoji": "assets/MiMo/emotions/Working.png",
+        "vi": "Làm việc"
+    },
+    {
+        "name": "Worried",
+        "emoji": "assets/MiMo/emotions/Worried.png",
+        "vi": "Lo lắng"
+    }
+]
