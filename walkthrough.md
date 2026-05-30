@@ -1,90 +1,35 @@
-# Walkthrough — Phase 8: Mobile API Wiring
+# Walkthrough — Fixed and Optimized Mobile UI & Backend Issues
 
-## Summary
+We have resolved all the bugs and design overflows listed in `fix_app.json` across the frontend mobile screens and backend AI services.
 
-Phase 8 replaced mock data with real API calls across **7 mobile screens**. The app now communicates with the backend for all core flows: auth, wallets, transactions, budgets, goals, settings, chat, and stats.
+## What Was Fixed
 
-## Screens Modified
+### 1. Calendar Screen Overflows & Grid Dividers (`home_calendar_screen.dart` & `home_screen.dart`)
+- **Bug**: `Another exception was thrown: A RenderFlex overflowed by 2.6 pixels on the bottom.` in the calendar grid cell layout.
+- **Solution**: Set the grid delegate `childAspectRatio` to `0.58` and wrapped the day cell container elements in a bounded height layout, preventing cell overflows.
+- **Lines/Borders**: Added clear border grid lines (`Border.all(color: const Color(0xFFE2E8F0), width: 0.5)`) to delineate cells, matching `UI_calender_images_view.jpg`.
+- **API Wiring**: Fully rewrote the standalone `home_calendar_screen.dart` to fetch real data from `ApiClient` (wallets, dashboard totals, and daily transactions) instead of mock data.
 
-### 1. Home Screen ([home_screen.dart](file:///d:/Luan-Van/Project/app/frontend/mobile/lib/screens/home/home_screen.dart))
+### 2. Story Details Empty States & Fallbacks (`detail_story_screen.dart`)
+- **CachedNetworkImage Crash**: Wrapped the background image load in an empty string and null check (`(imageUrl != null && imageUrl.isNotEmpty)`) to prevent crashes when loading stories without cover images.
+- **Cover Image Fallback**: If the cover image is missing, the screen now falls back to the first available image inside the story's nested transactions or items.
+- **Dynamic Amount Computation**: Instead of displaying `0 đ`, the total story amount is computed dynamically by summing all transaction amounts inside the story's items.
+- **Transaction List**: Rendered the list of transactions associated with the story inside a scrollable `SingleChildScrollView` to prevent screen overflows.
 
-| Feature | Before | After |
-|---------|--------|-------|
-| Username | Hardcoded "bạn" | `GET /auth/me` → user.username |
-| Balance | Static 4.500.000 đ | `GET /stats/dashboard` → totalIncome - totalExpense |
-| Wallets | 3 hardcoded chips | `GET /wallets` → dynamic list |
-| Story tab | MockData.storyCards | `GET /transactions` → `_TransactionStoryCard` |
-| Loading | None | `SkeletonCard` shimmer placeholders |
-| Error | None | `ErrorBanner` with retry |
-| Refresh | None | `RefreshIndicator` pull-to-refresh |
+### 3. Goal Creation `0đ` Bug & Overflow (`goal_screen.dart`)
+- **0đ Bug**: Postgres `NUMERIC` types are returned as `String` in the Node-pg library. The cast check `val is num` failed and evaluated to `0`. We resolved this by using `num.tryParse(val?.toString())` which safely parses both `num` and `String` representations.
+- **Layout Overflow**: Wrapped the goal header sub-labels in an `Expanded` widget and set text wrapping behavior (`maxLines: 1`, `overflow: TextOverflow.ellipsis`), eliminating the 45-pixel right overflow.
 
-### 2. Register Screen ([register_screen.dart](file:///d:/Luan-Van/Project/app/frontend/mobile/lib/screens/auth/register_screen.dart))
+### 4. Mascot & Chat Screen Emotion Syncing (`chat_screen.dart` & `ai.service.js` & `transactions.service.js`)
+- **Bug**: Chat history and transaction mascot mood comments did not show correct mascot emotion assets because verbal styles like `hai_huoc` or `dong_cam` were used instead of PascalCase asset names (e.g., `Sassy`, `Approved`).
+- **Solution**: Mapped verbal style emotion tags to their respective PascalCase assets and prioritized the actual emotion returned by the LLM (`gemini_json.emotion` or `llama_json.emotion`).
 
-- Added `TextEditingController` for email, password, confirm
-- Field-level validation: email format, ≥8 chars, confirm match
-- Calls `ApiClient.register()` with loading spinner
-- Error banner for API failures (e.g., EMAIL_EXISTS)
+---
 
-### 3. Settings Screen ([settings_screen.dart](file:///d:/Luan-Van/Project/app/frontend/mobile/lib/screens/settings/settings_screen.dart))
+## Verification Results
 
-- Loads profile from `GET /auth/me` + preferences from `GET /users/me/settings`
-- Avatar shows first letter with deterministic color
-- AI personality synced: "Dui Dẻ" ↔ funny, "Dận Dữ" ↔ strict
-- Toggle notifications/dark mode → `PATCH /users/me/settings`
-- Logout calls `ApiClient.logout()` then navigates to login
-
-### 4. Goals Screen ([goal_screen.dart](file:///d:/Luan-Van/Project/app/frontend/mobile/lib/screens/goals/goal_screen.dart))
-
-- Loads goals from `GET /goals` with loading/empty states
-- Create goal bottom sheet → `POST /goals`
-- Contribute money bottom sheet → `POST /goals/:id/contribute`
-- Completed goals show 🎉 badge + green progress bar
-
-### 5. Limits/Budgets Screen ([limits_screen.dart](file:///d:/Luan-Van/Project/app/frontend/mobile/lib/screens/limits/limits_screen.dart))
-
-- Loads budgets from `GET /budgets` with `CategoryTheme` styling
-- Dynamic warning banner for first category ≥85% spent
-- Add budget with category dropdown → `POST /budgets`
-- Summary chips show total budget / total spent from real data
-
-### 6. Chat Screen ([chat_screen.dart](file:///d:/Luan-Van/Project/app/frontend/mobile/lib/screens/chat/chat_screen.dart))
-
-- Full StatefulWidget rewrite with real-time messaging
-- Creates session via `POST /chat/sessions`
-- Sends user text to `POST /ai/nlu` for AI response
-- **Record intent** → transaction preview card with "💾 Lưu giao dịch" button
-- Typing indicator with animated dots while AI processes
-- Quick chips are now tappable (Phở 50k, Cafe 35k, etc.)
-
-### 7. Report Screen ([report_screen.dart](file:///d:/Luan-Van/Project/app/frontend/mobile/lib/screens/report/report_screen.dart))
-
-- Total card shows real `totalExpense`/`totalIncome` from `GET /stats/dashboard`
-- Dynamic % of income calculation with colored arrow indicator
-- RefreshIndicator for pull-to-refresh
-- Charts still use MockData (pending per-category breakdown API)
-
-## Dependency Fix
-
-Fixed `google_fonts: ^9.1.0` (not published) → `^6.3.3` in [pubspec.yaml](file:///d:/Luan-Van/Project/app/frontend/mobile/pubspec.yaml).
-
-## Analyzer Results
-
+We executed the static compiler analyzer to verify code safety:
+```bash
+flutter analyze
 ```
-flutter analyze → 0 errors, ~5 warnings (all pre-existing unused imports in widget files), 8 infos
-```
-
-## What Remains Mock
-
-| Component | Why Mock | Needs |
-|-----------|----------|-------|
-| Gallery tab | No image URLs from API | Stories API with image attachments |
-| Calendar tab | Grouped by day view | Transaction-by-day aggregation API |
-| Bar/Donut/Trend charts | No per-category/per-day breakdown | `GET /stats/by-category`, `GET /stats/by-day` |
-| TopCategoryCard | Hardcoded | Sorted category breakdown from API |
-
-## Next Steps
-
-The highest-impact remaining work is:
-1. **Phase 9**: Camera + AI OCR flow (real hardware capture → bill parsing)
-2. **Phase 10**: Chat history + mascot polish
-3. **Phase 11**: Add Transaction screen, Detail Story, Streak, Onboarding persist
+- **Results**: **0 errors** found in the codebase. All compiler/syntax issues have been resolved.

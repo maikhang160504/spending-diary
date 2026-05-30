@@ -1,309 +1,199 @@
-# Master Implementation Plan — TEST_PLAN + NEXT_STEPS
+# Fix & Cải Thiện App SpendDiary — Kế Hoạch Triển Khai
 
-Kế hoạch tổng thể thực hiện tất cả task từ [TEST_PLAN.md](file:///d:/Luan-Van/Project/app/TEST_PLAN.md) và [NEXT_STEPS.md](file:///d:/Luan-Van/Project/app/NEXT_STEPS.md).
-
-> [!IMPORTANT]
-> Đây là kế hoạch rất lớn, bao gồm **~100+ task** trải dài qua backend, AI service, Flutter mobile, database, và testing. Ước lượng tổng thời gian triển khai: **rất dài**. Cần xác nhận trước khi bắt đầu.
-
----
+Dựa trên [fix_app.json](file:///d:/Luan-Van/Project/fix_app.json), thực hiện sửa lỗi, cải thiện UI/UX và bổ sung tính năng cho ứng dụng Flutter SpendDiary.
 
 ## User Review Required
 
-> [!WARNING]
-> **Các quyết định kiến trúc cần chốt** (từ NEXT_STEPS Section 6):
-> 1. **Personal data trong `users` vs `user_profiles`?** — Plan giữ trong `users` (không JOIN thêm).
-> 2. **Stories bắt buộc với mỗi transaction?** — Plan: optional (`story_item_id` NULL allowed).
-> 3. **Personal vs Group wallet permission** — Plan thêm middleware check role trước edit budget/goal.
-> 4. **USE_REAL_NLU production** — Plan giữ mock cho dev, không build image real trong scope này.
-
 > [!IMPORTANT]
-> **Docker phải đang chạy** để thực hiện TEST_PLAN (Task 0-11). Nếu Docker chưa chạy, các task test sẽ bị skip và chỉ làm code changes.
+> Đây là một task rất lớn, gồm ~15 thay đổi trải rộng trên ~12 file. Tôi đề xuất chia thành **3 phase** để dễ kiểm soát và test:
+> - **Phase 1**: Sửa lỗi logic (bill-detail, detail-story, chat-screen, LLM-response)
+> - **Phase 2**: Cải thiện UI chính (home header, story cards, camera, segment tabs)
+> - **Phase 3**: Tính năng mới (loading animation, streak animation, settings avatar/AI style swap)
 
----
+> [!WARNING]
+> Cần thêm package `lottie` vào `pubspec.yaml` để dùng animation Loading.json / Fire.json. Cần thêm `image_picker` (đã có) cho đổi avatar.
 
 ## Open Questions
 
-1. **Docker đang chạy chưa?** — Cần `docker compose up -d` để chạy TEST_PLAN Task 0-11.
-2. **Flutter SDK có sẵn trên máy?** — Cần để validate build Flutter sau khi sửa code.
-3. **Có muốn skip phần camera plugin thật (CAM-01..CAM-07)?** — Cần `camera` plugin + thiết bị thật/emulator. Nếu chỉ cần code changes thì vẫn tạo được nhưng không test được.
-4. **expense-ocr-nlu tasks (N1-N3) có trong scope?** — Đây là repo riêng, plan sẽ include nhưng tách phase cuối.
+> [!IMPORTANT]
+> 1. **Kích thước ảnh tối ưu cho story**: Tôi đề xuất dùng aspect ratio **4:3** (chiều rộng full, cao ~250px) thay vì hardcode 220px hiện tại — bạn đồng ý không?
+> 2. **Khung quét bill**: Hiện tại là 280×180 (ngang). Bạn muốn đổi sang chiều dọc, tôi đề xuất **280×400** (dọc, phù hợp với hóa đơn VN) — OK không?
+> 3. **Camera capture resolution**: Hiện dùng `ResolutionPreset.high`. Có muốn đổi sang `ResolutionPreset.max` để ảnh rõ hơn cho OCR?
 
 ---
 
 ## Proposed Changes
 
-Chia thành **8 Phase**, thực hiện tuần tự (dependencies đi trước).
+### Phase 1: Sửa Lỗi Logic
 
 ---
 
-### Phase 0 — Docker Test Plan (TEST_PLAN Task 0-11)
+#### 1. Bill Detail — Không xem chi tiết được
+**Vấn đề**: Story tạo bằng bill không xem chi tiết được vì `storyId` có thể null hoặc rỗng khi transaction đến từ bill.
 
-> Chạy smoke + integration test trên Docker containers đang chạy. Ghi kết quả pass/fail.
+#### [MODIFY] [detail_story_screen.dart](file:///d:/Luan-Van/Project/app/frontend/mobile/lib/screens/story/detail_story_screen.dart)
+- Khi `storyId` rỗng nhưng có `transactionId`, fallback load trực tiếp transaction data thay vì chỉ gọi `getStory()`
+- Thêm fallback: nếu `getStory()` fail (404), thử load qua `getTransactions()` với id
 
-#### Task 0: Khởi tạo môi trường
-- `docker compose ps` — verify 3 container
-- `docker compose exec backend npm run migrate`
-- `docker compose exec backend npm run seed`
-
-#### Task 1: Health probes
-- `GET http://localhost:4000/api/v1/health`
-- `GET http://localhost:8000/health`
-
-#### Task 2: Swagger UI
-- Verify `http://localhost:4000/docs`, `/openapi.json`
-- Verify `http://localhost:8000/docs`
-
-#### Task 3: Auth flow (register → login → /me → refresh → logout)
-
-#### Task 4: Categories + Wallets
-
-#### Task 5: Transactions CRUD
-
-#### Task 6: Budgets + Stats
-
-#### Task 7: AI service direct (4 endpoints)
-
-#### Task 8: AI qua Backend proxy (5 endpoints)
-
-#### Task 9: Verify DB rows
-
-#### Task 10: Negative/security tests (401, 422)
-
-#### Task 11: Jest + Pytest suite
+#### [MODIFY] [home_screen.dart](file:///d:/Luan-Van/Project/app/frontend/mobile/lib/screens/home/home_screen.dart)
+- Đảm bảo `_TransactionStoryCard` luôn có navigable ID (dùng `tx['id']` khi không có `storyId`)
 
 ---
 
-### Phase 1 — Asset & Bug Fixes (nhanh, không vỡ gì)
+#### 2. Detail Story — Không lướt sang story khác + Không cho chỉnh sửa/xóa
 
-> **Ước lượng: ~30 phút.** Fix trước để build không lỗi.
+#### [MODIFY] [detail_story_screen.dart](file:///d:/Luan-Van/Project/app/frontend/mobile/lib/screens/story/detail_story_screen.dart)
+- Nhận thêm `List<String> allStoryIds` + `int initialIndex` qua route params
+- Bọc nội dung trong `PageView` để lướt qua các story khác
+- Thêm nút **Xóa** (với confirm dialog) gọi `deleteTransaction()`
+- Cải thiện nút **Chỉnh sửa** → mở bottom sheet giống camera_confirm_screen cho phép edit amount/category/note
 
-#### [MODIFY] [pubspec.yaml](file:///d:/Luan-Van/Project/app/frontend/mobile/pubspec.yaml)
-- **A-01**: Sửa `assets/Logo/` → `assets/logo/` (case-sensitive)
-- **A-02**: Thêm `- assets/MiMo/background/`
-- **A-03**: Thêm `- assets/category/` (nếu folder tồn tại)
-- **A-05**: Thêm dependencies cần thiết: `intl`, `flutter_secure_storage`, `dio`, `shimmer`, `image_picker`
+#### [MODIFY] [app_routes.dart](file:///d:/Luan-Van/Project/app/frontend/mobile/lib/routes/app_routes.dart)
+- Cập nhật route `storyDetail` để hỗ trợ extra params (allStoryIds, initialIndex)
 
-#### [MODIFY] [home_calendar_screen.dart](file:///d:/Luan-Van/Project/app/frontend/mobile/lib/screens/home/home_calendar_screen.dart)
-- **B-01**: Fix `'0$_currentMonth'` → `padLeft(2,'0')`
-- **B-02**: Fix `_currentMonth = 3` → `DateTime.now().month`
+#### [MODIFY] [home_screen.dart](file:///d:/Luan-Van/Project/app/frontend/mobile/lib/screens/home/home_screen.dart)
+- Khi navigate tới detail, truyền thêm danh sách transaction IDs và vị trí hiện tại
 
-#### [MODIFY] [register_screen.dart](file:///d:/Luan-Van/Project/app/frontend/mobile/lib/screens/auth/register_screen.dart)
-- **B-04**: Xoá `StatefulBuilder` lồng, dùng `setState` outer
+---
+
+#### 3. Chat Screen — Ô xác nhận dư thông tin + Không cho chỉnh sửa category
 
 #### [MODIFY] [chat_screen.dart](file:///d:/Luan-Van/Project/app/frontend/mobile/lib/screens/chat/chat_screen.dart)
-- **B-05**: Xoá field `context` dư thừa trong `_ChatHeader`
-
-#### [MODIFY] [camera_input_screen.dart](file:///d:/Luan-Van/Project/app/frontend/mobile/lib/screens/camera/camera_input_screen.dart)
-- **B-08**: Fix `errorBuilder` trả `Icon` thay vì `SizedBox` rỗng
-
-#### [MODIFY] [share_wallet_screen.dart](file:///d:/Luan-Van/Project/app/frontend/mobile/lib/screens/wallet/share_wallet_screen.dart)
-- **B-03**: Fix avatar 👑 + chữ cái → `Stack` layout
+- **Ô xác nhận (transaction preview card)**: Loại bỏ phần text lặp lại, chỉ hiển thị card giao dịch gọn (category + amount + note)
+- **Cho phép chỉnh sửa category**: Thêm nút "Chỉnh sửa" bên cạnh nút "Lưu giao dịch" → mở bottom sheet giống camera_confirm_screen với dropdown category
 
 ---
 
-### Phase 2 — Backend New Modules (B1-B5)
+#### 4. LLM Response — Câu phản hồi quá dài
 
-> **Ước lượng: ~2-3 giờ.** Tạo 4 module backend mới cần cho mobile.
+#### [MODIFY] [prompt.py](file:///d:/Luan-Van/Project/expense-ocr-nlu/src/nlg/prompt.py)
+- Thêm instruction giới hạn: **"Trả lời tối đa 30 từ. Ngắn gọn, dễ hiểu, đúng vai."** vào `_LIST_EMOTION_INSTRUCTION`
 
-#### [NEW] User Settings Module (B1)
-- `src/modules/settings/settings.controller.js`
-- `src/modules/settings/settings.service.js`
-- `src/modules/settings/settings.routes.js`
-- `src/modules/settings/settings.schema.js`
-- Endpoints: `GET/PATCH /api/v1/users/me/settings`
-
-#### [NEW] Goals Module (B2)
-- `src/modules/goals/goals.controller.js`
-- `src/modules/goals/goals.service.js`
-- `src/modules/goals/goals.routes.js`
-- `src/modules/goals/goals.schema.js`
-- Endpoints: `GET/POST /api/v1/goals`, `GET/PATCH/DELETE /api/v1/goals/:id`, `POST /api/v1/goals/:id/contribute`
-
-#### [NEW] Stories Module (B3)
-- `src/modules/stories/stories.controller.js`
-- `src/modules/stories/stories.service.js`
-- `src/modules/stories/stories.routes.js`
-- `src/modules/stories/stories.schema.js`
-- Endpoints: `GET/POST /api/v1/stories`, `GET/PATCH /api/v1/stories/:id`
-
-#### [NEW] Chat Module (B4)
-- `src/modules/chat/chat.controller.js`
-- `src/modules/chat/chat.service.js`
-- `src/modules/chat/chat.routes.js`
-- `src/modules/chat/chat.schema.js`
-- Endpoints: `GET/POST /api/v1/chat/sessions`, `GET /api/v1/chat/sessions/:id/messages`, `POST /api/v1/chat/sessions/:id/messages`
-
-#### [MODIFY] [index.js](file:///d:/Luan-Van/Project/app/backend/src/routes/index.js)
-- Register 4 module routes mới
-
-#### [MODIFY] AI Service (B5)
-- Ghi vào `ai_processing_logs` khi gọi `from-bill`
+#### [MODIFY] [chat_screen.dart](file:///d:/Luan-Van/Project/app/frontend/mobile/lib/screens/chat/chat_screen.dart)
+- Thêm client-side truncation: nếu LLM story > 120 ký tự, cắt + thêm "..."
 
 ---
 
-### Phase 3 — Cross-Screen Widget Extraction (X-01..X-12)
-
-> **Ước lượng: ~2-3 giờ.** Extract widgets chung, giảm ~40% LOC. Không đổi UI.
-
-#### [NEW] `widgets/home_header.dart` (X-01, X-04)
-- Extract `_HeaderSection` (gradient + date + streak + wallet chips + balance card)
-- Params: `userName, streakDays, wallets, selectedWalletId, balance, income, expense, onWalletTap`
-
-#### [MODIFY] `widgets/segment_tabs.dart` (X-02)
-- Đã có file — gắn nội dung `_SegmentTabs` + `_SegmentItem` vào
-
-#### [MODIFY] `widgets/wallet_chips.dart` (X-03)
-- Đã có file — wire-up `_WalletChip`
-
-#### [NEW] `widgets/gallery_card.dart` (X-05)
-- Extract `_GalleryCard` chung
-
-#### [NEW] `widgets/story_card.dart` (X-06)
-- Extract `_StoryCard`, prop `showOwnerBadge: bool`
-
-#### [NEW] `widgets/inline_calendar.dart` (X-07)
-- Extract `_InlineCalendarView` + `_StackedPhotoCell`
-
-#### [NEW] `widgets/onboarding_widgets.dart` (X-08)
-- Extract `_ProgressHeader` + `_NavButtons`
-
-#### [NEW] `theme/categories.dart` (X-09)
-- Gom category color/emoji vào `Map<String, CategoryStyle>`
-
-#### Remaining (X-10..X-12)
-- **X-10**: Replace `Navigator.pop` → `context.pop()` (go_router)
-- **X-11**: Tạo `widgets/skeleton.dart` (shimmer placeholder)
-- **X-12**: Tạo `widgets/error_banner.dart` + `widgets/empty_state.dart`
+### Phase 2: Cải Thiện UI
 
 ---
 
-### Phase 4 — Auth Flow (L, R, O tasks)
+#### 5. Home Header — Ẩn khi cuộn xuống, hiện khi cuộn lên
 
-> **Ước lượng: ~2-3 giờ.** Auth flow + onboarding — blocks hầu hết screen khác.
+#### [MODIFY] [home_screen.dart](file:///d:/Luan-Van/Project/app/frontend/mobile/lib/screens/home/home_screen.dart)
+- Chuyển từ `SliverToBoxAdapter` cho header sang `SliverAppBar` hoặc custom `SliverPersistentHeader` với:
+  - **Expanded**: hiển thị đầy đủ (date, greeting, streak, wallets, balance card)
+  - **Collapsed**: chỉ hiển thị "Chào [tên]!" + segment tabs (Story/Gallery/Calendar)
+- Segment tabs luôn sticky khi scroll
 
-#### [NEW] `lib/services/api_client.dart` (M1)
-- Tạo `ApiClient` class dùng `dio` hoặc `http`
-- Base URL configurable (`--dart-define=API_BASE_URL`)
-- Tất cả endpoints: auth, wallets, transactions, budgets, stats, AI, categories
+#### 6. Segment Tabs — Đẹp hơn
 
-#### [NEW] `lib/services/auth_interceptor.dart` (M1)
-- Attach `Authorization: Bearer <access>` mọi request trừ `/auth/*`
-- Khi 401 → gọi `/auth/refresh` → retry
+#### [MODIFY] [home_screen.dart](file:///d:/Luan-Van/Project/app/frontend/mobile/lib/screens/home/home_screen.dart)
+- Redesign segment tabs với animated indicator (slide animation khi chuyển tab)
+- Dùng gradient background subtle cho tab đang chọn
+- Icon lớn hơn, typography rõ ràng hơn
 
-#### [NEW] `lib/services/auth_provider.dart`
-- State management cho auth (token storage, login/logout state)
+#### 7. Story Cards — Giảm khoảng cách với cạnh màn hình
 
-#### [MODIFY] `login_screen.dart` (L-01..L-05)
-- Chuyển `StatefulWidget`, thêm controllers
-- Gọi `ApiClient.login()` → lưu token → navigate
-- Error handling, loading state
+#### [MODIFY] [home_screen.dart](file:///d:/Luan-Van/Project/app/frontend/mobile/lib/screens/home/home_screen.dart)
+- Giảm `margin: EdgeInsets.symmetric(horizontal: 16)` xuống `horizontal: 10`
+- Tối ưu padding nội dung card
 
-#### [MODIFY] `register_screen.dart` (R-01..R-04)
-- Fix `StatefulBuilder`, thêm controllers
-- Validate ≥ 8 ký tự, match confirm password
-- Gọi `ApiClient.register()`
+#### 8. Ảnh Story — Kích thước tối ưu
 
-#### [MODIFY] Onboarding 1-5 (O-01..O-04)
-- Extract `_ProgressHeader` + `_NavButtons` (đã làm ở X-08)
-- Tạo `OnboardingState` (ChangeNotifier)
-- Step 5 → gọi API persist data
+#### [MODIFY] [home_screen.dart](file:///d:/Luan-Van/Project/app/frontend/mobile/lib/screens/home/home_screen.dart)
+- Ảnh story dùng `aspectRatio: 4/3` thay vì fixed height 220
+- Dùng `BoxFit.cover` + `ClipRRect` với borderRadius
 
----
+#### [MODIFY] [camera_screen.dart](file:///d:/Luan-Van/Project/app/frontend/mobile/lib/screens/camera/camera_screen.dart)
+- Điều chỉnh camera resolution để ra ảnh phù hợp aspect ratio 4:3
 
-### Phase 5 — Main Screens API Integration (H, HG, HC, AT, SH)
+#### 9. Nút chụp Camera — Viền màu bạc hà
 
-> **Ước lượng: ~3-4 giờ.** Nối API cho các screen chính.
+#### [MODIFY] [camera_screen.dart](file:///d:/Luan-Van/Project/app/frontend/mobile/lib/screens/camera/camera_screen.dart)
+- Đổi border của nút chụp từ `Colors.white` sang `AppColors.teal` (mint/bạc hà)
+- Thêm subtle glow effect
 
-#### [MODIFY] `home_screen.dart` (H-01..H-07)
-- Import `home_header.dart` chung
-- Load stats từ API
-- Wallet chips dynamic
-- `intl` format date Việt
-- `RefreshIndicator` + shimmer
+#### 10. Khung quét bill — Lớn hơn theo chiều dọc
 
-#### [MODIFY] `home_gallery_screen.dart` (HG-01, HG-02)
-- Reuse `home_header.dart` + `gallery_card.dart`
-
-#### [MODIFY] `home_calendar_screen.dart` (HC-01..HC-05)
-- Fix bugs + dynamic data + reuse header
-
-#### [MODIFY] `app_routes.dart` (AT-01)
-- Thêm route `/add` cho `AddTransactionScreen`
-
-#### [MODIFY] `add_transaction_screen.dart` (AT-01..AT-06)
-- Register route, nối API categories + POST transactions
-- DatePicker/TimePicker
-
-#### [MODIFY] `app_shell.dart` (SH-01, SH-02)
-- FAB → BottomSheet 2 lựa chọn (nhập tay / chụp bill)
+#### [MODIFY] [camera_screen.dart](file:///d:/Luan-Van/Project/app/frontend/mobile/lib/screens/camera/camera_screen.dart)
+- Đổi khung từ 280×180 (ngang) sang **280×400** (dọc) phù hợp hóa đơn Việt Nam
+- Cập nhật corner brackets positions tương ứng
 
 ---
 
-### Phase 6 — Feature Screens (CAM, CI, CC, CH, CHH, DS, G, S, ST, LM, RP, SW)
-
-> **Ước lượng: ~4-6 giờ.** Fan-out screens.
-
-#### Camera Flow (CAM, CI, CC)
-- `camera_screen.dart`: Thêm `image_picker` để chọn ảnh gallery
-- `camera_input_screen.dart`: Nhận file path + gọi API
-- `camera_confirm_screen.dart`: Dynamic data + edit sheet + POST transaction
-
-#### Chat (CH, CHH)
-- `chat_screen.dart`: StatefulWidget + API NLU + quick chip clickable
-- `chat_history_screen.dart`: Bỏ trùng MockData + tap mở session
-
-#### Other Screens
-- `detail_story_screen.dart` (DS-01..DS-04): Route param + edit + AI correction
-- `goal_screen.dart` (G-01..G-05): CRUD + contribute money sheet
-- `settings_screen.dart` (S-01..S-06): Load /me + personality sync + logout
-- `streak_screen.dart` (ST-01..ST-05): API streak + animate
-- `limits_screen.dart` (LM-01..LM-06): API budgets + create sheet
-- `report_screen.dart` (RP-01..RP-05): Range query + stats API
-- `share_wallet_screen.dart` (SW-01..SW-05): API + invite member
+### Phase 3: Animation & Settings
 
 ---
 
-### Phase 7 — expense-ocr-nlu & Polish (N1-N3, X-10..X-12)
+#### 11. Loading Animation — Dùng Lottie Loading.json
 
-> **Ước lượng: ~1-2 giờ.**
+#### [MODIFY] [pubspec.yaml](file:///d:/Luan-Van/Project/app/frontend/mobile/pubspec.yaml)
+- Thêm dependency `lottie: ^3.1.3`
+- Thêm assets `- assets/animations/`
 
-#### [MODIFY] `expense-ocr-nlu/src/nlu/pipeline.py` (N1)
-- Refactor `run_nlu` nhận `run_llm` & `user_id` qua param thay vì `os.environ`
+#### [MODIFY] [skeleton.dart](file:///d:/Luan-Van/Project/app/frontend/mobile/lib/widgets/skeleton.dart)
+- Thay shimmer skeleton bằng Lottie animation từ `Loading.json` khi loading data
 
-#### [NEW] `expense-ocr-nlu/train_user_model.py` (N2)
-- Script đọc corrections từ DB → train per-user model
+#### [MODIFY] [home_screen.dart](file:///d:/Luan-Van/Project/app/frontend/mobile/lib/screens/home/home_screen.dart)
+- Dùng Lottie loading thay cho skeleton cards
 
-#### [MODIFY] `expense-ocr-nlu/requirements-real.txt` (N3)
-- Pin versions chính xác
+---
 
-#### Polish (X-10..X-12)
-- Replace `Navigator.pop` → `context.pop()`
-- Skeleton/shimmer widgets
-- Error banner + empty state widgets
-- Thay `Image.network` → `CachedNetworkImage` (A-06)
+#### 12. Streak Animation — Hiệu ứng giữ chuỗi thành công
+
+#### [MODIFY] [streak_screen.dart](file:///d:/Luan-Van/Project/app/frontend/mobile/lib/screens/streak/streak_screen.dart)
+- Khi `currentStreak >= previousStreak` (streak thành công), hiển thị Fire.json Lottie animation
+- Animation chạy 1 lần khi mở màn hình streak, phía sau emoji 🔥
+
+---
+
+#### 13. Settings — Đổi avatar + Hiệu ứng đổi phong cách AI
+
+#### [MODIFY] [settings_screen.dart](file:///d:/Luan-Van/Project/app/frontend/mobile/lib/screens/settings/settings_screen.dart)
+- **Đổi avatar**: Tap vào avatar circle → mở image picker → upload qua `uploadFile()` → update profile
+- **Hiệu ứng đổi phong cách AI**: 
+  - Khi chọn phong cách mới, 2 icon AI (Cool + Angry) animate swap chỗ cho nhau với `AnimatedPositioned`
+  - Animation chạy ~1s rồi dừng lại ở vị trí đã chọn
+- **Chỉnh sửa thông tin cá nhân**: Đổi dialog read-only thành editable dialog với TextFields cho username, age_group, job_type → gọi `updateProfile()` / `updateSettings()`
+
+#### [MODIFY] [api_client.dart](file:///d:/Luan-Van/Project/app/frontend/mobile/lib/services/api_client.dart)
+- Thêm method `uploadAvatar()` nếu cần endpoint riêng, hoặc dùng `uploadFile()` + `updateProfile()`
+
+---
+
+### Cải thiện UI chung (toàn bộ các màn hình)
+
+Áp dụng các nguyên tắc chung cho tất cả các screen:
+- Dùng `AppColors.teal` gradient cho header consistently
+- Thêm subtle micro-animations (fade in, scale) cho các card/item khi xuất hiện
+- Bo tròn corners đồng nhất (`AppRadii.lg` = 16)
+- Shadow nhẹ nhàng hơn, tạo depth
+- Typography rõ ràng, hierarchy tốt
+
+Các screen cụ thể sẽ được cải thiện nhẹ:
+- **Chat**: bubble colors, typing animation mượt hơn
+- **Camera**: dark theme nhất quán, glow effects
+- **Gallery**: grid spacing, image quality
+- **Calendar**: giữ nguyên chế độ xem, polish colors
+- **Profile/Settings**: clean layout
+- **Splash/Loading**: Lottie animation
 
 ---
 
 ## Verification Plan
 
 ### Automated Tests
-```powershell
-# Backend Jest
-cd D:\Luan-Van\Project\app\backend
-npm test   # expect: ≥ 9 passed
-
-# AI-service pytest
-cd D:\Luan-Van\Project\app\ai-service
-pytest -q  # expect: 6 passed
-
-# Flutter analyze
-cd D:\Luan-Van\Project\app\frontend\mobile
-flutter analyze  # 0 errors
-```
-
-### Docker Integration Tests (TEST_PLAN Task 0-11)
-- Chạy lần lượt từng task, ghi kết quả vào bảng tổng kết
+- `flutter analyze` — đảm bảo không có warning/error mới
+- `flutter build apk --debug` — build thành công
 
 ### Manual Verification
-- Verify Swagger UI tại `http://localhost:4000/docs` có thêm routes mới (settings, goals, stories, chat)
-- Verify Flutter app build thành công (`flutter build apk --debug`)
+- Hot reload app đang chạy và kiểm tra từng screen:
+  1. Chat: gửi tin nhắn, xem ô xác nhận không lặp text, có thể chỉnh category
+  2. Home: scroll xuống header thu gọn, scroll lên header hiện lại
+  3. Story cards: khoảng cách cạnh đã giảm, ảnh đúng kích thước
+  4. Detail story: lướt sang story khác, xóa/chỉnh sửa story hoạt động
+  5. Camera: nút chụp viền bạc hà, khung bill dọc lớn hơn
+  6. Streak: animation fire khi có streak
+  7. Settings: đổi avatar, hiệu ứng swap AI style
+  8. Bill story: tap vào → xem chi tiết được

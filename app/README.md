@@ -189,7 +189,7 @@ Invoke-RestMethod -Method POST http://localhost:4000/api/v1/ai/expense/from-text
 Backend `.env`:
 
 ```ini
-DATABASE_URL=postgresql://khangb2205881:eF84GjVt2rKM2OlhiR01gw@spending-stories-15879.jxf.gcp-asia-southeast1.cockroachlabs.cloud:26257/spending-stories?sslmode=verify-full
+DATABASE_URL=postgresql://khangb2205881:<password>@spending-stories-15879.jxf.gcp-asia-southeast1.cockroachlabs.cloud:26257/spending-stories?sslmode=verify-full
 DATABASE_SSL=true
 ```
 
