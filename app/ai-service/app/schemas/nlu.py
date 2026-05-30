@@ -67,5 +67,6 @@ class NLUResponse(BaseModel):
     sentiment: str | None = None
     nlg_prompt: dict[str, Any] | None = None
     gemini_json: dict[str, Any] | None = None
+    mascot_mood: str | None = Field(default=None, description="Flutter asset name for MiMo overlay: Happy/Sad/Thinking/Chill/Sassy/Success/Taunting")
     backend: str = Field(default="mock", description="`real` if full pipeline used, else `mock`.")
     latency_ms: int | None = None

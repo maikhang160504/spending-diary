@@ -14,6 +14,41 @@ from app.schemas.nlu import NLURequest, NLUResponse
 
 logger = get_logger(__name__)
 
+_VALID_ASSETS = {
+    "Alert", "Angry", "Approved", "Celebrate", "Chill", "Cooking", "Cool",
+    "Determined", "Error", "Excited", "Gigle", "Happy", "Hello", "Loading",
+    "Love", "Proud", "Relax", "Sad", "Sleepy", "Sassy", "Shopping", "Travel",
+    "Sorry", "Success", "Taunting", "Thankful", "Thinking", "Working", "Worried",
+}
+
+_STATUS_TO_ASSET: dict[str, str] = {
+    "vui": "Happy",
+    "buon": "Sad",
+    "canh_bao": "Thinking",
+    "trung_lap": "Chill",
+}
+
+
+def _resolve_mascot_mood(
+    gemini_emotion: str | None,
+    status: str | None,
+    intent: str | None,
+    personality_emotion: str | None,
+) -> str:
+    """Map gemini emotion field (PascalCase) → Flutter MiMo asset name.
+
+    Priority: gemini_emotion (already normalized PascalCase) > status fallback > intent default.
+    """
+    if gemini_emotion and gemini_emotion in _VALID_ASSETS:
+        return gemini_emotion
+    if status and status in _STATUS_TO_ASSET:
+        return _STATUS_TO_ASSET[status]
+    if intent == "Record":
+        return "Success"
+    if intent == "Action":
+        return "Thinking"
+    return "Chill"
+
 
 class NLUService:
     def __init__(self) -> None:
@@ -73,6 +108,12 @@ class NLUService:
             for m in multi_records_raw
         ]
 
+        gemini_json = raw.get("gemini_json")
+        api_status = (gemini_json or {}).get("status") if isinstance(gemini_json, dict) else None
+        gemini_emotion = (gemini_json or {}).get("emotion") if isinstance(gemini_json, dict) else None
+        personality_emotion = raw.get("emotion")
+        mascot_mood = _resolve_mascot_mood(gemini_emotion, api_status, intent, personality_emotion)
+
         return {
             "intent": intent,
             "intent_confidence": raw.get("intent_confidence"),
@@ -89,7 +130,8 @@ class NLUService:
             "multi_record_task": bool(raw.get("multi_record_task")),
             "sentiment": raw.get("sentiment"),
             "nlg_prompt": raw.get("nlg_prompt"),
-            "gemini_json": raw.get("gemini_json"),
+            "gemini_json": gemini_json,
+            "mascot_mood": mascot_mood,
             "backend": "real",
         }
 
@@ -101,6 +143,7 @@ class NLUService:
                 {"text": text, "amount": amt, "category": result.category, "record_type": result.record_type}
                 for amt in result.multi_amounts
             ]
+        mascot_mood = _resolve_mascot_mood(None, None, result.intent, None)
         return {
             "intent": result.intent,
             "intent_confidence": result.intent_confidence,
@@ -118,6 +161,7 @@ class NLUService:
             "sentiment": None,
             "nlg_prompt": None,
             "gemini_json": None,
+            "mascot_mood": mascot_mood,
             "backend": "mock",
         }
 

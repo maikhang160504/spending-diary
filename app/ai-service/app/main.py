@@ -13,8 +13,10 @@ from app.core.config import get_settings
 from app.core.exceptions import AIServiceError
 from app.core.logging import setup_logging, get_logger
 from app.middleware import ApiKeyMiddleware, RequestLoggingMiddleware
-from app.routers import expense, health, nlu, ocr
+from app.routers import chat, expense, health, nlu, ocr
 from app.schemas.common import ErrorBody, ErrorResponse
+from app.schemas.nlu import NLURequest, NLUResponse
+from app.services.nlu_service import get_nlu_service
 
 
 def create_app() -> FastAPI:
@@ -108,6 +110,13 @@ def create_app() -> FastAPI:
     app.include_router(nlu.router, prefix=api_prefix)
     app.include_router(ocr.router, prefix=api_prefix)
     app.include_router(expense.router, prefix=api_prefix)
+    app.include_router(chat.router, prefix=api_prefix)
+
+    # ── Backward-compatible /infer route (old clients) ──────────
+    @app.post("/infer", response_model=NLUResponse, tags=["compat"],
+              summary="Legacy /infer endpoint – delegates to /api/v1/nlu/infer")
+    def legacy_infer(payload: NLURequest) -> NLUResponse:
+        return get_nlu_service().infer(payload)
 
     return app
 
