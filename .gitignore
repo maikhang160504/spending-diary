@@ -18,3 +18,7 @@ Thumbs.db
 
 #codegraph
 .codegraph/
+
+# Env files
+.env
+**/.env
