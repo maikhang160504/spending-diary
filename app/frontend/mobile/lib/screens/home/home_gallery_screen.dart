@@ -99,7 +99,17 @@ class _HomeGalleryScreenState extends State<HomeGalleryScreen> {
                                   crossAxisSpacing: 6,
                                   childAspectRatio: 0.72,
                                 ),
-                                itemBuilder: (context, index) => _GalleryCard(story: _stories[index]),
+                                itemBuilder: (context, index) {
+                                  final allIds = _stories
+                                      .map((s) => (s['id'] as String?) ?? '')
+                                      .where((e) => e.isNotEmpty)
+                                      .toList();
+                                  return _GalleryCard(
+                                    story: _stories[index],
+                                    allStoryIds: allIds,
+                                    initialIndex: index,
+                                  );
+                                },
                               ),
                     const SizedBox(height: 24),
                   ],
@@ -339,8 +349,10 @@ class _SegmentItem extends StatelessWidget {
 
 class _GalleryCard extends StatelessWidget {
   final Map<String, dynamic> story;
+  final List<String>? allStoryIds;
+  final int initialIndex;
 
-  const _GalleryCard({required this.story});
+  const _GalleryCard({required this.story, this.allStoryIds, this.initialIndex = 0});
 
   @override
   Widget build(BuildContext context) {
@@ -362,7 +374,20 @@ class _GalleryCard extends StatelessWidget {
     }
 
     return GestureDetector(
-      onTap: id.isNotEmpty ? () => context.push(AppRoutes.storyDetailOf(id)) : null,
+      onTap: id.isNotEmpty
+          ? () {
+              final ids = allStoryIds;
+              if (ids != null && ids.isNotEmpty) {
+                final idx = ids.indexOf(id);
+                context.push(AppRoutes.storyDetailOf(id), extra: {
+                  'storyIds': ids,
+                  'initialIndex': idx < 0 ? initialIndex : idx,
+                });
+              } else {
+                context.push(AppRoutes.storyDetailOf(id));
+              }
+            }
+          : null,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(AppRadii.md),
         child: Stack(

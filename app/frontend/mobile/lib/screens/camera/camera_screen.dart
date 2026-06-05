@@ -10,7 +10,8 @@ import '../../theme/app_colors.dart';
 
 class CameraScreen extends StatefulWidget {
   final bool returnOnlyImagePath;
-  const CameraScreen({super.key, this.returnOnlyImagePath = false});
+  final String? walletId;
+  const CameraScreen({super.key, this.returnOnlyImagePath = false, this.walletId});
   @override
   State<CameraScreen> createState() => _CameraScreenState();
 }
@@ -128,10 +129,15 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
       setState(() { _isTakingPhoto = true; _billError = null; });
       try {
         final wallets = await _api.getWallets();
-        final walletId = wallets.isNotEmpty ? wallets[0]['id'] as String : '';
-        final result = await _api.aiExpenseFromBill(walletId: walletId, filePath: imagePath);
+        final targetId = widget.walletId ?? (wallets.isNotEmpty ? wallets[0]['id'] as String : '');
+        final result = await _api.aiExpenseFromBill(walletId: targetId, filePath: imagePath);
         if (!mounted) return;
-        context.push(AppRoutes.cameraConfirm, extra: result);
+        context.push(AppRoutes.cameraConfirm, extra: {
+          ...result,
+          'imagePath': imagePath,
+          'localImagePath': imagePath,
+          'walletId': targetId,
+        });
       } on ApiException catch (e) {
         if (mounted) setState(() => _billError = e.localizedMessage);
       } catch (_) {
@@ -140,7 +146,11 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
         if (mounted) setState(() => _isTakingPhoto = false);
       }
     } else {
-      context.push(AppRoutes.cameraInput, extra: {'imagePath': imagePath, 'isBill': false});
+      context.push(AppRoutes.cameraInput, extra: {
+        'imagePath': imagePath,
+        'isBill': false,
+        'walletId': widget.walletId,
+      });
     }
   }
 

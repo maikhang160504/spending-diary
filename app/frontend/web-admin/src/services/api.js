@@ -25,17 +25,61 @@ export async function getAdminUsers() {
   return request("/api/admin/users");
 }
 
-export async function getUserExpenses(userId = 1) {
-  return request(`/api/user/expenses?userId=${userId}`);
+export async function getUserInspector(userId) {
+  return request(`/api/admin/user-inspector/${userId}`);
 }
 
-export async function getAdminAiLogs() {
-  return request("/api/admin/ai-logs");
-}
-
-export async function postUserChat(message) {
-  return request("/api/user/chat", {
-    method: "POST",
-    body: JSON.stringify({ message, userId: 1 })
+export async function clearUserCache(userId) {
+  return request(`/api/admin/cache/clear/${userId}`, {
+    method: "POST"
   });
+}
+
+export async function getNluOverrides() {
+  return request("/api/admin/nlu/overrides");
+}
+
+export async function addNluOverride(userId, keyword, categoryCode) {
+  return request("/api/admin/nlu/overrides", {
+    method: "POST",
+    body: JSON.stringify({ userId, keyword, categoryCode })
+  });
+}
+
+export async function deleteNluOverride(userId, keyword) {
+  return request(`/api/admin/nlu/overrides/${userId}/${encodeURIComponent(keyword)}`, {
+    method: "DELETE"
+  });
+}
+
+export async function getNluAggregations() {
+  return request("/api/admin/nlu/aggregations");
+}
+
+export async function curateNluAggregations(corrections) {
+  return request("/api/admin/nlu/curate", {
+    method: "POST",
+    body: JSON.stringify({ corrections })
+  });
+}
+
+export async function getBotPrompts() {
+  return request("/api/admin/prompts");
+}
+
+export async function saveBotPrompts(prompts) {
+  return request("/api/admin/prompts", {
+    method: "POST",
+    body: JSON.stringify(prompts)
+  });
+}
+
+export async function triggerNluTrain() {
+  return request("/api/admin/train", {
+    method: "POST"
+  });
+}
+
+export async function getNluTrainStatus() {
+  return request("/api/admin/train/status");
 }

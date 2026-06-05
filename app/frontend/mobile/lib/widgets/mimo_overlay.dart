@@ -1,9 +1,19 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 
-import '../data/mock_data.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_radii.dart';
+
+/// Popup mascot: [emotionAsset] = tên file `assets/MiMo/emotions/{Name}.png`.
+class MiMoResponse {
+  final String emotionAsset;
+  final String message;
+
+  const MiMoResponse({required this.emotionAsset, required this.message});
+
+  /// Alias field cũ — cùng giá trị [emotionAsset].
+  String get status => emotionAsset;
+}
 
 /// MiMo mascot popup — hiển thị sau khi thêm chi tiêu thành công.
 /// Đặt trong Stack overlay của AppShell, góc phải dưới ngay trên nav bar.

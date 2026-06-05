@@ -1,55 +1,14 @@
 [
     {
-        "flow-chat": [
-            "1. người dùng người nhập text, sau đó gửi qua api nlu để phân tích intent",
-            "2. sau khi nhận dạng thì tạo promt trả về reponse gồm (text + 1 trong các emotion được liệt kê)",
-            "3. dùng response trả về để hiển thị lên màn hình chat, emotion trả về sẽ tương ứng đúng với 1 trong các ảnh emotion trong assets/MiMo/emotion, và reponse Text sẽ tương ứng với comment ở story feed, reponse emotion tương ứng với avatar của AI comment"
+        "report": [
+            "biểu đồ của phần báo cáo, phải chính xác",
+            "biểu đồ chi tiêu theo ngày phải hiển thị đủ ngày dù là ngày đó k chi tiêu",
+            "xu hướng tiết kiệm nếu k có dữ liệu thì ẩn",
+            "có phân chi từng ví, và đổi được ví"
         ],
-        "flow-add-story": [
-            "1. người dùng người nhập text, sau đó gửi qua api nlu để phân tích intent",
-            "2. sau khi nhận dạng thì tạo promt trả về reponse gồm (text + 1 trong các emotion được liệt kê)",
-            "3. dùng response trả về để tạo ra story feed, emotion trả về sẽ tương ứng đúng với 1 trong các ảnh emotion trong assets/MiMo/emotion, và reponse Text sẽ tương ứng với comment ở story feed, reponse emotion tương ứng với avatar của AI comment"
-        ],
-        "mascot & chat emotion": [
-            "mascot và chat emotion đang không hiện thị đúng với emotion trả về ở promt LLM ở chat screen và story screen như mô tả ở 2 flow trên",
-            "ở chat, không cần tin nhắn 'Đã lưu giao dịch $so_tien thành công!' khi lưu giao dịch thành công"
-        ],
-        "detail-story": [
-            "trong detail_story_screen, có phần MiMo AI, phần này là LLM comment của AI về story, với avatar là mascot(LLM response emotion tương ứng với ảnh emotion trong assets/MiMo/emotion) và comment là reponse LLM"
-        ],
-        "story-feed": [
-            "trong story_feed_screen, có phần MiMo AI Comment, phần này là LLM comment của AI về story feed, với avatar là mascot(LLM response emotion tương ứng với ảnh emotion trong assets/MiMo/emotion) và comment là reponse LLM"
-        ],
-        "camera": [
-            "bỏ khung ở camera screen, sửa viền sao cho kích thước 4:3, có bo góc bo tròn 16"
-        ],
-        "animation": [
-            "dùng animation trong assets/animations/Loading.json khi loading data"
-        ],
-        "streak": [
-            "dùng animation trong assets/animations/Fire.json khi streak thành công"
-        ],
-        "settings": [
-            " đổi avatar user đang lỗi, đã 200 nhưng k hiển thị được",
-            "khi đổi phong cách AI thì có hiệu ứng xuất hiện (mô tả:  hiện cả 2 icon AI (Cool và Angry) lên màn hình và đổi chỗ cho nhau cho đến khi chọn như đổi thẻ bài)"
-        ],
-        "flow-load-data": [
-            "QUAN TRONG: dùng tanstack query để load data từ api và hiển thị lên màn hình, đảm bảo data được load đúng và hiện thị đúng",
-            "app load dữ liệu mỗi lần chuyển màn hình, hãy chỉnh sửa điều đó mà vẫn đảm bảo data đồng bộ",
-            "ở home_screen, khi load data thì hiện skeleton loading card để tránh lỗi không hiện thị card khi load data, và load 1 phần trước khi cuộn xuống tương tự cho galler và calendar"
-        ],
-        "improve-UI": [
-            "header home, khi cuộn lại thì có khoảng cách với Chào [tên] 👋 + nút 🔥 Streak quá nhỏ, khi hiện thì có khoảng cách với Thẻ số dư (thu/chi/số dư) nhỏ.",
-            "xỏa bỏ nút quay lại ở goals_screen"
-        ],
-        "streak":[
-            "nếu 1 ngày không add story hoặc chat thì streak sẽ quay về số 0, hãy chỉnh sửa điều đó",
-            "khi streak thành công thì hiện animation trong assets/animations/Fire.json"
-            
-        ],
-        "report_screen":[
-            "các ảnh của category trong report_screen đang chưa đúng với assets/MiMo/category, hãy chỉnh sửa điều đó"
+        "sharedwallet-screen": [
+            "khi add story ở ví chung, khi hoàn thành thì vẫn ở ví chung và đang không quay về màn hình home được",
+            "đang k hiện thị mascot"
         ]
-
     }
 ]

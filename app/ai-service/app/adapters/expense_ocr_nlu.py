@@ -107,6 +107,20 @@ def load_real_nlu_safe() -> bool:
     return True
 
 
+def reload_nlu() -> bool:
+    """Force reload the NLU model bundle from disk."""
+    global _NLU_BUNDLE, _NLU_ERROR
+    with _LOCK:
+        _NLU_BUNDLE = None
+        _NLU_ERROR = None
+        try:
+            _load_nlu_bundle_unlocked()
+        except Exception as exc:  # noqa: BLE001
+            _NLU_ERROR = str(exc)
+            return False
+    return True
+
+
 def is_nlu_loaded() -> bool:
     return _NLU_BUNDLE is not None
 
@@ -119,7 +133,10 @@ def run_real_nlu(
     text: str,
     profile: dict[str, Any] | None = None,
     run_llm: bool = False,
+    nlg_persona: str | None = None,
     emotion: str | None = None,
+    user_id: str | None = None,
+    user_corrections: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Call the real NLU pipeline + optional Gemini NLG layer."""
     bundle = _NLU_BUNDLE
@@ -140,6 +157,9 @@ def run_real_nlu(
         bundle["record_type"],
         bundle["sentiment"],
         bundle["ner"],
+        run_llm=run_llm,
+        user_id=user_id,
+        user_corrections=user_corrections,
     )
 
     if result.get("intent") == "Action":
@@ -148,6 +168,7 @@ def run_real_nlu(
         except Exception:  # noqa: BLE001
             result["demo_execution_lines"] = []
 
+    record_type = result.get("record_type") if result.get("intent") == "Record" else None
     nlu_for_meta = {
         "intent": result.get("intent"),
         "text": text,
@@ -156,9 +177,8 @@ def run_real_nlu(
         "amount": result.get("amount_spent")
         if result.get("intent") == "Record"
         else result.get("action_param"),
-        "is_expense": result.get("record_type") == "Expense"
-        if result.get("intent") == "Record"
-        else None,
+        "record_type": record_type,
+        "is_expense": record_type == "Expense" if record_type else None,
         "income_type": result.get("income_type") if result.get("intent") == "Record" else None,
         "action_type": result.get("action_type"),
         "value": result.get("action_param"),
@@ -174,7 +194,7 @@ def run_real_nlu(
                 context_metadata=context_metadata,
                 prompts_config=bundle["prompts"],
                 request_template=bundle["request_template"],
-                emotion=emotion or "hai_huoc",
+                nlg_persona=(nlg_persona or emotion or "hai_huoc"),
             )
         except Exception as exc:  # noqa: BLE001
             logger.warning("LLM enrichment failed: %s", exc)

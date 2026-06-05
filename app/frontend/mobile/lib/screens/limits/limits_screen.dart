@@ -35,8 +35,19 @@ class _LimitsScreenState extends State<LimitsScreen> {
     setState(() { _loading = true; _error = null; });
     try {
       final budgets = await _api.getBudgets();
-      _limits = budgets.map((b) {
-        final cat = b['categoryCode'] as String? ?? b['category_code'] as String? ?? 'Other';
+      final seenCategories = <String>{};
+      final uniqueBudgets = <dynamic>[];
+      for (final b in budgets) {
+        final rawCat = b['categoryCode'] as String? ?? b['category_code'] as String? ?? 'Other';
+        final cat = CategoryTheme.canonicalCodeOf(rawCat);
+        if (!seenCategories.contains(cat)) {
+          seenCategories.add(cat);
+          uniqueBudgets.add(b);
+        }
+      }
+      _limits = uniqueBudgets.map((b) {
+        final rawCat = b['categoryCode'] as String? ?? b['category_code'] as String? ?? 'Other';
+        final cat = CategoryTheme.canonicalCodeOf(rawCat);
         final style = CategoryTheme.of(cat);
         return _LimitItem(
           id: b['id'] as String,
@@ -84,6 +95,7 @@ class _LimitsScreenState extends State<LimitsScreen> {
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadii.xl))),
       builder: (ctx) {
+        bool isSubmitting = false;
         return StatefulBuilder(builder: (ctx, setModalState) {
           // Available categories (not already budgeted)
           final existing = _limits.map((l) => l.categoryCode).toSet();
@@ -120,26 +132,31 @@ class _LimitsScreenState extends State<LimitsScreen> {
               SizedBox(
                 width: double.infinity,
                 child: FilledButton(
-                  onPressed: () async {
-                    if (selectedCategory == null) return;
-                    final rawText = amountCtrl.text.replaceAll(',', '').trim();
-                    final amount = int.tryParse(rawText);
-                    if (amount == null || amount <= 0) return;
-                    ctx.pop();
-                    try {
-                      // Get first wallet
-                      final wallets = await _api.getWallets();
-                      if (wallets.isEmpty) return;
-                      await _api.createBudget({
-                        'walletId': wallets[0]['id'],
-                        'categoryCode': selectedCategory,
-                        'amountLimit': amount,
-                        'period': 'month',
-                        'startDate': DateTime.now().toIso8601String().split('T')[0],
-                      });
-                      _loadBudgets();
-                    } catch (_) {}
-                  },
+                  onPressed: isSubmitting
+                      ? null
+                      : () async {
+                          if (selectedCategory == null) return;
+                          final rawText = amountCtrl.text.replaceAll(',', '').trim();
+                          final amount = int.tryParse(rawText);
+                          if (amount == null || amount <= 0) return;
+                          setModalState(() {
+                            isSubmitting = true;
+                          });
+                          ctx.pop();
+                          try {
+                            // Get first wallet
+                            final wallets = await _api.getWallets();
+                            if (wallets.isEmpty) return;
+                            await _api.createBudget({
+                              'walletId': wallets[0]['id'],
+                              'categoryCode': selectedCategory,
+                              'amountLimit': amount,
+                              'period': 'month',
+                              'startDate': DateTime.now().toIso8601String().split('T')[0],
+                            });
+                            _loadBudgets();
+                          } catch (_) {}
+                        },
                   style: FilledButton.styleFrom(backgroundColor: AppColors.teal, padding: const EdgeInsets.symmetric(vertical: 14)),
                   child: const Text('Tạo giới hạn'),
                 ),
@@ -434,6 +451,7 @@ class _EditLimitSheet extends StatefulWidget {
 
 class _EditLimitSheetState extends State<_EditLimitSheet> {
   late TextEditingController _controller;
+  bool _isSubmitting = false;
 
   @override
   void initState() {
@@ -471,14 +489,19 @@ class _EditLimitSheetState extends State<_EditLimitSheet> {
           ),
           const SizedBox(height: 20),
           Row(children: [
-            Expanded(child: OutlinedButton(onPressed: () => context.pop(), child: const Text('Hủy'))),
+            Expanded(child: OutlinedButton(onPressed: _isSubmitting ? null : () => context.pop(), child: const Text('Hủy'))),
             const SizedBox(width: 12),
             Expanded(child: FilledButton(
-              onPressed: () {
-                final rawText = _controller.text.replaceAll(',', '').trim();
-                widget.onSave(int.tryParse(rawText) ?? widget.item.limit);
-                context.pop();
-              },
+              onPressed: _isSubmitting
+                  ? null
+                  : () {
+                      setState(() {
+                        _isSubmitting = true;
+                      });
+                      final rawText = _controller.text.replaceAll(',', '').trim();
+                      widget.onSave(int.tryParse(rawText) ?? widget.item.limit);
+                      context.pop();
+                    },
               child: const Text('Lưu'),
             )),
           ]),

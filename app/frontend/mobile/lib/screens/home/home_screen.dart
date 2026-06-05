@@ -10,12 +10,14 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_palette.dart';
 import '../../theme/app_radii.dart';
 import '../../theme/app_spacing.dart';
-import '../../data/mock_data.dart';
+import '../../utils/mimo_emotion.dart';
 import '../../theme/categories.dart';
+import '../../services/streak_celebration.dart';
 import '../../services/transaction_notifier.dart';
 import '../../utils/formatters.dart';
 import '../../widgets/error_banner.dart';
 import '../../widgets/skeleton.dart';
+import '../wallet/create_wallet_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -32,6 +34,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _loading = true;
   String? _error;
   String _userName = '';
+  String? _userAvatar;
   int _streakDays = 0;
   List<dynamic> _wallets = [];
   Map<String, dynamic> _dashboard = {};
@@ -66,7 +69,14 @@ class _HomeScreenState extends State<HomeScreen> {
       final meState = await AppQueries.me().result;
       final walletsState = await AppQueries.wallets().result;
       final me = meState.data ?? {};
-      final wallets = walletsState.data ?? [];
+      final walletsList = List<dynamic>.from(walletsState.data ?? []);
+      walletsList.sort((a, b) {
+        final aType = a['type'] as String? ?? 'personal';
+        final bType = b['type'] as String? ?? 'personal';
+        if (aType == 'personal' && bType != 'personal') return -1;
+        if (aType != 'personal' && bType == 'personal') return 1;
+        return 0;
+      });
 
       final failed = walletsState.status == QueryStatus.error && walletsState.data == null;
       if (failed) {
@@ -75,16 +85,21 @@ class _HomeScreenState extends State<HomeScreen> {
       }
 
       _userName = (me['user']?['username'] as String?) ?? 'bạn';
-      _wallets = wallets;
+      _userAvatar = me['user']?['avatarUrl'] as String? ?? me['user']?['avatar_url'] as String?;
+      _wallets = walletsList;
       AppQueries.streak().result.then((s) {
         if (mounted) setState(() => _streakDays = (s.data?['currentStreak'] as num?)?.toInt() ?? 0);
       });
-      if (_selectedWalletId == null && wallets.isNotEmpty) {
-        _selectedWalletId = wallets[0]['id'] as String?;
+      if (_selectedWalletId == null && walletsList.isNotEmpty) {
+        _selectedWalletId = walletsList[0]['id'] as String?;
       }
 
       // Load dashboard + transactions for selected wallet
       await _loadWalletData();
+      if (mounted) {
+        // ignore: unawaited_futures
+        StreakCelebration.instance.checkBrokenOnLaunch(context);
+      }
     } catch (e) {
       setState(() => _error = 'Không thể tải dữ liệu');
     } finally {
@@ -125,6 +140,131 @@ class _HomeScreenState extends State<HomeScreen> {
     }
     setState(() => _selectedWalletId = wallet['id'] as String?);
     _loadWalletData();
+  }
+
+  Future<void> _onCreateWallet() async {
+    final result = await CreateWalletScreen.show(context);
+    if (result != null && mounted) {
+      AppQueries.invalidateWalletData();
+      await _loadData();
+      if (mounted) {
+        setState(() {
+          _selectedWalletId = result['id'] as String?;
+        });
+        _loadWalletData();
+      }
+    }
+  }
+
+  Future<void> _joinWalletByCode() async {
+    final codeCtrl = TextEditingController();
+    bool loading = false;
+    String? errorMsg;
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          final palette = ctx.palette;
+          return AlertDialog(
+            backgroundColor: palette.card,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadii.lg)),
+            title: Text(
+              'Nhập mã mời ví',
+              style: TextStyle(color: palette.textPrimary, fontWeight: FontWeight.w800, fontSize: 18),
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Nhập mã mời gồm 6 ký tự để tham gia ví chung.',
+                  style: TextStyle(color: palette.textSecondary, fontSize: 13),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: codeCtrl,
+                  maxLength: 6,
+                  autofocus: true,
+                  textCapitalization: TextCapitalization.characters,
+                  style: TextStyle(color: palette.textPrimary, fontWeight: FontWeight.w600, fontSize: 16),
+                  decoration: InputDecoration(
+                    hintText: 'VD: A1B2C3',
+                    counterText: '',
+                    errorText: errorMsg,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: loading ? null : () => Navigator.pop(ctx),
+                child: Text('Hủy', style: TextStyle(color: palette.muted, fontWeight: FontWeight.w600)),
+              ),
+              FilledButton(
+                onPressed: loading
+                    ? null
+                    : () async {
+                        final code = codeCtrl.text.trim();
+                        if (code.length != 6) {
+                          setDialogState(() => errorMsg = 'Mã mời phải đúng 6 ký tự.');
+                          return;
+                        }
+                        setDialogState(() {
+                          loading = true;
+                          errorMsg = null;
+                        });
+                        try {
+                          final api = ApiClient();
+                          final newWallet = await api.joinWalletByCode(code);
+                          if (!mounted) return;
+                          
+                          AppQueries.invalidateWalletData();
+                          await _loadData();
+                          
+                          if (mounted) {
+                            setState(() {
+                              _selectedWalletId = newWallet['id'] as String?;
+                            });
+                            _loadWalletData();
+                            Navigator.pop(ctx);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Đã tham gia ví "${newWallet['name']}" thành công!'),
+                                backgroundColor: AppColors.teal,
+                              ),
+                            );
+                          }
+                        } on ApiException catch (e) {
+                          setDialogState(() {
+                            loading = false;
+                            errorMsg = e.localizedMessage;
+                          });
+                        } catch (_) {
+                          setDialogState(() {
+                            loading = false;
+                            errorMsg = 'Có lỗi xảy ra, vui lòng thử lại.';
+                          });
+                        }
+                      },
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.teal,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadii.md)),
+                ),
+                child: loading
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Text('Tham gia', style: TextStyle(fontWeight: FontWeight.w700)),
+              ),
+            ],
+          );
+        },
+      ),
+    );
   }
 
   String _formattedDate() {
@@ -175,7 +315,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       onWalletTap: _onWalletTap,
                       onTabChanged: (t) => setState(() => _tab = t),
                       onStreakTap: () => context.push(AppRoutes.streak),
-                      onCreateWallet: () {},
+                      onCreateWallet: _onCreateWallet,
+                      onJoinWallet: _joinWalletByCode,
                     ),
                   ),
                   if (_error != null)
@@ -240,7 +381,7 @@ class _HomeScreenState extends State<HomeScreen> {
       return [
         SliverList(
           delegate: SliverChildBuilderDelegate(
-            (ctx, i) => _TransactionStoryCard(tx: _transactions[i], allStoryIds: navIds),
+            (ctx, i) => _TransactionStoryCard(tx: _transactions[i], allStoryIds: navIds, fallbackUserAvatar: _userAvatar),
             childCount: _transactions.length,
           ),
         ),
@@ -259,12 +400,20 @@ class _HomeScreenState extends State<HomeScreen> {
           )),
         ];
       }
+      final galleryIds = galleryStories
+          .map((s) => (s['id'] as String?) ?? '')
+          .where((e) => e.isNotEmpty)
+          .toList();
       return [
         SliverPadding(
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
           sliver: SliverGrid(
             delegate: SliverChildBuilderDelegate(
-              (ctx, i) => _StoryGalleryCard(story: galleryStories[i] as Map<String, dynamic>),
+              (ctx, i) => _StoryGalleryCard(
+                story: galleryStories[i] as Map<String, dynamic>,
+                allStoryIds: galleryIds,
+                initialIndex: i,
+              ),
               childCount: galleryStories.length,
             ),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -305,6 +454,7 @@ class _HomeHeaderDelegate extends SliverPersistentHeaderDelegate {
   final ValueChanged<String> onTabChanged;
   final VoidCallback onStreakTap;
   final VoidCallback onCreateWallet;
+  final VoidCallback onJoinWallet;
 
   _HomeHeaderDelegate({
     required this.userName,
@@ -321,6 +471,7 @@ class _HomeHeaderDelegate extends SliverPersistentHeaderDelegate {
     required this.onTabChanged,
     required this.onStreakTap,
     required this.onCreateWallet,
+    required this.onJoinWallet,
   });
 
   static const double _segmentH = 64; // dải segment tabs (ghim đáy)
@@ -418,12 +569,21 @@ class _HomeHeaderDelegate extends SliverPersistentHeaderDelegate {
                             final memberCount = (w['member_count'] ?? 0) as int;
                             final icon = wType == 'group' ? Icons.group_outlined : Icons.account_balance_wallet_outlined;
                             final label = memberCount > 0 ? '$wName ($memberCount)' : wName;
+                            final unseenCount = (w['unseenCount'] ?? 0) as int;
                             return Padding(
                               padding: const EdgeInsets.only(right: 8),
-                              child: _WalletChip(label: label, icon: icon, isSelected: selectedWalletId == wId, onTap: () => onWalletTap(w)),
+                              child: _WalletChip(
+                                label: label,
+                                icon: icon,
+                                isSelected: selectedWalletId == wId,
+                                unseenCount: unseenCount,
+                                onTap: () => onWalletTap(w),
+                              ),
                             );
                           }),
                           _WalletChip(label: 'Tạo ví', icon: Icons.add_circle_outline, isSelected: false, onTap: onCreateWallet),
+                          const SizedBox(width: 8),
+                          _WalletChip(label: 'Nhập mã mời', icon: Icons.vpn_key_outlined, isSelected: false, onTap: onJoinWallet),
                         ]),
                       ),
                     ),
@@ -492,7 +652,8 @@ class _HomeHeaderDelegate extends SliverPersistentHeaderDelegate {
         old.balance != balance ||
         old.income != income ||
         old.expense != expense ||
-        old.tab != tab;
+        old.tab != tab ||
+        old.onJoinWallet != onJoinWallet;
   }
 }
 
@@ -502,7 +663,8 @@ class _TransactionStoryCard extends StatelessWidget {
   final dynamic tx;
   /// Danh sách id để lướt qua trong màn hình chi tiết (tùy chọn).
   final List<String>? allStoryIds;
-  const _TransactionStoryCard({required this.tx, this.allStoryIds});
+  final String? fallbackUserAvatar;
+  const _TransactionStoryCard({required this.tx, this.allStoryIds, this.fallbackUserAvatar});
 
   static const _categories = [
     ('Food', 'Ăn uống'), ('Shopping', 'Mua sắm'), ('Transport', 'Di chuyển'),
@@ -534,9 +696,15 @@ class _TransactionStoryCard extends StatelessWidget {
     if (picked == null) return;
     try {
       await api.aiCorrection({'text': text, 'categoryCode': picked, 'recordType': tx['type'] == 'income' ? 'Income' : 'Expense'});
+      await api.updateTransaction(tx['id'] ?? '', {'categoryCode': picked});
+      notifyTransactionChanged();
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Đã ghi nhận sửa danh mục. Cảm ơn!')));
+          const SnackBar(
+            content: Text('Đã cập nhật giao dịch và ghi nhận góp ý! Mimo sẽ học thêm từ bạn 🙏'),
+            backgroundColor: AppColors.teal,
+          ),
+        );
       }
     } catch (_) {}
   }
@@ -555,11 +723,11 @@ class _TransactionStoryCard extends StatelessWidget {
     final imageUrl = tx['imageUrl'] as String? ?? tx['image_url'] as String?;
     final aiComment = tx['aiComment'] as String? ?? tx['ai_message'] as String?;
     final mascotMoodRaw = tx['mascotMood'] as String? ?? tx['mascot_mood'] as String?;
-    final mascotMood = mapApiStatusToAsset(mascotMoodRaw, fallback: 'Chill');
+    final mascotMood = normalizeMimoAssetName(mascotMoodRaw, fallback: 'Success');
 
     // User display
     final userName = tx['username'] as String? ?? tx['user_name'] as String? ?? 'Bạn';
-    final userAvatar = tx['userAvatar'] as String? ?? tx['user_avatar'] as String?;
+    final userAvatar = tx['userAvatar'] as String? ?? tx['user_avatar'] as String? ?? fallbackUserAvatar;
 
     return GestureDetector(
       onTap: storyId.isNotEmpty
@@ -805,9 +973,16 @@ class _WalletChip extends StatelessWidget {
   final String label;
   final IconData icon;
   final bool isSelected;
+  final int unseenCount;
   final VoidCallback onTap;
 
-  const _WalletChip({required this.label, required this.icon, required this.isSelected, required this.onTap});
+  const _WalletChip({
+    required this.label,
+    required this.icon,
+    required this.isSelected,
+    this.unseenCount = 0,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -819,11 +994,38 @@ class _WalletChip extends StatelessWidget {
           color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.25),
           borderRadius: BorderRadius.circular(AppRadii.md),
         ),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(icon, size: 16, color: isSelected ? AppColors.teal : Colors.white),
-          const SizedBox(width: 6),
-          Text(label, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: isSelected ? AppColors.teal : Colors.white, fontWeight: FontWeight.w600)),
-        ]),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16, color: isSelected ? AppColors.teal : Colors.white),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: isSelected ? AppColors.teal : Colors.white,
+                    fontWeight: FontWeight.w600,
+                  ),
+            ),
+            if (unseenCount > 0) ...[
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.redAccent,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '+$unseenCount',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 8,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -879,7 +1081,11 @@ class _SegmentItem extends StatelessWidget {
 
 class _StoryGalleryCard extends StatelessWidget {
   final Map<String, dynamic> story;
-  const _StoryGalleryCard({required this.story});
+  /// Danh sách id để lướt qua trong màn hình chi tiết.
+  final List<String>? allStoryIds;
+  /// Vị trí của story hiện tại trong [allStoryIds].
+  final int initialIndex;
+  const _StoryGalleryCard({required this.story, this.allStoryIds, this.initialIndex = 0});
 
   @override
   Widget build(BuildContext context) {
@@ -895,7 +1101,20 @@ class _StoryGalleryCard extends StatelessWidget {
       } catch (_) {}
     }
     return GestureDetector(
-      onTap: id.isNotEmpty ? () => context.push(AppRoutes.storyDetailOf(id)) : null,
+      onTap: id.isNotEmpty
+          ? () {
+              final ids = allStoryIds;
+              if (ids != null && ids.isNotEmpty) {
+                final idx = ids.indexOf(id);
+                context.push(AppRoutes.storyDetailOf(id), extra: {
+                  'storyIds': ids,
+                  'initialIndex': idx < 0 ? initialIndex : idx,
+                });
+              } else {
+                context.push(AppRoutes.storyDetailOf(id));
+              }
+            }
+          : null,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(AppRadii.md),
         child: Stack(fit: StackFit.expand, children: [
@@ -1051,7 +1270,17 @@ class _InlineCalendarViewState extends State<_InlineCalendarView> {
             } catch (_) {
               return false;
             }
-          }).map((tx) => _TransactionStoryCard(tx: tx)),
+          }).map((tx) {
+            final dayNavIds = widget.transactions.where((t) {
+              final ds = t['occurredAt'] as String? ?? t['occurred_at'] as String? ?? t['createdAt'] as String? ?? t['created_at'] as String? ?? '';
+              if (ds.isEmpty) return false;
+              try {
+                final d = DateTime.parse(ds);
+                return d.year == _focus.year && d.month == _focus.month && d.day == _selectedDay;
+              } catch (_) { return false; }
+            }).map<String>((t) => (t['storyId'] as String?) ?? (t['story_id'] as String?) ?? (t['id'] as String?) ?? '').where((e) => e.isNotEmpty).toList();
+            return _TransactionStoryCard(tx: tx, allStoryIds: dayNavIds);
+          }),
         ],
         const SizedBox(height: 24),
       ]),

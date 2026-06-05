@@ -15,6 +15,7 @@ const requestLogger = require('./middlewares/requestLogger');
 const { notFound, errorHandler } = require('./middlewares/errorHandler');
 
 const router = require('./routes');
+const adminRouter = require('./routes/admin.routes');
 
 const app = express();
 
@@ -55,6 +56,7 @@ app.get('/', (_req, res) =>
 );
 
 app.use('/api/v1', router);
+app.use('/api/admin', adminRouter);
 
 app.use(notFound);
 app.use(errorHandler);

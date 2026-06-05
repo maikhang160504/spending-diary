@@ -223,4 +223,20 @@ Mobile:
 2. flutter pub get
 3. flutter run
 
+## Recent Features & Enhancements (Mới cập nhật)
+
+### 1. Token Optimization Engine (Tối ưu hóa Token Chat)
+- **Sliding Window**: Tự động giữ lại 4 tin nhắn (2 lượt) gần nhất làm bối cảnh chính xác.
+- **Action Summarization**: Tóm tắt và nén lịch sử hành động cũ hơn (chỉ lưu các key `REPORT`, `SEARCH`, `SUGGEST_BUDGET`), giảm chi phí API lên tới 60%.
+- **MoM Statistical Context**: Cung cấp lũy kế chi tiêu tháng trước (`spent_last_month`) khi phát hiện các câu hỏi so sánh thời gian.
+
+### 2. Smart Budgeting Recommendation (Gợi ý hạn mức thông minh)
+- Thuật toán phân tích chuỗi thời gian lọc nhiễu (Denoising Filter 3-sigma) có tính toán độ co dãn của thu nhập và tỷ lệ tiết kiệm mục tiêu.
+- Áp dụng hệ số điều chỉnh lễ Tết đặc thù tại Việt Nam (Tết Nguyên Đán tăng 1.5, hậu Tết thắt chặt còn 0.85, Giáng Sinh tăng 1.25).
+- Tích hợp 1-Click Apply tạo nhanh ngân sách từ đề xuất của trợ lý mascot MiMo.
+
+### 3. Client-Side Idempotency Guards (Chống trùng lặp hành động)
+- **State-driven Disable**: Vô hiệu hóa tức thì các nút lưu/xác nhận sau khi click lần đầu bằng cờ `isSubmitting`/`isSaved`.
+- **Anti-Double-Pop**: Giải quyết triệt để lỗi double-tap trên Dialog xác nhận xóa/xác nhận hành động làm vỡ ngăn xếp điều hướng Flutter.
+
 

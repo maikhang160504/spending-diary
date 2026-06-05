@@ -14,7 +14,10 @@ exports.createSession = asyncHandler(async (req, res) => {
 });
 
 exports.getMessages = asyncHandler(async (req, res) => {
-  const data = await service.getMessages(req.user.id, req.params.id);
+  const data = await service.getMessages(req.user.id, req.params.id, {
+    limit: req.query.limit,
+    before: req.query.before,
+  });
   res.json({ success: true, data });
 });
 

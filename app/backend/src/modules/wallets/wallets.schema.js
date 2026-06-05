@@ -12,6 +12,7 @@ const createWalletSchema = z.object({
     .max(20)
     .regex(/^#?[0-9A-Fa-f]{3,8}$/)
     .optional(),
+  balance: z.number().nonnegative().optional(),
 });
 
 const updateWalletSchema = createWalletSchema.partial();

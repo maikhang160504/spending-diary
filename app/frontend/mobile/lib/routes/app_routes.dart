@@ -9,6 +9,7 @@ import '../screens/camera/camera_input_screen.dart';
 import '../screens/camera/camera_screen.dart';
 import '../screens/chat/chat_history_screen.dart';
 import '../screens/chat/chat_screen.dart';
+import '../screens/goals/goal_detail_screen.dart';
 import '../screens/goals/goal_screen.dart';
 import '../screens/home/home_calendar_screen.dart';
 import '../screens/home/home_gallery_screen.dart';
@@ -60,9 +61,13 @@ class AppRoutes {
   static const shareWallet    = '/wallet/share';
   static const streak         = '/streak';
   static const storyDetail    = '/story/:storyId';
+  static const goalDetail     = '/app/goals/:goalId';
 
   /// Build the story detail path with a real [storyId]
   static String storyDetailOf(String storyId) => '/story/$storyId';
+
+  /// Build the goal detail path with a real [goalId]
+  static String goalDetailOf(String goalId) => '/app/goals/$goalId';
 }
 
 /// go_router instance — được dùng trong MaterialApp.router
@@ -128,6 +133,7 @@ final GoRouter appRouter = GoRouter(
         final extra = state.extra as Map<String, dynamic>?;
         return CameraScreen(
           returnOnlyImagePath: extra?['returnOnlyImagePath'] as bool? ?? false,
+          walletId: extra?['walletId'] as String?,
         );
       },
     ),
@@ -138,6 +144,7 @@ final GoRouter appRouter = GoRouter(
         return CameraInputScreen(
           imagePath: extra?['imagePath'] as String?,
           isBill: extra?['isBill'] as bool? ?? false,
+          walletId: extra?['walletId'] as String?,
         );
       },
     ),
@@ -153,7 +160,10 @@ final GoRouter appRouter = GoRouter(
       path: AppRoutes.chat,
       builder: (context, state) {
         final extra = state.extra as Map<String, dynamic>?;
-        return ChatScreen(sessionId: extra?['sessionId'] as String?);
+        return ChatScreen(
+          sessionId: extra?['sessionId'] as String?,
+          walletId: extra?['walletId'] as String?,
+        );
       },
     ),
     GoRoute(path: AppRoutes.chatHistory, builder: (context, state) => const ChatHistoryScreen()),
@@ -178,6 +188,12 @@ final GoRouter appRouter = GoRouter(
           initialIndex: extra?['initialIndex'] as int? ?? 0,
         );
       },
+    ),
+    GoRoute(
+      path: AppRoutes.goalDetail,
+      builder: (context, state) => GoalDetailScreen(
+        goalId: state.pathParameters['goalId'] ?? '',
+      ),
     ),
   ],
 );

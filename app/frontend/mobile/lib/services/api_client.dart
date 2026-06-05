@@ -25,11 +25,15 @@ class ApiClient {
     String? baseUrl,
     FlutterSecureStorage? storage,
     http.Client? httpClient,
-  })  : baseUrl = _normalizeBaseUrl(
-          baseUrl ?? const String.fromEnvironment('API_BASE_URL', defaultValue: _defaultBaseUrl),
-        ),
-        _storage = storage ?? const FlutterSecureStorage(),
-        _http = httpClient ?? http.Client();
+  }) : baseUrl = _normalizeBaseUrl(
+         baseUrl ??
+             const String.fromEnvironment(
+               'API_BASE_URL',
+               defaultValue: _defaultBaseUrl,
+             ),
+       ),
+       _storage = storage ?? const FlutterSecureStorage(),
+       _http = httpClient ?? http.Client();
 
   // ─── Token Management ─────────────────────────────────────────────
   Future<String?> get accessToken => _storage.read(key: 'access_token');
@@ -63,8 +67,12 @@ class ApiClient {
     Map<String, String>? queryParams,
     bool requireAuth = true,
   }) async {
-    final uri = Uri.parse('$baseUrl$path').replace(queryParameters: queryParams);
-    final headers = requireAuth ? await _authHeaders() : {'Content-Type': 'application/json; charset=utf-8'};
+    final uri = Uri.parse(
+      '$baseUrl$path',
+    ).replace(queryParameters: queryParams);
+    final headers = requireAuth
+        ? await _authHeaders()
+        : {'Content-Type': 'application/json; charset=utf-8'};
 
     http.Response response;
     switch (method) {
@@ -72,10 +80,18 @@ class ApiClient {
         response = await _http.get(uri, headers: headers);
         break;
       case 'POST':
-        response = await _http.post(uri, headers: headers, body: body != null ? jsonEncode(body) : null);
+        response = await _http.post(
+          uri,
+          headers: headers,
+          body: body != null ? jsonEncode(body) : null,
+        );
         break;
       case 'PATCH':
-        response = await _http.patch(uri, headers: headers, body: body != null ? jsonEncode(body) : null);
+        response = await _http.patch(
+          uri,
+          headers: headers,
+          body: body != null ? jsonEncode(body) : null,
+        );
         break;
       case 'DELETE':
         response = await _http.delete(uri, headers: headers);
@@ -88,17 +104,27 @@ class ApiClient {
     if (response.statusCode == 401 && requireAuth) {
       final refreshed = await _tryRefresh();
       if (refreshed) {
-        return _request(method, path, body: body, queryParams: queryParams, requireAuth: true);
+        return _request(
+          method,
+          path,
+          body: body,
+          queryParams: queryParams,
+          requireAuth: true,
+        );
       }
     }
 
-    final jsonBody = jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+    final jsonBody =
+        jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
 
     if (response.statusCode >= 400) {
       final errMap = jsonBody['error'] as Map<String, dynamic>?;
       throw ApiException(
         statusCode: response.statusCode,
-        message: errMap?['message'] as String? ?? jsonBody['message'] as String? ?? 'Request failed',
+        message:
+            errMap?['message'] as String? ??
+            jsonBody['message'] as String? ??
+            'Request failed',
         code: errMap?['code'] as String? ?? jsonBody['code'] as String?,
       );
     }
@@ -131,8 +157,12 @@ class ApiClient {
   // ─── Auth ─────────────────────────────────────────────────────────
   Future<Map<String, dynamic>> login(String email, String password) async {
     _isOnboardingBypassed = null;
-    final result = await _request('POST', '/auth/login',
-        body: {'email': email, 'password': password}, requireAuth: false);
+    final result = await _request(
+      'POST',
+      '/auth/login',
+      body: {'email': email, 'password': password},
+      requireAuth: false,
+    );
     final data = result['data'] as Map<String, dynamic>;
     await _saveTokens(data['accessToken'], data['refreshToken']);
     return data;
@@ -140,17 +170,29 @@ class ApiClient {
 
   Future<Map<String, dynamic>> loginWithGoogle(String idToken) async {
     _isOnboardingBypassed = null;
-    final result = await _request('POST', '/auth/google',
-        body: {'idToken': idToken}, requireAuth: false);
+    final result = await _request(
+      'POST',
+      '/auth/google',
+      body: {'idToken': idToken},
+      requireAuth: false,
+    );
     final data = result['data'] as Map<String, dynamic>;
     await _saveTokens(data['accessToken'], data['refreshToken']);
     return data;
   }
 
-  Future<Map<String, dynamic>> register(String email, String password, String username) async {
+  Future<Map<String, dynamic>> register(
+    String email,
+    String password,
+    String username,
+  ) async {
     _isOnboardingBypassed = null;
-    final result = await _request('POST', '/auth/register',
-        body: {'email': email, 'password': password, 'username': username}, requireAuth: false);
+    final result = await _request(
+      'POST',
+      '/auth/register',
+      body: {'email': email, 'password': password, 'username': username},
+      requireAuth: false,
+    );
     final data = result['data'] as Map<String, dynamic>;
     await _saveTokens(data['accessToken'], data['refreshToken']);
     return data;
@@ -172,11 +214,15 @@ class ApiClient {
     await clearTokens();
   }
 
-  Future<void> changePassword(String currentPassword, String newPassword) async {
-    await _request('POST', '/auth/change-password', body: {
-      'currentPassword': currentPassword,
-      'newPassword': newPassword,
-    });
+  Future<void> changePassword(
+    String currentPassword,
+    String newPassword,
+  ) async {
+    await _request(
+      'POST',
+      '/auth/change-password',
+      body: {'currentPassword': currentPassword, 'newPassword': newPassword},
+    );
   }
 
   Future<Map<String, dynamic>> getStreak() async {
@@ -200,6 +246,29 @@ class ApiClient {
     return result['data'] as Map<String, dynamic>;
   }
 
+  Future<Map<String, dynamic>> generateWalletInviteCode(String walletId) async {
+    final result = await _request('POST', '/wallets/$walletId/generate-code');
+    return result['data'] as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> joinWalletByCode(String code) async {
+    final result = await _request('POST', '/wallets/join', body: {'code': code});
+    return result['data'] as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> transferBetweenWallets({
+    required String fromWalletId,
+    required String toWalletId,
+    required int amount,
+  }) async {
+    final result = await _request('POST', '/wallets/transfer', body: {
+      'fromWalletId': fromWalletId,
+      'toWalletId': toWalletId,
+      'amount': amount,
+    });
+    return result['data'] as Map<String, dynamic>;
+  }
+
   // ─── Categories ───────────────────────────────────────────────────
   Future<List<dynamic>> getCategories() async {
     final result = await _request('GET', '/categories');
@@ -207,24 +276,40 @@ class ApiClient {
   }
 
   // ─── Transactions ─────────────────────────────────────────────────
-  Future<Map<String, dynamic>> getTransactions({String? walletId, String? type, int pageSize = 20, int page = 1, String? from, String? to}) async {
-    final result = await _request('GET', '/transactions', queryParams: {
-      'walletId': ?walletId,
-      'type': ?type,
-      'pageSize': '$pageSize',
-      'page': '$page',
-      'from': ?from,
-      'to': ?to,
-    });
+  Future<Map<String, dynamic>> getTransactions({
+    String? walletId,
+    String? type,
+    int pageSize = 20,
+    int page = 1,
+    String? from,
+    String? to,
+  }) async {
+    final result = await _request(
+      'GET',
+      '/transactions',
+      queryParams: {
+        'walletId': ?walletId,
+        'type': ?type,
+        'pageSize': '$pageSize',
+        'page': '$page',
+        'from': ?from,
+        'to': ?to,
+      },
+    );
     return result;
   }
 
-  Future<Map<String, dynamic>> createTransaction(Map<String, dynamic> body) async {
+  Future<Map<String, dynamic>> createTransaction(
+    Map<String, dynamic> body,
+  ) async {
     final result = await _request('POST', '/transactions', body: body);
     return result['data'] as Map<String, dynamic>;
   }
 
-  Future<Map<String, dynamic>> updateTransaction(String id, Map<String, dynamic> body) async {
+  Future<Map<String, dynamic>> updateTransaction(
+    String id,
+    Map<String, dynamic> body,
+  ) async {
     final result = await _request('PATCH', '/transactions/$id', body: body);
     return result['data'] as Map<String, dynamic>;
   }
@@ -234,13 +319,22 @@ class ApiClient {
   }
 
   // ─── Stats ────────────────────────────────────────────────────────
-  Future<Map<String, dynamic>> getDashboard({String? walletId}) async {
-    final result = await _request('GET', '/stats/dashboard', queryParams: {
-      'walletId': ?walletId,
-    });
+  Future<Map<String, dynamic>> getDashboard({
+    String? walletId,
+    String? from,
+    String? to,
+  }) async {
+    final result = await _request(
+      'GET',
+      '/stats/dashboard',
+      queryParams: {
+        'walletId': ?walletId,
+        'from': ?from,
+        'to': ?to,
+      },
+    );
     return result['data'] as Map<String, dynamic>;
   }
-
 
   // ─── Budgets ──────────────────────────────────────────────────────
   Future<List<dynamic>> getBudgets() async {
@@ -257,9 +351,12 @@ class ApiClient {
     if (_isOnboardingBypassed == true) return true;
     try {
       final settings = await getSettings();
-      final ageGroup = settings['ageGroup'] as String? ?? settings['age_group'] as String?;
-      final jobType = settings['jobType'] as String? ?? settings['job_type'] as String?;
-      if ((ageGroup != null && ageGroup.isNotEmpty) || (jobType != null && jobType.isNotEmpty)) {
+      final ageGroup =
+          settings['ageGroup'] as String? ?? settings['age_group'] as String?;
+      final jobType =
+          settings['jobType'] as String? ?? settings['job_type'] as String?;
+      if ((ageGroup != null && ageGroup.isNotEmpty) ||
+          (jobType != null && jobType.isNotEmpty)) {
         _isOnboardingBypassed = true;
         return true;
       }
@@ -272,7 +369,10 @@ class ApiClient {
     return result['data'] as Map<String, dynamic>;
   }
 
-  Future<Map<String, dynamic>> updateBudget(String id, Map<String, dynamic> body) async {
+  Future<Map<String, dynamic>> updateBudget(
+    String id,
+    Map<String, dynamic> body,
+  ) async {
     final result = await _request('PATCH', '/budgets/$id', body: body);
     return result['data'] as Map<String, dynamic>;
   }
@@ -283,13 +383,27 @@ class ApiClient {
     return result['data'] as List<dynamic>;
   }
 
+  Future<Map<String, dynamic>> getGoal(String id) async {
+    final result = await _request('GET', '/goals/$id');
+    return result['data'] as Map<String, dynamic>;
+  }
+
   Future<Map<String, dynamic>> createGoal(Map<String, dynamic> body) async {
     final result = await _request('POST', '/goals', body: body);
     return result['data'] as Map<String, dynamic>;
   }
 
+  Future<Map<String, dynamic>> updateGoal(String id, Map<String, dynamic> body) async {
+    final result = await _request('PATCH', '/goals/$id', body: body);
+    return result['data'] as Map<String, dynamic>;
+  }
+
   Future<Map<String, dynamic>> contributeGoal(String id, double amount) async {
-    final result = await _request('POST', '/goals/$id/contribute', body: {'amount': amount});
+    final result = await _request(
+      'POST',
+      '/goals/$id/contribute',
+      body: {'amount': amount},
+    );
     return result['data'] as Map<String, dynamic>;
   }
 
@@ -299,21 +413,38 @@ class ApiClient {
 
   // ─── AI ───────────────────────────────────────────────────────────
   Future<Map<String, dynamic>> aiNlu(String text, {bool runLlm = false}) async {
-    final result = await _request('POST', '/ai/nlu', body: {'text': text, 'runLlm': runLlm});
+    final result = await _request(
+      'POST',
+      '/ai/nlu',
+      body: {'text': text, 'runLlm': runLlm},
+    );
     return result['data'] as Map<String, dynamic>;
   }
 
-  Future<Map<String, dynamic>> aiExpenseFromText({required String walletId, required String text, bool autoSave = false}) async {
-    final result = await _request('POST', '/ai/expense/from-text', body: {
-      'walletId': walletId, 'text': text, 'autoSave': autoSave,
-    });
+  Future<Map<String, dynamic>> aiExpenseFromText({
+    required String walletId,
+    required String text,
+    bool autoSave = false,
+  }) async {
+    final result = await _request(
+      'POST',
+      '/ai/expense/from-text',
+      body: {'walletId': walletId, 'text': text, 'autoSave': autoSave},
+    );
     return result['data'] as Map<String, dynamic>;
   }
 
-  Future<Map<String, dynamic>> aiExpenseFromBill({required String walletId, required String filePath}) async {
+  Future<Map<String, dynamic>> aiExpenseFromBill({
+    required String walletId,
+    required String filePath,
+  }) async {
     final token = await accessToken;
     // Bill OCR: giữ cạnh dài lớn hơn để chữ trên hoá đơn vẫn đọc được.
-    final uploadPath = await compressForUpload(filePath, maxSize: 1600, quality: 85);
+    final uploadPath = await compressForUpload(
+      filePath,
+      maxSize: 1600,
+      quality: 85,
+    );
     final uri = Uri.parse('$baseUrl/ai/expense/from-bill?walletId=$walletId');
     final req = http.MultipartRequest('POST', uri)
       ..headers['Authorization'] = 'Bearer ${token ?? ''}'
@@ -337,11 +468,31 @@ class ApiClient {
     return result['data'] as Map<String, dynamic>;
   }
 
-  Future<void> aiConfirmAction(String actionSignature, {String? actionType}) async {
-    await _request('POST', '/ai/actions/confirm', body: {
-      'actionSignature': actionSignature,
-      'actionType': ?actionType,
-    });
+  Future<Map<String, dynamic>> aiExecuteAction(
+    Map<String, dynamic> body,
+  ) async {
+    final result = await _request('POST', '/ai/actions/execute', body: body);
+    return result['data'] as Map<String, dynamic>;
+  }
+
+  Future<bool> aiIsActionConfirmed(String actionSignature) async {
+    final result = await _request(
+      'GET',
+      '/ai/actions/is-confirmed?actionSignature=${Uri.encodeQueryComponent(actionSignature)}',
+    );
+    final data = result['data'] as Map<String, dynamic>?;
+    return data?['confirmed'] as bool? ?? false;
+  }
+
+  Future<void> aiConfirmAction(
+    String actionSignature, {
+    String? actionType,
+  }) async {
+    await _request(
+      'POST',
+      '/ai/actions/confirm',
+      body: {'actionSignature': actionSignature, 'actionType': ?actionType},
+    );
   }
 
   Future<Map<String, dynamic>> uploadFile(String filePath) async {
@@ -364,11 +515,15 @@ class ApiClient {
     return jsonBody['data'] as Map<String, dynamic>;
   }
 
-  Future<void> aiRejectAction({String? text, Map<String, dynamic>? predicted}) async {
-    await _request('POST', '/ai/actions/reject', body: {
-      'text': ?text,
-      'predicted': ?predicted,
-    });
+  Future<void> aiRejectAction({
+    String? text,
+    Map<String, dynamic>? predicted,
+  }) async {
+    await _request(
+      'POST',
+      '/ai/actions/reject',
+      body: {'text': ?text, 'predicted': ?predicted},
+    );
   }
 
   // ─── User Settings ────────────────────────────────────────────────
@@ -380,9 +535,11 @@ class ApiClient {
   Future<Map<String, dynamic>> updateSettings(Map<String, dynamic> body) async {
     final result = await _request('PATCH', '/users/me/settings', body: body);
     final data = result['data'] as Map<String, dynamic>;
-    final ageGroup = data['ageGroup'] as String? ?? data['age_group'] as String?;
+    final ageGroup =
+        data['ageGroup'] as String? ?? data['age_group'] as String?;
     final jobType = data['jobType'] as String? ?? data['job_type'] as String?;
-    if ((ageGroup != null && ageGroup.isNotEmpty) || (jobType != null && jobType.isNotEmpty)) {
+    if ((ageGroup != null && ageGroup.isNotEmpty) ||
+        (jobType != null && jobType.isNotEmpty)) {
       _isOnboardingBypassed = true;
     }
     return data;
@@ -400,22 +557,65 @@ class ApiClient {
   }
 
   Future<Map<String, dynamic>> createChatSession({String? title}) async {
-    final result = await _request('POST', '/chat/sessions', body: {'title': ?title});
+    final result = await _request(
+      'POST',
+      '/chat/sessions',
+      body: {'title': ?title},
+    );
     return result['data'] as Map<String, dynamic>;
   }
 
-  Future<List<dynamic>> getChatMessages(String sessionId) async {
-    final result = await _request('GET', '/chat/sessions/$sessionId/messages');
-    return result['data'] as List<dynamic>;
+  Future<Map<String, dynamic>> getChatMessagesPage(
+    String sessionId, {
+    int limit = 30,
+    String? before,
+  }) async {
+    final result = await _request(
+      'GET',
+      '/chat/sessions/$sessionId/messages',
+      queryParams: {
+        'limit': limit.toString(),
+        if (before != null && before.isNotEmpty) 'before': before,
+      },
+    );
+    final data = result['data'];
+    if (data is Map) {
+      return Map<String, dynamic>.from(data);
+    }
+    if (data is List) {
+      final list = data.cast<dynamic>();
+      return {
+        'messages': list,
+        'hasMore': list.length >= limit,
+        'oldestId': list.isNotEmpty
+            ? (list.first as Map)['id']?.toString()
+            : null,
+      };
+    }
+    return {'messages': <dynamic>[], 'hasMore': false, 'oldestId': null};
   }
 
-  Future<Map<String, dynamic>> sendChatMessage(String sessionId, String content) async {
-    final result = await _request('POST', '/chat/sessions/$sessionId/messages', body: {'content': content, 'role': 'user'});
+  Future<Map<String, dynamic>> sendChatMessage(
+    String sessionId,
+    String content,
+  ) async {
+    final result = await _request(
+      'POST',
+      '/chat/sessions/$sessionId/messages',
+      body: {'content': content, 'role': 'user'},
+    );
     return result['data'] as Map<String, dynamic>;
   }
 
-  Future<Map<String, dynamic>> sendChatMessageRaw(String sessionId, Map<String, dynamic> payload) async {
-    final result = await _request('POST', '/chat/sessions/$sessionId/messages', body: payload);
+  Future<Map<String, dynamic>> sendChatMessageRaw(
+    String sessionId,
+    Map<String, dynamic> payload,
+  ) async {
+    final result = await _request(
+      'POST',
+      '/chat/sessions/$sessionId/messages',
+      body: payload,
+    );
     return result['data'] as Map<String, dynamic>;
   }
 
@@ -425,9 +625,11 @@ class ApiClient {
 
   // ─── Stories ──────────────────────────────────────────────────────
   Future<List<dynamic>> getStories({String? walletId}) async {
-    final result = await _request('GET', '/stories', queryParams: {
-      'walletId': ?walletId,
-    });
+    final result = await _request(
+      'GET',
+      '/stories',
+      queryParams: {'walletId': ?walletId},
+    );
     return result['data'] as List<dynamic>;
   }
 
@@ -437,16 +639,35 @@ class ApiClient {
   }
 
   // ─── Stats ────────────────────────────────────────────────────────
-  Future<List<dynamic>> getStatsByCategory({String? range}) async {
-    final result = await _request('GET', '/stats/by-category', queryParams: {
-      'range': ?range,
-    });
+  Future<List<dynamic>> getStatsByCategory({
+    String? range,
+    String? walletId,
+    String? from,
+    String? to,
+  }) async {
+    final result = await _request(
+      'GET',
+      '/stats/by-category',
+      queryParams: {
+        'range': ?range,
+        'walletId': ?walletId,
+        'from': ?from,
+        'to': ?to,
+      },
+    );
     return result['data'] as List<dynamic>;
   }
 
-  Future<List<dynamic>> getStatsByMonth({int? year}) async {
-    final params = year != null ? {'year': '$year'} : <String, String>{};
-    final result = await _request('GET', '/stats/by-month', queryParams: params);
+  Future<List<dynamic>> getStatsByMonth({int? year, String? walletId}) async {
+    final params = {
+      'year': ?year?.toString(),
+      'walletId': ?walletId,
+    };
+    final result = await _request(
+      'GET',
+      '/stats/by-month',
+      queryParams: params,
+    );
     return result['data'] as List<dynamic>;
   }
 
@@ -456,9 +677,16 @@ class ApiClient {
     return result['data'] as List<dynamic>;
   }
 
-  Future<List<dynamic>> inviteWalletMember(String walletId, String email, {String role = 'member'}) async {
-    final result = await _request('POST', '/wallets/$walletId/invite',
-        body: {'email': email, 'role': role});
+  Future<List<dynamic>> inviteWalletMember(
+    String walletId,
+    String email, {
+    String role = 'member',
+  }) async {
+    final result = await _request(
+      'POST',
+      '/wallets/$walletId/invite',
+      body: {'email': email, 'role': role},
+    );
     return result['data'] as List<dynamic>;
   }
 
@@ -480,10 +708,14 @@ class ApiException implements Exception {
 
   String get localizedMessage {
     switch (code) {
-      case 'INVALID_CREDENTIALS': return 'Email hoặc mật khẩu không đúng';
-      case 'EMAIL_EXISTS': return 'Email đã được đăng ký';
-      case 'NOT_FOUND': return 'Không tìm thấy';
-      case 'VALIDATION_ERROR': return 'Dữ liệu không hợp lệ';
+      case 'INVALID_CREDENTIALS':
+        return 'Email hoặc mật khẩu không đúng';
+      case 'EMAIL_EXISTS':
+        return 'Email đã được đăng ký';
+      case 'NOT_FOUND':
+        return 'Không tìm thấy';
+      case 'VALIDATION_ERROR':
+        return 'Dữ liệu không hợp lệ';
       default:
         if (statusCode == 401) return 'Phiên đăng nhập hết hạn';
         if (statusCode == 403) return 'Không có quyền truy cập';

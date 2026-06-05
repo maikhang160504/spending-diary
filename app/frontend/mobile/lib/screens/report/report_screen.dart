@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
-import '../../data/mock_data.dart';
+import '../../models/report_models.dart';
 import '../../services/app_queries.dart';
 import '../../services/transaction_notifier.dart';
 import '../../theme/app_colors.dart';
@@ -20,6 +20,8 @@ class ReportScreen extends StatefulWidget {
 
 class _ReportScreenState extends State<ReportScreen> {
   String _selectedRange = '7 ngày';
+  String? _selectedWalletId;
+  List<dynamic> _wallets = [];
 
   // API data
   bool _loading = true;
@@ -63,23 +65,46 @@ class _ReportScreenState extends State<ReportScreen> {
   }
 
   Future<void> _loadStats() async {
-    // Nếu đã có cache thì không hiện loading (tránh chớp khi quay lại màn hình).
     final rangeParam = _selectedRange == '7 ngày' ? 'week'
         : _selectedRange == '30 ngày' ? 'month'
         : null;
-    final hasCache = AppQueries.statsByCategory(rangeParam).state.data != null;
+
+    final now = DateTime.now();
+    DateTime startDate;
+    DateTime endDate = now;
+
+    if (_selectedRange == '7 ngày') {
+      startDate = now.subtract(const Duration(days: 6));
+    } else if (_selectedRange == '30 ngày') {
+      startDate = now.subtract(const Duration(days: 29));
+    } else {
+      startDate = DateTime(now.year, now.month, 1);
+    }
+
+    final fromStr = startDate.toIso8601String();
+    final toStr = endDate.toIso8601String();
+
+    final hasCache = AppQueries.statsByCategory(rangeParam, _selectedWalletId, from: fromStr, to: toStr).state.data != null;
     setState(() => _loading = !hasCache);
     try {
-      final dashF = AppQueries.dashboard(null).result;
-      final catsF = AppQueries.statsByCategory(rangeParam).result;
-      final monthlyF = AppQueries.statsByMonth(DateTime.now().year).result;
+      final walletsResult = await AppQueries.wallets().result;
+      final wallets = walletsResult.data ?? [];
+
+      final dashF = AppQueries.dashboard(_selectedWalletId, from: fromStr, to: toStr).result;
+      final catsF = AppQueries.statsByCategory(rangeParam, _selectedWalletId, from: fromStr, to: toStr).result;
+      final monthlyF = AppQueries.statsByMonth(now.year, _selectedWalletId).result;
+
       final dashboard = (await dashF).data ?? <String, dynamic>{};
       final cats = (await catsF).data ?? <dynamic>[];
       final monthly = (await monthlyF).data ?? <dynamic>[];
+
       if (!mounted) return;
+
       final totals = dashboard['totals'] as Map<String, dynamic>?;
       final byDay = (dashboard['byDay'] as List<dynamic>?) ?? [];
+
       setState(() {
+        _wallets = wallets;
         _totalExpense = (totals?['expense'] as num?)?.toInt() ?? 0;
         _totalIncome = (totals?['income'] as num?)?.toInt() ?? 0;
         _categoryStats = cats.map((c) => _toCat(c as Map<String, dynamic>)).toList();
@@ -89,12 +114,15 @@ class _ReportScreenState extends State<ReportScreen> {
           final label = dayStr.length >= 10 ? dayStr.substring(8, 10) : '';
           return ReportBar(label: label, amount: (e['expense'] as num?)?.toInt() ?? 0);
         }).toList();
+
         _trendPoints = monthly.map((m) {
           final e = m as Map<String, dynamic>;
-          final month = e['month'] as int? ?? 0;
+          final monthStr = e['month'] as String? ?? '';
+          final parts = monthStr.split('-');
+          final monthNum = parts.length > 1 ? (int.tryParse(parts[1]) ?? 0) : 0;
           final income = (e['income'] as num?)?.toInt() ?? 0;
           final expense = (e['expense'] as num?)?.toInt() ?? 0;
-          return TrendPoint(label: 'T$month', amount: income - expense);
+          return TrendPoint(label: 'T$monthNum', amount: income - expense);
         }).toList();
       });
     } catch (_) {}
@@ -103,6 +131,8 @@ class _ReportScreenState extends State<ReportScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final hasSavingsData = _trendPoints.isNotEmpty && _trendPoints.any((p) => p.amount != 0);
+
     return Scaffold(
       backgroundColor: context.palette.bg,
       body: SafeArea(
@@ -114,7 +144,14 @@ class _ReportScreenState extends State<ReportScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const _ReportHeader(),
+                _ReportHeader(
+                  selectedWalletId: _selectedWalletId,
+                  wallets: _wallets,
+                  onWalletChanged: (v) {
+                    setState(() => _selectedWalletId = v);
+                    _loadStats();
+                  },
+                ),
                 const SizedBox(height: 16),
                 _RangeTabs(
                   selected: _selectedRange,
@@ -188,26 +225,25 @@ class _ReportScreenState extends State<ReportScreen> {
                       _TopCategoryCard(top: _categoryStats.isNotEmpty ? _categoryStats.first : null),
                       const SizedBox(height: 20),
                       // Trend chart (mock for now)
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: context.palette.card,
-                          borderRadius: BorderRadius.circular(AppRadii.lg),
-                          boxShadow: context.palette.softShadow,
+                      if (hasSavingsData) ...[
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: context.palette.card,
+                            borderRadius: BorderRadius.circular(AppRadii.lg),
+                            boxShadow: context.palette.softShadow,
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Xu hướng tiết kiệm (3 tháng)', style: Theme.of(context).textTheme.titleSmall),
+                              const SizedBox(height: 16),
+                              _TrendChart(points: _trendPoints),
+                            ],
+                          ),
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Xu hướng tiết kiệm (3 tháng)', style: Theme.of(context).textTheme.titleSmall),
-                            const SizedBox(height: 16),
-                            _trendPoints.isEmpty
-                                ? const Center(child: Padding(
-                                    padding: EdgeInsets.symmetric(vertical: 24),
-                                    child: Text('Chưa có dữ liệu', style: TextStyle(color: AppColors.muted))))
-                                : _TrendChart(points: _trendPoints),
-                          ],
-                        ),
-                      ),
+                        const SizedBox(height: 20),
+                      ],
                       const SizedBox(height: 24),
                     ],
                   ),
@@ -222,7 +258,27 @@ class _ReportScreenState extends State<ReportScreen> {
 }
 
 class _ReportHeader extends StatelessWidget {
-  const _ReportHeader();
+  final String? selectedWalletId;
+  final List<dynamic> wallets;
+  final ValueChanged<String?> onWalletChanged;
+
+  const _ReportHeader({
+    required this.selectedWalletId,
+    required this.wallets,
+    required this.onWalletChanged,
+  });
+
+  Color _parseColor(String hex) {
+    try {
+      final clean = hex.replaceAll('#', '');
+      if (clean.length == 6) {
+        return Color(int.parse('FF$clean', radix: 16));
+      }
+      return Color(int.parse(clean, radix: 16));
+    } catch (_) {
+      return AppColors.teal;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -235,13 +291,119 @@ class _ReportHeader extends StatelessWidget {
           bottomRight: Radius.circular(AppRadii.xl),
         ),
       ),
-      padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
+      padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Báo cáo', style: Theme.of(context).textTheme.headlineSmall?.copyWith(color: Colors.white, fontWeight: FontWeight.w800)),
+          Text(
+            'Báo cáo',
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w800,
+                ),
+          ),
           const SizedBox(height: 4),
-          Text('Phân tích và theo dõi thói quen chi tiêu', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.white70)),
+          Text(
+            'Phân tích và theo dõi thói quen chi tiêu',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Colors.white70,
+                ),
+          ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(AppRadii.md),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String?>(
+                value: selectedWalletId,
+                dropdownColor: context.palette.card,
+                icon: const Icon(Icons.keyboard_arrow_down, color: Colors.white),
+                onChanged: onWalletChanged,
+                selectedItemBuilder: (BuildContext context) {
+                  return [
+                    const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.all_inclusive, color: Colors.white, size: 18),
+                        SizedBox(width: 8),
+                        Text(
+                          'Tất cả ví cá nhân',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                    ...wallets.map((w) {
+                      final isGroup = w['type'] == 'group';
+                      final colorHex = w['color'] as String? ?? '#3B82F6';
+                      final color = _parseColor(colorHex);
+                      return Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            isGroup ? Icons.group : Icons.account_balance_wallet,
+                            color: color,
+                            size: 18,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            w['name'] as String? ?? '',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      );
+                    }),
+                  ];
+                },
+                items: [
+                  DropdownMenuItem<String?>(
+                    value: null,
+                    child: Row(
+                      children: [
+                        const Icon(Icons.all_inclusive, color: AppColors.teal, size: 18),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Tất cả ví cá nhân',
+                          style: TextStyle(color: context.palette.textPrimary),
+                        ),
+                      ],
+                    ),
+                  ),
+                  ...wallets.map((w) {
+                    final isGroup = w['type'] == 'group';
+                    final colorHex = w['color'] as String? ?? '#3B82F6';
+                    final color = _parseColor(colorHex);
+                    return DropdownMenuItem<String?>(
+                      value: w['id'] as String,
+                      child: Row(
+                        children: [
+                          Icon(
+                            isGroup ? Icons.group : Icons.account_balance_wallet,
+                            color: color,
+                            size: 18,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            w['name'] as String? ?? 'Ví không tên',
+                            style: TextStyle(color: context.palette.textPrimary),
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -361,7 +523,7 @@ class _BarChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final maxAmount = bars.map((b) => b.amount).reduce((a, b) => a > b ? a : b);
+    final maxAmount = bars.map((b) => b.amount).fold<int>(0, (a, b) => a > b ? a : b);
     final labels = ['0k', '100k', '200k', '300k', '400k'];
 
     return SizedBox(
@@ -381,7 +543,7 @@ class _BarChart extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: bars.map((bar) {
-                final h = 120 * (bar.amount / maxAmount);
+                final double h = maxAmount > 0 ? 120.0 * (bar.amount / maxAmount) : 0.0;
                 return Expanded(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.end,
@@ -556,7 +718,7 @@ class _TrendChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final maxAmt = points.map((p) => p.amount).reduce((a, b) => a > b ? a : b).toDouble();
+    final maxAmt = points.map((p) => p.amount.toDouble()).fold<double>(0.001, (a, b) => a > b ? a : b);
     return SizedBox(
       height: 140,
       child: CustomPaint(
@@ -599,13 +761,14 @@ class _TrendPainter extends CustomPainter {
       ..style = PaintingStyle.fill;
 
     final usableH = size.height - 30;
-    final stepX = (size.width - 40) / (points.length - 1);
+    final double divisor = maxAmt <= 0 ? 1.0 : maxAmt;
+    final double stepX = points.length > 1 ? (size.width - 40) / (points.length - 1) : (size.width - 40);
     final path = Path();
     final fillPath = Path();
 
     for (int i = 0; i < points.length; i++) {
       final x = 20 + i * stepX;
-      final y = usableH - (points[i].amount / maxAmt) * (usableH - 10);
+      final y = usableH - (points[i].amount / divisor) * (usableH - 10);
       if (i == 0) {
         path.moveTo(x, y);
         fillPath.moveTo(x, usableH);

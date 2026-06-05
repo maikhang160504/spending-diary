@@ -18,6 +18,8 @@ const baseTxFields = {
   aiExtracted: z.boolean().optional(),
   aiConfidence: z.number().min(0).max(1).optional(),
   aiMeta: z.record(z.any()).optional(),
+  mascotMood: z.string().max(40).optional(),
+  aiComment: z.string().max(2000).optional(),
 };
 
 const createTxSchema = z.object(baseTxFields);

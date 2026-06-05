@@ -24,19 +24,37 @@ async function createSession(userId, payload) {
   return r.rows[0];
 }
 
-async function getMessages(userId, sessionId, limit = 50) {
-  // Verify ownership
+async function getMessages(userId, sessionId, opts = {}) {
   const session = await query(
     'SELECT id FROM chat_sessions WHERE id = $1 AND user_id = $2',
     [sessionId, userId]
   );
   if (session.rowCount === 0) throw ApiError.notFound('Session not found.');
 
+  const limit = Math.min(Math.max(Number(opts.limit) || 30, 1), 100);
+  const before = opts.before || null;
+
+  const params = [sessionId];
+  let where = 'session_id = $1';
+  if (before) {
+    params.push(before);
+    where += ` AND created_at < (SELECT created_at FROM chat_messages WHERE id = $2 AND session_id = $1)`;
+  }
+  params.push(limit + 1);
   const r = await query(
-    `SELECT * FROM chat_messages WHERE session_id = $1 ORDER BY created_at ASC LIMIT $2`,
-    [sessionId, limit]
+    `SELECT * FROM chat_messages WHERE ${where} ORDER BY created_at DESC LIMIT $${params.length}`,
+    params
   );
-  return r.rows;
+
+  const rows = r.rows;
+  const hasMore = rows.length > limit;
+  const page = (hasMore ? rows.slice(0, limit) : rows).reverse();
+
+  return {
+    messages: page,
+    hasMore,
+    oldestId: page.length ? page[0].id : null,
+  };
 }
 
 async function addMessage(userId, sessionId, payload) {

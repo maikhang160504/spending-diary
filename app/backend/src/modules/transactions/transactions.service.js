@@ -4,6 +4,7 @@ const { query, withTransaction } = require('../../config/db');
 const ApiError = require('../../utils/ApiError');
 const walletService = require('../wallets/wallets.service');
 const { paginate } = require('../../utils/paginate');
+const { normalizeMascotMood } = require('../../utils/mascotMood');
 
 function row(r) {
   return {
@@ -27,6 +28,9 @@ function row(r) {
     createdAt: r.created_at,
     updatedAt: r.updated_at,
     storyId: r.story_id || null,
+    storyUserId: r.story_user_id || null,
+    username: r.username || null,
+    userAvatar: r.avatar_url || null,
   };
 }
 
@@ -83,25 +87,31 @@ async function create(userId, payload) {
 
     // 3. Create an AI comment if LLM story is in aiMeta
     const nlu = payload.aiMeta?.nlu;
-    const llmStory = nlu?.gemini_json?.story || nlu?.nlg_response || nlu?.response || payload.aiComment;
-    let mascotMood = nlu?.gemini_json?.emotion || nlu?.llama_json?.emotion || nlu?.mascot_mood || nlu?.emotion || payload.mascotMood || 'Chill';
-    const verbalToPascal = {
-      'hai_huoc': 'Sassy',
-      'dong_cam': 'Approved',
-      'nghiem_tuc': 'Thinking',
-      'cham_choc': 'Taunting',
-      'dan_doi': 'Sad',
-    };
-    if (verbalToPascal[mascotMood]) {
-      mascotMood = verbalToPascal[mascotMood];
-    }
-    if (llmStory) {
+    const llmStory =
+      nlu?.gemini_json?.response ||
+      nlu?.gemini_json?.story ||
+      nlu?.nlg_response ||
+      nlu?.response ||
+      payload.aiComment;
+    const intent = nlu?.intent || 'Record';
+    const moodRaw =
+      nlu?.mimo_emotion ||
+      nlu?.llm_emotion ||
+      nlu?.mascot_mood ||
+      nlu?.gemini_json?.mimo_emotion ||
+      nlu?.gemini_json?.emotion ||
+      nlu?.llama_json?.mimo_emotion ||
+      nlu?.llama_json?.emotion ||
+      payload.mascotMood;
+    const mascotMood = normalizeMascotMood(moodRaw, intent);
+    const commentText = llmStory || payload.aiComment;
+    if (commentText) {
       await client.query(
         `INSERT INTO ai_comments (story_id, content_text, visual_state, emotion)
          VALUES ($1, $2, $3, $4)`,
         [
           storyId,
-          llmStory,
+          commentText,
           mascotMood,
           mascotMood,
         ]
@@ -180,11 +190,16 @@ async function listForUser(userId, filters) {
   values.push(limit, offset);
   const dataQ = await query(
     `SELECT t.*, si.story_id,
+            s.user_id AS story_user_id,
             ac.content_text AS ai_message,
-            ac.emotion AS ai_emotion
+            ac.emotion AS ai_emotion,
+            u.username,
+            u.avatar_url
      FROM transactions t
      LEFT JOIN story_items si ON t.story_item_id = si.id
+     LEFT JOIN stories s ON s.id = si.story_id
      LEFT JOIN ai_comments ac ON ac.story_id = si.story_id
+     LEFT JOIN users u ON u.id = t.creator_id
      WHERE ${where}
      ORDER BY t.occurred_at DESC, t.created_at DESC
      LIMIT $${values.length - 1} OFFSET $${values.length}`,
@@ -212,7 +227,7 @@ async function getById(userId, id) {
 async function update(userId, id, payload) {
   // Make sure user can access tx (also returns wallet to assert role).
   const current = await query(
-    `SELECT t.wallet_id, t.type FROM transactions t
+    `SELECT t.wallet_id, t.type, t.category_code, t.note, t.ai_extracted, t.ai_meta FROM transactions t
      JOIN wallet_members wm ON wm.wallet_id = t.wallet_id AND wm.user_id = $1
      WHERE t.id = $2 AND t.is_deleted = FALSE`,
     [userId, id]
@@ -253,6 +268,46 @@ async function update(userId, id, payload) {
     `UPDATE transactions SET ${fields.join(', ')} WHERE id = $${i} RETURNING *`,
     values
   );
+
+  // Automatically log correction if the category was updated for an AI-extracted transaction
+  const oldTx = current.rows[0];
+  if (payload.categoryCode !== undefined && payload.categoryCode !== oldTx.category_code) {
+    if (oldTx.ai_extracted) {
+      const text = oldTx.ai_meta?.nlu?.text || oldTx.note || '';
+      if (text.trim()) {
+        try {
+          const recordType = (payload.type || oldTx.type || 'expense').toLowerCase() === 'income' ? 'Income' : 'Expense';
+          // Log into user_corrections
+          await query(
+            `INSERT INTO user_corrections
+               (user_id, text, intent, category_code, record_type, predicted, source)
+             VALUES ($1, $2, 'Record', $3, $4, $5, 'user')`,
+            [
+              userId,
+              text,
+              payload.categoryCode,
+              recordType,
+              oldTx.ai_meta?.nlu || null
+            ]
+          );
+
+          // Upsert into user_category_mappings (Layer 1 exact override)
+          const cleanedText = text.trim().toLowerCase();
+          await query(
+            `INSERT INTO user_category_mappings (user_id, keyword, category_code, updated_at)
+             VALUES ($1, $2, $3, NOW())
+             ON CONFLICT (user_id, keyword)
+             DO UPDATE SET category_code = EXCLUDED.category_code, updated_at = NOW()`,
+            [userId, cleanedText, payload.categoryCode]
+          );
+        } catch (err) {
+          // Non-blocking error logging
+          console.error('[NLU Personalization] Failed to write correction triggers:', err.message);
+        }
+      }
+    }
+  }
+
   return row(r.rows[0]);
 }
 

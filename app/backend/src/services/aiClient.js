@@ -72,6 +72,7 @@ async function expenseFromText(payload) {
       run_llm: true,
       user_id: payload.user_id,
       emotion: payload.emotion,
+      user_corrections: payload.user_corrections || null,
     });
     const nlu = r.data;
     return {
@@ -123,4 +124,35 @@ async function expenseFromBill(fileBuffer, filename, userId, contentType) {
   });
 }
 
-module.exports = { health, inferText, ocrImage, expenseFromText, expenseFromBill, aiChat };
+async function getPrompts() {
+  const r = await client.get('/api/v1/nlu/prompts');
+  return r.data;
+}
+
+async function savePrompts(payload) {
+  const r = await client.post('/api/v1/nlu/prompts', payload);
+  return r.data;
+}
+
+async function triggerTrain() {
+  const r = await client.post('/api/v1/nlu/train');
+  return r.data;
+}
+
+async function getTrainStatus() {
+  const r = await client.get('/api/v1/nlu/train/status');
+  return r.data;
+}
+
+module.exports = {
+  health,
+  inferText,
+  ocrImage,
+  expenseFromText,
+  expenseFromBill,
+  aiChat,
+  getPrompts,
+  savePrompts,
+  triggerTrain,
+  getTrainStatus,
+};

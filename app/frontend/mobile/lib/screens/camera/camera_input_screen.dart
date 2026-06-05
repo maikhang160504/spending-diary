@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -8,13 +7,13 @@ import '../../routes/app_routes.dart';
 import '../../services/api_client.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_radii.dart';
-import '../../theme/app_spacing.dart';
 import '../../widgets/loading_indicator.dart';
 
 class CameraInputScreen extends StatefulWidget {
   final String? imagePath;
   final bool isBill;
-  const CameraInputScreen({super.key, this.imagePath, this.isBill = false});
+  final String? walletId;
+  const CameraInputScreen({super.key, this.imagePath, this.isBill = false, this.walletId});
 
   @override
   State<CameraInputScreen> createState() => _CameraInputScreenState();
@@ -27,6 +26,14 @@ class _CameraInputScreenState extends State<CameraInputScreen> {
   String? _error;
   bool get _hasText => _controller.text.trim().isNotEmpty;
 
+  static const _suggestions = [
+    'Phở sáng 45k',
+    'Cafe 30k',
+    'Grab đi làm 25k',
+    'Mua sắm 200k',
+    'Điện nước 500k',
+  ];
+
   @override
   void dispose() {
     _controller.dispose();
@@ -37,12 +44,12 @@ class _CameraInputScreenState extends State<CameraInputScreen> {
     if (!_hasText) return;
     setState(() { _isLoading = true; _error = null; });
     try {
-      // Get first wallet
+      // Get target wallet
       final wallets = await _api.getWallets();
-      final walletId = wallets.isNotEmpty ? wallets[0]['id'] as String : '';
+      final targetId = widget.walletId ?? (wallets.isNotEmpty ? wallets[0]['id'] as String : '');
 
       final result = await _api.aiExpenseFromText(
-        walletId: walletId,
+        walletId: targetId,
         text: _controller.text.trim(),
         autoSave: false,
       );
@@ -54,6 +61,7 @@ class _CameraInputScreenState extends State<CameraInputScreen> {
       if (widget.imagePath != null) {
         extraData['imagePath'] = widget.imagePath;
       }
+      extraData['walletId'] = targetId;
       context.push(AppRoutes.cameraConfirm, extra: extraData);
     } on ApiException catch (e) {
       if (!mounted) return;
@@ -62,6 +70,11 @@ class _CameraInputScreenState extends State<CameraInputScreen> {
       if (!mounted) return;
       setState(() { _isLoading = false; _error = 'Không thể kết nối AI. Thử lại sau.'; });
     }
+  }
+
+  void _insertSuggestion(String text) {
+    _controller.text = text;
+    _controller.selection = TextSelection.collapsed(offset: text.length);
   }
 
   @override
@@ -74,11 +87,14 @@ class _CameraInputScreenState extends State<CameraInputScreen> {
           Positioned.fill(
             child: widget.imagePath != null
                 ? Image.file(File(widget.imagePath!), fit: BoxFit.cover)
-                : CachedNetworkImage(
-                    imageUrl: 'https://images.unsplash.com/photo-1489515217757-5fd1be406fef?auto=format&fit=crop&w=1200&q=80',
-                    fit: BoxFit.cover,
-                    memCacheWidth: 1080,
-                    errorWidget: (ctx, url, e) => Container(color: Colors.black87),
+                : Container(
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [Color(0xFF0F172A), Color(0xFF1E293B)],
+                      ),
+                    ),
                   ),
           ),
           Positioned.fill(
@@ -87,115 +103,163 @@ class _CameraInputScreenState extends State<CameraInputScreen> {
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [Color(0x99000000), Color(0xFF000000)],
+                  colors: [Color(0x66000000), Color(0xDD000000)],
                 ),
               ),
             ),
           ),
           // Content
           SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(AppSpacing.xl),
-              child: Column(
-                children: [
-                  Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+            child: Column(
+              children: [
+                // Compact top bar
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  child: Row(children: [
                     IconButton(
                       onPressed: () => context.pop(),
-                      icon: const Icon(Icons.close, color: Colors.white),
+                      icon: Container(
+                        width: 36, height: 36,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.15),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.close, color: Colors.white, size: 18),
+                      ),
                     ),
-                    Text('Nhập mô tả', style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: Colors.white, fontWeight: FontWeight.w600)),
-                    const SizedBox(width: 40),
+                    const Spacer(),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: AppColors.teal.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(color: AppColors.teal.withValues(alpha: 0.4)),
+                      ),
+                      child: Row(mainAxisSize: MainAxisSize.min, children: [
+                        const Icon(Icons.auto_awesome, color: AppColors.teal, size: 14),
+                        const SizedBox(width: 4),
+                        Text('AI Nhập liệu', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.teal, fontWeight: FontWeight.w600)),
+                      ]),
+                    ),
+                    const Spacer(),
+                    const SizedBox(width: 44), // balance the close button
                   ]),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      child: Column(
-                        children: [
-                          const SizedBox(height: 20),
-                          // Error banner
-                          if (_error != null)
-                            Container(
-                              margin: const EdgeInsets.only(bottom: 12),
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                              decoration: BoxDecoration(
-                                color: Colors.red.withValues(alpha: 0.2),
-                                borderRadius: BorderRadius.circular(AppRadii.md),
-                                border: Border.all(color: Colors.red.withValues(alpha: 0.5)),
-                              ),
-                              child: Row(children: [
-                                const Icon(Icons.error_outline, color: Colors.red, size: 16),
-                                const SizedBox(width: 8),
-                                Expanded(child: Text(_error!, style: const TextStyle(color: Colors.white, fontSize: 13))),
-                              ]),
-                            ),
-                          Container(
-                            padding: const EdgeInsets.all(AppSpacing.xl),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(AppRadii.lg),
-                              border: Border.all(color: Colors.white24),
-                            ),
-                            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                              Text('Mô tả chi tiêu của bạn',
-                                  style: Theme.of(context).textTheme.titleSmall?.copyWith(color: Colors.white, fontWeight: FontWeight.w700)),
-                              const SizedBox(height: 4),
-                              Text('AI sẽ nhận dạng và điền tự động sau khi bạn mô tả',
-                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white70)),
-                              const SizedBox(height: 14),
-                              ListenableBuilder(
-                                listenable: _controller,
-                                builder: (ctx, child) => TextField(
-                                  controller: _controller,
-                                  maxLines: 3,
-                                  autofocus: true,
-                                  style: const TextStyle(color: Colors.white),
-                                  decoration: InputDecoration(
-                                    hintText: 'VD: Mua cà phê sáng 45k, ăn phở trưa...',
-                                    hintStyle: const TextStyle(color: Colors.white54),
-                                    filled: true,
-                                    fillColor: Colors.white.withValues(alpha: 0.12),
-                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadii.md), borderSide: BorderSide(color: _hasText ? AppColors.teal : Colors.white24)),
-                                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadii.md), borderSide: const BorderSide(color: AppColors.teal, width: 2)),
-                                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadii.md), borderSide: const BorderSide(color: Colors.white24)),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Row(children: [
-                                const Icon(Icons.info_outline, size: 13, color: Colors.white54),
-                                const SizedBox(width: 4),
-                                Text('Bắt buộc — giúp AI phân loại chính xác hơn',
-                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white54, fontSize: 11)),
-                              ]),
-                            ]),
+                ),
+                const Spacer(),
+                // Error banner
+                if (_error != null)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Container(
+                      margin: const EdgeInsets.only(bottom: 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(AppRadii.md),
+                        border: Border.all(color: Colors.red.withValues(alpha: 0.4)),
+                      ),
+                      child: Row(children: [
+                        const Icon(Icons.error_outline, color: Colors.red, size: 14),
+                        const SizedBox(width: 6),
+                        Expanded(child: Text(_error!, style: const TextStyle(color: Colors.white, fontSize: 12))),
+                      ]),
+                    ),
+                  ),
+                // Quick chips
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(children: _suggestions.map((s) => Padding(
+                      padding: const EdgeInsets.only(right: 6),
+                      child: GestureDetector(
+                        onTap: () => _insertSuggestion(s),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
                           ),
-                          const SizedBox(height: 20),
-                          ListenableBuilder(
-                            listenable: _controller,
-                            builder: (ctx, child) => SizedBox(
-                              width: double.infinity,
-                              child: FilledButton(
-                                onPressed: _hasText && !_isLoading ? _submit : null,
-                                style: FilledButton.styleFrom(
-                                  backgroundColor: _hasText ? AppColors.teal : Colors.white24,
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(vertical: 16),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadii.lg)),
-                                ),
-                                child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                                  const Icon(Icons.auto_awesome, size: 18),
-                                  const SizedBox(width: 8),
-                                  Text(_hasText ? 'Phân tích với AI ✨' : 'Nhập mô tả để tiếp tục',
-                                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
-                                ]),
-                              ),
+                          child: Text(s, style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w500)),
+                        ),
+                      ),
+                    )).toList()),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                // Input area — compact
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(AppRadii.lg),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(children: [
+                          const Icon(Icons.edit_note_rounded, color: AppColors.teal, size: 18),
+                          const SizedBox(width: 6),
+                          Text('Mô tả chi tiêu',
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white, fontWeight: FontWeight.w600)),
+                        ]),
+                        const SizedBox(height: 10),
+                        ListenableBuilder(
+                          listenable: _controller,
+                          builder: (ctx, child) => TextField(
+                            controller: _controller,
+                            maxLines: 2,
+                            autofocus: true,
+                            style: const TextStyle(color: Colors.white, fontSize: 14),
+                            decoration: InputDecoration(
+                              hintText: 'VD: Ăn phở 50k, mua cà phê 30k...',
+                              hintStyle: const TextStyle(color: Colors.white38, fontSize: 13),
+                              filled: true,
+                              fillColor: Colors.white.withValues(alpha: 0.08),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                              isDense: true,
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadii.md), borderSide: BorderSide.none),
+                              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadii.md), borderSide: const BorderSide(color: AppColors.teal, width: 1.5)),
+                              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadii.md), borderSide: BorderSide.none),
                             ),
                           ),
-                        ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                // Submit button
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                  child: ListenableBuilder(
+                    listenable: _controller,
+                    builder: (ctx, child) => SizedBox(
+                      width: double.infinity,
+                      child: FilledButton(
+                        onPressed: _hasText && !_isLoading ? _submit : null,
+                        style: FilledButton.styleFrom(
+                          backgroundColor: _hasText ? AppColors.teal : Colors.white.withValues(alpha: 0.15),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadii.lg)),
+                        ),
+                        child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                          Icon(_hasText ? Icons.auto_awesome : Icons.keyboard_alt_outlined, size: 16),
+                          const SizedBox(width: 6),
+                          Text(_hasText ? 'Phân tích ✨' : 'Nhập mô tả...',
+                              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                        ]),
                       ),
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
           // Loading overlay
@@ -204,11 +268,11 @@ class _CameraInputScreenState extends State<CameraInputScreen> {
               child: Container(
                 color: Colors.black.withValues(alpha: 0.75),
                 child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                  const LoadingIndicator(size: 130),
-                  const SizedBox(height: 16),
+                  const LoadingIndicator(size: 120),
+                  const SizedBox(height: 14),
                   Text('AI đang phân tích...', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.white, fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 6),
-                  Text('Vui lòng chờ trong giây lát', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white70)),
+                  const SizedBox(height: 4),
+                  Text('Vui lòng chờ giây lát', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white60)),
                 ]),
               ),
             ),
@@ -217,3 +281,4 @@ class _CameraInputScreenState extends State<CameraInputScreen> {
     );
   }
 }
+

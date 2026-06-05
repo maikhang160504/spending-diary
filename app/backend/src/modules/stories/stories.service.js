@@ -10,11 +10,16 @@ async function list(userId, walletId) {
     (SELECT content_text FROM ai_comments ac WHERE ac.story_id = s.id ORDER BY ac.created_at DESC LIMIT 1) AS ai_message,
     (SELECT emotion FROM ai_comments ac WHERE ac.story_id = s.id ORDER BY ac.created_at DESC LIMIT 1) AS ai_emotion,
     (SELECT raw_text FROM story_items si WHERE si.story_id = s.id ORDER BY si.created_at ASC LIMIT 1) AS description
-    FROM stories s WHERE s.user_id = $1`;
-  const params = [userId];
+    FROM stories s WHERE `;
+  const params = [];
   if (walletId) {
-    sql += ' AND s.wallet_id = $2';
-    params.push(walletId);
+    sql += `s.wallet_id = $1 AND EXISTS (
+      SELECT 1 FROM wallet_members wm WHERE wm.wallet_id = s.wallet_id AND wm.user_id = $2
+    )`;
+    params.push(walletId, userId);
+  } else {
+    sql += 's.user_id = $1';
+    params.push(userId);
   }
   sql += ' ORDER BY s.occurred_on DESC, s.created_at DESC';
   const r = await query(sql, params);

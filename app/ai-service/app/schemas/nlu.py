@@ -21,12 +21,33 @@ class NLUProfile(BaseModel):
     preferred_vibe: str | None = None
 
 
+class UserCorrectionItem(BaseModel):
+    text: str
+    category_code: str | None = None
+    intent: str | None = None
+    record_type: str | None = None
+
+
 class NLURequest(BaseModel):
     text: str = Field(..., min_length=1, max_length=1000, examples=["ăn phở 45k"])
     profile: NLUProfile | None = None
     run_llm: bool = False
-    emotion: str | None = Field(default=None, examples=["hai_huoc"])
+    nlg_persona: str | None = Field(
+        default=None,
+        description="Giọng NLG (hai_huoc, dan_doi, ...) — không phải tên file PNG",
+        examples=["hai_huoc"],
+    )
+    emotion: str | None = Field(
+        default=None,
+        deprecated=True,
+        description="Alias cũ của nlg_persona",
+        examples=["hai_huoc"],
+    )
     user_id: str | None = None
+    user_corrections: list[UserCorrectionItem] | None = None
+
+    def resolved_nlg_persona(self) -> str:
+        return (self.nlg_persona or self.emotion or "hai_huoc").strip()
 
 
 class MultiRecordItem(BaseModel):
@@ -67,6 +88,11 @@ class NLUResponse(BaseModel):
     sentiment: str | None = None
     nlg_prompt: dict[str, Any] | None = None
     gemini_json: dict[str, Any] | None = None
-    mascot_mood: str | None = Field(default=None, description="Flutter asset name for MiMo overlay: Happy/Sad/Thinking/Chill/Sassy/Success/Taunting")
+    llama_json: dict[str, Any] | None = None
+    nlg_persona: str | None = Field(default=None, description="Persona NLG đã dùng (hai_huoc, ...)")
+    mimo_emotion: str | None = Field(default=None, description="Tên file PNG mascot (PascalCase)")
+    llm_emotion: str | None = Field(default=None, description="Alias of mimo_emotion")
+    mascot_mood: str | None = Field(default=None, description="Alias of mimo_emotion for Flutter")
+    nlg_response: str | None = None
     backend: str = Field(default="mock", description="`real` if full pipeline used, else `mock`.")
     latency_ms: int | None = None

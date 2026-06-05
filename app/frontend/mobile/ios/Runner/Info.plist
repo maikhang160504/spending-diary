@@ -59,6 +59,10 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>SpendDiary cần micro để bạn nhắn bằng giọng nói trong chat với Mimo.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>SpendDiary cần nhận diện giọng nói để chuyển lời nói thành tin nhắn.</string>
 	<key>UISupportedInterfaceOrientations~ipad</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>

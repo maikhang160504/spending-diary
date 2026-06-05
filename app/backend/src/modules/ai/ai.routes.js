@@ -11,6 +11,7 @@ const {
   expenseFromTextSchema,
   correctionSchema,
   confirmActionSchema,
+  executeActionSchema,
 } = require('./ai.schema');
 
 const upload = multer({
@@ -146,6 +147,11 @@ router.post(
 );
 router.post('/actions/reject', controller.rejectAction);
 router.get('/actions/is-confirmed', controller.actionConfirmed);
+router.post(
+  '/actions/execute',
+  validate({ body: executeActionSchema }),
+  controller.executeAction
+);
 router.post('/chat/:sessionId', controller.aiChat);
 
 module.exports = router;

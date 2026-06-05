@@ -14,40 +14,72 @@ from app.schemas.nlu import NLURequest, NLUResponse
 
 logger = get_logger(__name__)
 
-_VALID_ASSETS = {
+_MIMO_ASSETS = {
     "Alert", "Angry", "Approved", "Celebrate", "Chill", "Cooking", "Cool",
-    "Determined", "Error", "Excited", "Gigle", "Happy", "Hello", "Loading",
+    "Determined", "Error", "Excited", "Giggle", "Happy", "Hello", "Loading",
     "Love", "Proud", "Relax", "Sad", "Sleepy", "Sassy", "Shopping", "Travel",
     "Sorry", "Success", "Taunting", "Thankful", "Thinking", "Working", "Worried",
 }
 
-_STATUS_TO_ASSET: dict[str, str] = {
-    "vui": "Happy",
-    "buon": "Sad",
-    "canh_bao": "Thinking",
-    "trung_lap": "Chill",
-}
+_NLG_PERSONA_KEYS = frozenset({
+    "hai_huoc", "dan_doi", "dong_cam", "cham_choc", "nghiem_tuc", "vui",
+})
 
-
-def _resolve_mascot_mood(
-    gemini_emotion: str | None,
-    status: str | None,
-    intent: str | None,
-    personality_emotion: str | None,
-) -> str:
-    """Map gemini emotion field (PascalCase) → Flutter MiMo asset name.
-
-    Priority: gemini_emotion (already normalized PascalCase) > status fallback > intent default.
-    """
-    if gemini_emotion and gemini_emotion in _VALID_ASSETS:
-        return gemini_emotion
-    if status and status in _STATUS_TO_ASSET:
-        return _STATUS_TO_ASSET[status]
+def _intent_mimo_fallback(intent: str | None, record_type: str | None = None) -> str:
     if intent == "Record":
+        if record_type == "Income":
+            return "Celebrate"
         return "Success"
     if intent == "Action":
-        return "Thinking"
-    return "Chill"
+        return "Approved"
+    return "Hello"
+
+
+def _coerce_mimo_asset(raw: str | None) -> str | None:
+    """Giữ đúng tên LLM trong MIMO_ASSET_NAMES; None nếu không hợp lệ."""
+    if not raw or not str(raw).strip():
+        return None
+    trimmed = str(raw).strip()
+    if trimmed in _NLG_PERSONA_KEYS:
+        return None
+    if trimmed in _MIMO_ASSETS:
+        return trimmed
+    for asset in _MIMO_ASSETS:
+        if asset.lower() == trimmed.lower():
+            return asset
+    return None
+
+
+def _extract_nlg_text(raw: dict[str, Any]) -> str | None:
+    for block_key in ("gemini_json", "llama_json"):
+        block = raw.get(block_key)
+        if not isinstance(block, dict):
+            continue
+        for field in ("response", "story"):
+            val = block.get(field)
+            if isinstance(val, str) and val.strip():
+                return val.strip()
+    return None
+
+
+def _extract_mimo_emotion_from_raw(raw: dict[str, Any], intent: str | None) -> str:
+    """Ưu tiên mimo_emotion trong gemini_json/llama_json (output LLM thật)."""
+    for block_key in ("gemini_json", "llama_json"):
+        block = raw.get(block_key)
+        if not isinstance(block, dict):
+            continue
+        for field in ("mimo_emotion", "emotion"):
+            coerced = _coerce_mimo_asset(block.get(field))
+            if coerced:
+                return coerced
+
+    for top_field in ("mimo_emotion", "llm_emotion", "mascot_mood"):
+        coerced = _coerce_mimo_asset(raw.get(top_field))
+        if coerced:
+            return coerced
+
+    record_type = raw.get("record_type")
+    return _intent_mimo_fallback(intent, record_type)
 
 
 class NLUService:
@@ -67,6 +99,11 @@ class NLUService:
             logger.warning("Real NLU not loadable: %s", adapter.get_nlu_error())
         return self._real_available
 
+    def reload(self) -> bool:
+        self._tried_load = False
+        self._real_available = adapter.reload_nlu()
+        return self._real_available
+
     def infer(self, request: NLURequest) -> NLUResponse:
         start = time.perf_counter()
         try:
@@ -78,14 +115,18 @@ class NLUService:
 
     def _infer_inner(self, request: NLURequest) -> dict[str, Any]:
         text = request.text
+        persona = request.resolved_nlg_persona()
         if self.try_load():
             try:
                 profile = request.profile.model_dump(exclude_none=True) if request.profile else {}
+                corrections = [c.model_dump(exclude_none=True) for c in request.user_corrections] if request.user_corrections else None
                 raw = adapter.run_real_nlu(
                     text,
                     profile=profile,
                     run_llm=request.run_llm,
-                    emotion=request.emotion,
+                    nlg_persona=persona,
+                    user_id=request.user_id,
+                    user_corrections=corrections,
                 )
                 return self._normalize_real(raw, text)
             except Exception as exc:  # noqa: BLE001
@@ -108,12 +149,12 @@ class NLUService:
             for m in multi_records_raw
         ]
 
+        mimo_emotion = _extract_mimo_emotion_from_raw(raw, intent)
         gemini_json = raw.get("gemini_json")
-        api_status = (gemini_json or {}).get("status") if isinstance(gemini_json, dict) else None
-        gemini_emotion = (gemini_json or {}).get("emotion") if isinstance(gemini_json, dict) else None
-        personality_emotion = raw.get("emotion")
-        mascot_mood = _resolve_mascot_mood(gemini_emotion, api_status, intent, personality_emotion)
+        if isinstance(gemini_json, dict):
+            gemini_json = {**gemini_json, "mimo_emotion": mimo_emotion, "emotion": mimo_emotion}
 
+        nlg_text = _extract_nlg_text(raw)
         return {
             "intent": intent,
             "intent_confidence": raw.get("intent_confidence"),
@@ -126,12 +167,18 @@ class NLUService:
             "income_type": raw.get("income_type"),
             "action_type": raw.get("action_type"),
             "action_details": raw.get("action_details"),
+            "time_range": raw.get("time_range"),
             "multi_records": multi_records,
             "multi_record_task": bool(raw.get("multi_record_task")),
             "sentiment": raw.get("sentiment"),
+            "nlg_persona": raw.get("nlg_persona"),
             "nlg_prompt": raw.get("nlg_prompt"),
             "gemini_json": gemini_json,
-            "mascot_mood": mascot_mood,
+            "llama_json": raw.get("llama_json"),
+            "nlg_response": nlg_text,
+            "mimo_emotion": mimo_emotion,
+            "llm_emotion": mimo_emotion,
+            "mascot_mood": mimo_emotion,
             "backend": "real",
         }
 
@@ -143,7 +190,7 @@ class NLUService:
                 {"text": text, "amount": amt, "category": result.category, "record_type": result.record_type}
                 for amt in result.multi_amounts
             ]
-        mascot_mood = _resolve_mascot_mood(None, None, result.intent, None)
+        mimo_emotion = _intent_mimo_fallback(result.intent, result.record_type)
         return {
             "intent": result.intent,
             "intent_confidence": result.intent_confidence,
@@ -154,14 +201,17 @@ class NLUService:
             "record_type": result.record_type,
             "is_expense": result.record_type == "Expense" if result.record_type else None,
             "income_type": None,
-            "action_type": None,
+            "action_type": result.action_type,
             "action_details": None,
+            "time_range": result.time_range,
             "multi_records": multi,
             "multi_record_task": len(multi) >= 1,
             "sentiment": None,
             "nlg_prompt": None,
             "gemini_json": None,
-            "mascot_mood": mascot_mood,
+            "mimo_emotion": mimo_emotion,
+            "llm_emotion": mimo_emotion,
+            "mascot_mood": mimo_emotion,
             "backend": "mock",
         }
 

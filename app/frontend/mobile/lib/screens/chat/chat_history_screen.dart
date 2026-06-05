@@ -56,14 +56,32 @@ class _ChatHistoryScreenState extends State<ChatHistoryScreen> {
   Future<void> _deleteSession(String sessionId) async {
     final ok = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Xóa cuộc trò chuyện?'),
-        content: const Text('Tất cả tin nhắn sẽ bị xóa vĩnh viễn.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hủy')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Xóa', style: TextStyle(color: Colors.red))),
-        ],
-      ),
+      builder: (ctx) {
+        bool isSubmitting = false;
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) => AlertDialog(
+            title: const Text('Xóa cuộc trò chuyện?'),
+            content: const Text('Tất cả tin nhắn sẽ bị xóa vĩnh viễn.'),
+            actions: [
+              TextButton(
+                onPressed: isSubmitting ? null : () => Navigator.pop(ctx, false),
+                child: const Text('Hủy'),
+              ),
+              TextButton(
+                onPressed: isSubmitting
+                    ? null
+                    : () {
+                        setDialogState(() {
+                          isSubmitting = true;
+                        });
+                        Navigator.pop(ctx, true);
+                      },
+                child: const Text('Xóa', style: TextStyle(color: Colors.red)),
+              ),
+            ],
+          ),
+        );
+      },
     );
     if (ok != true) return;
     try {
@@ -251,14 +269,32 @@ class _ChatHistoryScreenState extends State<ChatHistoryScreen> {
                               confirmDismiss: (_) async {
                                 final ok = await showDialog<bool>(
                                   context: context,
-                                  builder: (c) => AlertDialog(
-                                    title: const Text('Xóa cuộc trò chuyện?'),
-                                    content: const Text('Tất cả tin nhắn sẽ bị xóa vĩnh viễn.'),
-                                    actions: [
-                                      TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Hủy')),
-                                      TextButton(onPressed: () => Navigator.pop(c, true), child: const Text('Xóa', style: TextStyle(color: Colors.red))),
-                                    ],
-                                  ),
+                                  builder: (c) {
+                                    bool isSubmitting = false;
+                                    return StatefulBuilder(
+                                      builder: (c, setDialogState) => AlertDialog(
+                                        title: const Text('Xóa cuộc trò chuyện?'),
+                                        content: const Text('Tất cả tin nhắn sẽ bị xóa vĩnh viễn.'),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: isSubmitting ? null : () => Navigator.pop(c, false),
+                                            child: const Text('Hủy'),
+                                          ),
+                                          TextButton(
+                                            onPressed: isSubmitting
+                                                ? null
+                                                : () {
+                                                    setDialogState(() {
+                                                      isSubmitting = true;
+                                                    });
+                                                    Navigator.pop(c, true);
+                                                  },
+                                            child: const Text('Xóa', style: TextStyle(color: Colors.red)),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  },
                                 );
                                 return ok == true;
                               },

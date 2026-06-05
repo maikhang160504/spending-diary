@@ -1,10 +1,9 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import Layout from "./components/Layout";
 import DashboardPage from "./pages/DashboardPage";
-import UsersPage from "./pages/UsersPage";
-import ExpensesPage from "./pages/ExpensesPage";
-import CategoriesPage from "./pages/CategoriesPage";
-import AiLogsPage from "./pages/AiLogsPage";
+import NluOpsPage from "./pages/NluOpsPage";
+import UserInspectorPage from "./pages/UserInspectorPage";
+import BotPromptsPage from "./pages/BotPromptsPage";
 
 function App() {
   return (
@@ -12,10 +11,9 @@ function App() {
       <Routes>
         <Route path="/" element={<Layout />}>
           <Route index element={<DashboardPage />} />
-          <Route path="users" element={<UsersPage />} />
-          <Route path="expenses" element={<ExpensesPage />} />
-          <Route path="categories" element={<CategoriesPage />} />
-          <Route path="ai-logs" element={<AiLogsPage />} />
+          <Route path="nlu-ops" element={<NluOpsPage />} />
+          <Route path="user-inspector" element={<UserInspectorPage />} />
+          <Route path="bot-prompts" element={<BotPromptsPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

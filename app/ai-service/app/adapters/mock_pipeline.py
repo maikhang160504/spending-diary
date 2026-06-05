@@ -65,6 +65,8 @@ _INCOME_KEYWORDS = (
 _ACTION_KEYWORDS = (
     "đặt", "dat", "thiết lập", "thiet lap", "đổi", "doi", "báo cáo", "bao cao",
     "tổng chi", "tong chi", "thống kê", "thong ke", "xem chi tiêu",
+    "tổng thu", "tong thu", "thu nhập", "thu nhap", "tổng tiền gửi", "tong tien gui",
+    "tổng tiền rút", "tong tien rut", "tiền gửi", "tien gui", "tiền rút", "tien rut",
 )
 
 
@@ -140,6 +142,8 @@ class MockNLUResult:
     record_type: str | None
     category_confidence: float
     multi_amounts: list[float]
+    action_type: str | None = None
+    time_range: dict | None = None
 
 
 def run_nlu_mock(text: str) -> MockNLUResult:
@@ -147,6 +151,19 @@ def run_nlu_mock(text: str) -> MockNLUResult:
     amounts = extract_amounts_mock(text)
     category, cat_conf = classify_category_mock(text)
     record_type = detect_record_type_mock(text) if intent == "Record" else None
+    action_type = None
+    if intent == "Action":
+        norm = _normalize(text)
+        if any(k in norm for k in ("tong thu nhap", "thu nhap", "tong thu")):
+            action_type = "REPORT_INCOME"
+        elif any(k in norm for k in ("tien gui", "tong tien gui", "gui tien")):
+            action_type = "REPORT_SAVINGS"
+        elif any(k in norm for k in ("tien rut", "tong tien rut", "rut tien")):
+            action_type = "REPORT_SAVINGS"
+        elif any(k in norm for k in ("tong chi", "bao cao", "thong ke", "xem chi tieu")):
+            action_type = "REPORT_GENERAL"
+        else:
+            action_type = "REPORT_GENERAL"
     return MockNLUResult(
         text=text,
         intent=intent,
@@ -156,6 +173,8 @@ def run_nlu_mock(text: str) -> MockNLUResult:
         record_type=record_type,
         category_confidence=cat_conf,
         multi_amounts=amounts[1:] if len(amounts) > 1 else [],
+        action_type=action_type,
+        time_range=None,
     )
 
 

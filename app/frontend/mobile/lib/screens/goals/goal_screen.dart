@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../routes/app_routes.dart';
 import '../../services/api_client.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_palette.dart';
@@ -20,6 +21,7 @@ class GoalScreen extends StatefulWidget {
 class _GoalScreenState extends State<GoalScreen> {
   final _api = ApiClient();
   List<dynamic> _goals = [];
+  List<dynamic> _wallets = [];
   bool _loading = true;
   String? _error;
 
@@ -32,7 +34,12 @@ class _GoalScreenState extends State<GoalScreen> {
   Future<void> _loadGoals() async {
     setState(() { _loading = true; _error = null; });
     try {
-      _goals = await _api.getGoals();
+      final results = await Future.wait([
+        _api.getGoals(),
+        _api.getWallets(),
+      ]);
+      _goals = results[0];
+      _wallets = results[1];
     } on ApiException catch (e) {
       _error = e.localizedMessage;
     } catch (_) {
@@ -45,6 +52,9 @@ class _GoalScreenState extends State<GoalScreen> {
     final nameCtrl = TextEditingController();
     final amountCtrl = TextEditingController();
     String emoji = '🎯';
+    String? selectedWalletId;
+    DateTime? deadlineDate;
+    bool isSubmitting = false;
 
     showModalBottomSheet(
       context: context,
@@ -53,55 +63,124 @@ class _GoalScreenState extends State<GoalScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSheet) => Padding(
           padding: EdgeInsets.only(left: 20, right: 20, top: 20, bottom: MediaQuery.of(ctx).viewInsets.bottom + 20),
-          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('Tạo mục tiêu mới', style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
-            const SizedBox(height: 16),
-            Text('Biểu tượng:', style: Theme.of(ctx).textTheme.bodySmall),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              children: ['🎯', '📱', '🏠', '✈️', '🎓', '💰'].map((e) => GestureDetector(
-                onTap: () => setSheet(() => emoji = e),
-                child: Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: emoji == e ? AppColors.teal.withValues(alpha: 0.15) : Colors.transparent,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: emoji == e ? AppColors.teal : Colors.transparent, width: 1.5),
+          child: SingleChildScrollView(
+            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('Tạo mục tiêu mới', style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+              const SizedBox(height: 16),
+              Text('Biểu tượng:', style: Theme.of(ctx).textTheme.bodySmall),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                children: ['🎯', '📱', '🏠', '✈️', '🎓', '💰'].map((e) => GestureDetector(
+                  onTap: () => setSheet(() => emoji = e),
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: emoji == e ? AppColors.teal.withValues(alpha: 0.15) : Colors.transparent,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: emoji == e ? AppColors.teal : Colors.transparent, width: 1.5),
+                    ),
+                    child: Text(e, style: const TextStyle(fontSize: 20)),
                   ),
-                  child: Text(e, style: const TextStyle(fontSize: 20)),
-                ),
-              )).toList(),
-            ),
-            const SizedBox(height: 12),
-            TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'Tên mục tiêu', hintText: 'VD: Mua iPhone')),
-            const SizedBox(height: 10),
-            TextField(
-              controller: amountCtrl,
-              keyboardType: TextInputType.number,
-              inputFormatters: [MoneyTextInputFormatter()],
-              decoration: const InputDecoration(labelText: 'Số tiền mục tiêu', hintText: 'VD: 25,000,000', suffixText: 'đ'),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: () async {
-                  final name = nameCtrl.text.trim();
-                  final rawText = amountCtrl.text.replaceAll(',', '').replaceAll('.', '').trim();
-                  final amount = double.tryParse(rawText);
-                  if (name.isEmpty || amount == null || amount <= 0) return;
-                  ctx.pop();
-                  try {
-                    await _api.createGoal({'name': name, 'targetAmount': amount, 'emoji': emoji});
-                    _loadGoals();
-                  } catch (_) {}
-                },
-                style: FilledButton.styleFrom(backgroundColor: AppColors.teal, padding: const EdgeInsets.symmetric(vertical: 14)),
-                child: const Text('Tạo mục tiêu'),
+                )).toList(),
               ),
-            ),
-          ]),
+              const SizedBox(height: 12),
+              TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'Tên mục tiêu', hintText: 'VD: Mua iPhone')),
+              const SizedBox(height: 10),
+              TextField(
+                controller: amountCtrl,
+                keyboardType: TextInputType.number,
+                inputFormatters: [MoneyTextInputFormatter()],
+                decoration: const InputDecoration(labelText: 'Số tiền mục tiêu', hintText: 'VD: 25,000,000', suffixText: 'đ'),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String?>(
+                value: selectedWalletId,
+                decoration: const InputDecoration(labelText: 'Liên kết ví'),
+                dropdownColor: ctx.palette.card,
+                items: [
+                  const DropdownMenuItem<String?>(
+                    value: null,
+                    child: Text('Không liên kết (Cá nhân)'),
+                  ),
+                  ..._wallets.map((w) {
+                    final name = w['name'] as String? ?? 'Ví';
+                    final type = w['type'] as String? ?? 'personal';
+                    final isGroup = type == 'group';
+                    return DropdownMenuItem<String?>(
+                      value: w['id'] as String?,
+                      child: Text(isGroup ? 'Ví chung: $name' : 'Ví: $name'),
+                    );
+                  }),
+                ],
+                onChanged: (val) => setSheet(() => selectedWalletId = val),
+              ),
+              const SizedBox(height: 12),
+              InkWell(
+                onTap: () async {
+                  final date = await showDatePicker(
+                    context: context,
+                    initialDate: deadlineDate ?? DateTime.now().add(const Duration(days: 30)),
+                    firstDate: DateTime.now(),
+                    lastDate: DateTime.now().add(const Duration(days: 3650)),
+                  );
+                  if (date != null) {
+                    setSheet(() => deadlineDate = date);
+                  }
+                },
+                child: InputDecorator(
+                  decoration: const InputDecoration(labelText: 'Hạn chót (Deadline)', suffixIcon: Icon(Icons.calendar_today)),
+                  child: Text(deadlineDate == null ? 'Không có' : '${deadlineDate!.day}/${deadlineDate!.month}/${deadlineDate!.year}'),
+                ),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: isSubmitting
+                      ? null
+                      : () async {
+                          final name = nameCtrl.text.trim();
+                          final rawText = amountCtrl.text.replaceAll(',', '').replaceAll('.', '').trim();
+                          final amount = double.tryParse(rawText);
+                          if (name.isEmpty || amount == null || amount <= 0) return;
+                          setSheet(() {
+                            isSubmitting = true;
+                          });
+                          ctx.pop();
+                          String? deadlineStr;
+                          if (deadlineDate != null) {
+                            deadlineStr = '${deadlineDate!.year}-${deadlineDate!.month.toString().padLeft(2, '0')}-${deadlineDate!.day.toString().padLeft(2, '0')}';
+                          }
+                          try {
+                            await _api.createGoal({
+                              'name': name,
+                              'targetAmount': amount,
+                              'emoji': emoji,
+                              'walletId': selectedWalletId,
+                              'deadline': deadlineStr,
+                            });
+                            _loadGoals();
+                          } on ApiException catch (e) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text(e.localizedMessage), backgroundColor: AppColors.danger),
+                              );
+                            }
+                          } catch (_) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Không thể tạo mục tiêu mới'), backgroundColor: AppColors.danger),
+                              );
+                            }
+                          }
+                        },
+                  style: FilledButton.styleFrom(backgroundColor: AppColors.teal, padding: const EdgeInsets.symmetric(vertical: 14)),
+                  child: const Text('Tạo mục tiêu'),
+                ),
+              ),
+            ]),
+          ),
         ),
       ),
     );
@@ -110,14 +189,32 @@ class _GoalScreenState extends State<GoalScreen> {
   Future<void> _deleteGoal(String goalId) async {
     final ok = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Xóa mục tiêu?'),
-        content: const Text('Thao tác này không thể hoàn tác.'),
-        actions: [
-          TextButton(onPressed: () => ctx.pop(false), child: const Text('Hủy')),
-          TextButton(onPressed: () => ctx.pop(true), child: const Text('Xóa', style: TextStyle(color: Colors.red))),
-        ],
-      ),
+      builder: (ctx) {
+        bool isSubmitting = false;
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) => AlertDialog(
+            title: const Text('Xóa mục tiêu?'),
+            content: const Text('Thao tác này không thể hoàn tác.'),
+            actions: [
+              TextButton(
+                onPressed: isSubmitting ? null : () => ctx.pop(false),
+                child: const Text('Hủy'),
+              ),
+              TextButton(
+                onPressed: isSubmitting
+                    ? null
+                    : () {
+                        setDialogState(() {
+                          isSubmitting = true;
+                        });
+                        ctx.pop(true);
+                      },
+                child: const Text('Xóa', style: TextStyle(color: Colors.red)),
+              ),
+            ],
+          ),
+        );
+      },
     );
     if (ok != true) return;
     try {
@@ -128,41 +225,49 @@ class _GoalScreenState extends State<GoalScreen> {
 
   void _showContribute(String goalId, String goalName) {
     final amountCtrl = TextEditingController();
+    bool isSubmitting = false;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadii.xl))),
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.only(left: 20, right: 20, top: 20, bottom: MediaQuery.of(ctx).viewInsets.bottom + 20),
-        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('Thêm tiền vào "$goalName"', style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
-          const SizedBox(height: 16),
-          TextField(
-            controller: amountCtrl,
-            keyboardType: TextInputType.number,
-            autofocus: true,
-            inputFormatters: [MoneyTextInputFormatter()],
-            decoration: const InputDecoration(labelText: 'Số tiền', hintText: 'VD: 500,000', suffixText: 'đ'),
-          ),
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton(
-              onPressed: () async {
-                final rawText = amountCtrl.text.replaceAll(',', '').replaceAll('.', '').trim();
-                final amount = double.tryParse(rawText);
-                if (amount == null || amount <= 0) return;
-                ctx.pop();
-                try {
-                  await _api.contributeGoal(goalId, amount);
-                  _loadGoals();
-                } catch (_) {}
-              },
-              style: FilledButton.styleFrom(backgroundColor: AppColors.teal, padding: const EdgeInsets.symmetric(vertical: 14)),
-              child: const Text('Thêm tiền'),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) => Padding(
+          padding: EdgeInsets.only(left: 20, right: 20, top: 20, bottom: MediaQuery.of(ctx).viewInsets.bottom + 20),
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('Thêm tiền vào "$goalName"', style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+            const SizedBox(height: 16),
+            TextField(
+              controller: amountCtrl,
+              keyboardType: TextInputType.number,
+              autofocus: true,
+              inputFormatters: [MoneyTextInputFormatter()],
+              decoration: const InputDecoration(labelText: 'Số tiền', hintText: 'VD: 500,000', suffixText: 'đ'),
             ),
-          ),
-        ]),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: isSubmitting
+                    ? null
+                    : () async {
+                        final rawText = amountCtrl.text.replaceAll(',', '').replaceAll('.', '').trim();
+                        final amount = double.tryParse(rawText);
+                        if (amount == null || amount <= 0) return;
+                        setSheetState(() {
+                          isSubmitting = true;
+                        });
+                        ctx.pop();
+                        try {
+                          await _api.contributeGoal(goalId, amount);
+                          _loadGoals();
+                        } catch (_) {}
+                      },
+                style: FilledButton.styleFrom(backgroundColor: AppColors.teal, padding: const EdgeInsets.symmetric(vertical: 14)),
+                child: const Text('Thêm tiền'),
+              ),
+            ),
+          ]),
+        ),
       ),
     );
   }
@@ -207,6 +312,12 @@ class _GoalScreenState extends State<GoalScreen> {
                               goal: g,
                               onContribute: () => _showContribute(g['id'] as String, g['name'] as String),
                               onDelete: () => _deleteGoal(g['id'] as String),
+                              onTap: () async {
+                                final reload = await context.push<bool>(AppRoutes.goalDetailOf(g['id'] as String));
+                                if (reload == true) {
+                                  _loadGoals();
+                                }
+                              },
                             )).toList()),
                 ),
               ],
@@ -283,8 +394,14 @@ class _ApiGoalCard extends StatelessWidget {
   final dynamic goal;
   final VoidCallback onContribute;
   final VoidCallback onDelete;
+  final VoidCallback onTap;
 
-  const _ApiGoalCard({required this.goal, required this.onContribute, required this.onDelete});
+  const _ApiGoalCard({
+    required this.goal,
+    required this.onContribute,
+    required this.onDelete,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -299,15 +416,17 @@ class _ApiGoalCard extends StatelessWidget {
     final status = goal['status'] as String? ?? 'active';
     final isCompleted = status == 'completed' || percent >= 1.0;
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: context.palette.card,
-        borderRadius: BorderRadius.circular(AppRadii.lg),
-        boxShadow: context.palette.cardShadow,
-        border: isCompleted ? Border.all(color: AppColors.teal.withValues(alpha: 0.4), width: 1.5) : null,
-      ),
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: context.palette.card,
+          borderRadius: BorderRadius.circular(AppRadii.lg),
+          boxShadow: context.palette.cardShadow,
+          border: isCompleted ? Border.all(color: AppColors.teal.withValues(alpha: 0.4), width: 1.5) : null,
+        ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -395,6 +514,7 @@ class _ApiGoalCard extends StatelessWidget {
             ),
         ],
       ),
-    );
+    ),
+  );
   }
 }

@@ -21,10 +21,10 @@ class AppQueries {
   static Query<Map<String, dynamic>> streak() =>
       Query<Map<String, dynamic>>(key: 'streak', queryFn: () => _api.getStreak());
 
-  static Query<Map<String, dynamic>> dashboard(String? walletId) =>
+  static Query<Map<String, dynamic>> dashboard(String? walletId, {String? from, String? to}) =>
       Query<Map<String, dynamic>>(
-        key: 'dashboard:${walletId ?? 'all'}',
-        queryFn: () => _api.getDashboard(walletId: walletId),
+        key: 'dashboard:${walletId ?? 'all'}:${from ?? 'default'}:${to ?? 'default'}',
+        queryFn: () => _api.getDashboard(walletId: walletId, from: from, to: to),
       );
 
   static Query<Map<String, dynamic>> transactions(String? walletId, {int pageSize = 50}) =>
@@ -39,16 +39,16 @@ class AppQueries {
         queryFn: () => _api.getStories(walletId: walletId),
       );
 
-  static Query<List<dynamic>> statsByCategory(String? range) =>
+  static Query<List<dynamic>> statsByCategory(String? range, String? walletId, {String? from, String? to}) =>
       Query<List<dynamic>>(
-        key: 'statsCategory:${range ?? 'all'}',
-        queryFn: () => _api.getStatsByCategory(range: range),
+        key: 'statsCategory:${range ?? 'all'}:${walletId ?? 'all'}:${from ?? 'default'}:${to ?? 'default'}',
+        queryFn: () => _api.getStatsByCategory(range: range, walletId: walletId, from: from, to: to),
       );
 
-  static Query<List<dynamic>> statsByMonth(int year) =>
+  static Query<List<dynamic>> statsByMonth(int year, String? walletId) =>
       Query<List<dynamic>>(
-        key: 'statsMonth:$year',
-        queryFn: () => _api.getStatsByMonth(year: year),
+        key: 'statsMonth:$year:${walletId ?? 'all'}',
+        queryFn: () => _api.getStatsByMonth(year: year, walletId: walletId),
       );
 
   /// Khi có thay đổi giao dịch → đánh dấu các query liên quan là stale để refetch.
@@ -59,7 +59,8 @@ class AppQueries {
           key.contains('transactions') ||
           key.contains('stories') ||
           key.contains('stats') ||
-          key.contains('streak'),
+          key.contains('streak') ||
+          key.contains('wallets'),
     );
   }
 

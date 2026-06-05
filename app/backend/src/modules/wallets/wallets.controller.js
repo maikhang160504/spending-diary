@@ -47,3 +47,19 @@ exports.removeMember = asyncHandler(async (req, res) => {
   await service.removeMember(req.user.id, req.params.id, req.params.memberId);
   res.json({ success: true });
 });
+
+exports.generateInviteCode = asyncHandler(async (req, res) => {
+  const data = await service.generateInviteCode(req.user.id, req.params.id);
+  res.json({ success: true, data });
+});
+
+exports.joinByInviteCode = asyncHandler(async (req, res) => {
+  const data = await service.joinByInviteCode(req.user.id, req.body.code);
+  res.json({ success: true, data });
+});
+
+exports.transferBetweenWallets = asyncHandler(async (req, res) => {
+  const { fromWalletId, toWalletId, amount } = req.body;
+  const data = await service.transferBetweenWallets(req.user.id, fromWalletId, toWalletId, amount);
+  res.json({ success: true, data });
+});

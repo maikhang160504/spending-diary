@@ -11,7 +11,7 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_palette.dart';
 import '../../theme/app_radii.dart';
 import '../../theme/app_spacing.dart';
-import '../../data/mock_data.dart';
+import '../../utils/mimo_emotion.dart';
 import '../../theme/categories.dart';
 import '../../utils/formatters.dart';
 import '../../widgets/error_banner.dart';
@@ -333,7 +333,17 @@ class _HomeCalendarScreenState extends State<HomeCalendarScreen> {
                           } catch (_) {
                             return false;
                           }
-                        }).map((tx) => _TransactionStoryCard(tx: tx)),
+                        }).map((tx) {
+                          final dayNavIds = _transactions.where((t) {
+                            final ds = t['occurredAt'] as String? ?? t['occurred_at'] as String? ?? t['createdAt'] as String? ?? t['created_at'] as String? ?? '';
+                            if (ds.isEmpty) return false;
+                            try {
+                              final d = DateTime.parse(ds);
+                              return d.year == _focus.year && d.month == _focus.month && d.day == _selectedDay;
+                            } catch (_) { return false; }
+                          }).map<String>((t) => (t['storyId'] as String?) ?? (t['story_id'] as String?) ?? (t['id'] as String?) ?? '').where((e) => e.isNotEmpty).toList();
+                          return _TransactionStoryCard(tx: tx, allStoryIds: dayNavIds);
+                        }),
                       ],
                       const SizedBox(height: 24),
                     ],
@@ -675,7 +685,8 @@ class _HomeCalendarScreenState extends State<HomeCalendarScreen> {
 
 class _TransactionStoryCard extends StatelessWidget {
   final dynamic tx;
-  const _TransactionStoryCard({required this.tx});
+  final List<String>? allStoryIds;
+  const _TransactionStoryCard({required this.tx, this.allStoryIds});
 
   @override
   Widget build(BuildContext context) {
@@ -691,14 +702,27 @@ class _TransactionStoryCard extends StatelessWidget {
     final imageUrl = tx['imageUrl'] as String? ?? tx['image_url'] as String?;
     final aiComment = tx['aiComment'] as String? ?? tx['ai_message'] as String?;
     final mascotMoodRaw = tx['mascotMood'] as String? ?? tx['mascot_mood'] as String?;
-    final mascotMood = mapApiStatusToAsset(mascotMoodRaw, fallback: 'Chill');
+    final mascotMood = normalizeMimoAssetName(mascotMoodRaw, fallback: 'Success');
 
     // User display
     final userName = tx['username'] as String? ?? tx['user_name'] as String? ?? 'Bạn';
     final userAvatar = tx['userAvatar'] as String? ?? tx['user_avatar'] as String?;
 
     return GestureDetector(
-      onTap: storyId.isNotEmpty ? () => context.push(AppRoutes.storyDetailOf(storyId)) : null,
+      onTap: storyId.isNotEmpty
+          ? () {
+              final ids = allStoryIds;
+              if (ids != null && ids.isNotEmpty) {
+                final idx = ids.indexOf(storyId);
+                context.push(AppRoutes.storyDetailOf(storyId), extra: {
+                  'storyIds': ids,
+                  'initialIndex': idx < 0 ? 0 : idx,
+                });
+              } else {
+                context.push(AppRoutes.storyDetailOf(storyId));
+              }
+            }
+          : null,
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 6),
         decoration: BoxDecoration(

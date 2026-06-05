@@ -58,9 +58,13 @@ const router = express.Router();
 
 router.use(requireAuth);
 router.get('/summary', controller.summary);
+router.get('/suggestions', controller.getSuggestions);
+router.post('/suggestions/apply', controller.applySuggestions);
+router.post('/suggestions/dismiss', controller.dismissSuggestions);
 router.get('/', controller.list);
 router.post('/', validate({ body: createBudgetSchema }), controller.create);
 router.patch('/:id', validate({ body: updateBudgetSchema }), controller.update);
 router.delete('/:id', controller.remove);
 
 module.exports = router;
+

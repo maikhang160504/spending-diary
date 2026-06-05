@@ -6,7 +6,7 @@ import '../../services/api_client.dart';
 import '../../services/transaction_notifier.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_radii.dart';
-import '../../data/mock_data.dart';
+import '../../utils/mimo_emotion.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/categories.dart';
 import '../../utils/formatters.dart';
@@ -182,24 +182,57 @@ class _StoryPageState extends State<_StoryPage> {
     return story['id'] as String? ?? widget.storyId;
   }
 
+  static const _categories = [
+    ('Food', 'Ăn uống'), ('Shopping', 'Mua sắm'), ('Transport', 'Di chuyển'),
+    ('Entertainment', 'Giải trí'), ('Housing', 'Nhà ở'), ('Health', 'Sức khoẻ'),
+    ('Education', 'Học tập'), ('Travel', 'Du lịch'), ('Others', 'Khác'),
+  ];
+
   Future<void> _reportCorrection() async {
-    if (_story == null) return;
+    if (_story == null || _primaryTxId == null) return;
+
+    final picked = await showModalBottomSheet<String>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: Text(
+                'Sửa danh mục (AI training)',
+                style: Theme.of(ctx).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+              ),
+            ),
+            ..._categories.map((c) => ListTile(
+                  leading: CategoryTheme.iconOf(c.$1, size: 22),
+                  title: Text(c.$2),
+                  onTap: () => Navigator.pop(ctx, c.$1),
+                )),
+          ],
+        ),
+      ),
+    );
+    if (picked == null) return;
+
     setState(() => _correcting = true);
+    final messenger = ScaffoldMessenger.of(context);
     try {
-      await _api.aiCorrection({
-        'storyId': widget.storyId,
-        'reason': 'wrong_category',
+      await _api.updateTransaction(_primaryTxId!, {
+        'categoryCode': picked,
       });
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Cảm ơn! Mimo sẽ học thêm từ góp ý của bạn 🙏'), backgroundColor: AppColors.teal),
+      notifyTransactionChanged();
+      await _loadStory();
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Đã cập nhật giao dịch và ghi nhận góp ý! Mimo sẽ học thêm từ bạn 🙏'),
+          backgroundColor: AppColors.teal,
+        ),
       );
     } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Không thể gửi góp ý. Thử lại sau.')),
-        );
-      }
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Không thể gửi góp ý. Thử lại sau.')),
+      );
     }
     if (mounted) setState(() => _correcting = false);
   }
@@ -404,7 +437,7 @@ class _StoryPageState extends State<_StoryPage> {
     final aiMessage = _story?['aiMessage'] as String? ?? _story?['ai_message'] as String? ?? _story?['aiComment'] as String? ?? _story?['ai_comment'] as String? ?? _story?['story'] as String? ?? 'Mimo đã ghi nhận giao dịch này!';
     final occurredAt = _story?['occurredAt'] as String? ?? _story?['occurred_on'] as String?;
     final aiEmotionRaw = _story?['mascotMood'] as String? ?? _story?['mascot_mood'] as String? ?? _story?['aiEmotion'] as String? ?? _story?['ai_emotion'] as String?;
-    final mascotMood = mapApiStatusToAsset(aiEmotionRaw, fallback: 'Chill');
+    final mascotMood = normalizeMimoAssetName(aiEmotionRaw, fallback: 'Success');
     final items = _story?['items'] as List<dynamic>?;
 
     int amount = 0;

@@ -3,9 +3,9 @@ import 'package:go_router/go_router.dart';
 
 import '../../routes/app_routes.dart';
 import '../../services/api_client.dart';
-import '../../theme/app_colors.dart';
+import '../../widgets/spend_diary_wordmark.dart';
 
-/// Splash screen shown on app launch, then redirects to /login or /app/home
+/// Splash: icon cuốn sổ + wordmark SpendDiary cùng xuất hiện trên 1 màn hình.
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -14,23 +14,81 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
-  late final AnimationController _ctrl;
-  late final Animation<double> _logoAnim;
-  late final Animation<double> _titleAnim;
+  late final AnimationController _master;
+
+  // Logo 0–50% (xuất hiện nhanh, giữ nguyên)
+  late final Animation<double> _logoScale;
+  late final Animation<double> _logoOpacity;
+  late final Animation<double> _logoShimmer;
+
+  // Wordmark 15–70% (fade in ngay sau logo, cùng hiển thị)
+  late final Animation<double> _wordOpacity;
+  late final Animation<double> _wordScale;
+  late final Animation<double> _wordBlur;
+  late final Animation<double> _wordTextShimmer;
+  late final Animation<double> _leafWiggle;
+  late final Animation<double> _wordGlow;
+
+  static const _bg = Color(0xFFF8FFFE);
 
   @override
   void initState() {
     super.initState();
-    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 1400));
-    _logoAnim = CurvedAnimation(parent: _ctrl, curve: const Interval(0.0, 0.6, curve: Curves.easeOut));
-    _titleAnim = CurvedAnimation(parent: _ctrl, curve: const Interval(0.4, 1.0, curve: Curves.easeOut));
-    _ctrl.forward();
+    _master = AnimationController(vsync: this, duration: const Duration(milliseconds: 2800));
+
+    // Logo: scale nhẹ từ 0.85 → 1.0, giữ nguyên không biến mất
+    _logoScale = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween(begin: 0.7, end: 1.05), weight: 25),
+      TweenSequenceItem(tween: Tween(begin: 1.05, end: 1.0), weight: 15),
+      TweenSequenceItem(tween: ConstantTween(1.0), weight: 60),
+    ]).animate(CurvedAnimation(parent: _master, curve: Curves.easeOutCubic));
+
+    _logoOpacity = CurvedAnimation(
+      parent: _master,
+      curve: const Interval(0.0, 0.18, curve: Curves.easeOut),
+    );
+
+    _logoShimmer = CurvedAnimation(
+      parent: _master,
+      curve: const Interval(0.10, 0.35, curve: Curves.easeInOut),
+    );
+
+    // Wordmark: xuất hiện sớm hơn, cùng lúc với logo (không chờ logo biến mất)
+    _wordOpacity = CurvedAnimation(
+      parent: _master,
+      curve: const Interval(0.15, 0.45, curve: Curves.easeOut),
+    );
+
+    _wordScale = Tween<double>(begin: 0.92, end: 1).animate(
+      CurvedAnimation(parent: _master, curve: const Interval(0.15, 0.50, curve: Curves.easeOutCubic)),
+    );
+
+    _wordBlur = Tween<double>(begin: 6, end: 0).animate(
+      CurvedAnimation(parent: _master, curve: const Interval(0.15, 0.50, curve: Curves.easeOut)),
+    );
+
+    _wordTextShimmer = CurvedAnimation(
+      parent: _master,
+      curve: const Interval(0.50, 0.75, curve: Curves.easeInOut),
+    );
+
+    _leafWiggle = CurvedAnimation(
+      parent: _master,
+      curve: const Interval(0.65, 0.85, curve: Curves.elasticOut),
+    );
+
+    _wordGlow = CurvedAnimation(
+      parent: _master,
+      curve: const Interval(0.78, 1.0, curve: Curves.easeOut),
+    );
+
+    _master.forward();
     _navigate();
   }
 
   Future<void> _navigate() async {
-    // Wait minimum splash duration
-    await Future.delayed(const Duration(milliseconds: 1800));
+    // Animation ~2.8s + giữ ~0.5s
+    await Future.delayed(const Duration(milliseconds: 3300));
     if (!mounted) return;
 
     final api = ApiClient();
@@ -54,89 +112,71 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
   @override
   void dispose() {
-    _ctrl.dispose();
+    _master.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    const iconSize = 110.0;
+
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(gradient: AppGradients.teal),
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // Logo with fade+scale
-              FadeTransition(
-                opacity: _logoAnim,
-                child: ScaleTransition(
-                  scale: _logoAnim,
-                  child: Container(
-                    width: 120,
-                    height: 120,
-                    padding: const EdgeInsets.all(16),
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Image.asset(
-                      'assets/logo/Logo.png',
-                      fit: BoxFit.contain,
-                      errorBuilder: (context, error, stack) => const Icon(Icons.savings_outlined, color: AppColors.teal, size: 64),
+      backgroundColor: _bg,
+      body: AnimatedBuilder(
+        animation: _master,
+        builder: (context, _) {
+          final glow = _wordGlow.value;
+
+          return Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Logo — luôn hiển thị, không biến mất
+                Opacity(
+                  opacity: _logoOpacity.value,
+                  child: Transform.scale(
+                    scale: _logoScale.value,
+                    child: NotebookIconShimmer(
+                      size: iconSize,
+                      progress: _logoShimmer.value,
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 24),
-              // Title with fade+slide
-              FadeTransition(
-                opacity: _titleAnim,
-                child: SlideTransition(
-                  position: Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero)
-                      .animate(_titleAnim),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                const SizedBox(height: 20),
+                // Wordmark — xuất hiện ngay sau logo
+                if (glow > 0)
+                  Container(
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.9),
-                      borderRadius: BorderRadius.circular(12),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.05),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
+                          color: const Color(0xFF42C9A8).withValues(alpha: 0.18 * glow),
+                          blurRadius: 40 * glow,
+                          spreadRadius: 4 * glow,
                         ),
                       ],
                     ),
-                    child: Image.asset(
-                      'assets/logo/Title.png',
-                      height: 32,
-                      fit: BoxFit.contain,
-                      errorBuilder: (context, error, stack) => const Text(
-                        'Spending Diary',
-                        style: TextStyle(color: AppColors.teal, fontSize: 20, fontWeight: FontWeight.w700, letterSpacing: 1),
-                      ),
+                    child: SpendDiaryWordmark(
+                      scale: _wordScale.value,
+                      opacity: _wordOpacity.value,
+                      blurSigma: _wordBlur.value,
+                      textShimmer: _wordTextShimmer.value,
+                      leafWiggle: _leafWiggle.value,
                     ),
+                  )
+                else
+                  SpendDiaryWordmark(
+                    scale: _wordScale.value,
+                    opacity: _wordOpacity.value,
+                    blurSigma: _wordBlur.value,
+                    textShimmer: _wordTextShimmer.value,
+                    leafWiggle: _leafWiggle.value,
                   ),
-                ),
-              ),
-              const SizedBox(height: 48),
-              // Loading dots
-              FadeTransition(
-                opacity: _titleAnim,
-                child: const SizedBox(
-                  width: 24,
-                  height: 24,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2.5,
-                    color: Colors.white54,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
 }
+

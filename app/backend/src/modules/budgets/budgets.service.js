@@ -27,6 +27,34 @@ async function list(userId) {
 }
 
 async function create(userId, payload) {
+  const walletId = payload.walletId || null;
+  const categoryCode = payload.categoryCode || null;
+  const period = payload.period;
+
+  // Check if an active budget already exists with the same category and wallet
+  const existing = await query(
+    `SELECT id FROM budgets
+     WHERE user_id = $1
+       AND (category_code = $2 OR (category_code IS NULL AND $2 IS NULL))
+       AND (wallet_id = $3 OR (wallet_id IS NULL AND $3 IS NULL))
+       AND period = $4
+       AND is_active = TRUE`,
+    [userId, categoryCode, walletId, period]
+  );
+
+  if (existing.rows.length > 0) {
+    const budgetId = existing.rows[0].id;
+    // Update the amount of the existing budget
+    const r = await query(
+      `UPDATE budgets
+       SET amount_limit = $1, start_date = $2::date, end_date = $3::date, updated_at = NOW()
+       WHERE id = $4
+       RETURNING *`,
+      [payload.amountLimit, payload.startDate, payload.endDate || null, budgetId]
+    );
+    return row(r.rows[0]);
+  }
+
   const r = await query(
     `INSERT INTO budgets
        (user_id, wallet_id, category_code, period, amount_limit, start_date, end_date)
@@ -34,9 +62,9 @@ async function create(userId, payload) {
      RETURNING *`,
     [
       userId,
-      payload.walletId || null,
-      payload.categoryCode || null,
-      payload.period,
+      walletId,
+      categoryCode,
+      period,
       payload.amountLimit,
       payload.startDate,
       payload.endDate || null,

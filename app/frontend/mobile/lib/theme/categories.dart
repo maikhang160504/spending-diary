@@ -84,4 +84,34 @@ class CategoryTheme {
       errorBuilder: (ctx, err, st) => Text(style.emoji, style: TextStyle(fontSize: size * 0.75)),
     );
   }
+
+  static String canonicalCodeOf(String category) {
+    switch (category) {
+      case 'Transportation':
+      case 'Travel':
+        return 'Transport';
+      case 'Savings':
+        return 'Saving';
+      case 'Others':
+        return 'Other';
+      case 'salary':
+        return 'Salary';
+      case 'bonus':
+        return 'Bonus';
+      case 'freelance':
+        return 'Business';
+      case 'Bills':
+        return 'Essentials';
+      case 'Gift':
+        return 'Social';
+      default:
+        // Return matching code in case-insensitive check if it exists in primaryCodes
+        for (final code in primaryCodes) {
+          if (code.toLowerCase() == category.toLowerCase()) {
+            return code;
+          }
+        }
+        return category;
+    }
+  }
 }

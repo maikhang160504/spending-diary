@@ -65,10 +65,10 @@ pip install -r d:\Luan-Van\Project\app\ai-service\requirements.txt
 # Bước 2: chạy service
 cd d:\Luan-Van\Project\app\ai-service
 d:\Luan-Van\Project\expense-ocr-nlu\.venv\Scripts\Activate.ps1
-$env:RUN_LLM='1'; $env:RUN_LLM_CHITCHAT='1'; uvicorn app.main:app --host 0.0.0.0 --port 8000
+$env:RUN_LLM='1'; $env:RUN_LLM_CHITCHAT='1'; $env:LOG_MIMO_EMOTION='1' ; uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
-**Kiểm tra:** http://localhost:8000/health → `nlu_loaded: true, ocr_loaded: false`  
+**Kiểm tra:** http://localhost:8000/health → `nlu_loaded: true, ocr_loaded: false`\
 **Swagger:** http://localhost:8000/docs
 
 ---
@@ -108,7 +108,7 @@ flutter pub get
 flutter run --dart-define=API_BASE_URL=http://10.0.2.2:4000 --dart-define=AI_BASE_URL=http://10.0.2.2:8000
 
 # Real device (cùng WiFi — thay bằng IP máy dev)
-flutter run --dart-define=API_BASE_URL=http://10.82.57.24:4000 --dart-define=AI_BASE_URL=http://10.82.57.24:8000
+flutter run --dart-define=API_BASE_URL=http://10.32.9.24:4000 --dart-define=AI_BASE_URL=http://10.32.9.24:8000
 ```
 
 ---
@@ -139,8 +139,8 @@ Invoke-RestMethod http://localhost:4000/api/v1/wallets `
 
 ## 7. Thứ tự khởi động
 
-| # | Service | Cwd | Lệnh | URL |
-|---|---------|-----|------|-----|
+| \# | Service | Cwd | Lệnh | URL |
+| --- | --- | --- | --- | --- |
 | 1 | **AI Service** | `app/ai-service` | `uvicorn app.main:app --host 0.0.0.0 --port 8000` (dùng `.venv` của expense-ocr-nlu) | :8000/docs |
 | 2 | **Backend** | `app/backend` | `npm run dev` | :4000/docs |
 | 3 | **Flutter** | `app/frontend/mobile` | `flutter run --dart-define=...` | thiết bị/emulator |

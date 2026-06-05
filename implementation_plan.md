@@ -1,199 +1,172 @@
-# Fix & Cải Thiện App SpendDiary — Kế Hoạch Triển Khai
+# Smart Budgeting Recommendation — Kế hoạch triển khai
 
-Dựa trên [fix_app.json](file:///d:/Luan-Van/Project/fix_app.json), thực hiện sửa lỗi, cải thiện UI/UX và bổ sung tính năng cho ứng dụng Flutter SpendDiary.
+## Phân tích câu hỏi của bạn
 
-## User Review Required
+### Q1: Phương án thiết kế đã giải quyết trọn vẹn bài toán tối ưu thao tác chưa?
+
+**Đã giải quyết 90% — nhưng cần bổ sung 3 điểm quan trọng:**
+
+| Kịch bản | Tài liệu hiện tại | Cần bổ sung |
+|---|---|---|
+| User mới (< 1 tháng dữ liệu) | ❌ Chưa đề cập | Fallback dùng **peer benchmark** (`group_spending_benchmarks`) thay vì tính Moving Average |
+| User từ chối gợi ý | ❌ Chưa rõ luồng | Nếu bấm "Để mình tự chỉnh lại" → mở form pre-filled số AI đã tính, user chỉ chỉnh sửa thay vì điền từ đầu |
+| User bỏ lỡ ngày mùng 1 | ❌ Chưa xử lý | Suggestion vẫn hiển thị nếu user chưa có budget active cho tháng hiện tại, không chỉ show đúng ngày 1 |
+
+### Q2: Bổ sung quy tắc xử lý tháng lễ lớn — CÓ, rất cần thiết
+
+Nếu không xử lý tính mùa vụ, thuật toán sẽ gợi ý sai nghiêm trọng trong 2 kịch bản:
+
+| Kịch bản sai | Ví dụ | Lỗi thuật toán |
+|---|---|---|
+| **Tháng sau Tết** (tháng 3) | Moving Avg 3 tháng = T12 + T1 + T2 → bao gồm Tết → gợi ý quá cao | Hạn mức bị inflated ~40-60% |
+| **Tháng Tết** (tháng 2) | Moving Avg 3 tháng = T11 + T12 + T1 → toàn tháng thường → gợi ý quá thấp | Hạn mức quá khắt khe, user bực bội |
+
+**Giải pháp: Seasonal Adjustment Factor (H)**
+
+```
+Hạn mức gợi ý = B × I × (1 - S) × H
+```
+
+Trong đó `H` (Holiday Factor) là hệ số mùa vụ:
+
+| Tháng đích (tháng tiếp theo) | H | Lý do |
+|---|---|---|
+| Tháng 1 (trước Tết) | 1.20 | Mua sắm Tết bắt đầu |
+| Tháng 2 (Tết Nguyên Đán) | 1.50 | Quà cáp, du lịch, lì xì, ăn uống |
+| Tháng 3 (sau Tết) | 0.85 | Thắt lưng buộc bụng sau Tết |
+| Tháng 9 (khai giảng) | 1.15 | Sinh viên: học phí, sách vở, đồ dùng |
+| Tháng 12 (Giáng sinh + Tết Dương) | 1.25 | Quà tặng, tiệc, du lịch |
+| Các tháng còn lại | 1.00 | Không điều chỉnh |
 
 > [!IMPORTANT]
-> Đây là một task rất lớn, gồm ~15 thay đổi trải rộng trên ~12 file. Tôi đề xuất chia thành **3 phase** để dễ kiểm soát và test:
-> - **Phase 1**: Sửa lỗi logic (bill-detail, detail-story, chat-screen, LLM-response)
-> - **Phase 2**: Cải thiện UI chính (home header, story cards, camera, segment tabs)
-> - **Phase 3**: Tính năng mới (loading animation, streak animation, settings avatar/AI style swap)
-
-> [!WARNING]
-> Cần thêm package `lottie` vào `pubspec.yaml` để dùng animation Loading.json / Fire.json. Cần thêm `image_picker` (đã có) cho đổi avatar.
-
-## Open Questions
-
-> [!IMPORTANT]
-> 1. **Kích thước ảnh tối ưu cho story**: Tôi đề xuất dùng aspect ratio **4:3** (chiều rộng full, cao ~250px) thay vì hardcode 220px hiện tại — bạn đồng ý không?
-> 2. **Khung quét bill**: Hiện tại là 280×180 (ngang). Bạn muốn đổi sang chiều dọc, tôi đề xuất **280×400** (dọc, phù hợp với hóa đơn VN) — OK không?
-> 3. **Camera capture resolution**: Hiện dùng `ResolutionPreset.high`. Có muốn đổi sang `ResolutionPreset.max` để ảnh rõ hơn cho OCR?
+> Bộ lọc Denoising (Bước 1) cũng cần nhận biết tháng lễ: Trong tháng Tết, **không** flag các khoản Shopping/Social cao bất thường vì chúng là chi tiêu hợp lệ theo mùa.
 
 ---
 
 ## Proposed Changes
 
-### Phase 1: Sửa Lỗi Logic
+### Database Migration
+
+#### [NEW] [011_budget_suggestions.sql](file:///d:/Luan-Van/Project/app/backend/src/db/migrations/011_budget_suggestions.sql)
+
+Bảng lưu kết quả tính toán batch job — API chỉ cần SELECT tĩnh:
+
+```sql
+CREATE TABLE IF NOT EXISTS user_budget_suggestions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    target_month VARCHAR(7) NOT NULL,          -- '2026-07'
+    category_code VARCHAR(50) NOT NULL,
+    suggested_amount DECIMAL(15,2) NOT NULL,
+    base_spending DECIMAL(15,2),               -- B value
+    income_factor DECIMAL(5,3) DEFAULT 1.000,  -- I value
+    saving_rate DECIMAL(5,3) DEFAULT 0.000,    -- S value
+    holiday_factor DECIMAL(5,3) DEFAULT 1.000, -- H value
+    reason TEXT,                                -- Giải thích cho user
+    status VARCHAR(20) DEFAULT 'pending',      -- pending | applied | dismissed
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW(),
+    UNIQUE(user_id, target_month, category_code)
+);
+```
 
 ---
 
-#### 1. Bill Detail — Không xem chi tiết được
-**Vấn đề**: Story tạo bằng bill không xem chi tiết được vì `storyId` có thể null hoặc rỗng khi transaction đến từ bill.
+### Backend — Suggestion Service
 
-#### [MODIFY] [detail_story_screen.dart](file:///d:/Luan-Van/Project/app/frontend/mobile/lib/screens/story/detail_story_screen.dart)
-- Khi `storyId` rỗng nhưng có `transactionId`, fallback load trực tiếp transaction data thay vì chỉ gọi `getStory()`
-- Thêm fallback: nếu `getStory()` fail (404), thử load qua `getTransactions()` với id
+#### [NEW] [suggestion.service.js](file:///d:/Luan-Van/Project/app/backend/src/modules/budgets/suggestion.service.js)
 
-#### [MODIFY] [home_screen.dart](file:///d:/Luan-Van/Project/app/frontend/mobile/lib/screens/home/home_screen.dart)
-- Đảm bảo `_TransactionStoryCard` luôn có navigable ID (dùng `tx['id']` khi không có `storyId`)
+Service chứa toàn bộ logic tính toán gợi ý, bao gồm:
 
----
+**1. `computeSuggestionsForUser(userId, targetMonth)`** — Core algorithm:
+- Lấy lịch sử giao dịch 3 tháng gần nhất theo `category_code`
+- **Denoising**: Loại bỏ giao dịch outlier (> 3σ) + whitelist category mùa lễ
+- **Base Spending (B)**: Weighted Moving Average (tháng gần nhất × 0.5, tháng trước × 0.3, tháng trước nữa × 0.2)
+- **Income Factor (I)**: So sánh thu nhập 3 tháng, nếu giảm → `I = avg_recent_income / avg_older_income` (capped 0.7-1.0)
+- **Saving Rate (S)**: 0.05-0.10 cho danh mục "lãng phí" (Entertainment, Shopping, Social, Beauty), 0.00 cho danh mục thiết yếu (Food, Housing, Transport, Essentials)
+- **Holiday Factor (H)**: Tra bảng hệ số mùa vụ theo `targetMonth`
+- **Fallback cho user mới**: Nếu < 1 tháng dữ liệu → dùng `group_spending_benchmarks` theo `age_group` + `job_type`
 
-#### 2. Detail Story — Không lướt sang story khác + Không cho chỉnh sửa/xóa
+**2. `generateBatchSuggestions()`** — Batch job cho tất cả users:
+- Quét toàn bộ active users
+- Gọi `computeSuggestionsForUser()` cho từng user
+- Upsert vào `user_budget_suggestions`
 
-#### [MODIFY] [detail_story_screen.dart](file:///d:/Luan-Van/Project/app/frontend/mobile/lib/screens/story/detail_story_screen.dart)
-- Nhận thêm `List<String> allStoryIds` + `int initialIndex` qua route params
-- Bọc nội dung trong `PageView` để lướt qua các story khác
-- Thêm nút **Xóa** (với confirm dialog) gọi `deleteTransaction()`
-- Cải thiện nút **Chỉnh sửa** → mở bottom sheet giống camera_confirm_screen cho phép edit amount/category/note
+**3. `getSuggestions(userId, targetMonth)`** — API read:
+- SELECT từ bảng `user_budget_suggestions`
+- Format thành payload gồm danh sách category + số tiền + lý do
 
-#### [MODIFY] [app_routes.dart](file:///d:/Luan-Van/Project/app/frontend/mobile/lib/routes/app_routes.dart)
-- Cập nhật route `storyDetail` để hỗ trợ extra params (allStoryIds, initialIndex)
+**4. `applySuggestions(userId, targetMonth, overrides?)`** — 1-Click Apply:
+- Đọc suggestions → tạo/update budgets qua `budgetsService.create()`
+- Cập nhật `status = 'applied'`
+- Trả message xác nhận kiểu MiMo
 
-#### [MODIFY] [home_screen.dart](file:///d:/Luan-Van/Project/app/frontend/mobile/lib/screens/home/home_screen.dart)
-- Khi navigate tới detail, truyền thêm danh sách transaction IDs và vị trí hiện tại
-
----
-
-#### 3. Chat Screen — Ô xác nhận dư thông tin + Không cho chỉnh sửa category
-
-#### [MODIFY] [chat_screen.dart](file:///d:/Luan-Van/Project/app/frontend/mobile/lib/screens/chat/chat_screen.dart)
-- **Ô xác nhận (transaction preview card)**: Loại bỏ phần text lặp lại, chỉ hiển thị card giao dịch gọn (category + amount + note)
-- **Cho phép chỉnh sửa category**: Thêm nút "Chỉnh sửa" bên cạnh nút "Lưu giao dịch" → mở bottom sheet giống camera_confirm_screen với dropdown category
+**5. `dismissSuggestion(userId, targetMonth)`** — Từ chối:
+- Cập nhật `status = 'dismissed'`
 
 ---
 
-#### 4. LLM Response — Câu phản hồi quá dài
+### Backend — API Routes
 
-#### [MODIFY] [prompt.py](file:///d:/Luan-Van/Project/expense-ocr-nlu/src/nlg/prompt.py)
-- Thêm instruction giới hạn: **"Trả lời tối đa 30 từ. Ngắn gọn, dễ hiểu, đúng vai."** vào `_LIST_EMOTION_INSTRUCTION`
+#### [MODIFY] [budgets.routes.js](file:///d:/Luan-Van/Project/app/backend/src/modules/budgets/budgets.routes.js)
 
-#### [MODIFY] [chat_screen.dart](file:///d:/Luan-Van/Project/app/frontend/mobile/lib/screens/chat/chat_screen.dart)
-- Thêm client-side truncation: nếu LLM story > 120 ký tự, cắt + thêm "..."
-
----
-
-### Phase 2: Cải Thiện UI
+Thêm 3 endpoints:
+- `GET /api/v1/budgets/suggestions?month=2026-07` — lấy gợi ý tháng
+- `POST /api/v1/budgets/suggestions/apply` — áp dụng 1-Click
+- `POST /api/v1/budgets/suggestions/dismiss` — từ chối
 
 ---
 
-#### 5. Home Header — Ẩn khi cuộn xuống, hiện khi cuộn lên
+### Backend — AI Action Integration
 
-#### [MODIFY] [home_screen.dart](file:///d:/Luan-Van/Project/app/frontend/mobile/lib/screens/home/home_screen.dart)
-- Chuyển từ `SliverToBoxAdapter` cho header sang `SliverAppBar` hoặc custom `SliverPersistentHeader` với:
-  - **Expanded**: hiển thị đầy đủ (date, greeting, streak, wallets, balance card)
-  - **Collapsed**: chỉ hiển thị "Chào [tên]!" + segment tabs (Story/Gallery/Calendar)
-- Segment tabs luôn sticky khi scroll
+#### [MODIFY] [action.service.js](file:///d:/Luan-Van/Project/app/backend/src/modules/ai/action.service.js)
 
-#### 6. Segment Tabs — Đẹp hơn
-
-#### [MODIFY] [home_screen.dart](file:///d:/Luan-Van/Project/app/frontend/mobile/lib/screens/home/home_screen.dart)
-- Redesign segment tabs với animated indicator (slide animation khi chuyển tab)
-- Dùng gradient background subtle cho tab đang chọn
-- Icon lớn hơn, typography rõ ràng hơn
-
-#### 7. Story Cards — Giảm khoảng cách với cạnh màn hình
-
-#### [MODIFY] [home_screen.dart](file:///d:/Luan-Van/Project/app/frontend/mobile/lib/screens/home/home_screen.dart)
-- Giảm `margin: EdgeInsets.symmetric(horizontal: 16)` xuống `horizontal: 10`
-- Tối ưu padding nội dung card
-
-#### 8. Ảnh Story — Kích thước tối ưu
-
-#### [MODIFY] [home_screen.dart](file:///d:/Luan-Van/Project/app/frontend/mobile/lib/screens/home/home_screen.dart)
-- Ảnh story dùng `aspectRatio: 4/3` thay vì fixed height 220
-- Dùng `BoxFit.cover` + `ClipRRect` với borderRadius
-
-#### [MODIFY] [camera_screen.dart](file:///d:/Luan-Van/Project/app/frontend/mobile/lib/screens/camera/camera_screen.dart)
-- Điều chỉnh camera resolution để ra ảnh phù hợp aspect ratio 4:3
-
-#### 9. Nút chụp Camera — Viền màu bạc hà
-
-#### [MODIFY] [camera_screen.dart](file:///d:/Luan-Van/Project/app/frontend/mobile/lib/screens/camera/camera_screen.dart)
-- Đổi border của nút chụp từ `Colors.white` sang `AppColors.teal` (mint/bạc hà)
-- Thêm subtle glow effect
-
-#### 10. Khung quét bill — Lớn hơn theo chiều dọc
-
-#### [MODIFY] [camera_screen.dart](file:///d:/Luan-Van/Project/app/frontend/mobile/lib/screens/camera/camera_screen.dart)
-- Đổi khung từ 280×180 (ngang) sang **280×400** (dọc) phù hợp hóa đơn Việt Nam
-- Cập nhật corner brackets positions tương ứng
+- Thêm handler cho action type `SUGGEST_BUDGET` trong `executeAction()`
+- Thêm function `executeSuggestBudget(userId, payload)`:
+  - Gọi `suggestionService.getSuggestions()`
+  - Format thành Vietnamese emotional story kiểu MiMo
+  - Trả `kind: 'budget_suggestion'` với danh sách categories + `apply_action`
 
 ---
 
-### Phase 3: Animation & Settings
+### Backend — Unit Tests
+
+#### [MODIFY] [action.service.test.js](file:///d:/Luan-Van/Project/app/backend/tests/unit/action.service.test.js)
+
+Thêm test cases:
+- Holiday factor lookup cho các tháng Tết (1, 2), sau Tết (3), Giáng sinh (12)
+- Denoising filter loại bỏ outlier > 3σ
+- Fallback peer benchmark cho user mới
+- `buildReportStory` cho `kind: 'budget_suggestion'`
+
+#### [NEW] [suggestion.service.test.js](file:///d:/Luan-Van/Project/app/backend/tests/unit/suggestion.service.test.js)
+
+Unit tests cho core logic:
+- `computeSuggestionsForUser` with mock transaction data
+- Weighted Moving Average calculation
+- Income factor capping
+- Holiday adjustment
+- Edge case: user với 0 giao dịch → fallback peer benchmark
 
 ---
 
-#### 11. Loading Animation — Dùng Lottie Loading.json
+## Open Questions
 
-#### [MODIFY] [pubspec.yaml](file:///d:/Luan-Van/Project/app/frontend/mobile/pubspec.yaml)
-- Thêm dependency `lottie: ^3.1.3`
-- Thêm assets `- assets/animations/`
-
-#### [MODIFY] [skeleton.dart](file:///d:/Luan-Van/Project/app/frontend/mobile/lib/widgets/skeleton.dart)
-- Thay shimmer skeleton bằng Lottie animation từ `Loading.json` khi loading data
-
-#### [MODIFY] [home_screen.dart](file:///d:/Luan-Van/Project/app/frontend/mobile/lib/screens/home/home_screen.dart)
-- Dùng Lottie loading thay cho skeleton cards
-
----
-
-#### 12. Streak Animation — Hiệu ứng giữ chuỗi thành công
-
-#### [MODIFY] [streak_screen.dart](file:///d:/Luan-Van/Project/app/frontend/mobile/lib/screens/streak/streak_screen.dart)
-- Khi `currentStreak >= previousStreak` (streak thành công), hiển thị Fire.json Lottie animation
-- Animation chạy 1 lần khi mở màn hình streak, phía sau emoji 🔥
-
----
-
-#### 13. Settings — Đổi avatar + Hiệu ứng đổi phong cách AI
-
-#### [MODIFY] [settings_screen.dart](file:///d:/Luan-Van/Project/app/frontend/mobile/lib/screens/settings/settings_screen.dart)
-- **Đổi avatar**: Tap vào avatar circle → mở image picker → upload qua `uploadFile()` → update profile
-- **Hiệu ứng đổi phong cách AI**: 
-  - Khi chọn phong cách mới, 2 icon AI (Cool + Angry) animate swap chỗ cho nhau với `AnimatedPositioned`
-  - Animation chạy ~1s rồi dừng lại ở vị trí đã chọn
-- **Chỉnh sửa thông tin cá nhân**: Đổi dialog read-only thành editable dialog với TextFields cho username, age_group, job_type → gọi `updateProfile()` / `updateSettings()`
-
-#### [MODIFY] [api_client.dart](file:///d:/Luan-Van/Project/app/frontend/mobile/lib/services/api_client.dart)
-- Thêm method `uploadAvatar()` nếu cần endpoint riêng, hoặc dùng `uploadFile()` + `updateProfile()`
-
----
-
-### Cải thiện UI chung (toàn bộ các màn hình)
-
-Áp dụng các nguyên tắc chung cho tất cả các screen:
-- Dùng `AppColors.teal` gradient cho header consistently
-- Thêm subtle micro-animations (fade in, scale) cho các card/item khi xuất hiện
-- Bo tròn corners đồng nhất (`AppRadii.lg` = 16)
-- Shadow nhẹ nhàng hơn, tạo depth
-- Typography rõ ràng, hierarchy tốt
-
-Các screen cụ thể sẽ được cải thiện nhẹ:
-- **Chat**: bubble colors, typing animation mượt hơn
-- **Camera**: dark theme nhất quán, glow effects
-- **Gallery**: grid spacing, image quality
-- **Calendar**: giữ nguyên chế độ xem, polish colors
-- **Profile/Settings**: clean layout
-- **Splash/Loading**: Lottie animation
+> [!IMPORTANT]
+> **1. Batch Job Scheduling**: Tài liệu đề cập chạy batch job lúc 12h00 đêm ngày cuối tháng. Trong giai đoạn MVP, bạn muốn:
+> - **(A)** Dùng API endpoint thủ công để trigger (admin hoặc cron bên ngoài gọi)?
+> - **(B)** Implement cron job trực tiếp trong Node.js server (dùng `node-cron`)?
+>
+> **2. UI/UX Morning Story**: Frontend mobile hiện có sẵn cơ chế hiển thị "Morning Story" / proactive notification không, hay cần xây mới? Trong plan này tôi sẽ triển khai phần backend API trước, frontend sẽ consume API này.
 
 ---
 
 ## Verification Plan
 
 ### Automated Tests
-- `flutter analyze` — đảm bảo không có warning/error mới
-- `flutter build apk --debug` — build thành công
+- `npm test` trong `d:\Luan-Van\Project\app\backend` — tất cả tests phải pass (bao gồm cả tests mới)
 
 ### Manual Verification
-- Hot reload app đang chạy và kiểm tra từng screen:
-  1. Chat: gửi tin nhắn, xem ô xác nhận không lặp text, có thể chỉnh category
-  2. Home: scroll xuống header thu gọn, scroll lên header hiện lại
-  3. Story cards: khoảng cách cạnh đã giảm, ảnh đúng kích thước
-  4. Detail story: lướt sang story khác, xóa/chỉnh sửa story hoạt động
-  5. Camera: nút chụp viền bạc hà, khung bill dọc lớn hơn
-  6. Streak: animation fire khi có streak
-  7. Settings: đổi avatar, hiệu ứng swap AI style
-  8. Bill story: tap vào → xem chi tiết được
+- Seed user có 3+ tháng giao dịch → gọi API suggestion → verify số liệu hợp lý
+- Test edge case tháng Tết (tháng 2) → verify holiday factor = 1.50
+- Test user mới (0 tháng) → verify fallback dùng peer benchmark

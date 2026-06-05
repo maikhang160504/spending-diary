@@ -113,4 +113,8 @@ router.post(
 );
 router.delete('/:id/members/:memberId', controller.removeMember);
 
+router.post('/:id/generate-code', controller.generateInviteCode);
+router.post('/join', controller.joinByInviteCode);
+router.post('/transfer', controller.transferBetweenWallets);
+
 module.exports = router;

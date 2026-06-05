@@ -1,12 +1,14 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'dart:math';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
-import '../../data/mock_data.dart';
+import '../../utils/mimo_emotion.dart';
+import '../../widgets/mimo_overlay.dart';
 import '../../routes/app_routes.dart';
 import '../../services/api_client.dart';
 import '../../services/transaction_notifier.dart';
@@ -16,8 +18,8 @@ import '../../theme/app_radii.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/categories.dart';
 import '../../utils/formatters.dart';
+import '../../services/streak_celebration.dart';
 import '../../widgets/loading_indicator.dart';
-import '../../widgets/mimo_overlay.dart';
 
 class CameraConfirmScreen extends StatefulWidget {
   /// Extracted expense data passed from CameraInputScreen via GoRouter extra.
@@ -71,7 +73,35 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
       _note = extracted?['note'] as String? ?? '';
       _confidence = extracted != null && extracted['confidence'] is num ? (extracted['confidence'] as num).toDouble() : 0.0;
       _recordType = extracted?['record_type'] as String? ?? 'Expense';
+      if (!_isPending && _confidence >= 0.9 && _amount > 0) {
+        WidgetsBinding.instance.addPostFrameCallback((_) => _onConfirm());
+      }
     }
+  }
+
+  String? get _localImagePath =>
+      widget.extractedData?['imagePath'] as String? ?? widget.extractedData?['localImagePath'] as String?;
+
+  String? get _remoteImageUrl =>
+      widget.extractedData?['imageUrl'] as String? ??
+      _wsData?['imageUrl'] as String? ??
+      _wsData?['image_url'] as String?;
+
+  Widget _buildBackground() {
+    final path = _localImagePath;
+    if (path != null && File(path).existsSync()) {
+      return Image.file(File(path), fit: BoxFit.cover);
+    }
+    final url = _remoteImageUrl;
+    if (url != null && url.isNotEmpty) {
+      return CachedNetworkImage(
+        imageUrl: url,
+        fit: BoxFit.cover,
+        memCacheWidth: 1080,
+        errorWidget: (_, u, e) => Container(color: Colors.black87),
+      );
+    }
+    return Container(color: Colors.black87);
   }
 
   Future<void> _connectWebSocket() async {
@@ -113,7 +143,7 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
             Future.delayed(const Duration(milliseconds: 300), () {
               if (!mounted) return;
               mimoController.show(MiMoResponse(
-                status: mapApiStatusToAsset(mood, fallback: 'Success'),
+                emotionAsset: normalizeMimoAssetName(mood, fallback: 'Success'),
                 message: story?.substring(0, story.length.clamp(0, 80)) ?? '✅ Bill đã được xử lý xong!',
               ));
             });
@@ -143,20 +173,28 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
   }
 
   Future<void> _onConfirm() async {
+    final wallets = await _api.getWallets();
+    final targetWalletId = widget.extractedData?['walletId'] as String? ?? (wallets.isNotEmpty ? wallets[0]['id'] as String : '');
+    final targetWallet = wallets.firstWhere((w) => w['id'] == targetWalletId, orElse: () => null);
+    final isGroupWallet = targetWallet != null && targetWallet['type'] == 'group';
+
     if (_isPending && _processingDone) {
-      context.go(AppRoutes.home);
+      if (isGroupWallet) {
+        context.go(AppRoutes.shareWallet, extra: {'walletId': targetWalletId});
+      } else {
+        context.go(AppRoutes.home);
+      }
       Future.delayed(const Duration(milliseconds: 400), () {
-        final moodAsset = mapApiStatusToAsset(_wsData?['mascot_mood'] as String?, fallback: 'Success');
+        final moodAsset = normalizeMimoAssetName(_wsData?['mascot_mood'] as String?, fallback: 'Success');
         final llmStory = _wsData?['story'] as String?;
         const msgs = ['✅ Bill đã lưu!', '🎉 MiMo ghi nhận rồi nhé!'];
         final fallbackMsg = msgs[Random().nextInt(msgs.length)];
-        mimoController.show(MiMoResponse(status: moodAsset, message: llmStory ?? fallbackMsg));
+        mimoController.show(MiMoResponse(emotionAsset: moodAsset, message: llmStory ?? fallbackMsg));
       });
       return;
     }
     setState(() { _saving = true; _saveError = null; });
     try {
-      final wallets = await _api.getWallets();
       if (wallets.isEmpty) throw Exception('Không có ví nào');
       
       String? imageUrl;
@@ -169,32 +207,38 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
       }
 
       final nluMeta = widget.extractedData?['nlu'] as Map<String, dynamic>?;
+      final llm = nluMeta != null
+          ? LlmMimoReply.fromNlu(nluMeta, intent: 'Record')
+          : const LlmMimoReply(text: '', emotionAsset: 'Success');
       await _api.createTransaction({
-        'walletId': wallets[0]['id'],
+        'walletId': targetWalletId,
         'amount': _amount,
         'type': _recordType == 'Income' ? 'income' : 'expense',
         'categoryCode': _category,
         'note': _note,
         'source': imageUrl != null ? 'story' : 'text',
         'imageUrl': imageUrl,
-        // Lưu kèm emotion + comment LLM để story feed / detail hiển thị đúng mascot.
+        'aiConfidence': _confidence,
+        'aiExtracted': true,
+        ...llm.toStoryPersistFields(),
         if (nluMeta != null) 'aiMeta': {'nlu': nluMeta},
       });
       if (!mounted) return;
       setState(() => _saving = false);
       notifyTransactionChanged();
-      context.go(AppRoutes.home);
+      if (mounted) await StreakCelebration.instance.afterActivity(context);
+      if (!mounted) return;
 
-      // Show MiMo overlay using mascot_mood + LLM story from NLU API response
-      final nluData = widget.extractedData?['nlu'] as Map<String, dynamic>?;
-      final apiMood = nluData?['mascot_mood'] as String?;
-      final moodAsset = mapApiStatusToAsset(apiMood, fallback: 'Success');
-      final llmStory = (nluData?['gemini_json'] as Map?)? ['story'] as String?;
-      final nlgResponse = nluData?['nlg_response'] as String?;
-      final mimoMsg = llmStory ?? nlgResponse ?? '✅ Đã lưu! Mimo ghi nhận rồi nhé 😊';
+      if (isGroupWallet) {
+        context.go(AppRoutes.shareWallet, extra: {'walletId': targetWalletId});
+      } else {
+        context.go(AppRoutes.home);
+      }
+
+      final mimoMsg = llm.text.isNotEmpty ? llm.text : '✅ Đã lưu! Mimo ghi nhận rồi nhé 😊';
       Future.delayed(const Duration(milliseconds: 400), () {
         mimoController.show(MiMoResponse(
-          status: moodAsset,
+          emotionAsset: llm.emotionAsset,
           message: mimoMsg,
         ));
       });
@@ -347,19 +391,13 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
     }
 
     final confidencePct = (_confidence * 100).toStringAsFixed(0);
-    final isLowConfidence = _confidence < 0.6;
+    final needsUserConfirm = _confidence < 0.9;
+    final isLowConfidence = _confidence < 0.9;
 
     return Scaffold(
       body: Stack(
         children: [
-          Positioned.fill(
-            child: CachedNetworkImage(
-              imageUrl: 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&w=1200&q=80',
-              fit: BoxFit.cover,
-              memCacheWidth: 1080,
-              errorWidget: (ctx, url, e) => Container(color: Colors.black87),
-            ),
-          ),
+          Positioned.fill(child: _buildBackground()),
           Positioned.fill(
             child: Container(
               decoration: const BoxDecoration(
@@ -447,7 +485,7 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
                         Container(
                           width: 48, height: 48,
                           decoration: BoxDecoration(color: AppColors.teal.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(AppRadii.md)),
-                          child: const Icon(Icons.receipt_long, color: Colors.white),
+                          child: Center(child: CategoryTheme.iconOf(_category, size: 32)),
                         ),
                         const SizedBox(width: 12),
                         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -469,7 +507,12 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
                     ]),
                   ),
                   const SizedBox(height: 20),
-                  // Buttons
+                  if (!needsUserConfirm && _saving)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 12),
+                      child: Text('Độ chính xác cao — đang lưu tự động...', style: TextStyle(color: Colors.white70)),
+                    ),
+                  if (needsUserConfirm)
                   Row(children: [
                     Expanded(
                       child: OutlinedButton(

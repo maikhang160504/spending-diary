@@ -1,11 +1,10 @@
 import { Link, NavLink, Outlet } from "react-router-dom";
 
 const navItems = [
-  { path: "/", label: "Dashboard" },
-  { path: "/users", label: "Quan ly user" },
-  { path: "/expenses", label: "Xem chi tieu" },
-  { path: "/categories", label: "Quan ly danh muc" },
-  { path: "/ai-logs", label: "Xem log AI" }
+  { path: "/", label: "Fusion & AI Quality" },
+  { path: "/nlu-ops", label: "NLU & Retraining" },
+  { path: "/user-inspector", label: "User Cache Inspector" },
+  { path: "/bot-prompts", label: "Bot Prompt Scenarios" }
 ];
 
 function Layout() {
@@ -13,11 +12,22 @@ function Layout() {
     <div className="app-shell">
       <header className="topbar">
         <Link to="/" className="brand">
-          SpendAI Admin
+          <span className="brand-dot"></span>
+          SpendAI Cockpit
         </Link>
+        <div className="system-status">
+          <div className="status-indicator">
+            <span className="status-dot"></span>
+            <span>NLU Core: Online</span>
+          </div>
+          <div className="status-indicator" style={{ borderStyle: "dashed" }}>
+            <span style={{ color: "var(--accent-blue)" }}>Model: v2.4-global</span>
+          </div>
+        </div>
       </header>
       <div className="content-wrap">
         <aside className="sidebar">
+          <div className="sidebar-title">Operations</div>
           {navItems.map((item) => (
             <NavLink key={item.path} to={item.path} end className="nav-item">
               {item.label}

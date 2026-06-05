@@ -6,6 +6,7 @@ import '../../services/api_client.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_radii.dart';
 import '../../theme/app_spacing.dart';
+import '../../utils/formatters.dart';
 
 class OnboardingStep4 extends StatefulWidget {
   const OnboardingStep4({super.key});
@@ -26,12 +27,149 @@ class _OnboardingStep4State extends State<OnboardingStep4> {
   static const _jobEmojis = ['📚', '💻', '✨', '💼', '🎯'];
 
   Future<void> _finish() async {
+    final walletConfig = await showModalBottomSheet<Map<String, dynamic>>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        final nameCtrl = TextEditingController(text: 'Ví cá nhân');
+        final balanceCtrl = TextEditingController(text: '0');
+        return StatefulBuilder(
+          builder: (ctx, setSheetState) {
+            return Padding(
+              padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+              child: Container(
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadii.xl)),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFCBD5E1),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Tạo ví đầu tiên của bạn',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w800,
+                            color: Colors.black87,
+                          ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Thiết lập ví đầu tiên để ghi chép các giao dịch chi tiêu của bạn.',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                    ),
+                    const SizedBox(height: 20),
+                    // Wallet Name Field
+                    const Text(
+                      'Tên ví',
+                      style: TextStyle(fontWeight: FontWeight.w600, color: Colors.black87, fontSize: 13),
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: nameCtrl,
+                      decoration: const InputDecoration(
+                        hintText: 'VD: Ví cá nhân, Quỹ tiêu vặt...',
+                        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      ),
+                      style: const TextStyle(color: Colors.black87),
+                    ),
+                    const SizedBox(height: 16),
+                    // Initial Balance Field
+                    const Text(
+                      'Số dư ban đầu',
+                      style: TextStyle(fontWeight: FontWeight.w600, color: Colors.black87, fontSize: 13),
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: balanceCtrl,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [MoneyTextInputFormatter()],
+                      decoration: const InputDecoration(
+                        hintText: 'VD: 0',
+                        suffixText: 'đ',
+                        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      ),
+                      style: const TextStyle(color: Colors.black87),
+                    ),
+                    const SizedBox(height: 24),
+                    // Buttons
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => Navigator.pop(ctx, {'name': 'Ví cá nhân', 'balance': 0}),
+                            style: OutlinedButton.styleFrom(
+                              side: const BorderSide(color: AppColors.teal),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadii.lg)),
+                            ),
+                            child: const Text('Bỏ qua', style: TextStyle(color: AppColors.teal, fontWeight: FontWeight.w700)),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: FilledButton(
+                            onPressed: () {
+                              final name = nameCtrl.text.trim();
+                              final rawBal = balanceCtrl.text.trim().replaceAll(',', '');
+                              final bal = int.tryParse(rawBal) ?? 0;
+                              Navigator.pop(ctx, {
+                                'name': name.isNotEmpty ? name : 'Ví cá nhân',
+                                'balance': bal,
+                              });
+                            },
+                            style: FilledButton.styleFrom(
+                              backgroundColor: AppColors.teal,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadii.lg)),
+                            ),
+                            child: const Text('Tạo ví & Bắt đầu', style: TextStyle(fontWeight: FontWeight.w700, color: Colors.white)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+
+    final config = walletConfig ?? {'name': 'Ví cá nhân', 'balance': 0};
+
     setState(() => _saving = true);
     try {
       await _api.updateSettings({
         if (_selectedAge != null) 'ageGroup': _selectedAge,
         if (_selectedJob != null) 'jobType': _selectedJob,
       });
+
+      await _api.createWallet({
+        'name': config['name'] as String,
+        'type': 'personal',
+        'currency': 'VND',
+        'icon': '💼',
+        'color': '#14B8A6',
+        'balance': config['balance'] as int,
+      });
+
       if (mounted) context.go(AppRoutes.home);
     } catch (e) {
       if (mounted) {

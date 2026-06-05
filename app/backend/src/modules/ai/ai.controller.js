@@ -56,6 +56,11 @@ exports.actionConfirmed = asyncHandler(async (req, res) => {
   res.json({ success: true, data: { confirmed } });
 });
 
+exports.executeAction = asyncHandler(async (req, res) => {
+  const data = await service.executeAction(req.user.id, req.body);
+  res.json({ success: true, data });
+});
+
 exports.aiChat = asyncHandler(async (req, res) => {
   const { sessionId } = req.params;
   const { content } = req.body;

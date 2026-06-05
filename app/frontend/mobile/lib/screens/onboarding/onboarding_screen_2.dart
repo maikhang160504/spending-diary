@@ -37,7 +37,7 @@ class _OnboardingStep2State extends State<OnboardingStep2> {
   Future<void> _submit() async {
     final styleMap = {
       'Dui Dẻ': 'funny',
-      'Dận Dữ': 'gentle', // gentler and polite, gentler than sarcastic
+      'Dận Dữ': 'strict',
     };
     final style = styleMap[_selected] ?? 'funny';
     setState(() => _saving = true);
