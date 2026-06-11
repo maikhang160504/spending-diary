@@ -185,7 +185,11 @@ def run_real_nlu(
     }
     context_metadata = context_meta.build_context_metadata(nlu_for_meta, profile or {})
 
-    if run_llm or result.get("intent") == "Chitchat":
+    # Skip LLM call in the first pass for Action intents, since the backend will
+    # enrich it with action_facts and make a second call to generate the final response.
+    is_action_first_pass = (result.get("intent") == "Action") and (not profile or "action_facts" not in profile)
+
+    if (run_llm or result.get("intent") == "Chitchat") and not is_action_first_pass:
         try:
             llm_runner.attach_nlg_and_llm(
                 result,
@@ -195,6 +199,7 @@ def run_real_nlu(
                 prompts_config=bundle["prompts"],
                 request_template=bundle["request_template"],
                 nlg_persona=(nlg_persona or emotion or "hai_huoc"),
+                run_llm=run_llm,
             )
         except Exception as exc:  # noqa: BLE001
             logger.warning("LLM enrichment failed: %s", exc)
@@ -263,7 +268,27 @@ def run_real_ocr(image_bytes: bytes, filename_hint: str | None = None) -> dict[s
         tmp.write(image_bytes)
         tmp_path = tmp.name
     try:
-        summary = pipeline.process_image(tmp_path)
+        image_rgb = pipeline._read_rgb(tmp_path)
+        df_boxes = pipeline.ocr_boxes(image_rgb)
+        df_lines = pipeline.group_lines(df_boxes)
+        
+        from receipt_ocr.receipt_nlu import extract_receipt_summary
+        summary = extract_receipt_summary(df_lines)
+        
+        lines_data = []
+        raw_text_list = []
+        if not df_lines.empty:
+            for _, r in df_lines.iterrows():
+                t = str(r["line_text"]).strip()
+                if t:
+                    raw_text_list.append(t)
+                    lines_data.append({
+                        "text": t,
+                        "bbox": [float(x) for x in r["bbox"]] if r.get("bbox") is not None else None,
+                        "confidence": 0.90,
+                    })
+        
+        joined_text = "\n".join(raw_text_list)
     finally:
         try:
             Path(tmp_path).unlink(missing_ok=True)
@@ -271,8 +296,8 @@ def run_real_ocr(image_bytes: bytes, filename_hint: str | None = None) -> dict[s
             pass
 
     return {
-        "text": "",  # the original pipeline does not return the joined text
-        "lines": [],
+        "text": joined_text,
+        "lines": lines_data,
         "suggestion": {
             "amount": summary.get("amount"),
             "category": summary.get("category"),

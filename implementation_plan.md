@@ -1,172 +1,158 @@
-# Smart Budgeting Recommendation — Kế hoạch triển khai
+# Implementation Plan - App Bug Fixes
 
-## Phân tích câu hỏi của bạn
+This implementation plan details the fixes for the issues reported across the chat, chat screen, app icon, notification system, Google Sign-In, wallet onboarding, avatar changing, and metadata context.
 
-### Q1: Phương án thiết kế đã giải quyết trọn vẹn bài toán tối ưu thao tác chưa?
-
-**Đã giải quyết 90% — nhưng cần bổ sung 3 điểm quan trọng:**
-
-| Kịch bản | Tài liệu hiện tại | Cần bổ sung |
-|---|---|---|
-| User mới (< 1 tháng dữ liệu) | ❌ Chưa đề cập | Fallback dùng **peer benchmark** (`group_spending_benchmarks`) thay vì tính Moving Average |
-| User từ chối gợi ý | ❌ Chưa rõ luồng | Nếu bấm "Để mình tự chỉnh lại" → mở form pre-filled số AI đã tính, user chỉ chỉnh sửa thay vì điền từ đầu |
-| User bỏ lỡ ngày mùng 1 | ❌ Chưa xử lý | Suggestion vẫn hiển thị nếu user chưa có budget active cho tháng hiện tại, không chỉ show đúng ngày 1 |
-
-### Q2: Bổ sung quy tắc xử lý tháng lễ lớn — CÓ, rất cần thiết
-
-Nếu không xử lý tính mùa vụ, thuật toán sẽ gợi ý sai nghiêm trọng trong 2 kịch bản:
-
-| Kịch bản sai | Ví dụ | Lỗi thuật toán |
-|---|---|---|
-| **Tháng sau Tết** (tháng 3) | Moving Avg 3 tháng = T12 + T1 + T2 → bao gồm Tết → gợi ý quá cao | Hạn mức bị inflated ~40-60% |
-| **Tháng Tết** (tháng 2) | Moving Avg 3 tháng = T11 + T12 + T1 → toàn tháng thường → gợi ý quá thấp | Hạn mức quá khắt khe, user bực bội |
-
-**Giải pháp: Seasonal Adjustment Factor (H)**
-
-```
-Hạn mức gợi ý = B × I × (1 - S) × H
-```
-
-Trong đó `H` (Holiday Factor) là hệ số mùa vụ:
-
-| Tháng đích (tháng tiếp theo) | H | Lý do |
-|---|---|---|
-| Tháng 1 (trước Tết) | 1.20 | Mua sắm Tết bắt đầu |
-| Tháng 2 (Tết Nguyên Đán) | 1.50 | Quà cáp, du lịch, lì xì, ăn uống |
-| Tháng 3 (sau Tết) | 0.85 | Thắt lưng buộc bụng sau Tết |
-| Tháng 9 (khai giảng) | 1.15 | Sinh viên: học phí, sách vở, đồ dùng |
-| Tháng 12 (Giáng sinh + Tết Dương) | 1.25 | Quà tặng, tiệc, du lịch |
-| Các tháng còn lại | 1.00 | Không điều chỉnh |
+## User Review Required
 
 > [!IMPORTANT]
-> Bộ lọc Denoising (Bước 1) cũng cần nhận biết tháng lễ: Trong tháng Tết, **không** flag các khoản Shopping/Social cao bất thường vì chúng là chi tiêu hợp lệ theo mùa.
+> **Google Sign-In Fallback Notification**: We will display a warning `SnackBar` to the user when Google Sign-In fails and falls back to the developer mock account, making it transparent that the mock user is logged in.
+> **App Icon Re-generation**: We will run a python script to pad `Logo.png` to `Logo_padded.png` and run the `flutter_launcher_icons` package to generate the icons.
+> **Onboarding Wallet Update**: Instead of creating a duplicate personal wallet, onboarding step 4 will query existing wallets, update the name of the default personal wallet, and post an income transaction to set the initial balance.
 
 ---
 
 ## Proposed Changes
 
-### Database Migration
+### 1. Chat Modules (Backend & Frontend)
 
-#### [NEW] [011_budget_suggestions.sql](file:///d:/Luan-Van/Project/app/backend/src/db/migrations/011_budget_suggestions.sql)
+#### [MODIFY] [ai.service.js](file:///d:/Luan-Van/Project/app/backend/src/modules/ai/ai.service.js)
+Fix `recentMessages.map is not a function` error by correctly handling the object returned from `chatService.getMessages`.
+- Change the call to `chatService.getMessages(userId, sessionId, { limit: 20 })` (wrapped in options object).
+- Extract `recentMessages = recentMessagesRes.messages || []` array from the result object before mapping.
 
-Bảng lưu kết quả tính toán batch job — API chỉ cần SELECT tĩnh:
-
-```sql
-CREATE TABLE IF NOT EXISTS user_budget_suggestions (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    target_month VARCHAR(7) NOT NULL,          -- '2026-07'
-    category_code VARCHAR(50) NOT NULL,
-    suggested_amount DECIMAL(15,2) NOT NULL,
-    base_spending DECIMAL(15,2),               -- B value
-    income_factor DECIMAL(5,3) DEFAULT 1.000,  -- I value
-    saving_rate DECIMAL(5,3) DEFAULT 0.000,    -- S value
-    holiday_factor DECIMAL(5,3) DEFAULT 1.000, -- H value
-    reason TEXT,                                -- Giải thích cho user
-    status VARCHAR(20) DEFAULT 'pending',      -- pending | applied | dismissed
-    created_at TIMESTAMP DEFAULT NOW(),
-    updated_at TIMESTAMP DEFAULT NOW(),
-    UNIQUE(user_id, target_month, category_code)
-);
-```
+#### [MODIFY] [chat_screen.dart](file:///d:/Luan-Van/Project/app/frontend/mobile/lib/screens/chat/chat_screen.dart)
+Modify session initialization logic to reuse existing active sessions for a wallet and show the welcome greeting message.
+- Add `forceNew` parameter (default `false`) to `ChatScreen` constructor and register it in `app_routes.dart`.
+- In `_initSession()`:
+  - If `forceNew` is `false` and `widget.sessionId` is null:
+    - Query `getChatSessions()`.
+    - Find the most recent active chat session matching the wallet (either `widget.walletId` if not null, or the default wallet).
+    - If found, set `_sessionId` and `_walletId` and load its messages.
+    - If not found (or if `forceNew` is `true`), create a new session, set `_sessionId`, and call `_loadMessagesPage()` immediately to show the mascot's welcome greeting inserted by the backend.
 
 ---
 
-### Backend — Suggestion Service
+### 2. Chat Screen UI and Voice Input
 
-#### [NEW] [suggestion.service.js](file:///d:/Luan-Van/Project/app/backend/src/modules/budgets/suggestion.service.js)
+#### [MODIFY] [llm_runner.py](file:///d:/Luan-Van/Project/expense-ocr-nlu/src/nlg/llm_runner.py)
+Allow the dynamic override of `should_run_llm` check via a parameter in `attach_nlg_and_llm`.
+- Modify `attach_nlg_and_llm` signature to accept `run_llm: bool | None = None`.
+- Evaluate `should_run = run_llm if run_llm is not None else should_run_llm(...)` and return early if false.
 
-Service chứa toàn bộ logic tính toán gợi ý, bao gồm:
+#### [MODIFY] [expense_ocr_nlu.py](file:///d:/Luan-Van/Project/app/ai-service/app/adapters/expense_ocr_nlu.py)
+- Pass `run_llm=run_llm` parameter down to `llm_runner.attach_nlg_and_llm`.
 
-**1. `computeSuggestionsForUser(userId, targetMonth)`** — Core algorithm:
-- Lấy lịch sử giao dịch 3 tháng gần nhất theo `category_code`
-- **Denoising**: Loại bỏ giao dịch outlier (> 3σ) + whitelist category mùa lễ
-- **Base Spending (B)**: Weighted Moving Average (tháng gần nhất × 0.5, tháng trước × 0.3, tháng trước nữa × 0.2)
-- **Income Factor (I)**: So sánh thu nhập 3 tháng, nếu giảm → `I = avg_recent_income / avg_older_income` (capped 0.7-1.0)
-- **Saving Rate (S)**: 0.05-0.10 cho danh mục "lãng phí" (Entertainment, Shopping, Social, Beauty), 0.00 cho danh mục thiết yếu (Food, Housing, Transport, Essentials)
-- **Holiday Factor (H)**: Tra bảng hệ số mùa vụ theo `targetMonth`
-- **Fallback cho user mới**: Nếu < 1 tháng dữ liệu → dùng `group_spending_benchmarks` theo `age_group` + `job_type`
+#### [MODIFY] [app.py](file:///d:/Luan-Van/Project/expense-ocr-nlu/src/api/app.py)
+- Pass `run_llm=run_llm_flag` to `attach_nlg_and_llm`.
 
-**2. `generateBatchSuggestions()`** — Batch job cho tất cả users:
-- Quét toàn bộ active users
-- Gọi `computeSuggestionsForUser()` cho từng user
-- Upsert vào `user_budget_suggestions`
+#### [MODIFY] [chat_screen.dart](file:///d:/Luan-Van/Project/app/frontend/mobile/lib/screens/chat/chat_screen.dart)
+Hide the action buttons once a transaction is successfully saved to improve UI clarity.
+- For both `_TxPreviewCard` and the multi-transaction card, if `message.isSaved` is true:
+  - Hide the edit/save buttons.
+  - Display a teal checkmark badge or banner stating `✓ Đã lưu giao dịch thành công` / `✓ Đã lưu tất cả giao dịch thành công`.
 
-**3. `getSuggestions(userId, targetMonth)`** — API read:
-- SELECT từ bảng `user_budget_suggestions`
-- Format thành payload gồm danh sách category + số tiền + lý do
+#### [MODIFY] [home_screen.dart](file:///d:/Luan-Van/Project/app/frontend/mobile/lib/screens/home/home_screen.dart)
+Adjust draft transactions to display the correct title and icon depending on their source.
+- Check `tx['source']` for draft card rendering:
+  - If `source == 'voice'`, display `'Nhập liệu giọng nói'` and `Icons.mic_none_rounded`.
+  - If `source == 'bill'`, display `'Nhập hóa đơn'` and `Icons.receipt_long_rounded`.
+  - Else, display `'Giao dịch nháp'` and `Icons.edit_note_rounded`.
 
-**4. `applySuggestions(userId, targetMonth, overrides?)`** — 1-Click Apply:
-- Đọc suggestions → tạo/update budgets qua `budgetsService.create()`
-- Cập nhật `status = 'applied'`
-- Trả message xác nhận kiểu MiMo
-
-**5. `dismissSuggestion(userId, targetMonth)`** — Từ chối:
-- Cập nhật `status = 'dismissed'`
+#### [MODIFY] [share_wallet_screen.dart](file:///d:/Luan-Van/Project/app/frontend/mobile/lib/screens/wallet/share_wallet_screen.dart)
+Store transaction in the correct wallet when taking photos/adding stories from a group wallet screen.
+- Set `ApiClient.lastSelectedWalletId = widget.walletId` inside `initState` of `ShareWalletScreen` so any camera/bill input defaults to the current active group wallet.
 
 ---
 
-### Backend — API Routes
+### 3. App Icon Padding
 
-#### [MODIFY] [budgets.routes.js](file:///d:/Luan-Van/Project/app/backend/src/modules/budgets/budgets.routes.js)
+#### [NEW] [pad_logo.py](file:///d:/Luan-Van/Project/pad_logo.py)
+Create a helper python script using Pillow to center and scale the original `Logo.png` down to `63%` with a transparent background of the same size, saving it as `Logo_padded.png` in `assets/logo/`.
 
-Thêm 3 endpoints:
-- `GET /api/v1/budgets/suggestions?month=2026-07` — lấy gợi ý tháng
-- `POST /api/v1/budgets/suggestions/apply` — áp dụng 1-Click
-- `POST /api/v1/budgets/suggestions/dismiss` — từ chối
-
----
-
-### Backend — AI Action Integration
-
-#### [MODIFY] [action.service.js](file:///d:/Luan-Van/Project/app/backend/src/modules/ai/action.service.js)
-
-- Thêm handler cho action type `SUGGEST_BUDGET` trong `executeAction()`
-- Thêm function `executeSuggestBudget(userId, payload)`:
-  - Gọi `suggestionService.getSuggestions()`
-  - Format thành Vietnamese emotional story kiểu MiMo
-  - Trả `kind: 'budget_suggestion'` với danh sách categories + `apply_action`
+#### [MODIFY] [pubspec.yaml](file:///d:/Luan-Van/Project/app/frontend/mobile/pubspec.yaml)
+- Add `assets/logo/Logo_padded.png` to assets list.
+- Update `adaptive_icon_foreground` to `"assets/logo/Logo_padded.png"`.
 
 ---
 
-### Backend — Unit Tests
+### 4. Push and Local Notifications
 
-#### [MODIFY] [action.service.test.js](file:///d:/Luan-Van/Project/app/backend/tests/unit/action.service.test.js)
+#### [MODIFY] [push_notification_service.dart](file:///d:/Luan-Van/Project/app/frontend/mobile/lib/services/push_notification_service.dart)
+Fix Android local notification crash and add tapping callback.
+- Change `AndroidInitializationSettings` resource name from `'@mipmap/ic_launcher'` to `'@mipmap/launcher_icon'`.
+- Accept an optional callback `void Function(String?)? onNotificationTap` in `initialize()`.
+- Fire `onNotificationTap` inside `onDidReceiveNotificationResponse`.
 
-Thêm test cases:
-- Holiday factor lookup cho các tháng Tết (1, 2), sau Tết (3), Giáng sinh (12)
-- Denoising filter loại bỏ outlier > 3σ
-- Fallback peer benchmark cho user mới
-- `buildReportStory` cho `kind: 'budget_suggestion'`
-
-#### [NEW] [suggestion.service.test.js](file:///d:/Luan-Van/Project/app/backend/tests/unit/suggestion.service.test.js)
-
-Unit tests cho core logic:
-- `computeSuggestionsForUser` with mock transaction data
-- Weighted Moving Average calculation
-- Income factor capping
-- Holiday adjustment
-- Edge case: user với 0 giao dịch → fallback peer benchmark
+#### [MODIFY] [app_shell.dart](file:///d:/Luan-Van/Project/app/frontend/mobile/lib/screens/shell/app_shell.dart)
+Enable navigation when tapping notifications.
+- When initializing `PushNotificationService`, pass an `onNotificationTap` callback that calls `context.push(payload)` if mounted and valid.
 
 ---
 
-## Open Questions
+### 5. Google Sign-in Fallback Diagnostics
 
-> [!IMPORTANT]
-> **1. Batch Job Scheduling**: Tài liệu đề cập chạy batch job lúc 12h00 đêm ngày cuối tháng. Trong giai đoạn MVP, bạn muốn:
-> - **(A)** Dùng API endpoint thủ công để trigger (admin hoặc cron bên ngoài gọi)?
-> - **(B)** Implement cron job trực tiếp trong Node.js server (dùng `node-cron`)?
->
-> **2. UI/UX Morning Story**: Frontend mobile hiện có sẵn cơ chế hiển thị "Morning Story" / proactive notification không, hay cần xây mới? Trong plan này tôi sẽ triển khai phần backend API trước, frontend sẽ consume API này.
+#### [MODIFY] [login_screen.dart](file:///d:/Luan-Van/Project/app/frontend/mobile/lib/screens/auth/login_screen.dart)
+Notify user when Google login falls back to mock user on emulators.
+- Detect if the google sign-in fails or throws a platform exception.
+- Display a warning snackbar notifying the user/developer that Google login failed (due to configuration/emulator) and they are being logged in with the developer mock account.
+
+---
+
+### 6. Onboarding Wallet Creation
+
+#### [MODIFY] [api_client.dart](file:///d:/Luan-Van/Project/app/frontend/mobile/lib/services/api_client.dart)
+- Implement `updateWallet(String id, Map<String, dynamic> body)` mapping to `PATCH /wallets/:id`.
+
+#### [MODIFY] [onboarding_screen_4.dart](file:///d:/Luan-Van/Project/app/frontend/mobile/lib/screens/onboarding/onboarding_screen_4.dart)
+Update default wallet instead of creating duplicate.
+- Call `_api.getWallets()` to fetch existing wallets.
+- Find the personal wallet (`type == 'personal'`).
+- If found:
+  - Call `_api.updateWallet(walletId, {'name': config['name']})`.
+  - If `config['balance'] > 0`, insert an initial balance income transaction on that wallet:
+    ```dart
+    await _api.createTransaction({
+      'walletId': walletId,
+      'amount': config['balance'],
+      'type': 'income',
+      'categoryCode': 'Others',
+      'note': 'Số dư ban đầu',
+      'source': 'manual',
+    });
+    ```
+  - If not found (fallback), call `_api.createWallet(...)` as before.
+
+---
+
+### 7. iOS Photo & Camera Permissions
+
+#### [MODIFY] [Info.plist](file:///d:/Luan-Van/Project/app/frontend/mobile/ios/Runner/Info.plist)
+Add usage description keys to prevent iOS crashes on avatar changing.
+- Add `NSPhotoLibraryUsageDescription` and `NSCameraUsageDescription` keys.
+
+---
+
+### 8. Metadata Fallback Removal
+
+#### [MODIFY] [context_meta.py](file:///d:/Luan-Van/Project/expense-ocr-nlu/src/nlg/context_meta.py)
+- Remove `profile.get("frequency_week")` fallback for category `frequency_week`, resolving to `cat.get("frequency_week") or 0`.
 
 ---
 
 ## Verification Plan
 
 ### Automated Tests
-- `npm test` trong `d:\Luan-Van\Project\app\backend` — tất cả tests phải pass (bao gồm cả tests mới)
+- Run `npm test` in backend to verify test suite passing.
+- Run `pytest` or Python tests in `app/ai-service` and `expense-ocr-nlu` to verify NLU components.
+- Run python script to verify logo padding generation.
 
 ### Manual Verification
-- Seed user có 3+ tháng giao dịch → gọi API suggestion → verify số liệu hợp lý
-- Test edge case tháng Tết (tháng 2) → verify holiday factor = 1.50
-- Test user mới (0 tháng) → verify fallback dùng peer benchmark
+- Launch local development server (`npm run dev`) and Python NLU backend.
+- Run Flutter application on Android Emulator / iOS Simulator.
+- Verify Google Sign-In fallback warning snackbar.
+- Verify onboarding step 4 does not create a duplicate wallet and updates the default wallet with initial balance.
+- Verify iOS photos and camera picking permissions don't crash.
+- Verify chat welcome greeting appears upon new chat session creation.
+- Verify chat screen hides confirm/save buttons when a transaction is saved.
+- Verify chat screen reuses existing session when clicking Chat on Home/Wallet screens.
+- Run the icon generation script and check if the generated launcher icon fits within the boundaries.

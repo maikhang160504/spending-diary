@@ -216,6 +216,7 @@ class _StoryPageState extends State<_StoryPage> {
     if (picked == null) return;
 
     setState(() => _correcting = true);
+    if (!mounted) return;
     final messenger = ScaffoldMessenger.of(context);
     try {
       await _api.updateTransaction(_primaryTxId!, {
@@ -643,7 +644,7 @@ class _StoryPageState extends State<_StoryPage> {
                               child: Image.asset(
                                 'assets/MiMo/emotions/$mascotMood.png',
                                 fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => const Center(
+                                errorBuilder: (_, _, _) => const Center(
                                   child: Text('😎', style: TextStyle(fontSize: 18)),
                                 ),
                               ),
@@ -772,7 +773,7 @@ class _StoryPageState extends State<_StoryPage> {
                                   width: double.infinity,
                                   fit: BoxFit.cover,
                                   memCacheWidth: 1080,
-                                  errorWidget: (_, __, ___) => const SizedBox.shrink(),
+                                  errorWidget: (_, _, _) => const SizedBox.shrink(),
                                 ),
                               ),
                             ),

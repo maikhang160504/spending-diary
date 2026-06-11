@@ -14,6 +14,7 @@ Thumbs.db
 *.swo
 
 #skill agent
+.agentss
 .agents
 
 #codegraph
@@ -21,4 +22,6 @@ Thumbs.db
 
 # Env files
 .env
-**/.env
+**/.env
+
+/markitdown

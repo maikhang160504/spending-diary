@@ -31,6 +31,7 @@ function row(r) {
     storyUserId: r.story_user_id || null,
     username: r.username || null,
     userAvatar: r.avatar_url || null,
+    isDraft: r.is_draft || false,
   };
 }
 
@@ -53,7 +54,7 @@ async function create(userId, payload) {
   await walletService.assertMember(payload.walletId, userId, ['owner', 'member']);
   const categoryId = await findCategoryByCode(userId, payload.categoryCode, payload.type);
 
-  return withTransaction(async (client) => {
+  const tx = await withTransaction(async (client) => {
     // 1. Create a story
     const storyTitle = payload.note || payload.categoryCode || 'Giao dịch mới';
     const storyRes = await client.query(
@@ -123,9 +124,9 @@ async function create(userId, payload) {
       `INSERT INTO transactions
          (wallet_id, creator_id, category_id, category_code, amount, type, source,
           note, image_url, thumbnail_url, ai_extracted, ai_confidence, ai_meta,
-          occurred_at, story_item_id)
+          occurred_at, story_item_id, is_draft)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13,
-               COALESCE($14::timestamptz, NOW()), $15)
+               COALESCE($14::timestamptz, NOW()), $15, $16)
        RETURNING *`,
       [
         payload.walletId,
@@ -143,12 +144,19 @@ async function create(userId, payload) {
         payload.aiMeta || {},
         payload.occurredAt || null,
         storyItemId,
+        payload.isDraft || false,
       ]
     );
     const tx = r.rows[0];
     tx.story_id = storyId;
     return row(tx);
   });
+
+  if (payload.type === 'expense' && payload.categoryCode) {
+    setImmediate(() => checkBudgetLimitsAndAlert(userId, payload.categoryCode, payload.walletId));
+  }
+
+  return tx;
 }
 
 async function listForUser(userId, filters) {
@@ -245,6 +253,7 @@ async function update(userId, id, payload) {
     ['categoryCode', 'category_code'],
     ['imageUrl', 'image_url'],
     ['thumbnailUrl', 'thumbnail_url'],
+    ['isDraft', 'is_draft'],
   ]) {
     if (payload[k] !== undefined) {
       fields.push(`${col} = $${i++}`);
@@ -308,7 +317,15 @@ async function update(userId, id, payload) {
     }
   }
 
-  return row(r.rows[0]);
+  const updatedTx = row(r.rows[0]);
+
+  if (updatedTx.type === 'expense') {
+    if (payload.amount !== undefined || payload.categoryCode !== undefined) {
+      setImmediate(() => checkBudgetLimitsAndAlert(userId, updatedTx.categoryCode, updatedTx.walletId));
+    }
+  }
+
+  return updatedTx;
 }
 
 async function softDelete(userId, id) {
@@ -330,6 +347,62 @@ async function createFromAi(userId, payload) {
   });
 }
 
+async function checkBudgetLimitsAndAlert(userId, categoryCode, walletId) {
+  if (!categoryCode) return;
+
+  const budgetsService = require('../budgets/budgets.service');
+  const { dispatchUserNotification } = require('../../services/notificationDispatch');
+
+  try {
+    const summaries = await budgetsService.summary(userId);
+    const budget = summaries.find(b => b.categoryCode === categoryCode && b.isActive);
+    if (!budget || !budget.alertEnabled) {
+      return;
+    }
+
+    const limit = budget.amountLimit;
+    const spent = budget.spent;
+    const usagePct = budget.usagePct; // e.g. 85.5
+
+    if (usagePct >= 80) {
+      const VI_CATEGORY_LABELS = {
+        'Food': 'Ăn uống',
+        'Transport': 'Di chuyển',
+        'Housing': 'Nhà ở',
+        'Shopping': 'Mua sắm',
+        'Entertainment': 'Giải trí',
+        'Health': 'Sức khỏe',
+        'Education': 'Giáo dục',
+        'Beauty': 'Làm đẹp',
+        'Social': 'Xã hội',
+        'Others': 'Tiêu dùng khác',
+      };
+      const catLabel = VI_CATEGORY_LABELS[categoryCode] || categoryCode;
+
+      const title = usagePct >= 100 ? '🚨 Vượt hạn mức chi tiêu!' : '⚠️ Sắp chạm hạn mức chi tiêu!';
+      const message = usagePct >= 100
+        ? `Nguy hiểm! Danh mục '${catLabel}' tháng này đã tiêu hết ${usagePct}% hạn mức. Chạm vào đây để AI tư vấn cắt giảm chi tiêu ngay.`
+        : `Cảnh báo! Danh mục '${catLabel}' tháng này đã đạt ${usagePct}% hạn mức. Chạm vào đây để AI lập thực đơn tiết kiệm nhé.`;
+
+      await dispatchUserNotification(userId, {
+        type: 'BUDGET_ALERT',
+        payload: {
+          title,
+          message,
+          categoryCode,
+          usagePct,
+          limitAmount: limit,
+          spentAmount: spent,
+          deepLink: '/chat',
+        },
+      });
+      console.log(`[Budget Alert] Notification dispatched to user ${userId} for category ${categoryCode} (spent: ${spent}/${limit}, ${usagePct}%)`);
+    }
+  } catch (err) {
+    console.error('[Budget Alert] check failed:', err.message);
+  }
+}
+
 module.exports = {
   create,
   listForUser,
@@ -338,4 +411,5 @@ module.exports = {
   softDelete,
   createFromAi,
   findCategoryByCode,
+  checkBudgetLimitsAndAlert,
 };

@@ -1,12 +1,23 @@
+import 'dart:io';
+import 'dart:async';
+import 'dart:convert';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:web_socket_channel/web_socket_channel.dart';
 
 import '../../routes/app_routes.dart';
+import '../../services/api_client.dart';
+import '../../services/transaction_notifier.dart';
+import '../../services/push_notification_service.dart';
+import '../../services/fcm_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_palette.dart';
 import '../../widgets/mimo_overlay.dart';
+import '../../widgets/notification_overlay.dart';
 
-/// AppShell wraps the 4 ShellRoute tabs + persistent bottom nav + MiMo overlay
+/// AppShell wraps the 4 ShellRoute tabs + persistent bottom nav + MiMo overlay + Notification banner
 class AppShell extends StatefulWidget {
   final Widget child;
   const AppShell({super.key, required this.child});
@@ -16,19 +27,205 @@ class AppShell extends StatefulWidget {
 }
 
 class _AppShellState extends State<AppShell> {
+  WebSocketChannel? _wsChannel;
+  StreamSubscription? _wsSub;
+  Timer? _reconnectTimer;
+  int _reconnectAttempt = 0;
+  final _api = ApiClient();
+
   @override
   void initState() {
     super.initState();
     mimoController.addListener(_onMiMoChanged);
+    inAppNotificationController.addListener(_onNotificationChanged);
+    _connectWebSocket();
+    _requestPermissions();
+    PushNotificationService.instance.initialize(
+      onNotificationTap: (payload) {
+        if (mounted && payload != null && payload.isNotEmpty) {
+          try {
+            context.push(payload);
+          } catch (e) {
+            debugPrint('[Notification] Navigation failed: $e');
+          }
+        }
+      },
+    );
+    _initFcm();
+  }
+
+  Future<void> _initFcm() async {
+    await FcmService.instance.initialize(
+      registerToken: (token, platform) =>
+          _api.registerFcmToken(token, platform),
+      removeToken: (token) => _api.removeFcmToken(token),
+      onDeepLink: (deepLink) {
+        if (mounted && deepLink.isNotEmpty) {
+          try {
+            context.push(deepLink);
+          } catch (e) {
+            debugPrint('[FCM] Navigation failed: $e');
+          }
+        }
+      },
+    );
   }
 
   @override
   void dispose() {
     mimoController.removeListener(_onMiMoChanged);
+    inAppNotificationController.removeListener(_onNotificationChanged);
+    _wsSub?.cancel();
+    _reconnectTimer?.cancel();
+    _wsChannel?.sink.close();
     super.dispose();
   }
 
   void _onMiMoChanged() => setState(() {});
+  void _onNotificationChanged() => setState(() {});
+
+  bool _isAndroid13OrHigher() {
+    if (!Platform.isAndroid) return false;
+    try {
+      final versionString = Platform.operatingSystemVersion.toLowerCase();
+      final apiMatch = RegExp(r'api\s+(\d+)').firstMatch(versionString);
+      if (apiMatch != null) {
+        final apiLevel = int.parse(apiMatch.group(1)!);
+        return apiLevel >= 33;
+      }
+      final androidMatch = RegExp(r'android\s+(\d+)').firstMatch(versionString);
+      if (androidMatch != null) {
+        final androidVersion = int.parse(androidMatch.group(1)!);
+        return androidVersion >= 13;
+      }
+    } catch (_) {}
+    return false;
+  }
+
+  Future<void> _requestPermissions() async {
+    try {
+      final List<Permission> permissions = [
+        Permission.camera,
+        Permission.microphone,
+        Permission.notification,
+      ];
+
+      if (Platform.isAndroid) {
+        if (_isAndroid13OrHigher()) {
+          permissions.add(Permission.photos);
+        } else {
+          permissions.add(Permission.storage);
+        }
+      } else {
+        permissions.add(Permission.photos);
+      }
+
+      await permissions.request();
+    } catch (e) {
+      debugPrint('[Permission] Error requesting permissions: $e');
+    }
+  }
+
+  Future<void> _connectWebSocket() async {
+    _wsSub?.cancel();
+    _reconnectTimer?.cancel();
+    try {
+      final token = await _api.accessToken;
+      if (token == null) {
+        _scheduleReconnect();
+        return;
+      }
+      final wsUrl = Uri.parse(
+        '${_api.baseUrl.replaceFirst(RegExp(r'^http'), 'ws').replaceFirst('/api/v1', '')}/ws?token=$token',
+      );
+      _wsChannel = WebSocketChannel.connect(wsUrl);
+      _reconnectAttempt = 0; // Reset on successful connection
+      debugPrint('[WebSocket] Connected successfully');
+      // Request any missed events since last disconnect
+      _wsChannel!.sink.add(jsonEncode({'type': 'SYNC_STATUS'}));
+      _wsSub = _wsChannel!.stream.listen(
+        (msg) {
+          try {
+            final json = jsonDecode(msg as String) as Map<String, dynamic>;
+            if (json['type'] == 'BUDGET_ALERT') {
+              final payload = json['payload'] as Map<String, dynamic>? ?? {};
+              final title = payload['title'] as String? ?? 'Cảnh báo ngân sách';
+              final message = payload['message'] as String? ?? '';
+              final deepLink = payload['deepLink'] as String? ?? '/chat';
+              inAppNotificationController.show(
+                InAppNotification(
+                  title: title,
+                  message: message,
+                  deepLink: deepLink,
+                  actionLabel: '💬 Chat AI tư vấn',
+                  onAction: () {
+                    context.push(deepLink);
+                  },
+                ),
+              );
+              PushNotificationService.instance.showNotification(
+                id: 1,
+                title: title,
+                body: message,
+                payload: deepLink,
+              );
+            } else if (json['type'] == 'RECURRING_ALERT') {
+              final payload = json['payload'] as Map<String, dynamic>? ?? {};
+              final title = payload['title'] as String? ?? 'Giao dịch định kỳ';
+              final message = payload['message'] as String? ?? '';
+              final deepLink = payload['deepLink'] as String? ?? '/';
+              
+              // Cập nhật UI ngay lập tức
+              notifyTransactionChanged();
+              
+              inAppNotificationController.show(
+                InAppNotification(
+                  title: title,
+                  message: message,
+                  deepLink: deepLink,
+                  actionLabel: 'Xem ví',
+                  onAction: () {
+                    context.push(deepLink);
+                  },
+                ),
+              );
+              PushNotificationService.instance.showNotification(
+                id: 2,
+                title: title,
+                body: message,
+                payload: deepLink,
+              );
+            }
+          } catch (e) {
+            debugPrint('[WebSocket] Error parsing message: $e');
+          }
+        },
+        onError: (err) {
+          debugPrint('[WebSocket] Error: $err');
+          _scheduleReconnect();
+        },
+        onDone: () {
+          debugPrint('[WebSocket] Closed');
+          _scheduleReconnect();
+        },
+      );
+    } catch (e) {
+      debugPrint('[WebSocket] Connection failed: $e');
+      _scheduleReconnect();
+    }
+  }
+
+  void _scheduleReconnect() {
+    _reconnectTimer?.cancel();
+    if (!mounted) return;
+    // Exponential backoff: 2^attempt * 1000ms + random jitter (0..1000ms), capped at 60s
+    final baseDelay = math.min(math.pow(2, _reconnectAttempt).toInt() * 1000, 60000);
+    final jitter = math.Random().nextInt(1000);
+    final delay = Duration(milliseconds: baseDelay + jitter);
+    debugPrint('[WebSocket] Reconnect attempt ${_reconnectAttempt + 1} in ${delay.inMilliseconds}ms');
+    _reconnectAttempt++;
+    _reconnectTimer = Timer(delay, _connectWebSocket);
+  }
 
   static int _tabIndex(BuildContext context) {
     final loc = GoRouterState.of(context).uri.toString();
@@ -44,7 +241,7 @@ class _AppShellState extends State<AppShell> {
   }
 
   void _onFabTap(BuildContext context) {
-    context.push(AppRoutes.camera);
+    context.push(AppRoutes.camera, extra: {'walletId': ApiClient.lastSelectedWalletId});
   }
 
   @override
@@ -63,6 +260,17 @@ class _AppShellState extends State<AppShell> {
               child: MiMoOverlay(
                 response: mimoController.current!,
                 onDismiss: mimoController.dismiss,
+              ),
+            ),
+          // In-App Floating Notification Banner — Top center of the screen
+          if (inAppNotificationController.current != null)
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 12,
+              left: 16,
+              right: 16,
+              child: InAppNotificationBanner(
+                notification: inAppNotificationController.current!,
+                onDismiss: inAppNotificationController.dismiss,
               ),
             ),
         ],

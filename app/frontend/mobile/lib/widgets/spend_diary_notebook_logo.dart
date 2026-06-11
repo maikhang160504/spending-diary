@@ -43,7 +43,7 @@ class SpendDiaryNotebookLogo extends StatelessWidget {
                 width: size * 0.88,
                 height: size * 0.88,
                 fit: BoxFit.contain,
-                errorBuilder: (_, __, ___) => Icon(
+                errorBuilder: (_, _, _) => Icon(
                   Icons.menu_book_rounded,
                   size: size * 0.6,
                   color: AppColors.teal,

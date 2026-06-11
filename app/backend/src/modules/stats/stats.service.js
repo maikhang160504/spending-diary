@@ -229,4 +229,137 @@ async function byCategory(userId, { from, to, range, walletId } = {}) {
   }));
 }
 
-module.exports = { dashboard, byMonth, byCategory };
+async function getMoMComparison(userId, { walletId } = {}) {
+  let walletClause = '';
+  const params = [userId];
+  if (walletId) {
+    params.push(walletId);
+    walletClause = 'AND t.wallet_id = $2 AND t.wallet_id IN (SELECT wallet_id FROM wallet_members WHERE user_id = $1)';
+  } else {
+    walletClause = `AND t.wallet_id IN (
+      SELECT w.id FROM wallets w
+      JOIN wallet_members wm ON wm.wallet_id = w.id
+      WHERE wm.user_id = $1 AND w.type = 'personal'
+    )`;
+  }
+
+  const queryStr = `
+    WITH this_month AS (
+      SELECT COALESCE(category_code, 'Others') AS category_code,
+             SUM(amount)::numeric AS total
+      FROM transactions t
+      WHERE t.is_deleted = FALSE
+        AND t.type = 'expense'
+        AND (category_code IS NULL OR category_code != 'Saving')
+        AND date_trunc('month', t.occurred_at) = date_trunc('month', NOW())
+        ${walletClause}
+      GROUP BY COALESCE(category_code, 'Others')
+    ),
+    last_month AS (
+      SELECT COALESCE(category_code, 'Others') AS category_code,
+             SUM(amount)::numeric AS total
+      FROM transactions t
+      WHERE t.is_deleted = FALSE
+        AND t.type = 'expense'
+        AND (category_code IS NULL OR category_code != 'Saving')
+        AND date_trunc('month', t.occurred_at) = date_trunc('month', NOW() - INTERVAL '1 month')
+        ${walletClause}
+      GROUP BY COALESCE(category_code, 'Others')
+    )
+    SELECT 
+      COALESCE(tm.category_code, lm.category_code) AS category_code,
+      COALESCE(tm.total, 0)::numeric AS this_month_total,
+      COALESCE(lm.total, 0)::numeric AS last_month_total
+    FROM this_month tm
+    FULL OUTER JOIN last_month lm ON tm.category_code = lm.category_code
+    ORDER BY this_month_total DESC, last_month_total DESC
+  `;
+
+  const r = await query(queryStr, params);
+  return r.rows.map(row => ({
+    categoryCode: row.category_code,
+    thisMonth: Number(row.this_month_total),
+    lastMonth: Number(row.last_month_total),
+  }));
+}
+
+async function getCumulativeVsBudget(userId, { walletId } = {}) {
+  let budgetQuery, txQuery;
+  const now = new Date();
+
+  if (walletId) {
+    budgetQuery = query(
+      `SELECT COALESCE(SUM(amount_limit), 0)::numeric AS total_limit
+       FROM budgets
+       WHERE wallet_id = $1
+         AND is_active = TRUE
+         AND start_date <= CURRENT_DATE
+         AND (end_date IS NULL OR end_date >= CURRENT_DATE)`,
+      [walletId]
+    );
+
+    txQuery = query(
+      `SELECT to_char(date_trunc('day', occurred_at), 'YYYY-MM-DD') AS day,
+              SUM(amount)::numeric AS daily_amount
+       FROM transactions t
+       WHERE t.is_deleted = FALSE
+         AND t.type = 'expense'
+         AND (category_code IS NULL OR category_code != 'Saving')
+         AND t.wallet_id = $1
+         AND date_trunc('month', t.occurred_at) = date_trunc('month', NOW())
+       GROUP BY day ORDER BY day`,
+      [walletId]
+    );
+  } else {
+    budgetQuery = query(
+      `SELECT COALESCE(SUM(amount_limit), 0)::numeric AS total_limit
+       FROM budgets
+       WHERE user_id = $1
+         AND wallet_id IN (SELECT id FROM wallets WHERE owner_id = $1 AND type = 'personal')
+         AND is_active = TRUE
+         AND start_date <= CURRENT_DATE
+         AND (end_date IS NULL OR end_date >= CURRENT_DATE)`,
+      [userId]
+    );
+
+    txQuery = query(
+      `SELECT to_char(date_trunc('day', occurred_at), 'YYYY-MM-DD') AS day,
+              SUM(amount)::numeric AS daily_amount
+       FROM transactions t
+       WHERE t.is_deleted = FALSE
+         AND t.type = 'expense'
+         AND (category_code IS NULL OR category_code != 'Saving')
+         AND t.wallet_id IN (SELECT id FROM wallets WHERE owner_id = $1 AND type = 'personal')
+         AND date_trunc('month', t.occurred_at) = date_trunc('month', NOW())
+       GROUP BY day ORDER BY day`,
+      [userId]
+    );
+  }
+
+  const [budgetRes, txRes] = await Promise.all([budgetQuery, txQuery]);
+  const limit = Number(budgetRes.rows[0]?.total_limit || 0);
+
+  const startOfMonth = new Date(Date.UTC(now.getFullYear(), now.getMonth(), 1));
+  const endOfMonth = new Date(Date.UTC(now.getFullYear(), now.getMonth() + 1, 0));
+  
+  const allDays = generateDateRange(startOfMonth.toISOString(), endOfMonth.toISOString());
+  const amountMap = new Map(txRes.rows.map(r => [r.day, Number(r.daily_amount)]));
+
+  let cumulative = 0;
+  const dailyCumulative = allDays.map(dayStr => {
+    const dailySpend = amountMap.get(dayStr) || 0;
+    cumulative += dailySpend;
+    return {
+      day: dayStr,
+      amount: dailySpend,
+      cumulative,
+    };
+  });
+
+  return {
+    limit,
+    dailyCumulative,
+  };
+}
+
+module.exports = { dashboard, byMonth, byCategory, getMoMComparison, getCumulativeVsBudget };

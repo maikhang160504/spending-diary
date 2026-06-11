@@ -109,7 +109,7 @@ class _SpendDiaryTitleText extends StatelessWidget {
 
     final leafTopPad = leafSize * 0.45;
     final boxes = painter.getBoxesForSelection(
-      const TextSelection.collapsed(offset: _iIndex),
+      const TextSelection(baseOffset: _iIndex, extentOffset: _iIndex + 1),
     );
 
     double leafLeft;
@@ -117,8 +117,8 @@ class _SpendDiaryTitleText extends StatelessWidget {
     if (boxes.isNotEmpty) {
       final box = boxes.first;
       final iW = box.right - box.left;
-      leafLeft = box.left + (iW - leafSize) / 2;
-      leafTop = leafTopPad + box.top - leafSize * 0.35;
+      leafLeft = box.left + (iW - leafSize) / 2 - leafSize * 0.05;
+      leafTop = leafTopPad + box.top + leafSize * 0.18;
     } else {
       final iStart = painter.getOffsetForCaret(
         const TextPosition(offset: _iIndex),
@@ -129,8 +129,8 @@ class _SpendDiaryTitleText extends StatelessWidget {
         Rect.zero,
       );
       final iW = (iEnd.dx - iStart.dx).clamp(4.0, 80.0);
-      leafLeft = iStart.dx + (iW - leafSize) / 2;
-      leafTop = leafTopPad + iStart.dy - leafSize * 0.5;
+      leafLeft = iStart.dx + (iW - leafSize) / 2 - leafSize * 0.05;
+      leafTop = leafTopPad + iStart.dy + leafSize * 0.10;
     }
 
     return (painter: painter, leafLeft: leafLeft, leafTop: leafTop);

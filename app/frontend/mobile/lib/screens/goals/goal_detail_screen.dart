@@ -232,7 +232,7 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String?>(
-                  value: selectedWalletId,
+                  initialValue: selectedWalletId,
                   decoration: const InputDecoration(labelText: 'Liên kết ví'),
                   dropdownColor: ctx.palette.card,
                   items: [

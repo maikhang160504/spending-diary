@@ -76,7 +76,7 @@ describe('ai.service unit tests', () => {
       { role: 'user', content: 'Tìm giao dịch đi lại', intent_action: { intent: 'Action', nlu: { action_type: 'SEARCH' } } },
       { role: 'assistant', content: 'Đây là các giao dịch.', intent_action: { intent: 'Action', nlu: { action_result: { kind: 'search', items: [{ note: 'xe bus', amount: 7000, categoryCode: 'Transport' }] } } } },
     ];
-    chatService.getMessages.mockResolvedValue(mockDbMessages);
+    chatService.getMessages.mockResolvedValue({ messages: mockDbMessages });
 
     // 3. Mock AI client response
     aiClient.aiChat.mockResolvedValue({
@@ -91,7 +91,7 @@ describe('ai.service unit tests', () => {
     const result = await aiService.aiChat('user-123', 'session-456', 'Ủa thế giao dịch thứ hai là gì?');
 
     // 5. Assertions
-    expect(chatService.getMessages).toHaveBeenCalledWith('user-123', 'session-456', 20);
+    expect(chatService.getMessages).toHaveBeenCalledWith('user-123', 'session-456', { limit: 20 });
 
     // Verify sliding window (last 4 messages of history + the new message)
     // The history fetched is 6. We pushed the new message, making it 7.

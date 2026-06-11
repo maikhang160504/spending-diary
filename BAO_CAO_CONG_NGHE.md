@@ -642,3 +642,110 @@ Nhằm giảm thiểu dung lượng Token đẩy vào LLM (Gemini/Groq) trong c�
 
 *Cập nhật: 05/06/2026*
 
+## 10. Nhập liệu Giọng nói, Giao dịch chờ & Quản lý Quyền Graceful (Cập nhật 08/06/2026)
+
+Hệ thống đã tích hợp toàn diện module giọng nói kết hợp cơ chế xử lý giao dịch chờ (Draft) và kiến trúc cấp quyền động native trên ứng dụng di động:
+
+### 10.1. Xử lý âm thanh & Chuẩn hóa Từ lóng Tiếng Việt
+1. **Thu âm & STT cục bộ**:
+   - Để tối ưu hóa băng thông mạng và độ nhạy của phản hồi, Client sử dụng thư viện `speech_to_text` thực hiện Speech-to-Text trực tiếp trên thiết bị (Local STT).
+   - Thiết kế widget hoạt họa sóng âm `WaveformVisualizer` vẽ dải thanh biên độ động theo thời gian thực (Microphone amplitude) trong composer chat để tăng trải nghiệm tương tác.
+2. **Bộ chuẩn hóa từ lóng tiền tệ (Teencode Normalizer)**:
+   - Bản dịch thô được chuyển lên FastAPI NLU để đi qua bộ lọc `preprocess_slang` trong `text.py`.
+   - Sử dụng Regex kết hợp bảng ánh xạ để xử lý các từ lóng:
+     - `cành`, `k` -> nhân 1.000 (Ví dụ: `120 cành` -> `120.000`)
+     - `lít`, `xị`, `sị`, `loét` -> nhân 100.000 (Ví dụ: `3 loét` -> `300.000`)
+     - `củ`, `quả`, `mâm` -> nhân 1.000.000 (Ví dụ: `1.5 củ` -> `1.500.000`)
+     - `chục` -> nhân 10.000 (Ví dụ: `2 chục` -> `20.000`)
+     - `nửa triệu` / `nửa củ` -> `500.000`
+     - `củ rưỡi` / `triệu rưỡi` -> `1.500.000`
+     - Tự động map các chữ số tiếng Việt (`một`, `hai`, `ba`...) đứng trước đơn vị tiền tệ lóng sang chữ số tương ứng trước khi parse.
+
+### 10.2. Cơ chế Giao dịch chờ (Draft Fallback) & Timeline Card
+1. **Fallback khi thiếu tiền**:
+   - Nếu người dùng nói câu ghi chép chi tiêu nhưng quên hoặc không thể phát âm rõ số tiền (ví dụ: "đi mua sắm đồ Tết"), NLU vẫn phân tích intent là `Record` và category là `Shopping`.
+   - Backend Node.js thực thi lưu giao dịch với `is_draft = true` và `amount = 0` thay vì bỏ qua hay báo lỗi.
+2. **Timeline Draft UI**:
+   - Giao dịch nháp được biểu diễn bằng một thẻ màu vàng nổi bật kèm icon Micro và lời nhắc: *"Bạn quên chưa nhập số tiền, chạm vào đây để sửa nhanh nhé!"*.
+   - Chạm vào thẻ sẽ mở Bottom Sheet điền nhanh số tiền (hỗ trợ nhập nhanh 50k, 100k, 200k, 500k) và lưu chính thức về thẻ thường tức thời qua API.
+
+### 10.3. Logic Fusion (Gộp Bill + Voice)
+- Khi chụp hóa đơn trong Camera, tại màn hình xác nhận (CameraConfirmScreen), người dùng có thể nhấn giữ nút Microphone để nói mô tả ngắn (ví dụ: "cái này ăn trưa với đồng nghiệp").
+- App gửi file text giọng nói lên `/ai/nlu` lấy `category` và `note` ghi đè vào form, đồng thời vẫn bảo toàn số tiền (`amount`) chính xác được bóc tách từ ảnh hóa đơn qua OCR.
+
+### 10.4. Quản lý Quyền hệ thống Graceful (Dynamic Permissions)
+- Áp dụng triệt để nguyên tắc **Cấp quyền tại thời điểm sử dụng (Just-in-Time Request)** thay vì xin cấp quyền dồn dập lúc khởi động:
+  - **Camera**: Chỉ kiểm tra và xin cấp khi mở tính năng chụp bill/story.
+  - **Microphone**: Kiểm tra và yêu cầu khi nhấn giữ thu âm chat hoặc màn hình xác nhận hóa đơn.
+  - **Photos Library**: Kiểm tra và yêu cầu khi chọn ảnh từ Gallery hoặc cập nhật ảnh đại diện ở Settings.
+  - **Notification**: Yêu cầu khi người dùng gạt bật switch thông báo ở Settings.
+- Nếu quyền bị từ chối vĩnh viễn (Permanently Denied), ứng dụng tự động hiển thị AlertDialog giải thích native và cung cấp nút liên kết mở thẳng trang Cài đặt (Settings) của ứng dụng trên hệ điều hành.
+- Toàn bộ callbacks được kiểm tra `mounted` an toàn để triệt tiêu lỗi rò rỉ hay crash giao diện Flutter.
+
+*Cập nhật: 08/06/2026*
+
+## 11. Cải Thiện Trải Nghiệm & Ổn Định — Phase 1 (Cập nhật 08/06/2026)
+
+### 11.1. WebSocket Exponential Backoff Reconnect
+- Nâng cấp cơ chế kết nối lại WebSocket trong `AppShell` từ **delay cố định 5 giây** sang **Exponential Backoff + Jitter**:
+  - Công thức tính delay: `min(2^attempt × 1000ms + random(0..1000ms), 60000ms)`
+  - Lần thử 1: ~1-2s, lần 2: ~2-5s, lần 3: ~4-9s,... tối đa 60 giây.
+  - Khi kết nối thành công, counter `_reconnectAttempt` tự động reset về 0.
+- Sau mỗi lần reconnect thành công, client tự động gửi event `SYNC_STATUS` qua WebSocket để backend kiểm tra và đẩy lại các event đã bỏ lỡ trong thời gian mất kết nối (ví dụ: kết quả OCR bill đã xử lý xong).
+
+### 11.2. Draft Reminder Banner (Nhắc nhở Giao dịch Chờ)
+- Thêm banner nổi bật hiển thị ở **đầu màn hình Home** (ngay dưới Dashboard summary, trước Timeline) khi có giao dịch chờ (Draft) chưa điền số tiền.
+- **Thiết kế Banner**: Gradient vàng (Amber) với hiệu ứng slide-in + fade animation khi xuất hiện, hiển thị icon ⚡, text "Bạn có N giao dịch chưa điền tiền" và badge đếm số lượng.
+- **Tap vào Banner**: Mở `_DraftListSheet` — Bottom Sheet liệt kê tất cả Draft kèm danh mục, thời gian tạo (timeAgo: "3 ngày trước") và nút "Điền ngay" màu cam cho từng mục.
+- **Quick Fill**: Mỗi Draft item khi tap vào sẽ mở Bottom Sheet điền tiền nhanh (TextField + 4 quick chips: 50k, 100k, 200k, 500k), gọi API cập nhật `amount` và `isDraft = false`, sau đó tự động refresh Timeline.
+
+### 11.3. Nâng cấp Biểu đồ Report với fl_chart
+- Thay thế toàn bộ 3 biểu đồ vẽ tay bằng `CustomPaint` trong Report Screen bằng thư viện `fl_chart` (v0.69.2) chuyên nghiệp:
+  1. **Bar Chart (Chi tiêu theo ngày)**: Cột bo tròn với gradient teal, trục Y tự động scale (`_niceInterval`), tooltip hiển thị VND formatted khi chạm, animation 400ms.
+  2. **Pie/Donut Chart (Chi tiêu theo danh mục)**: Hiệu ứng touch-expand (phóng to section khi chạm), hiển thị % tại section đang chạm, text "Tổng" + formatVnd ở tâm donut, animation 600ms.
+  3. **Line Chart (Xu hướng tiết kiệm)**: Đường cong Bezier mượt (curveSmoothness 0.35), gradient fill phía dưới, dots tại mỗi data point với tooltip, trục tự động scale.
+- Tất cả biểu đồ đều sử dụng `context.palette` để tương thích Dark/Light mode.
+
+*Cập nhật: 08/06/2026*
+
+## 12. Khắc phục lỗi và Đề xuất tối ưu hóa Load dữ liệu (Cập nhật 11/06/2026)
+
+Hệ thống đã triển khai nhóm sửa lỗi giao diện, nghiệp vụ di động và cơ sở dữ liệu backend liên quan đến tệp `fix_app.json`, đồng thời đề xuất phương án tối ưu hóa hiệu năng tải dữ liệu:
+
+### 12.1. Nhóm sửa lỗi Backend & PostgreSQL
+1. **Lỗi cú pháp DISTINCT ON**:
+   - Sửa lỗi truy vấn `SELECT DISTINCT ON` trong hàm `_fetchUserCorrections` tại [ai.service.js](file:///d:/Luan-Van/Project/app/backend/src/modules/ai/ai.service.js) bằng cách đưa mệnh đề xử lý chuẩn hóa chuỗi và sắp xếp thời gian vào một subquery riêng. Điều này giúp đảm bảo tuân thủ cấu trúc cú pháp của PostgreSQL khi cột trong `DISTINCT ON` bắt buộc phải khớp chính xác với cột đầu tiên trong `ORDER BY`.
+2. **Quyền truy cập Story trong ví chung**:
+   - Chỉnh sửa logic truy vấn chi tiết Story tại [stories.service.js](file:///d:/Luan-Van/Project/app/backend/src/modules/stories/stories.service.js), cho phép thành viên thuộc ví chung được phép xem chi tiết Story của nhau thay vì chỉ giới hạn cho chủ sở hữu Story, loại bỏ lỗi phân quyền xem Story.
+
+### 12.2. Nhóm sửa lỗi và Tối ưu hóa UI Mobile (Flutter)
+1. **Đồng bộ hóa Trạng thái Ví khi Thêm Story/Ảnh**:
+   - Khắc phục sự cố nhầm lẫn ví khi chụp hóa đơn/thêm ảnh:
+     - Khi quay lại màn hình Home từ ví chung, ứng dụng tự động khôi phục biến tĩnh `ApiClient.lastSelectedWalletId` về đúng ví cá nhân đang active của Home screen.
+     - Danh sách ví tải về từ API được sắp xếp thống nhất (`personal` lên đầu) trong các màn hình Camera để đảm bảo ví mặc định khi scan hóa đơn luôn nhất quán.
+     - Bổ sung ô chọn ví (**Ví lưu**) trực tiếp dạng Dropdown trong Bottom Sheet chỉnh sửa giao dịch tại màn hình xác nhận hóa đơn [camera_confirm_screen.dart](file:///d:/Luan-Van/Project/app/frontend/mobile/lib/screens/camera/camera_confirm_screen.dart).
+2. **Tắt Thông báo Tự động**:
+   - Khi truy cập ví chung, ứng dụng tự động đóng các Banner thông báo dạng nổi (In-app Notification) và dọn sạch (Dismiss) các thông báo liên quan trên thanh trạng thái hệ thống của thiết bị di động bằng phương thức `cancelAll()`.
+3. **Hiển thị Vương Miện Trưởng Nhóm**:
+   - Sửa đổi hiển thị vương miện (`showCrown`) trên danh sách story, chỉ gán biểu tượng vương miện cho người dùng là Chủ ví (`ownerId`), loại bỏ việc tự hiển thị cho mọi người dùng tự tạo story.
+4. **Cấp quyền Gallery Trực tiếp**:
+   - Loại bỏ lớp kiểm tra quyền lưu trữ/ảnh thủ công khi đổi ảnh đại diện hay upload hóa đơn. Sử dụng trực tiếp trình chọn ảnh hệ thống của package `image_picker` (vốn tự động phân quyền context-less trên iOS và Android 10+), tránh các lỗi từ chối giả lập.
+5. **Mic Thu âm & Trạng thái Lưu Giao dịch**:
+   - Nút Mic thu âm được hiển thị mặc định, bổ sung SnackBar hướng dẫn khi hệ thống STT không hoạt động (như trên emulator).
+   - Nút "Lưu giao dịch" trong chat không bị ẩn đi sau khi lưu mà chuyển sang trạng thái vô hiệu hóa kèm nhãn `✓ Đã lưu` / `✓ Đã lưu tất cả` để tránh hiện tượng giật màn hình (layout jumping).
+
+### 12.3. Đề xuất Kiến trúc Tối ưu hóa Tải dữ liệu & Đồng bộ hóa
+Nhằm giải quyết vấn đề ứng dụng phải gọi API và tải lại dữ liệu quá nhiều lần, chúng tôi đề xuất kiến trúc đồng bộ hóa chia làm 4 giai đoạn:
+1. **Giai đoạn 1: Query Caching**:
+   - Chuyển đổi toàn bộ luồng load dữ liệu tại `ShareWalletScreen` sang thư viện `cached_query` (sử dụng các key cache động giống như trang Home). Dữ liệu sẽ được giữ trong bộ nhớ 10 phút và tự động cập nhật ngầm nếu quá 30 giây stale, triệt tiêu việc hiện vòng quay loading mỗi lần chuyển màn hình.
+2. **Giai đoạn 2: WebSocket Reactive Sync (Đồng bộ thời gian thực)**:
+   - Tận dụng kết nối WebSocket sẵn có tại `AppShell`. Khi backend nhận được yêu cầu thêm/sửa giao dịch từ bất kỳ user nào trong nhóm, backend sẽ broadcast một event `DB_UPDATE` qua WebSocket. Mobile nhận event này sẽ tự động gọi `AppQueries.invalidateWalletData()` để tải lại ngầm phần dữ liệu bị thay đổi mà không cần người dùng kéo thả refresh.
+3. **Giai đoạn 3: Phân trang (Pagination / Lazy-load)**:
+   - Triển khai cuộn vô hạn (infinite scroll) cho lịch sử giao dịch. Chỉ tải 15-20 giao dịch đầu tiên và tải tiếp trang sau khi user cuộn xuống cuối màn hình.
+4. **Giai đoạn 4: Đồng bộ hóa cơ sở dữ liệu cục bộ (Offline-First Local DB)**:
+   - Tích hợp SQLite (thông qua Drift ORM) hoặc Hive trên thiết bị di động.
+   - Thiết lập giao thức đồng bộ hóa delta (`/api/v1/sync?since=timestamp`). Client chỉ lấy các phần dữ liệu thay đổi kể từ lần đồng bộ trước đó và ghi đè vào DB cục bộ. UI sẽ lắng nghe (stream) trực tiếp từ DB cục bộ, cho phép app hiển thị dữ liệu tức thời (0ms load) và hoạt động offline hoàn toàn.
+
+*Cập nhật: 11/06/2026*
+
+

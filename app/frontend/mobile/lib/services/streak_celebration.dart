@@ -62,7 +62,7 @@ class StreakCelebration {
       barrierDismissible: true,
       barrierLabel: 'streak',
       barrierColor: Colors.black54,
-      pageBuilder: (ctx, _, __) => Center(
+      pageBuilder: (ctx, _, _) => Center(
         child: Material(
           color: Colors.transparent,
           child: Container(
@@ -103,7 +103,7 @@ class StreakCelebration {
       barrierDismissible: true,
       barrierLabel: 'streak-broken',
       barrierColor: Colors.black54,
-      pageBuilder: (ctx, _, __) => Center(
+      pageBuilder: (ctx, _, _) => Center(
         child: Material(
           color: Colors.transparent,
           child: Container(

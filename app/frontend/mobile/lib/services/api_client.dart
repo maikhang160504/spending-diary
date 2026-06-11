@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../utils/image_compressor.dart';
+import 'connection_manager.dart';
 
 /// Centralized API client for all backend calls.
 /// Replaces old `BackendApiService` with proper JWT auth flow.
@@ -20,6 +21,7 @@ class ApiClient {
   }
 
   static bool? _isOnboardingBypassed;
+  static String? lastSelectedWalletId;
 
   ApiClient({
     String? baseUrl,
@@ -75,29 +77,38 @@ class ApiClient {
         : {'Content-Type': 'application/json; charset=utf-8'};
 
     http.Response response;
-    switch (method) {
-      case 'GET':
-        response = await _http.get(uri, headers: headers);
-        break;
-      case 'POST':
-        response = await _http.post(
-          uri,
-          headers: headers,
-          body: body != null ? jsonEncode(body) : null,
-        );
-        break;
-      case 'PATCH':
-        response = await _http.patch(
-          uri,
-          headers: headers,
-          body: body != null ? jsonEncode(body) : null,
-        );
-        break;
-      case 'DELETE':
-        response = await _http.delete(uri, headers: headers);
-        break;
-      default:
-        throw UnsupportedError('HTTP method $method not supported');
+    try {
+      switch (method) {
+        case 'GET':
+          response = await _http.get(uri, headers: headers);
+          break;
+        case 'POST':
+          response = await _http.post(
+            uri,
+            headers: headers,
+            body: body != null ? jsonEncode(body) : null,
+          );
+          break;
+        case 'PATCH':
+          response = await _http.patch(
+            uri,
+            headers: headers,
+            body: body != null ? jsonEncode(body) : null,
+          );
+          break;
+        case 'DELETE':
+          response = await _http.delete(
+            uri,
+            headers: headers,
+            body: body != null ? jsonEncode(body) : null,
+          );
+          break;
+        default:
+          throw UnsupportedError('HTTP method $method not supported');
+      }
+    } catch (e) {
+      ConnectionManager.instance.setLost(true);
+      rethrow;
     }
 
     // Handle 401 — try refresh
@@ -230,6 +241,22 @@ class ApiClient {
     return result['data'] as Map<String, dynamic>;
   }
 
+  Future<void> registerFcmToken(String token, String platform) async {
+    await _request(
+      'POST',
+      '/users/me/fcm/token',
+      body: {'token': token, 'platform': platform},
+    );
+  }
+
+  Future<void> removeFcmToken(String token) async {
+    await _request(
+      'DELETE',
+      '/users/me/fcm/token',
+      body: {'token': token},
+    );
+  }
+
   // ─── Wallets ──────────────────────────────────────────────────────
   Future<List<dynamic>> getWallets() async {
     final result = await _request('GET', '/wallets');
@@ -243,6 +270,14 @@ class ApiClient {
 
   Future<Map<String, dynamic>> createWallet(Map<String, dynamic> body) async {
     final result = await _request('POST', '/wallets', body: body);
+    return result['data'] as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> updateWallet(
+    String id,
+    Map<String, dynamic> body,
+  ) async {
+    final result = await _request('PATCH', '/wallets/$id', body: body);
     return result['data'] as Map<String, dynamic>;
   }
 
@@ -411,6 +446,26 @@ class ApiClient {
     await _request('DELETE', '/goals/$id');
   }
 
+  // ─── Recurring Rules ──────────────────────────────────────────────
+  Future<List<dynamic>> getRecurringRules() async {
+    final result = await _request('GET', '/recurring');
+    return result['data'] as List<dynamic>;
+  }
+
+  Future<Map<String, dynamic>> createRecurringRule(Map<String, dynamic> body) async {
+    final result = await _request('POST', '/recurring', body: body);
+    return result['data'] as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> updateRecurringRule(String id, Map<String, dynamic> body) async {
+    final result = await _request('PATCH', '/recurring/$id', body: body);
+    return result['data'] as Map<String, dynamic>;
+  }
+
+  Future<void> deleteRecurringRule(String id) async {
+    await _request('DELETE', '/recurring/$id');
+  }
+
   // ─── AI ───────────────────────────────────────────────────────────
   Future<Map<String, dynamic>> aiNlu(String text, {bool runLlm = false}) async {
     final result = await _request(
@@ -556,11 +611,23 @@ class ApiClient {
     return result['data'] as List<dynamic>;
   }
 
-  Future<Map<String, dynamic>> createChatSession({String? title}) async {
+  Future<Map<String, dynamic>> createChatSession({String? title, String? walletId}) async {
     final result = await _request(
       'POST',
       '/chat/sessions',
-      body: {'title': ?title},
+      body: {
+        'title': ?title,
+        'walletId': ?walletId,
+      },
+    );
+    return result['data'] as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> aiChat(String sessionId, String content) async {
+    final result = await _request(
+      'POST',
+      '/ai/chat/$sessionId',
+      body: {'content': content},
     );
     return result['data'] as Map<String, dynamic>;
   }
@@ -669,6 +736,28 @@ class ApiClient {
       queryParams: params,
     );
     return result['data'] as List<dynamic>;
+  }
+
+  Future<List<dynamic>> getStatsMoM({String? walletId}) async {
+    final result = await _request(
+      'GET',
+      '/stats/mom',
+      queryParams: {
+        'walletId':? walletId,
+      },
+    );
+    return result['data'] as List<dynamic>;
+  }
+
+  Future<Map<String, dynamic>> getStatsCumulativeVsBudget({String? walletId}) async {
+    final result = await _request(
+      'GET',
+      '/stats/cumulative-vs-budget',
+      queryParams: {
+        'walletId':? walletId,
+      },
+    );
+    return result['data'] as Map<String, dynamic>;
   }
 
   // ─── Wallet Members ───────────────────────────────────────────────

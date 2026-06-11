@@ -2,10 +2,12 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../../routes/app_routes.dart';
 import '../../services/api_client.dart';
 import '../../services/app_queries.dart';
+import '../../services/fcm_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_palette.dart';
 import '../../theme/app_radii.dart';
@@ -13,6 +15,7 @@ import '../../theme/theme_controller.dart';
 import '../../theme/app_spacing.dart';
 import '../../widgets/ai_style_card_flip_transition.dart';
 import '../../widgets/skeleton.dart';
+import '../../widgets/notification_overlay.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -77,16 +80,55 @@ class _SettingsScreenState extends State<SettingsScreen> {
     } catch (_) {}
   }
 
-  Future<void> _changeAvatar() async {
-    final picker = ImagePicker();
-    final xFile = await picker.pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 85,
-      maxWidth: 1024,
+  Future<void> _showPermissionExplanationDialog({
+    required String title,
+    required String message,
+  }) async {
+    if (!mounted) return;
+    await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Quay lại', style: TextStyle(color: Colors.grey)),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              openAppSettings();
+            },
+            style: FilledButton.styleFrom(backgroundColor: AppColors.teal),
+            child: const Text('Mở cài đặt'),
+          ),
+        ],
+      ),
     );
+  }
+
+  Future<void> _changeAvatar() async {
+    final messenger = ScaffoldMessenger.of(context);
+    XFile? xFile;
+    try {
+      final picker = ImagePicker();
+      xFile = await picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 85,
+        maxWidth: 1024,
+      );
+    } catch (e) {
+      debugPrint('Failed to pick avatar image: $e');
+      if (mounted) {
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Không thể mở thư viện ảnh. Hãy cấp quyền trong phần Cài đặt.')),
+        );
+      }
+      return;
+    }
     if (xFile == null || !mounted) return;
     setState(() => _uploadingAvatar = true);
-    final messenger = ScaffoldMessenger.of(context);
     try {
       final uploaded = await _api.uploadFile(xFile.path);
       final url =
@@ -116,6 +158,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _logout() async {
     try {
+      await FcmService.instance.unregisterCurrentToken();
       await _api.logout();
     } catch (_) {
       await _api.clearTokens();
@@ -128,156 +171,210 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   void _showPersonalInfoDialog() {
     final nameCtrl = TextEditingController(text: _userName);
-    final ageCtrl = TextEditingController(text: _ageGroup);
-    final jobCtrl = TextEditingController(text: _jobType);
     final incomeCtrl = TextEditingController(
       text: _monthlyIncome > 0 ? _monthlyIncome.toString() : '',
     );
     String? dialogError;
     bool saving = false;
+    String? selectedAge = _ageGroup.isNotEmpty ? _ageGroup : null;
+    String? selectedJob = _jobType.isNotEmpty ? _jobType : null;
 
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          title: const Text('Chỉnh sửa thông tin'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (dialogError != null) ...[
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 8,
-                    ),
+        builder: (ctx, setDialogState) {
+          Widget buildOptionGrid(
+            List<String> labels,
+            List<String> emojis,
+            String? selected,
+            ValueChanged<String> onTap,
+          ) {
+            return GridView.count(
+              crossAxisCount: 3,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              mainAxisSpacing: 8,
+              crossAxisSpacing: 8,
+              childAspectRatio: 1.5,
+              children: List.generate(labels.length, (i) {
+                final isSelected = selected == labels[i];
+                return GestureDetector(
+                  onTap: () => onTap(labels[i]),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFFEE2E2),
-                      borderRadius: BorderRadius.circular(8),
+                      color: isSelected ? AppColors.teal.withValues(alpha: 0.1) : const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(AppRadii.md),
+                      border: Border.all(color: isSelected ? AppColors.teal : AppColors.border, width: isSelected ? 2 : 1),
                     ),
-                    child: Text(
-                      dialogError!,
-                      style: const TextStyle(
-                        color: AppColors.danger,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                ],
-                TextField(
-                  controller: nameCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Tên người dùng',
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  _email,
-                  style: const TextStyle(
-                    color: Color(0xFF94A3B8),
-                    fontSize: 12,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: ageCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Độ tuổi (vd: 18-24)',
-                  ),
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: jobCtrl,
-                  decoration: const InputDecoration(labelText: 'Nghề nghiệp'),
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: incomeCtrl,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Thu nhập hàng tháng',
-                    suffixText: 'đ',
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: saving ? null : () => ctx.pop(),
-              child: const Text('Hủy'),
-            ),
-            FilledButton(
-              onPressed: saving
-                  ? null
-                  : () async {
-                      final name = nameCtrl.text.trim();
-                      if (name.isEmpty) {
-                        setDialogState(
-                          () => dialogError =
-                              'Tên người dùng không được để trống',
-                        );
-                        return;
-                      }
-                      setDialogState(() {
-                        saving = true;
-                        dialogError = null;
-                      });
-                      final messenger = ScaffoldMessenger.of(context);
-                      try {
-                        await _api.updateProfile({
-                          'username': name,
-                          'incomeAmount':
-                              int.tryParse(incomeCtrl.text.trim()) ??
-                              _monthlyIncome,
-                        });
-                        await _api.updateSettings({
-                          'ageGroup': ageCtrl.text.trim(),
-                          'jobType': jobCtrl.text.trim(),
-                        });
-                        if (!mounted) return;
-                        setState(() {
-                          _userName = name;
-                          _ageGroup = ageCtrl.text.trim();
-                          _jobType = jobCtrl.text.trim();
-                          _monthlyIncome =
-                              int.tryParse(incomeCtrl.text.trim()) ??
-                              _monthlyIncome;
-                        });
-                        if (ctx.mounted) ctx.pop();
-                        messenger.showSnackBar(
-                          const SnackBar(
-                            content: Text('Đã lưu thông tin cá nhân ✓'),
-                            backgroundColor: AppColors.teal,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(emojis[i], style: const TextStyle(fontSize: 16)),
+                        const SizedBox(height: 2),
+                        Text(
+                          labels[i],
+                          style: TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w600,
+                            color: isSelected ? AppColors.teal : AppColors.textSecondary,
                           ),
-                        );
-                      } on ApiException catch (e) {
-                        setDialogState(() {
-                          saving = false;
-                          dialogError = e.localizedMessage;
-                        });
-                      } catch (_) {
-                        setDialogState(() {
-                          saving = false;
-                          dialogError = 'Không thể lưu thông tin';
-                        });
-                      }
-                    },
-              child: saving
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
+                          textAlign: TextAlign.center,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }),
+            );
+          }
+
+          return AlertDialog(
+            title: const Text('Chỉnh sửa thông tin'),
+            content: SizedBox(
+              width: MediaQuery.of(context).size.width * 0.9,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (dialogError != null) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFEE2E2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          dialogError!,
+                          style: const TextStyle(
+                            color: AppColors.danger,
+                            fontSize: 13,
+                          ),
+                        ),
                       ),
-                    )
-                  : const Text('Lưu'),
+                      const SizedBox(height: 12),
+                    ],
+                    TextField(
+                      controller: nameCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Tên người dùng',
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      _email,
+                      style: const TextStyle(
+                        color: Color(0xFF94A3B8),
+                        fontSize: 12,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text('Độ tuổi của bạn', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Colors.black87)),
+                    const SizedBox(height: 8),
+                    buildOptionGrid(
+                      const ['18-22 tuổi', '23-30 tuổi', '31-40 tuổi', '41-50 tuổi', 'Trên 50'],
+                      const ['🎓', '💼', '👔', '🏢', '✨'],
+                      selectedAge,
+                      (v) => setDialogState(() => selectedAge = v),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text('Nghề nghiệp', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Colors.black87)),
+                    const SizedBox(height: 8),
+                    buildOptionGrid(
+                      const ['Sinh viên', 'Văn phòng', 'Freelancer', 'Kinh doanh', 'Khác'],
+                      const ['📚', '💻', '✨', '💼', '🎯'],
+                      selectedJob,
+                      (v) => setDialogState(() => selectedJob = v),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: incomeCtrl,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'Thu nhập hàng tháng',
+                        suffixText: 'đ',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
-          ],
-        ),
+            actions: [
+              TextButton(
+                onPressed: saving ? null : () => ctx.pop(),
+                child: const Text('Hủy'),
+              ),
+              FilledButton(
+                onPressed: saving
+                    ? null
+                    : () async {
+                        final name = nameCtrl.text.trim();
+                        if (name.isEmpty) {
+                          setDialogState(
+                            () => dialogError = 'Tên người dùng không được để trống',
+                          );
+                          return;
+                        }
+                        setDialogState(() {
+                          saving = true;
+                          dialogError = null;
+                        });
+                        final messenger = ScaffoldMessenger.of(context);
+                        try {
+                          await _api.updateProfile({
+                            'username': name,
+                            'incomeAmount': int.tryParse(incomeCtrl.text.trim()) ?? _monthlyIncome,
+                          });
+                          await _api.updateSettings({
+                            'ageGroup': selectedAge ?? '',
+                            'jobType': selectedJob ?? '',
+                          });
+                          if (!mounted) return;
+                          setState(() {
+                            _userName = name;
+                            _ageGroup = selectedAge ?? '';
+                            _jobType = selectedJob ?? '';
+                            _monthlyIncome = int.tryParse(incomeCtrl.text.trim()) ?? _monthlyIncome;
+                          });
+                          if (ctx.mounted) ctx.pop();
+                          messenger.showSnackBar(
+                            const SnackBar(
+                              content: Text('Đã lưu thông tin cá nhân ✓'),
+                              backgroundColor: AppColors.teal,
+                            ),
+                          );
+                        } on ApiException catch (e) {
+                          setDialogState(() {
+                            saving = false;
+                            dialogError = e.localizedMessage;
+                          });
+                        } catch (_) {
+                          setDialogState(() {
+                            saving = false;
+                            dialogError = 'Không thể lưu thông tin';
+                          });
+                        }
+                      },
+                child: saving
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Text('Lưu'),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -443,7 +540,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                                 imageUrl: _avatarUrl!,
                                                 fit: BoxFit.cover,
                                                 memCacheWidth: 300,
-                                                errorWidget: (_, __, ___) =>
+                                                errorWidget: (_, _, _) =>
                                                     Center(
                                                       child: Text(
                                                         _userName.isNotEmpty
@@ -557,8 +654,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             icon: Icons.tune_outlined,
                             label: 'Hạn mức chi tiêu',
                             subtitle: 'Xem các giới hạn đã đặt',
-                            showDivider: false,
+                            showDivider: true,
                             onTap: () => context.push(AppRoutes.limits),
+                          ),
+                          _SettingRow(
+                            icon: Icons.sync_alt,
+                            label: 'Giao dịch định kỳ',
+                            subtitle: 'Quản lý lịch lặp lại thu chi',
+                            showDivider: false,
+                            onTap: () => context.push(AppRoutes.recurring),
                           ),
                         ],
                       ),
@@ -658,6 +762,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                               : 'Dui Dẻ';
                                         });
                                         _updateSetting('verbalStyle', style);
+                                        _api.updateProfile({'preferredVibe': style}).catchError((_) => <String, dynamic>{});
                                       },
                                     );
                                   },
@@ -701,7 +806,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 ),
                                 Switch(
                                   value: _notificationsEnabled,
-                                  onChanged: (v) {
+                                  onChanged: (v) async {
+                                    if (v) {
+                                      final status = await Permission.notification.status;
+                                      if (!mounted) return;
+                                      if (!status.isGranted) {
+                                        final reqStatus = await Permission.notification.request();
+                                        if (!mounted) return;
+                                        if (!reqStatus.isGranted) {
+                                          if (reqStatus.isPermanentlyDenied) {
+                                            await _showPermissionExplanationDialog(
+                                              title: 'Quyền thông báo',
+                                              message: 'Spend Diary cần quyền gửi thông báo để nhắc nhở và cảnh báo hạn mức. Vui lòng cấp quyền trong phần Cài đặt.',
+                                            );
+                                          } else {
+                                            if (context.mounted) {
+                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                const SnackBar(content: Text('Không thể bật thông báo nếu chưa cấp quyền')),
+                                              );
+                                            }
+                                          }
+                                          setState(() => _notificationsEnabled = false);
+                                          return;
+                                        }
+                                      }
+                                    }
                                     setState(() => _notificationsEnabled = v);
                                     _updateSetting('notificationsEnabled', v);
                                   },
@@ -787,6 +916,63 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           label: 'Đổi mật khẩu',
                           showDivider: false,
                         ),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    // Debug & Demo Notifications Section
+                    Text(
+                      'Gỡ lỗi & Demo thông báo nổi',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.muted,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: context.palette.card,
+                        borderRadius: BorderRadius.circular(AppRadii.lg),
+                        boxShadow: context.palette.softShadow,
+                      ),
+                      child: Column(
+                        children: [
+                          _SettingRow(
+                            icon: Icons.notifications_active_outlined,
+                            label: 'Mô phỏng Nhắc nhở (Tầng 1)',
+                            subtitle: 'Thông báo Gen Z nhắc ghi chép nhanh',
+                            showDivider: true,
+                            onTap: () {
+                              inAppNotificationController.show(
+                                InAppNotification(
+                                  title: '💬 Mimo nhắc nhở bạn đó!',
+                                  message: 'Ví mỏng như tờ lá lúa rồi bạn ơi 💸 Sáng nay ăn mì gói hay sao? Nói Mimo lưu lại story nhe!',
+                                  actionLabel: '📸 Thêm story',
+                                  onAction: () {
+                                    context.push(AppRoutes.camera);
+                                  },
+                                ),
+                              );
+                            },
+                          ),
+                          _SettingRow(
+                            icon: Icons.warning_amber_rounded,
+                            label: 'Mô phỏng Cảnh báo (Tầng 2)',
+                            subtitle: 'Cảnh báo chi tiêu chạm/vượt hạn mức',
+                            showDivider: false,
+                            onTap: () {
+                              inAppNotificationController.show(
+                                InAppNotification(
+                                  title: '🚨 Vượt hạn mức chi tiêu!',
+                                  message: 'Nguy hiểm! Danh mục \'Ăn uống\' tháng này đã tiêu hết 105% hạn mức. Chạm vào đây để AI tư vấn cắt giảm chi tiêu ngay.',
+                                  actionLabel: '💬 Chat AI tư vấn',
+                                  onAction: () {
+                                    context.push(AppRoutes.chat);
+                                  },
+                                ),
+                              );
+                            },
+                          ),
+                        ],
                       ),
                     ),
                     const SizedBox(height: 24),
@@ -1036,7 +1222,7 @@ class _StyleCard extends StatelessWidget {
               asset,
               width: 36,
               height: 36,
-              errorBuilder: (_, __, ___) =>
+              errorBuilder: (_, _, _) =>
                   Text(fallback, style: const TextStyle(fontSize: 24)),
             ),
             const SizedBox(height: 4),

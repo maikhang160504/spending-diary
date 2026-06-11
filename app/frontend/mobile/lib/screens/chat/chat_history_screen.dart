@@ -11,7 +11,8 @@ import '../../widgets/skeleton.dart';
 
 /// Chat History Screen — CHH-01..CHH-03
 class ChatHistoryScreen extends StatefulWidget {
-  const ChatHistoryScreen({super.key});
+  final String? walletId;
+  const ChatHistoryScreen({super.key, this.walletId});
 
   @override
   State<ChatHistoryScreen> createState() => _ChatHistoryScreenState();
@@ -199,7 +200,7 @@ class _ChatHistoryScreenState extends State<ChatHistoryScreen> {
             child: GestureDetector(
               onTap: () {
                 context.pop();
-                context.push(AppRoutes.chat);
+                context.push(AppRoutes.chat, extra: {'walletId': widget.walletId, 'forceNew': true});
               },
               child: Container(
                 padding: const EdgeInsets.all(16),
@@ -310,7 +311,10 @@ class _ChatHistoryScreenState extends State<ChatHistoryScreen> {
                                 timeStr: _formatTime(session['created_at'] as String?),
                                 onTap: () {
                                   context.pop();
-                                  context.push(AppRoutes.chat, extra: {'sessionId': sessionId});
+                                  context.push(AppRoutes.chat, extra: {
+                                    'sessionId': sessionId,
+                                    'walletId': session['wallet_id'] as String? ?? session['walletId'] as String?,
+                                  });
                                 },
                                 onDelete: () => _deleteSession(sessionId),
                               ),

@@ -51,6 +51,18 @@ class AppQueries {
         queryFn: () => _api.getStatsByMonth(year: year, walletId: walletId),
       );
 
+  static Query<List<dynamic>> statsMoM(String? walletId) =>
+      Query<List<dynamic>>(
+        key: 'statsMoM:${walletId ?? 'all'}',
+        queryFn: () => _api.getStatsMoM(walletId: walletId),
+      );
+
+  static Query<Map<String, dynamic>> statsCumulativeVsBudget(String? walletId) =>
+      Query<Map<String, dynamic>>(
+        key: 'statsCumulativeVsBudget:${walletId ?? 'all'}',
+        queryFn: () => _api.getStatsCumulativeVsBudget(walletId: walletId),
+      );
+
   /// Khi có thay đổi giao dịch → đánh dấu các query liên quan là stale để refetch.
   static void invalidateWalletData() {
     CachedQuery.instance.invalidateCache(

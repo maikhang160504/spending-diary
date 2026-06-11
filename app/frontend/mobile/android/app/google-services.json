@@ -2,25 +2,20 @@
   "project_info": {
     "project_number": "388012082045",
     "project_id": "powerful-bounty-477016-u8",
-    "storage_bucket": "powerful-bounty-477016-u8.appspot.com"
+    "storage_bucket": "powerful-bounty-477016-u8.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:388012082045:android:0000000000000000",
+        "mobilesdk_app_id": "1:388012082045:android:be53d68c9bb0eb0a09c214",
         "android_client_info": {
           "package_name": "com.spendingdairy.app"
         }
       },
-      "oauth_client": [
-        {
-          "client_id": "388012082045-3t6pakclihrq25focvubq4eb6t2fbnap.apps.googleusercontent.com",
-          "client_type": 3
-        }
-      ],
+      "oauth_client": [],
       "api_key": [
         {
-          "current_key": ""
+          "current_key": "AIzaSyDazPGVFNBH_hu5xl-y3SQwJlpdiXfNG54"
         }
       ],
       "services": {

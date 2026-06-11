@@ -15,6 +15,7 @@ function row(r) {
     endDate: r.end_date,
     isActive: r.is_active,
     createdAt: r.created_at,
+    alertEnabled: r.alert_enabled !== undefined ? Boolean(r.alert_enabled) : true,
   };
 }
 
@@ -84,6 +85,7 @@ async function update(userId, id, payload) {
     amountLimit: 'amount_limit',
     startDate: 'start_date',
     endDate: 'end_date',
+    alertEnabled: 'alert_enabled',
   };
   for (const [k, col] of Object.entries(map)) {
     if (payload[k] !== undefined) {

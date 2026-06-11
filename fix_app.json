@@ -1,14 +1,40 @@
 [
     {
-        "report": [
-            "biểu đồ của phần báo cáo, phải chính xác",
-            "biểu đồ chi tiêu theo ngày phải hiển thị đủ ngày dù là ngày đó k chi tiêu",
-            "xu hướng tiết kiệm nếu k có dữ liệu thì ẩn",
-            "có phân chi từng ví, và đổi được ví"
+        "Chat-screen": [
+            "thêm voice input vào giao diện chat",
+            "không ẩn nút lưu sau khi đã xác nhận lưu thành công"
         ],
-        "sharedwallet-screen": [
-            "khi add story ở ví chung, khi hoàn thành thì vẫn ở ví chung và đang không quay về màn hình home được",
-            "đang k hiện thị mascot"
+        "notification": [
+            "phải được hiển thị và test trên điện thoại ở thanh trạng thái"
+        ],
+        "google_sign_in": [
+            "Google Sign-In thất bại (emulator/cấu hình). Đang dùng tài khoản dev mock.",
+            "tìm hiểu nguyên nhân thất bại và hướng dẫn cách khác phục"
+        ],
+        "upload ảnh": [
+            "không thể đổi do không thể truy cập vào anh nếu chưa cấp quyền",
+            "đã thêm phần cấp quyền khi ấn vào đổi ảnh or upload bill",
+            "đã cấp quyền thử viện ở cài đặt nhưng vẫn không thể upload ảnh do không thể đổi do không thể truy cập vào anh nếu chưa cấp quyền",
+            ""
+        ],
+        "error": [
+            "failed to find appName:com.spendingdairy.app from config key:mProtakePackages"
+        ],
+        "story_card": [
+            "chỉ có chủ nhóm mới có vương miệng",
+            "detail story của người khác thì không xem được"
+        ],
+        "header": [
+            "khi có thông báo mới từ ví chung, vào thì tắt thông báo"
+        ],
+        "backend": [
+            "err:SELECT DISTINCT ON expressions must match initial ORDER BY expressions"
+        ],
+        "brainstoom và lên plan , các task để bàn luận về vấn đề load dữ liệu, load quá nhiều lần 1 tập dữ liệu, có cách nào để load dữ liệu khi cần or khi có cập nhật mới từ csdl không , cập nhật phần thay đổi ở cccsdl trên máy ": [
+            ""
+        ],
+        "add story": [
+            "có sự nhẫm lẫn giữa vị trí các ví khi thêm ảnh, k lấy đúng ví mà người dùng muốn thêm"
         ]
     }
 ]

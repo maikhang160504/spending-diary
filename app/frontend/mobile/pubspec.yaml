@@ -53,6 +53,10 @@ dependencies:
   flutter_image_compress: ^2.4.0
   path_provider: ^2.1.5
   speech_to_text: ^7.0.0
+  fl_chart: ^0.69.2
+  firebase_core: ^3.8.1
+  firebase_messaging: ^15.1.6
+  flutter_local_notifications: ^17.2.1
 
 dev_dependencies:
   flutter_test:
@@ -64,6 +68,14 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.13.1
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/logo/Logo_padded.png"
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/logo/Logo_padded.png"
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -81,6 +93,7 @@ flutter:
     - assets/MiMo/emotions/
     - assets/MiMo/category/
     - assets/logo/Logo.png
+    - assets/logo/Logo_padded.png
     - assets/logo/Title.png
     - assets/animations/
 

@@ -129,7 +129,14 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
       setState(() { _isTakingPhoto = true; _billError = null; });
       try {
         final wallets = await _api.getWallets();
-        final targetId = widget.walletId ?? (wallets.isNotEmpty ? wallets[0]['id'] as String : '');
+        wallets.sort((a, b) {
+          final aType = a['type'] as String? ?? 'personal';
+          final bType = b['type'] as String? ?? 'personal';
+          if (aType == 'personal' && bType != 'personal') return -1;
+          if (aType != 'personal' && bType == 'personal') return 1;
+          return 0;
+        });
+        final targetId = widget.walletId ?? ApiClient.lastSelectedWalletId ?? (wallets.isNotEmpty ? wallets[0]['id'] as String : '');
         final result = await _api.aiExpenseFromBill(walletId: targetId, filePath: imagePath);
         if (!mounted) return;
         context.push(AppRoutes.cameraConfirm, extra: {
@@ -149,7 +156,7 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
       context.push(AppRoutes.cameraInput, extra: {
         'imagePath': imagePath,
         'isBill': false,
-        'walletId': widget.walletId,
+        'walletId': widget.walletId ?? ApiClient.lastSelectedWalletId,
       });
     }
   }
@@ -168,8 +175,19 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
   }
 
   Future<void> _pickFromGallery() async {
-    final picker = ImagePicker();
-    final xFile = await picker.pickImage(source: ImageSource.gallery, imageQuality: 90);
+    XFile? xFile;
+    try {
+      final picker = ImagePicker();
+      xFile = await picker.pickImage(source: ImageSource.gallery, imageQuality: 90);
+    } catch (e) {
+      debugPrint('Failed to pick gallery image: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Không thể mở thư viện ảnh. Hãy cấp quyền trong phần Cài đặt.')),
+        );
+      }
+      return;
+    }
     if (xFile == null || !mounted) return;
     await _handleImagePath(xFile.path);
   }

@@ -28,7 +28,14 @@ async function list(userId, walletId) {
 
 async function getById(userId, storyId) {
   const r = await query(
-    `SELECT s.* FROM stories s WHERE s.id = $1 AND s.user_id = $2`,
+    `SELECT s.* FROM stories s 
+     WHERE s.id = $1 AND (
+       s.user_id = $2 OR (
+         s.wallet_id IS NOT NULL AND EXISTS (
+           SELECT 1 FROM wallet_members wm WHERE wm.wallet_id = s.wallet_id AND wm.user_id = $2
+         )
+       )
+     )`,
     [storyId, userId]
   );
   if (r.rowCount === 0) throw ApiError.notFound('Story not found.');

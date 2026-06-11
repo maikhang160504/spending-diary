@@ -17,11 +17,14 @@ client.interceptors.response.use(
   (r) => r,
   (err) => {
     if (err.response) {
+      const status = err.response.status;
       logger.warn(
-        { status: err.response.status, body: err.response.data, url: err.config?.url },
+        { status, body: err.response.data, url: err.config?.url },
         'AI service responded with error'
       );
-      throw ApiError.upstream(
+      throw new ApiError(
+        status,
+        status >= 500 ? 'upstream_error' : 'bad_request',
         err.response.data?.error?.message || 'AI service error',
         err.response.data
       );

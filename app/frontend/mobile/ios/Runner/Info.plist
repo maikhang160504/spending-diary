@@ -59,6 +59,10 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>SpendDiary cần truy cập thư viện ảnh để bạn đổi avatar.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>SpendDiary cần camera để chụp ảnh đại diện.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>SpendDiary cần micro để bạn nhắn bằng giọng nói trong chat với Mimo.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>

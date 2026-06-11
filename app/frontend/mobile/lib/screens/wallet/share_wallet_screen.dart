@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../routes/app_routes.dart';
 import '../../services/api_client.dart';
 import '../../services/app_queries.dart';
+import '../../services/push_notification_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_palette.dart';
 import '../../theme/app_radii.dart';
@@ -15,6 +16,7 @@ import '../../utils/formatters.dart';
 import '../../utils/mimo_emotion.dart';
 import '../../widgets/error_banner.dart';
 import '../../widgets/loading_indicator.dart';
+import '../../widgets/notification_overlay.dart';
 
 class ShareWalletScreen extends StatefulWidget {
   final String? walletId;
@@ -38,6 +40,12 @@ class _ShareWalletScreenState extends State<ShareWalletScreen> {
   @override
   void initState() {
     super.initState();
+    if (widget.walletId != null && widget.walletId!.isNotEmpty) {
+      ApiClient.lastSelectedWalletId = widget.walletId;
+    }
+    // Tắt các thông báo khi vào ví chung
+    inAppNotificationController.dismiss();
+    PushNotificationService.instance.cancelAll();
     _loadData();
   }
 
@@ -646,10 +654,8 @@ class _TransactionStoryCard extends StatelessWidget {
     final userAvatar = tx['userAvatar'] as String? ?? tx['user_avatar'] as String?;
 
     final creatorId = tx['creatorId'] as String? ?? tx['creator_id'] as String? ?? '';
-    final storyUserId = tx['storyUserId'] as String? ?? tx['story_user_id'] as String? ?? '';
-    final isStoryOwner = creatorId.isNotEmpty && storyUserId.isNotEmpty && creatorId == storyUserId;
     final isWalletOwner = creatorId.isNotEmpty && walletOwnerId != null && creatorId == walletOwnerId;
-    final showCrown = isStoryOwner || isWalletOwner;
+    final showCrown = isWalletOwner;
 
     return GestureDetector(
       onTap: storyId.isNotEmpty
@@ -696,7 +702,7 @@ class _TransactionStoryCard extends StatelessWidget {
                               imageUrl: userAvatar,
                               fit: BoxFit.cover,
                               memCacheWidth: 200,
-                              errorWidget: (_, __, ___) => Center(
+                              errorWidget: (_, _, _) => Center(
                                 child: Text(
                                   userName.isNotEmpty ? userName[0].toUpperCase() : 'B',
                                   style: TextStyle(color: catStyle.color, fontWeight: FontWeight.w700, fontSize: 16),
@@ -778,7 +784,7 @@ class _TransactionStoryCard extends StatelessWidget {
                     width: double.infinity,
                     fit: BoxFit.cover,
                     memCacheWidth: 1080,
-                    errorWidget: (_, __, ___) => const SizedBox.shrink(),
+                    errorWidget: (_, _, _) => const SizedBox.shrink(),
                   ),
                 ),
               ),
@@ -839,7 +845,7 @@ class _TransactionStoryCard extends StatelessWidget {
                       child: Image.asset(
                         'assets/MiMo/emotions/$mascotMood.png',
                         fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => const Center(
+                        errorBuilder: (_, _, _) => const Center(
                           child: Text('😎', style: TextStyle(fontSize: 16)),
                         ),
                       ),

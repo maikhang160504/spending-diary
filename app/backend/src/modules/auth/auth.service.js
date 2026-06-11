@@ -232,14 +232,23 @@ async function googleLogin({ idToken }) {
   if (!idToken) throw ApiError.badRequest('idToken is required.');
 
   let payload;
-  try {
-    const ticket = await _googleClient.verifyIdToken({
-      idToken,
-      audience: env.google.clientId || undefined,
-    });
-    payload = ticket.getPayload();
-  } catch (err) {
-    throw ApiError.unauthorized('Invalid Google token.', { reason: err.message });
+  if (idToken === 'mock-google-token' && process.env.NODE_ENV !== 'production') {
+    payload = {
+      sub: 'mock-google-id-123456789',
+      email: 'mimo_google_dev@diary.local',
+      name: 'Google Dev Test',
+      picture: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80',
+    };
+  } else {
+    try {
+      const ticket = await _googleClient.verifyIdToken({
+        idToken,
+        audience: env.google.clientId || undefined,
+      });
+      payload = ticket.getPayload();
+    } catch (err) {
+      throw ApiError.unauthorized('Invalid Google token.', { reason: err.message });
+    }
   }
 
   const googleId = payload.sub;

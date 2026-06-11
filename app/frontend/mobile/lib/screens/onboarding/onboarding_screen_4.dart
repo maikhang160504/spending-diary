@@ -138,7 +138,7 @@ class _OnboardingStep4State extends State<OnboardingStep4> {
                               padding: const EdgeInsets.symmetric(vertical: 14),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadii.lg)),
                             ),
-                            child: const Text('Tạo ví & Bắt đầu', style: TextStyle(fontWeight: FontWeight.w700, color: Colors.white)),
+                            child: const Text('Lưu & Bắt đầu', style: TextStyle(fontWeight: FontWeight.w700, color: Colors.white)),
                           ),
                         ),
                       ],
@@ -161,14 +161,41 @@ class _OnboardingStep4State extends State<OnboardingStep4> {
         if (_selectedJob != null) 'jobType': _selectedJob,
       });
 
-      await _api.createWallet({
-        'name': config['name'] as String,
-        'type': 'personal',
-        'currency': 'VND',
-        'icon': '💼',
-        'color': '#14B8A6',
-        'balance': config['balance'] as int,
-      });
+      final wallets = await _api.getWallets();
+      Map<String, dynamic>? personalWallet;
+      for (final w in wallets) {
+        if (w is Map<String, dynamic> && w['type'] == 'personal') {
+          personalWallet = w;
+          break;
+        }
+      }
+
+      if (personalWallet != null) {
+        final walletId = personalWallet['id'] as String;
+        await _api.updateWallet(walletId, {
+          'name': config['name'] as String,
+        });
+        final balance = config['balance'] as int;
+        if (balance > 0) {
+          await _api.createTransaction({
+            'walletId': walletId,
+            'amount': balance,
+            'type': 'income',
+            'categoryCode': 'Others',
+            'note': 'Số dư ban đầu',
+            'source': 'manual',
+          });
+        }
+      } else {
+        await _api.createWallet({
+          'name': config['name'] as String,
+          'type': 'personal',
+          'currency': 'VND',
+          'icon': '💼',
+          'color': '#14B8A6',
+          'balance': config['balance'] as int,
+        });
+      }
 
       if (mounted) context.go(AppRoutes.home);
     } catch (e) {

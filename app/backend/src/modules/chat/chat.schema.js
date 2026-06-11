@@ -4,6 +4,7 @@ const { z } = require('zod');
 
 const createSessionSchema = z.object({
   title: z.string().min(1).max(255).optional(),
+  walletId: z.string().uuid().optional(),
 });
 
 const createMessageSchema = z.object({

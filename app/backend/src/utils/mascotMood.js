@@ -20,6 +20,20 @@ function intentFallback(intent) {
 function coerceMimoAsset(raw) {
   if (raw == null || String(raw).trim() === '') return null;
   const trimmed = String(raw).trim();
+  const lower = trimmed.toLowerCase();
+
+  const PERSONA_TO_EMOTION = {
+    vui: 'Happy',
+    dan_doi: 'Worried',
+    cham_choc: 'Taunting',
+    dong_cam: 'Chill',
+    nghiem_tuc: 'Approved',
+    hai_huoc: 'Giggle',
+  };
+  if (PERSONA_TO_EMOTION[lower]) {
+    return PERSONA_TO_EMOTION[lower];
+  }
+
   if (NLG_PERSONA_KEYS.has(trimmed)) return null;
   if (MIMO_ASSET_NAMES.has(trimmed)) return trimmed;
   for (const name of MIMO_ASSET_NAMES) {

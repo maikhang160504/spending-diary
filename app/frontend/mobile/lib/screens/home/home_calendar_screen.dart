@@ -751,7 +751,7 @@ class _TransactionStoryCard extends StatelessWidget {
                               imageUrl: userAvatar,
                               fit: BoxFit.cover,
                               memCacheWidth: 200,
-                              errorWidget: (_, __, ___) => Center(
+                              errorWidget: (_, _, _) => Center(
                                 child: Text(
                                   userName.isNotEmpty ? userName[0].toUpperCase() : 'B',
                                   style: TextStyle(color: catStyle.color, fontWeight: FontWeight.w700, fontSize: 16),
@@ -820,7 +820,7 @@ class _TransactionStoryCard extends StatelessWidget {
                   height: 220,
                   fit: BoxFit.cover,
                   memCacheWidth: 1080,
-                  errorWidget: (_, __, ___) => const SizedBox.shrink(),
+                  errorWidget: (_, _, _) => const SizedBox.shrink(),
                 ),
               ),
             ],
@@ -875,7 +875,7 @@ class _TransactionStoryCard extends StatelessWidget {
                         child: Image.asset(
                           'assets/MiMo/emotions/$mascotMood.png',
                           fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => const Center(
+                          errorBuilder: (_, _, _) => const Center(
                             child: Text('😎', style: TextStyle(fontSize: 16)),
                           ),
                         ),

@@ -14,6 +14,8 @@ const settingsRoutes = require('../modules/settings/settings.routes');
 const goalsRoutes = require('../modules/goals/goals.routes');
 const storiesRoutes = require('../modules/stories/stories.routes');
 const chatRoutes = require('../modules/chat/chat.routes');
+const recurringRoutes = require('../modules/recurring/recurring.routes');
+const fcmRoutes = require('../modules/fcm/fcm.routes');
 const authController = require('../modules/auth/auth.controller');
 const { requireAuth } = require('../middlewares/auth');
 
@@ -46,5 +48,7 @@ router.use('/users/me/streak', requireAuth, authController.getStreak);
 router.use('/goals', goalsRoutes);
 router.use('/stories', storiesRoutes);
 router.use('/chat', chatRoutes);
+router.use('/recurring', recurringRoutes);
+router.use('/users/me/fcm', fcmRoutes);
 
 module.exports = router;

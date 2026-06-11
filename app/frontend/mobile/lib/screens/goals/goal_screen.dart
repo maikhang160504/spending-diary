@@ -95,7 +95,7 @@ class _GoalScreenState extends State<GoalScreen> {
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String?>(
-                value: selectedWalletId,
+                initialValue: selectedWalletId,
                 decoration: const InputDecoration(labelText: 'Liên kết ví'),
                 dropdownColor: ctx.palette.card,
                 items: [
@@ -162,13 +162,13 @@ class _GoalScreenState extends State<GoalScreen> {
                             });
                             _loadGoals();
                           } on ApiException catch (e) {
-                            if (context.mounted) {
+                            if (mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(content: Text(e.localizedMessage), backgroundColor: AppColors.danger),
                               );
                             }
                           } catch (_) {
-                            if (context.mounted) {
+                            if (mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(content: Text('Không thể tạo mục tiêu mới'), backgroundColor: AppColors.danger),
                               );

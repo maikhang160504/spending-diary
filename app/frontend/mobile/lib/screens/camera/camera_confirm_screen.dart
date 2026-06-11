@@ -36,6 +36,10 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
   bool _saving = false;
   String? _saveError;
 
+  List<dynamic> _wallets = [];
+  String? _targetWalletId;
+  String? _targetWalletName;
+
   // Async bill flow state
   bool _isPending = false;
   bool _processingDone = false;
@@ -56,6 +60,7 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
   @override
   void initState() {
     super.initState();
+    _loadWallets();
     final data = widget.extractedData;
     if (data?['status'] == 'pending') {
       _isPending = true;
@@ -77,6 +82,33 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
         WidgetsBinding.instance.addPostFrameCallback((_) => _onConfirm());
       }
     }
+  }
+
+  Future<void> _loadWallets() async {
+    try {
+      final wallets = await _api.getWallets();
+      wallets.sort((a, b) {
+        final aType = a['type'] as String? ?? 'personal';
+        final bType = b['type'] as String? ?? 'personal';
+        if (aType == 'personal' && bType != 'personal') return -1;
+        if (aType != 'personal' && bType == 'personal') return 1;
+        return 0;
+      });
+      if (mounted) {
+        setState(() {
+          _wallets = wallets;
+          _targetWalletId = widget.extractedData?['walletId'] as String? ?? ApiClient.lastSelectedWalletId ?? (wallets.isNotEmpty ? wallets[0]['id'] as String : '');
+          final targetWallet = _wallets.firstWhere((w) => w['id'] == _targetWalletId, orElse: () => null);
+          if (targetWallet != null) {
+            final isGroup = targetWallet['type'] == 'group';
+            final name = targetWallet['name'] as String?;
+            if (name != null) {
+              _targetWalletName = isGroup ? '$name (Ví chung)' : name;
+            }
+          }
+        });
+      }
+    } catch (_) {}
   }
 
   String? get _localImagePath =>
@@ -173,8 +205,9 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
   }
 
   Future<void> _onConfirm() async {
-    final wallets = await _api.getWallets();
-    final targetWalletId = widget.extractedData?['walletId'] as String? ?? (wallets.isNotEmpty ? wallets[0]['id'] as String : '');
+    final wallets = _wallets.isNotEmpty ? _wallets : await _api.getWallets();
+    if (!mounted) return;
+    final targetWalletId = _targetWalletId ?? widget.extractedData?['walletId'] as String? ?? ApiClient.lastSelectedWalletId ?? (wallets.isNotEmpty ? wallets[0]['id'] as String : '');
     final targetWallet = wallets.firstWhere((w) => w['id'] == targetWalletId, orElse: () => null);
     final isGroupWallet = targetWallet != null && targetWallet['type'] == 'group';
 
@@ -255,6 +288,7 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
     final amountCtrl = TextEditingController(text: _amount.toString());
     final noteCtrl = TextEditingController(text: _note);
     String editCategory = _category;
+    String? editWalletId = _targetWalletId;
 
     showModalBottomSheet(
       context: context,
@@ -285,7 +319,7 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
               Text('Danh mục', style: Theme.of(ctx).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
-                value: CategoryTheme.styles.containsKey(editCategory) ? editCategory : 'Other',
+                initialValue: CategoryTheme.styles.containsKey(editCategory) ? editCategory : 'Other',
                 decoration: InputDecoration(
                   contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadii.md)),
@@ -310,6 +344,29 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
                 },
               ),
               const SizedBox(height: 12),
+              Text('Ví lưu', style: Theme.of(ctx).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<String>(
+                initialValue: _wallets.any((w) => w['id'] == editWalletId) ? editWalletId : null,
+                decoration: InputDecoration(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadii.md)),
+                ),
+                items: _wallets
+                    .map((w) => DropdownMenuItem<String>(
+                          value: w['id'] as String,
+                          child: Text(w['name'] as String? ?? 'Ví'),
+                        ))
+                    .toList(),
+                onChanged: (val) {
+                  if (val != null) {
+                    setSheetState(() {
+                      editWalletId = val;
+                    });
+                  }
+                },
+              ),
+              const SizedBox(height: 12),
               Text('Ghi chú', style: Theme.of(ctx).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
               const SizedBox(height: 8),
               TextField(
@@ -325,6 +382,15 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
                       _amount = int.tryParse(amountCtrl.text) ?? _amount;
                       _note = noteCtrl.text;
                       _category = editCategory;
+                      _targetWalletId = editWalletId;
+                      final targetWallet = _wallets.firstWhere((w) => w['id'] == _targetWalletId, orElse: () => null);
+                      if (targetWallet != null) {
+                        final isGroup = targetWallet['type'] == 'group';
+                        final name = targetWallet['name'] as String?;
+                        if (name != null) {
+                          _targetWalletName = isGroup ? '$name (Ví chung)' : name;
+                        }
+                      }
                     });
                     ctx.pop();
                   },
@@ -338,7 +404,6 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
       ),
     );
   }
-
   Color get _confidenceColor {
     if (_confidence >= 0.8) return AppColors.teal;
     if (_confidence >= 0.6) return const Color(0xFFF59E0B);
@@ -503,6 +568,7 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
                       _DetailRow(label: 'Danh mục', value: CategoryTheme.of(_category).label),
                       _DetailRow(label: 'Số tiền', value: formatVnd(_amount)),
                       if (_note.isNotEmpty) _DetailRow(label: 'Ghi chú', value: _note),
+                      if (_targetWalletName != null) _DetailRow(label: 'Ví lưu', value: _targetWalletName!),
                       _DetailRow(label: 'Thời gian', value: _formatNow()),
                     ]),
                   ),
@@ -513,34 +579,36 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
                       child: Text('Độ chính xác cao — đang lưu tự động...', style: TextStyle(color: Colors.white70)),
                     ),
                   if (needsUserConfirm)
-                  Row(children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: _saving ? null : _showEditSheet,
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.white,
-                          side: const BorderSide(color: Colors.white54),
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadii.lg)),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: _saving ? null : _showEditSheet,
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.white,
+                              side: const BorderSide(color: Colors.white54),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadii.lg)),
+                            ),
+                            child: const Text('Chỉnh sửa'),
+                          ),
                         ),
-                        child: const Text('Chỉnh sửa'),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: FilledButton(
-                        onPressed: _saving ? null : _onConfirm,
-                        style: FilledButton.styleFrom(
-                          backgroundColor: AppColors.teal,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadii.lg)),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: FilledButton(
+                            onPressed: _saving ? null : _onConfirm,
+                            style: FilledButton.styleFrom(
+                              backgroundColor: AppColors.teal,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadii.lg)),
+                            ),
+                            child: _saving
+                                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                                : const Text('Xác nhận ✓', style: TextStyle(fontWeight: FontWeight.w700)),
+                          ),
                         ),
-                        child: _saving
-                            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                            : const Text('Xác nhận ✓', style: TextStyle(fontWeight: FontWeight.w700)),
-                      ),
+                      ],
                     ),
-                  ]),
                 ],
               ),
             ),

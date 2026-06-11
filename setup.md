@@ -30,6 +30,12 @@ R2_ACCESS_KEY_ID=<điền key>
 R2_SECRET_ACCESS_KEY=<điền secret>
 R2_BUCKET=spending-stories
 R2_PUBLIC_BASE_URL=https://pub-cd3feb925e7842d992cb977ca4e5b92d.r2.dev
+
+# --- Firebase Cloud Messaging (push khi app background/killed) ---
+# Tạo service account trong Firebase Console → Project settings → Service accounts
+FIREBASE_PROJECT_ID=powerful-bounty-477016-u8
+FIREBASE_CLIENT_EMAIL=firebase-adminsdk-xxxxx@powerful-bounty-477016-u8.iam.gserviceaccount.com
+FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
 ```
 
 ---
@@ -108,7 +114,18 @@ flutter pub get
 flutter run --dart-define=API_BASE_URL=http://10.0.2.2:4000 --dart-define=AI_BASE_URL=http://10.0.2.2:8000
 
 # Real device (cùng WiFi — thay bằng IP máy dev)
-flutter run --dart-define=API_BASE_URL=http://10.32.9.24:4000 --dart-define=AI_BASE_URL=http://10.32.9.24:8000
+flutter run --dart-define=API_BASE_URL=http://10.190.86.24:4000 --dart-define=AI_BASE_URL=http://10.190.86.24:8000
+```
+
+## 6. Chạy webadmin (terminal 4)
+
+```
+# Lần đầu
+npm install
+
+# Khởi động
+cd d:\Luan-Van\Project\app\webadmin
+npm run dev
 ```
 
 ---
@@ -154,3 +171,40 @@ Invoke-RestMethod http://localhost:4000/api/v1/wallets `
 - **NLU** chạy thật với models `.joblib` từ `expense-ocr-nlu/text_nlu/models/`.
 - **R2** keys đã có trong `app/backend/.env` — upload ảnh hoá đơn sẽ lưu vào bucket `spending-stories`.
 - Warning `httpx 0.27.2 incompatible` khi cài requirements.txt vào venv expense-ocr-nlu là **không nghiêm trọng**, service vẫn chạy bình thường.
+
+---
+
+## 9. Firebase Cloud Messaging (FCM)
+
+Push remote khi app **background/killed** (budget alert, recurring). In-app vẫn dùng WebSocket + local notification.
+
+### Backend
+
+1. Chạy migration (nếu chưa): `npm run migrate` — tạo bảng `user_fcm_tokens`.
+2. Thêm `FIREBASE_*` vào `app/backend/.env` (xem mục 1).
+3. Khởi động lại backend — log `Firebase Admin initialized for FCM`.
+
+**API (auth bắt buộc):**
+
+- `POST /api/v1/users/me/fcm/token` — body: `{ "token": "...", "platform": "android" | "ios" }`
+- `DELETE /api/v1/users/me/fcm/token` — body: `{ "token": "..." }`
+
+### Flutter (Android)
+
+1. Firebase Console → thêm app Android `com.spendingdairy.app` → tải **`google-services.json`** (phải có `current_key` không rỗng).
+2. Đặt file tại `app/frontend/mobile/android/app/google-services.json`.
+3. (Tuỳ chọn) Cập nhật `lib/firebase_options.dart` hoặc build với:
+   ```powershell
+   flutter run --dart-define=FIREBASE_ANDROID_API_KEY=<api_key_từ_console> ...
+   ```
+4. `flutter pub get` rồi chạy app — sau login, token FCM được đăng ký tự động.
+
+### iOS (chưa cấu hình)
+
+Cần thêm `GoogleService-Info.plist` và bổ sung `ios` trong `firebase_options.dart`.
+
+### QA push
+
+1. Đăng nhập app trên thiết bị thật/emulator có Google Play.
+2. Vượt ngưỡng budget hoặc chờ recurring scheduler → notification trên status bar.
+3. Tap notification → mở đúng deep link (ví dụ `/report`).

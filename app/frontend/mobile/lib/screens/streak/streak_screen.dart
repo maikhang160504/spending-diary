@@ -108,7 +108,7 @@ class _StreakScreenState extends State<StreakScreen> {
                                 'assets/animations/Fire.json',
                                 height: 96,
                                 repeat: true,
-                                errorBuilder: (_, __, ___) => const Text('🔥', style: TextStyle(fontSize: 48)),
+                                errorBuilder: (_, _, _) => const Text('🔥', style: TextStyle(fontSize: 48)),
                               )
                             : const Center(child: Text('🔥', style: TextStyle(fontSize: 48))),
                       ),

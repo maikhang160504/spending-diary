@@ -1,5 +1,7 @@
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import 'lottie_transition_page.dart';
 import '../services/api_client.dart';
 import '../screens/auth/login_screen.dart';
 import '../screens/auth/register_screen.dart';
@@ -21,6 +23,7 @@ import '../screens/onboarding/onboarding_screen_3.dart';
 import '../screens/onboarding/onboarding_screen_4.dart';
 import '../screens/report/report_screen.dart';
 import '../screens/settings/settings_screen.dart';
+import '../screens/settings/recurring_rules_screen.dart';
 import '../screens/shell/app_shell.dart';
 import '../screens/story/detail_story_screen.dart';
 import '../screens/streak/streak_screen.dart';
@@ -62,6 +65,7 @@ class AppRoutes {
   static const streak         = '/streak';
   static const storyDetail    = '/story/:storyId';
   static const goalDetail     = '/app/goals/:goalId';
+  static const recurring      = '/recurring';
 
   /// Build the story detail path with a real [storyId]
   static String storyDetailOf(String storyId) => '/story/$storyId';
@@ -70,11 +74,20 @@ class AppRoutes {
   static String goalDetailOf(String goalId) => '/app/goals/$goalId';
 }
 
+/// Helper function to build a page with a Lottie transition
+Page<dynamic> _lottiePage(GoRouterState state, String lottiePath, Widget child) {
+  return LottieTransitionPage(
+    key: state.pageKey,
+    lottiePath: lottiePath,
+    child: child,
+  );
+}
+
 /// go_router instance — được dùng trong MaterialApp.router
 final GoRouter appRouter = GoRouter(
   initialLocation: AppRoutes.splash,
   redirect: (context, state) async {
-    final protectedPrefixes = ['/app/', '/camera', '/chat', '/limits', '/wallet', '/streak', '/story'];
+    final protectedPrefixes = ['/app/', '/camera', '/chat', '/limits', '/wallet', '/streak', '/story', '/recurring'];
     
     final isOnboarding = state.matchedLocation == AppRoutes.onboarding ||
                          state.matchedLocation == AppRoutes.onboardingStep2 ||
@@ -101,24 +114,57 @@ final GoRouter appRouter = GoRouter(
   },
   routes: [
     // ── Splash ──────────────────────────────────────────────
-    GoRoute(path: AppRoutes.splash, builder: (context, state) => const SplashScreen()),
+    GoRoute(
+      path: AppRoutes.splash,
+      pageBuilder: (context, state) => _lottiePage(state, 'assets/animations/Loading.json', const SplashScreen()),
+    ),
 
     // ── Auth / Onboarding ────────────────────────────────────
-    GoRoute(path: AppRoutes.onboarding,      builder: (context, state) => const OnboardingStep1()),
-    GoRoute(path: AppRoutes.onboardingStep2, builder: (context, state) => const OnboardingStep2()),
-    GoRoute(path: AppRoutes.onboardingStep3, builder: (context, state) => const OnboardingStep3()),
-    GoRoute(path: AppRoutes.onboardingStep4, builder: (context, state) => const OnboardingStep4()),
-    GoRoute(path: AppRoutes.login,           builder: (context, state) => const LoginScreen()),
-    GoRoute(path: AppRoutes.register,        builder: (context, state) => const RegisterScreen()),
+    GoRoute(
+      path: AppRoutes.onboarding,
+      pageBuilder: (context, state) => _lottiePage(state, 'assets/animations/Loading.json', const OnboardingStep1()),
+    ),
+    GoRoute(
+      path: AppRoutes.onboardingStep2,
+      pageBuilder: (context, state) => _lottiePage(state, 'assets/animations/Loading.json', const OnboardingStep2()),
+    ),
+    GoRoute(
+      path: AppRoutes.onboardingStep3,
+      pageBuilder: (context, state) => _lottiePage(state, 'assets/animations/Loading.json', const OnboardingStep3()),
+    ),
+    GoRoute(
+      path: AppRoutes.onboardingStep4,
+      pageBuilder: (context, state) => _lottiePage(state, 'assets/animations/Loading.json', const OnboardingStep4()),
+    ),
+    GoRoute(
+      path: AppRoutes.login,
+      pageBuilder: (context, state) => _lottiePage(state, 'assets/animations/Loading.json', const LoginScreen()),
+    ),
+    GoRoute(
+      path: AppRoutes.register,
+      pageBuilder: (context, state) => _lottiePage(state, 'assets/animations/Loading.json', const RegisterScreen()),
+    ),
 
     // ── Shell (bottom nav) ───────────────────────────────────
     ShellRoute(
       builder: (context, state, child) => AppShell(child: child),
       routes: [
-        GoRoute(path: AppRoutes.home,     builder: (context, state) => const HomeScreen()),
-        GoRoute(path: AppRoutes.report,   builder: (context, state) => const ReportScreen()),
-        GoRoute(path: AppRoutes.goals,    builder: (context, state) => const GoalScreen()),
-        GoRoute(path: AppRoutes.settings, builder: (context, state) => const SettingsScreen()),
+        GoRoute(
+          path: AppRoutes.home,
+          pageBuilder: (context, state) => _lottiePage(state, 'assets/animations/Loading.json', const HomeScreen()),
+        ),
+        GoRoute(
+          path: AppRoutes.report,
+          pageBuilder: (context, state) => _lottiePage(state, 'assets/animations/Report.json', const ReportScreen()),
+        ),
+        GoRoute(
+          path: AppRoutes.goals,
+          pageBuilder: (context, state) => _lottiePage(state, 'assets/animations/Success_goal.json', const GoalScreen()),
+        ),
+        GoRoute(
+          path: AppRoutes.settings,
+          pageBuilder: (context, state) => _lottiePage(state, 'assets/animations/Loading.json', const SettingsScreen()),
+        ),
       ],
     ),
 
@@ -158,18 +204,34 @@ final GoRouter appRouter = GoRouter(
     // ── Chat ────────────────────────────────────────────────
     GoRoute(
       path: AppRoutes.chat,
-      builder: (context, state) {
+      pageBuilder: (context, state) {
         final extra = state.extra as Map<String, dynamic>?;
-        return ChatScreen(
-          sessionId: extra?['sessionId'] as String?,
-          walletId: extra?['walletId'] as String?,
+        return _lottiePage(
+          state,
+          'assets/animations/Chat.json',
+          ChatScreen(
+            sessionId: extra?['sessionId'] as String?,
+            walletId: extra?['walletId'] as String?,
+            forceNew: extra?['forceNew'] as bool? ?? false,
+          ),
         );
       },
     ),
-    GoRoute(path: AppRoutes.chatHistory, builder: (context, state) => const ChatHistoryScreen()),
+    GoRoute(
+      path: AppRoutes.chatHistory,
+      pageBuilder: (context, state) {
+        final extra = state.extra as Map<String, dynamic>?;
+        return _lottiePage(
+          state,
+          'assets/animations/Chat.json',
+          ChatHistoryScreen(walletId: extra?['walletId'] as String?),
+        );
+      },
+    ),
 
     // ── Overlays / Full-screen ───────────────────────────────
     GoRoute(path: AppRoutes.limits,         builder: (context, state) => const LimitsScreen()),
+    GoRoute(path: AppRoutes.recurring,      builder: (context, state) => const RecurringRulesScreen()),
     GoRoute(
       path: AppRoutes.shareWallet,
       builder: (context, state) {
@@ -177,7 +239,14 @@ final GoRouter appRouter = GoRouter(
         return ShareWalletScreen(walletId: extra?['walletId'] as String?);
       },
     ),
-    GoRoute(path: AppRoutes.streak,         builder: (context, state) => const StreakScreen()),
+    GoRoute(
+      path: AppRoutes.streak,
+      pageBuilder: (context, state) => _lottiePage(
+        state,
+        'assets/animations/Fire.json',
+        const StreakScreen(),
+      ),
+    ),
     GoRoute(
       path: AppRoutes.storyDetail,
       builder: (context, state) {
@@ -191,8 +260,12 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: AppRoutes.goalDetail,
-      builder: (context, state) => GoalDetailScreen(
-        goalId: state.pathParameters['goalId'] ?? '',
+      pageBuilder: (context, state) => _lottiePage(
+        state,
+        'assets/animations/Success_goal.json',
+        GoalDetailScreen(
+          goalId: state.pathParameters['goalId'] ?? '',
+        ),
       ),
     ),
   ],

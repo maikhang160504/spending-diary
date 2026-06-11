@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -32,6 +33,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _loginWithGoogle() async {
     setState(() { _googleLoading = true; _error = null; });
+    String? idToken;
+    var usedMockFallback = false;
     try {
       final googleSignIn = GoogleSignIn(
         scopes: ['email', 'profile'],
@@ -43,17 +46,46 @@ class _LoginScreenState extends State<LoginScreen> {
         return;
       }
       final auth = await account.authentication;
-      final idToken = auth.idToken;
-      if (idToken == null) {
-        setState(() { _googleLoading = false; _error = 'Không lấy được Google token'; });
+      idToken = auth.idToken;
+      if (idToken == null || idToken.isEmpty) {
+        setState(() {
+          _error = 'Không lấy được token Google. Thử lại sau.';
+          _googleLoading = false;
+        });
         return;
       }
+    } catch (e) {
+      debugPrint('Google Sign-In failed: $e');
+      if (!kDebugMode) {
+        setState(() {
+          _error = 'Đăng nhập Google thất bại. Kiểm tra cấu hình hoặc thử lại.';
+          _googleLoading = false;
+        });
+        return;
+      }
+      idToken = 'mock-google-token';
+      usedMockFallback = true;
+    }
+
+    try {
       final api = ApiClient();
       await api.loginWithGoogle(idToken);
       if (!mounted) return;
+
+      if (usedMockFallback) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Google Sign-In thất bại (emulator/cấu hình). Đang dùng tài khoản dev mock.',
+            ),
+            duration: Duration(seconds: 4),
+          ),
+        );
+      }
       
       try {
         final settings = await api.getSettings();
+        if (!mounted) return;
         final ageGroup = settings['ageGroup'] as String? ?? settings['age_group'] as String?;
         final jobType = settings['jobType'] as String? ?? settings['job_type'] as String?;
         if ((ageGroup != null && ageGroup.isNotEmpty) || (jobType != null && jobType.isNotEmpty)) {
@@ -62,6 +94,7 @@ class _LoginScreenState extends State<LoginScreen> {
         }
       } catch (_) {}
       
+      if (!mounted) return;
       context.go(AppRoutes.onboarding);
     } on ApiException catch (e) {
       setState(() => _error = e.localizedMessage);
@@ -87,6 +120,7 @@ class _LoginScreenState extends State<LoginScreen> {
       
       try {
         final settings = await api.getSettings();
+        if (!mounted) return;
         final ageGroup = settings['ageGroup'] as String? ?? settings['age_group'] as String?;
         final jobType = settings['jobType'] as String? ?? settings['job_type'] as String?;
         if ((ageGroup != null && ageGroup.isNotEmpty) || (jobType != null && jobType.isNotEmpty)) {
@@ -95,6 +129,7 @@ class _LoginScreenState extends State<LoginScreen> {
         }
       } catch (_) {}
       
+      if (!mounted) return;
       context.go(AppRoutes.onboarding);
     } on ApiException catch (e) {
       setState(() => _error = e.localizedMessage);

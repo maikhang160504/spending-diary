@@ -183,8 +183,6 @@ async function _fetchWalletProfile(userId, walletId) {
       query(
         `SELECT b.amount_limit AS budget_total,
                 GREATEST(0, b.amount_limit - COALESCE(SUM(t.amount) FILTER (WHERE t.type='expense'), 0)) AS budget_remain,
-                COUNT(t.id) FILTER (WHERE t.occurred_at >= NOW() - INTERVAL '7 days') AS frequency_week,
-                COALESCE(AVG(t.amount) FILTER (WHERE t.type='expense'), 0) AS avg_amount,
                 w.type AS wallet_type,
                 (SELECT COUNT(*)::int FROM wallet_members WHERE wallet_id = w.id) AS member_count
          FROM wallets w
@@ -243,8 +241,6 @@ async function _fetchWalletProfile(userId, walletId) {
       return {
         budget_total:     Number(row.budget_total) || 0,
         budget_remain:    Number(row.budget_remain) || 0,
-        frequency_week:   Number(row.frequency_week) || 0,
-        avg_amount:       Number(row.avg_amount) || 0,
         spent_today:      Number(spendRes.rows[0]?.spent_today) || 0,
         spent_week:       Number(spendRes.rows[0]?.spent_week) || 0,
         spent_month:      Number(spendRes.rows[0]?.spent_month) || 0,
@@ -284,23 +280,25 @@ async function expenseFromText(userId, payload) {
   });
   const extracted = aiResponse.extracted || {};
   let savedTx = null;
+  const isRecord = aiResponse.nlu?.intent === 'Record';
   if (
     payload.autoSave &&
-    extracted.amount &&
-    extracted.amount > 0 &&
+    isRecord &&
     !aiResponse.requires_category_selection
   ) {
+    const isDraft = !extracted.amount || extracted.amount <= 0;
     savedTx = await txService.create(userId, {
       walletId: payload.walletId,
-      amount: extracted.amount,
+      amount: isDraft ? 0 : extracted.amount,
       type: extracted.record_type === 'Income' ? 'income' : 'expense',
       source: 'text',
-      categoryCode: extracted.category,
+      categoryCode: extracted.category || 'Others',
       note: extracted.note || payload.text,
       occurredAt: payload.occurredAt,
       aiExtracted: true,
       aiConfidence: extracted.confidence ?? null,
       aiMeta: { nlu: aiResponse.nlu },
+      isDraft,
     });
   }
   return {
@@ -479,11 +477,15 @@ async function _fetchUserCorrections(userId) {
   if (!userId) return [];
   try {
     const res = await query(
-      `SELECT DISTINCT ON (LOWER(TRIM(text)))
-              text, intent, category_code AS "categoryCode", record_type AS "recordType"
-       FROM user_corrections
-       WHERE user_id = $1
-       ORDER BY LOWER(TRIM(text)), created_at DESC`,
+      `SELECT DISTINCT ON (clean_text)
+              text, intent, "categoryCode", "recordType"
+       FROM (
+         SELECT text, intent, category_code AS "categoryCode", record_type AS "recordType",
+                LOWER(TRIM(text)) as clean_text, created_at
+         FROM user_corrections
+         WHERE user_id = $1
+       ) tmp
+       ORDER BY clean_text, created_at DESC`,
       [userId]
     );
     return res.rows.map(r => ({
@@ -579,7 +581,8 @@ async function aiChat(userId, sessionId, userMessage) {
   const chatService = require('../chat/chat.service');
   
   // Get recent messages for context
-  const recentMessages = await chatService.getMessages(userId, sessionId, 20);
+  const recentMessagesRes = await chatService.getMessages(userId, sessionId, { limit: 20 });
+  const recentMessages = recentMessagesRes.messages || [];
   const allMessages = recentMessages.map(m => ({
     role: m.role,
     content: m.content,
@@ -602,12 +605,20 @@ async function aiChat(userId, sessionId, userMessage) {
 
   let walletId = null;
   try {
-    const walletRes = await query(
-      `SELECT wallet_id FROM wallet_members WHERE user_id = $1 LIMIT 1`,
-      [userId]
+    const sessionRes = await query(
+      `SELECT wallet_id FROM chat_sessions WHERE id = $1 AND user_id = $2`,
+      [sessionId, userId]
     );
-    if (walletRes.rows[0]) {
-      walletId = walletRes.rows[0].wallet_id;
+    if (sessionRes.rows[0]?.wallet_id) {
+      walletId = sessionRes.rows[0].wallet_id;
+    } else {
+      const walletRes = await query(
+        `SELECT wallet_id FROM wallet_members WHERE user_id = $1 LIMIT 1`,
+        [userId]
+      );
+      if (walletRes.rows[0]) {
+        walletId = walletRes.rows[0].wallet_id;
+      }
     }
   } catch (_) {}
 

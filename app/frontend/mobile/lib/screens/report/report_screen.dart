@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
 import '../../models/report_models.dart';
@@ -30,6 +31,9 @@ class _ReportScreenState extends State<ReportScreen> {
   List<ReportCategory> _categoryStats = [];
   List<ReportBar> _reportBars = [];
   List<TrendPoint> _trendPoints = [];
+  List<ReportMoM> _momStats = [];
+  int _cumulativeLimit = 0;
+  List<CumulativePoint> _cumulativePoints = [];
 
   ReportCategory _toCat(Map<String, dynamic> row) {
     final code = row['categoryCode'] as String? ?? 'Others';
@@ -98,6 +102,15 @@ class _ReportScreenState extends State<ReportScreen> {
       final cats = (await catsF).data ?? <dynamic>[];
       final monthly = (await monthlyF).data ?? <dynamic>[];
 
+      List<dynamic>? momData;
+      Map<String, dynamic>? cumulativeData;
+      if (_selectedRange == 'Theo tháng') {
+        final momRes = await AppQueries.statsMoM(_selectedWalletId).result;
+        final cumRes = await AppQueries.statsCumulativeVsBudget(_selectedWalletId).result;
+        momData = momRes.data;
+        cumulativeData = cumRes.data;
+      }
+
       if (!mounted) return;
 
       final totals = dashboard['totals'] as Map<String, dynamic>?;
@@ -124,6 +137,47 @@ class _ReportScreenState extends State<ReportScreen> {
           final expense = (e['expense'] as num?)?.toInt() ?? 0;
           return TrendPoint(label: 'T$monthNum', amount: income - expense);
         }).toList();
+
+        if (momData != null) {
+          _momStats = momData.map((m) {
+            final e = m as Map<String, dynamic>;
+            final code = e['categoryCode'] as String? ?? 'Others';
+            final style = CategoryTheme.of(code);
+            return ReportMoM(
+              code: code,
+              label: style.label,
+              emoji: style.emoji,
+              thisMonth: (e['thisMonth'] as num?)?.toInt() ?? 0,
+              lastMonth: (e['lastMonth'] as num?)?.toInt() ?? 0,
+              color: style.color.toARGB32(),
+            );
+          }).toList();
+        } else {
+          _momStats = [];
+        }
+
+        if (cumulativeData != null) {
+          _cumulativeLimit = (cumulativeData['limit'] as num?)?.toInt() ?? 0;
+          final list = (cumulativeData['dailyCumulative'] as List<dynamic>?) ?? [];
+          final totalDays = list.length;
+          _cumulativePoints = List.generate(totalDays, (index) {
+            final e = list[index] as Map<String, dynamic>;
+            final dayStr = e['day'] as String? ?? '';
+            final label = dayStr.length >= 10 ? dayStr.substring(8, 10) : '';
+            final cumulative = (e['cumulative'] as num?)?.toInt() ?? 0;
+            final budgetLimitLine = totalDays > 0
+                ? (_cumulativeLimit.toDouble() / totalDays) * (index + 1)
+                : 0.0;
+            return CumulativePoint(
+              dayLabel: label,
+              cumulativeAmount: cumulative,
+              budgetLimitLine: budgetLimitLine,
+            );
+          });
+        } else {
+          _cumulativeLimit = 0;
+          _cumulativePoints = [];
+        }
       });
     } catch (_) {}
     if (mounted) setState(() => _loading = false);
@@ -173,7 +227,7 @@ class _ReportScreenState extends State<ReportScreen> {
                         loading: _loading,
                       ),
                       const SizedBox(height: 20),
-                      // Bar chart (mock for now)
+                      // Bar chart (mock for now) / MoM Grouped Bar Chart
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
@@ -184,16 +238,90 @@ class _ReportScreenState extends State<ReportScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('Chi tiêu theo ngày', style: Theme.of(context).textTheme.titleSmall),
+                            Text(
+                              _selectedRange == 'Theo tháng'
+                                  ? 'So sánh tháng này vs tháng trước'
+                                  : 'Chi tiêu theo ngày',
+                              style: Theme.of(context).textTheme.titleSmall,
+                            ),
+                            if (_selectedRange == 'Theo tháng') ...[
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  Container(
+                                    width: 12,
+                                    height: 12,
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFCBD5E1),
+                                      borderRadius: BorderRadius.circular(3),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  const Text('Tháng trước', style: TextStyle(fontSize: 10, color: AppColors.muted, fontWeight: FontWeight.w500)),
+                                  const SizedBox(width: 16),
+                                  Container(
+                                    width: 12,
+                                    height: 12,
+                                    decoration: BoxDecoration(
+                                      color: AppColors.teal,
+                                      borderRadius: BorderRadius.circular(3),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  const Text('Tháng này', style: TextStyle(fontSize: 10, color: AppColors.muted, fontWeight: FontWeight.w500)),
+                                ],
+                              ),
+                            ],
                             const SizedBox(height: 16),
-                            _reportBars.isEmpty
-                                ? const Center(child: Padding(
-                                    padding: EdgeInsets.symmetric(vertical: 24),
-                                    child: Text('Chưa có dữ liệu', style: TextStyle(color: AppColors.muted))))
-                                : _BarChart(bars: _reportBars),
+                            _selectedRange == 'Theo tháng'
+                                ? _MoMGroupedBarChart(stats: _momStats)
+                                : (_reportBars.isEmpty
+                                    ? const Center(child: Padding(
+                                        padding: EdgeInsets.symmetric(vertical: 24),
+                                        child: Text('Chưa có dữ liệu', style: TextStyle(color: AppColors.muted))))
+                                    : _BarChart(bars: _reportBars)),
                           ],
                         ),
                       ),
+                      if (_selectedRange == 'Theo tháng') ...[
+                        const SizedBox(height: 20),
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: context.palette.card,
+                            borderRadius: BorderRadius.circular(AppRadii.lg),
+                            boxShadow: context.palette.softShadow,
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Chi tiêu lũy kế so với hạn mức', style: Theme.of(context).textTheme.titleSmall),
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  Container(
+                                    width: 16,
+                                    height: 2,
+                                    color: AppColors.danger.withValues(alpha: 0.7),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  const Text('Hạn mức ngân sách', style: TextStyle(fontSize: 10, color: AppColors.muted, fontWeight: FontWeight.w500)),
+                                  const SizedBox(width: 16),
+                                  Container(
+                                    width: 16,
+                                    height: 3,
+                                    color: AppColors.teal,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  const Text('Lũy kế thực tế', style: TextStyle(fontSize: 10, color: AppColors.muted, fontWeight: FontWeight.w500)),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+                              _CumulativeBudgetLineChart(points: _cumulativePoints, limit: _cumulativeLimit),
+                            ],
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 20),
                       // Donut chart — real API data
                       Container(
@@ -524,104 +652,201 @@ class _BarChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final maxAmount = bars.map((b) => b.amount).fold<int>(0, (a, b) => a > b ? a : b);
-    final labels = ['0k', '100k', '200k', '300k', '400k'];
+    final interval = _niceInterval(maxAmount.toDouble());
 
     return SizedBox(
-      height: 160,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Y-axis labels
-          Column(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: labels.reversed.map((l) => Text(l, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.muted, fontSize: 10))).toList(),
-          ),
-          const SizedBox(width: 8),
-          // Bars
-          Expanded(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: bars.map((bar) {
-                final double h = maxAmount > 0 ? 120.0 * (bar.amount / maxAmount) : 0.0;
-                return Expanded(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      Container(
-                        height: h,
-                        margin: const EdgeInsets.symmetric(horizontal: 3),
-                        decoration: BoxDecoration(
-                          color: AppColors.teal,
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(bar.label, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.muted, fontSize: 10)),
-                    ],
+      height: 180,
+      child: BarChart(
+        BarChartData(
+          alignment: BarChartAlignment.spaceAround,
+          maxY: maxAmount > 0 ? (maxAmount * 1.2) : 100,
+          barTouchData: BarTouchData(
+            enabled: true,
+            touchTooltipData: BarTouchTooltipData(
+              tooltipRoundedRadius: 8,
+              getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                return BarTooltipItem(
+                  formatVnd(rod.toY.toInt()),
+                  TextStyle(
+                    color: context.palette.textPrimary,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
                   ),
                 );
-              }).toList(),
+              },
             ),
           ),
-        ],
+          titlesData: FlTitlesData(
+            show: true,
+            bottomTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                getTitlesWidget: (value, meta) {
+                  final idx = value.toInt();
+                  if (idx < 0 || idx >= bars.length) return const SizedBox.shrink();
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Text(
+                      bars[idx].label,
+                      style: TextStyle(color: AppColors.muted, fontSize: 10),
+                    ),
+                  );
+                },
+                reservedSize: 22,
+              ),
+            ),
+            leftTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 42,
+                interval: interval > 0 ? interval : null,
+                getTitlesWidget: (value, meta) {
+                  return Text(
+                    _shortAmount(value),
+                    style: const TextStyle(color: AppColors.muted, fontSize: 10),
+                  );
+                },
+              ),
+            ),
+            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          ),
+          gridData: FlGridData(
+            show: true,
+            drawVerticalLine: false,
+            horizontalInterval: interval > 0 ? interval : null,
+            getDrawingHorizontalLine: (value) {
+              return FlLine(
+                color: AppColors.muted.withValues(alpha: 0.15),
+                strokeWidth: 1,
+              );
+            },
+          ),
+          borderData: FlBorderData(show: false),
+          barGroups: List.generate(bars.length, (i) {
+            return BarChartGroupData(
+              x: i,
+              barRods: [
+                BarChartRodData(
+                  toY: bars[i].amount.toDouble(),
+                  width: bars.length > 15 ? 8 : 16,
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF5EEAD4), AppColors.teal],
+                    begin: Alignment.bottomCenter,
+                    end: Alignment.topCenter,
+                  ),
+                ),
+              ],
+            );
+          }),
+        ),
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.easeOutCubic,
       ),
     );
   }
+
+  static double _niceInterval(double max) {
+    if (max <= 0) return 100000;
+    final rough = max / 4;
+    final magnitude = math.pow(10, (math.log(rough) / math.ln10).floor());
+    return (rough / magnitude).ceil() * magnitude.toDouble();
+  }
+
+  static String _shortAmount(double value) {
+    if (value >= 1000000) return '${(value / 1000000).toStringAsFixed(1)}M';
+    if (value >= 1000) return '${(value / 1000).toStringAsFixed(0)}k';
+    return value.toInt().toString();
+  }
 }
 
-class _DonutChart extends StatelessWidget {
+class _DonutChart extends StatefulWidget {
   final List<ReportCategory> categories;
 
   const _DonutChart({required this.categories});
 
   @override
+  State<_DonutChart> createState() => _DonutChartState();
+}
+
+class _DonutChartState extends State<_DonutChart> {
+  int _touchedIndex = -1;
+
+  @override
   Widget build(BuildContext context) {
+    final totalAmount = widget.categories.fold<int>(0, (s, c) => s + c.amount);
     return Center(
       child: SizedBox(
-        height: 180,
-        width: 180,
-        child: CustomPaint(
-          painter: _DonutPainter(categories: categories),
+        height: 200,
+        width: 200,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            PieChart(
+              PieChartData(
+                pieTouchData: PieTouchData(
+                  touchCallback: (FlTouchEvent event, pieTouchResponse) {
+                    setState(() {
+                      if (!event.isInterestedForInteractions ||
+                          pieTouchResponse == null ||
+                          pieTouchResponse.touchedSection == null) {
+                        _touchedIndex = -1;
+                        return;
+                      }
+                      _touchedIndex = pieTouchResponse.touchedSection!.touchedSectionIndex;
+                    });
+                  },
+                ),
+                borderData: FlBorderData(show: false),
+                sectionsSpace: 2,
+                centerSpaceRadius: 50,
+                sections: List.generate(widget.categories.length, (i) {
+                  final cat = widget.categories[i];
+                  final isTouched = i == _touchedIndex;
+                  return PieChartSectionData(
+                    color: Color(cat.color),
+                    value: cat.percent,
+                    title: isTouched ? '${cat.percent.toStringAsFixed(1)}%' : '',
+                    radius: isTouched ? 44 : 36,
+                    titleStyle: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+                    titlePositionPercentageOffset: 0.55,
+                  );
+                }),
+              ),
+              duration: const Duration(milliseconds: 600),
+              curve: Curves.easeOutCubic,
+            ),
+            // Center total
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Tổng',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: AppColors.muted,
+                  ),
+                ),
+                Text(
+                  formatVnd(totalAmount),
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    color: context.palette.textPrimary,
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
   }
-}
-
-class _DonutPainter extends CustomPainter {
-  final List<ReportCategory> categories;
-
-  _DonutPainter({required this.categories});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = size.width / 2 - 10;
-    final strokeWidth = 36.0;
-    double startAngle = -math.pi / 2;
-    const total = 100.0;
-
-    for (final cat in categories) {
-      final sweep = (cat.percent / total) * 2 * math.pi;
-      final paint = Paint()
-        ..color = Color(cat.color)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = strokeWidth
-        ..strokeCap = StrokeCap.butt;
-      canvas.drawArc(
-        Rect.fromCircle(center: center, radius: radius),
-        startAngle,
-        sweep - 0.04,
-        false,
-        paint,
-      );
-      startAngle += sweep;
-    }
-  }
-
-  @override
-  bool shouldRepaint(_DonutPainter oldDelegate) => false;
 }
 
 class _CategoryLegend extends StatelessWidget {
@@ -718,86 +943,406 @@ class _TrendChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final maxAmt = points.map((p) => p.amount.toDouble()).fold<double>(0.001, (a, b) => a > b ? a : b);
+    if (points.isEmpty) return const SizedBox.shrink();
+
+    final maxAmt = points.map((p) => p.amount.toDouble()).fold<double>(0, (a, b) => a > b ? a : b);
+    final minAmt = points.map((p) => p.amount.toDouble()).fold<double>(double.infinity, (a, b) => a < b ? a : b);
+    final range = maxAmt - minAmt;
+    final yMax = maxAmt + (range * 0.2).clamp(100000, double.infinity);
+    final yMin = (minAmt - (range * 0.2)).clamp(0, double.infinity).toDouble();
+
     return SizedBox(
-      height: 140,
-      child: CustomPaint(
-        painter: _TrendPainter(points: points, maxAmt: maxAmt),
-        child: Padding(
-          padding: const EdgeInsets.only(top: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              const SizedBox(width: 30),
-              ...points.map((p) => Text(p.label, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.muted))),
-            ],
+      height: 180,
+      child: LineChart(
+        LineChartData(
+          minY: yMin,
+          maxY: yMax > yMin ? yMax : yMin + 100000,
+          lineTouchData: LineTouchData(
+            enabled: true,
+            touchTooltipData: LineTouchTooltipData(
+              tooltipRoundedRadius: 8,
+              getTooltipItems: (touchedSpots) {
+                return touchedSpots.map((spot) {
+                  return LineTooltipItem(
+                    formatVnd(spot.y.toInt()),
+                    TextStyle(
+                      color: context.palette.textPrimary,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 12,
+                    ),
+                  );
+                }).toList();
+              },
+            ),
           ),
+          gridData: FlGridData(
+            show: true,
+            drawVerticalLine: false,
+            horizontalInterval: range > 0 ? range / 3 : null,
+            getDrawingHorizontalLine: (value) {
+              return FlLine(
+                color: AppColors.muted.withValues(alpha: 0.12),
+                strokeWidth: 1,
+              );
+            },
+          ),
+          titlesData: FlTitlesData(
+            bottomTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 24,
+                getTitlesWidget: (value, meta) {
+                  final idx = value.toInt();
+                  if (idx < 0 || idx >= points.length) return const SizedBox.shrink();
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Text(
+                      points[idx].label,
+                      style: const TextStyle(color: AppColors.muted, fontSize: 11),
+                    ),
+                  );
+                },
+              ),
+            ),
+            leftTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 42,
+                getTitlesWidget: (value, meta) {
+                  return Text(
+                    _shortAmount(value),
+                    style: const TextStyle(color: AppColors.muted, fontSize: 9),
+                  );
+                },
+              ),
+            ),
+            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          ),
+          borderData: FlBorderData(show: false),
+          lineBarsData: [
+            LineChartBarData(
+              spots: List.generate(points.length, (i) {
+                return FlSpot(i.toDouble(), points[i].amount.toDouble());
+              }),
+              isCurved: true,
+              curveSmoothness: 0.35,
+              color: AppColors.teal,
+              barWidth: 3,
+              isStrokeCapRound: true,
+              dotData: FlDotData(
+                show: true,
+                getDotPainter: (spot, percent, barData, index) {
+                  return FlDotCirclePainter(
+                    radius: 5,
+                    color: AppColors.teal,
+                    strokeWidth: 2.5,
+                    strokeColor: Colors.white,
+                  );
+                },
+              ),
+              belowBarData: BarAreaData(
+                show: true,
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    AppColors.teal.withValues(alpha: 0.25),
+                    AppColors.teal.withValues(alpha: 0.02),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+        duration: const Duration(milliseconds: 500),
+        curve: Curves.easeOutCubic,
+      ),
+    );
+  }
+
+  static String _shortAmount(double value) {
+    if (value >= 1000000) return '${(value / 1000000).toStringAsFixed(1)}M';
+    if (value >= 1000) return '${(value / 1000).toStringAsFixed(0)}k';
+    return value.toInt().toString();
+  }
+}
+
+class _MoMGroupedBarChart extends StatelessWidget {
+  final List<ReportMoM> stats;
+
+  const _MoMGroupedBarChart({required this.stats});
+
+  @override
+  Widget build(BuildContext context) {
+    if (stats.isEmpty) {
+      return const SizedBox(
+        height: 180,
+        child: Center(
+          child: Text(
+            'Chưa có dữ liệu so sánh',
+            style: TextStyle(color: AppColors.muted),
+          ),
+        ),
+      );
+    }
+
+    double maxVal = 100;
+    for (final s in stats) {
+      if (s.thisMonth > maxVal) maxVal = s.thisMonth.toDouble();
+      if (s.lastMonth > maxVal) maxVal = s.lastMonth.toDouble();
+    }
+    final interval = _niceInterval(maxVal);
+
+    return SizedBox(
+      height: 220,
+      child: BarChart(
+        BarChartData(
+          alignment: BarChartAlignment.spaceAround,
+          maxY: maxVal * 1.2,
+          barTouchData: BarTouchData(
+            enabled: true,
+            touchTooltipData: BarTouchTooltipData(
+              tooltipRoundedRadius: 8,
+              getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                final isThisMonth = rodIndex == 1;
+                final monthStr = isThisMonth ? 'Tháng này' : 'Tháng trước';
+                return BarTooltipItem(
+                  '$monthStr\n${formatVnd(rod.toY.toInt())}',
+                  TextStyle(
+                    color: context.palette.textPrimary,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 11,
+                  ),
+                );
+              },
+            ),
+          ),
+          titlesData: FlTitlesData(
+            show: true,
+            bottomTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                getTitlesWidget: (value, meta) {
+                  final idx = value.toInt();
+                  if (idx < 0 || idx >= stats.length) return const SizedBox.shrink();
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Text(
+                      stats[idx].emoji,
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                  );
+                },
+                reservedSize: 24,
+              ),
+            ),
+            leftTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 42,
+                interval: interval > 0 ? interval : null,
+                getTitlesWidget: (value, meta) {
+                  return Text(
+                    _shortAmount(value),
+                    style: const TextStyle(color: AppColors.muted, fontSize: 10),
+                  );
+                },
+              ),
+            ),
+            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          ),
+          gridData: FlGridData(
+            show: true,
+            drawVerticalLine: false,
+            horizontalInterval: interval > 0 ? interval : null,
+            getDrawingHorizontalLine: (value) {
+              return FlLine(
+                color: AppColors.muted.withValues(alpha: 0.12),
+                strokeWidth: 1,
+              );
+            },
+          ),
+          borderData: FlBorderData(show: false),
+          barGroups: List.generate(stats.length, (i) {
+            final item = stats[i];
+            return BarChartGroupData(
+              x: i,
+              barRods: [
+                BarChartRodData(
+                  toY: item.lastMonth.toDouble(),
+                  color: const Color(0xFFCBD5E1),
+                  width: 8,
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                ),
+                BarChartRodData(
+                  toY: item.thisMonth.toDouble(),
+                  color: Color(item.color),
+                  width: 8,
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                ),
+              ],
+            );
+          }),
         ),
       ),
     );
   }
-}
 
-class _TrendPainter extends CustomPainter {
-  final List<TrendPoint> points;
-  final double maxAmt;
-
-  _TrendPainter({required this.points, required this.maxAmt});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (points.isEmpty) return;
-    final paint = Paint()
-      ..color = AppColors.teal
-      ..strokeWidth = 2.5
-      ..style = PaintingStyle.stroke;
-    final fillPaint = Paint()
-      ..shader = LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [AppColors.teal.withValues(alpha: 0.2), Colors.transparent],
-      ).createShader(Rect.fromLTWH(0, 0, size.width, size.height))
-      ..style = PaintingStyle.fill;
-
-    final usableH = size.height - 30;
-    final double divisor = maxAmt <= 0 ? 1.0 : maxAmt;
-    final double stepX = points.length > 1 ? (size.width - 40) / (points.length - 1) : (size.width - 40);
-    final path = Path();
-    final fillPath = Path();
-
-    for (int i = 0; i < points.length; i++) {
-      final x = 20 + i * stepX;
-      final y = usableH - (points[i].amount / divisor) * (usableH - 10);
-      if (i == 0) {
-        path.moveTo(x, y);
-        fillPath.moveTo(x, usableH);
-        fillPath.lineTo(x, y);
-      } else {
-        path.lineTo(x, y);
-        fillPath.lineTo(x, y);
-      }
-      // Dot
-      canvas.drawCircle(Offset(x, y), 5, Paint()..color = AppColors.teal);
-      canvas.drawCircle(Offset(x, y), 3, Paint()..color = Colors.white);
-    }
-    fillPath.lineTo(20 + (points.length - 1) * stepX, usableH);
-    fillPath.close();
-
-    canvas.drawPath(fillPath, fillPaint);
-    canvas.drawPath(path, paint);
-
-    // Y-axis labels
-    final yLabels = ['0M', '0.45M', '0.9M', '1.35M', '1.8M'];
-    final tp = TextPainter(textDirection: TextDirection.ltr);
-    for (int i = 0; i < yLabels.length; i++) {
-      tp.text = TextSpan(text: yLabels[i], style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 9));
-      tp.layout();
-      final y = usableH - (i / (yLabels.length - 1)) * (usableH - 10);
-      tp.paint(canvas, Offset(0, y - 6));
-    }
+  static double _niceInterval(double max) {
+    if (max <= 0) return 100000;
+    final rough = max / 4;
+    final magnitude = math.pow(10, (math.log(rough) / math.ln10).floor());
+    return (rough / magnitude).ceil() * magnitude.toDouble();
   }
 
+  static String _shortAmount(double value) {
+    if (value >= 1000000) return '${(value / 1000000).toStringAsFixed(1)}M';
+    if (value >= 1000) return '${(value / 1000).toStringAsFixed(0)}k';
+    return value.toInt().toString();
+  }
+}
+
+class _CumulativeBudgetLineChart extends StatelessWidget {
+  final List<CumulativePoint> points;
+  final int limit;
+
+  const _CumulativeBudgetLineChart({required this.points, required this.limit});
+
   @override
-  bool shouldRepaint(_TrendPainter oldDelegate) => false;
+  Widget build(BuildContext context) {
+    if (points.isEmpty) {
+      return const SizedBox(
+        height: 180,
+        child: Center(
+          child: Text(
+            'Chưa có dữ liệu hạn mức tháng',
+            style: TextStyle(color: AppColors.muted),
+          ),
+        ),
+      );
+    }
+
+    final maxCumulative = points.map((p) => p.cumulativeAmount.toDouble()).fold<double>(0, (a, b) => a > b ? a : b);
+    final maxLimit = limit.toDouble();
+    final yMax = (maxCumulative > maxLimit ? maxCumulative : maxLimit) * 1.15;
+    final double interval = yMax > 0 ? yMax / 4 : 100000;
+
+    return SizedBox(
+      height: 200,
+      child: LineChart(
+        LineChartData(
+          minY: 0,
+          maxY: yMax > 0 ? yMax : 100000,
+          lineTouchData: LineTouchData(
+            enabled: true,
+            touchTooltipData: LineTouchTooltipData(
+              tooltipRoundedRadius: 8,
+              getTooltipItems: (touchedSpots) {
+                return touchedSpots.map((spot) {
+                  final isLimit = spot.barIndex == 0;
+                  final label = isLimit ? 'Hạn mức tuyến tính' : 'Lũy kế thực tế';
+                  return LineTooltipItem(
+                    '$label\n${formatVnd(spot.y.toInt())}',
+                    TextStyle(
+                      color: isLimit ? AppColors.danger : AppColors.teal,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 11,
+                    ),
+                  );
+                }).toList();
+              },
+            ),
+          ),
+          gridData: FlGridData(
+            show: true,
+            drawVerticalLine: false,
+            horizontalInterval: interval > 0 ? interval : null,
+            getDrawingHorizontalLine: (value) {
+              return FlLine(
+                color: AppColors.muted.withValues(alpha: 0.12),
+                strokeWidth: 1,
+              );
+            },
+          ),
+          titlesData: FlTitlesData(
+            bottomTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 24,
+                interval: points.length > 15 ? 5 : 2,
+                getTitlesWidget: (value, meta) {
+                  final idx = value.toInt();
+                  if (idx < 0 || idx >= points.length) return const SizedBox.shrink();
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Text(
+                      points[idx].dayLabel,
+                      style: const TextStyle(color: AppColors.muted, fontSize: 9),
+                    ),
+                  );
+                },
+              ),
+            ),
+            leftTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 42,
+                getTitlesWidget: (value, meta) {
+                  return Text(
+                    _shortAmount(value),
+                    style: const TextStyle(color: AppColors.muted, fontSize: 9),
+                  );
+                },
+              ),
+            ),
+            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          ),
+          borderData: FlBorderData(show: false),
+          lineBarsData: [
+            LineChartBarData(
+              spots: List.generate(points.length, (i) {
+                return FlSpot(i.toDouble(), points[i].budgetLimitLine);
+              }),
+              isCurved: false,
+              color: AppColors.danger.withValues(alpha: 0.7),
+              barWidth: 2,
+              dashArray: [5, 5],
+              dotData: const FlDotData(show: false),
+            ),
+            LineChartBarData(
+              spots: List.generate(points.length, (i) {
+                return FlSpot(i.toDouble(), points[i].cumulativeAmount.toDouble());
+              }),
+              isCurved: true,
+              curveSmoothness: 0.2,
+              color: AppColors.teal,
+              barWidth: 3,
+              isStrokeCapRound: true,
+              dotData: const FlDotData(show: false),
+              belowBarData: BarAreaData(
+                show: true,
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    AppColors.teal.withValues(alpha: 0.15),
+                    AppColors.teal.withValues(alpha: 0.01),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  static String _shortAmount(double value) {
+    if (value >= 1000000) return '${(value / 1000000).toStringAsFixed(1)}M';
+    if (value >= 1000) return '${(value / 1000).toStringAsFixed(0)}k';
+    return value.toInt().toString();
+  }
 }

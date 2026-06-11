@@ -29,3 +29,17 @@ exports.byCategory = asyncHandler(async (req, res) => {
   });
   res.json({ success: true, data });
 });
+
+exports.mom = asyncHandler(async (req, res) => {
+  const data = await service.getMoMComparison(req.user.id, {
+    walletId: req.query.walletId,
+  });
+  res.json({ success: true, data });
+});
+
+exports.cumulativeVsBudget = asyncHandler(async (req, res) => {
+  const data = await service.getCumulativeVsBudget(req.user.id, {
+    walletId: req.query.walletId,
+  });
+  res.json({ success: true, data });
+});

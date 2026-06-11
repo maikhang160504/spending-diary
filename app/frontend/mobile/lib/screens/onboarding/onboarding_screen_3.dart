@@ -53,7 +53,9 @@ class _OnboardingStep3State extends State<OnboardingStep3> {
 
   @override
   void dispose() {
-    for (final ctrl in _controllers.values) ctrl.dispose();
+    for (final ctrl in _controllers.values) {
+      ctrl.dispose();
+    }
     super.dispose();
   }
 
@@ -130,8 +132,11 @@ class _OnboardingStep3State extends State<OnboardingStep3> {
                             final isOn = _selected.contains(cat.code);
                             return GestureDetector(
                               onTap: () => setState(() {
-                                if (isOn) _selected.remove(cat.code);
-                                else _selected.add(cat.code);
+                                 if (isOn) {
+                                   _selected.remove(cat.code);
+                                 } else {
+                                   _selected.add(cat.code);
+                                 }
                               }),
                               child: AnimatedContainer(
                                 duration: const Duration(milliseconds: 150),

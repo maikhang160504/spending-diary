@@ -33,5 +33,7 @@ router.use(requireAuth);
 router.get('/dashboard', controller.dashboard);
 router.get('/by-month', controller.byMonth);
 router.get('/by-category', controller.byCategory);
+router.get('/mom', controller.mom);
+router.get('/cumulative-vs-budget', controller.cumulativeVsBudget);
 
 module.exports = router;

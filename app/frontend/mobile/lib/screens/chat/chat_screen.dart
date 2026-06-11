@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../../routes/app_routes.dart';
 import '../../services/api_client.dart';
@@ -15,10 +16,8 @@ import '../../theme/app_radii.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/categories.dart';
 import '../../utils/formatters.dart';
+import '../../widgets/waveform_visualizer.dart';
 
-/// Fallback ngắn khi LLM không trả text (không cắt response LLM).
-String _llmDisplayText(String llmText, String fallback) =>
-    llmText.trim().isNotEmpty ? llmText.trim() : fallback;
 
 String _actionSignatureFromNlu(Map<String, dynamic> nlu) {
   final fromApi = nlu['action_signature'] as String?;
@@ -142,7 +141,8 @@ class ChatScreen extends StatefulWidget {
   /// Optional sessionId passed from ChatHistoryScreen (CHH-02)
   final String? sessionId;
   final String? walletId;
-  const ChatScreen({super.key, this.sessionId, this.walletId});
+  final bool forceNew;
+  const ChatScreen({super.key, this.sessionId, this.walletId, this.forceNew = false});
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -156,13 +156,14 @@ class _ChatScreenState extends State<ChatScreen> {
 
   bool _aiThinking = false;
   bool _voiceListening = false;
-  bool _voiceAvailable = false;
+  bool _voiceAvailable = true;
   bool _loadingOlder = false;
   bool _hasMoreHistory = false;
   /// Tránh gọi load-more khi ListView reverse vừa layout (chưa ổn scroll).
   bool _readyForOlderLoad = false;
   String _verbalStyle = 'funny';
   String? _sessionId;
+  String? _walletId;
   String? _oldestMessageId;
   final _voice = VoiceInputService.instance;
 
@@ -172,9 +173,8 @@ class _ChatScreenState extends State<ChatScreen> {
     _scrollCtrl.addListener(_onScrollLoadOlder);
     _initSession();
     _loadAiPersonality();
-    _voice.checkAvailability().then((ok) {
-      if (mounted) setState(() => _voiceAvailable = ok);
-    });
+    _voiceAvailable = true;
+    _voice.checkAvailability(); // Khởi chạy khởi động ngầm
   }
 
   Future<void> _loadAiPersonality() async {
@@ -280,7 +280,9 @@ class _ChatScreenState extends State<ChatScreen> {
                 originalUser,
                 aiLine: llmText.isNotEmpty ? llmText : null,
               );
-              displayText = '';
+              if (llmText.isNotEmpty) {
+                displayText = llmText;
+              }
             }
           }
         }
@@ -356,13 +358,42 @@ class _ChatScreenState extends State<ChatScreen> {
     if (mounted) setState(() => _loadingOlder = false);
   }
 
+  Future<void> _showPermissionExplanationDialog({
+    required String title,
+    required String message,
+  }) async {
+    if (!mounted) return;
+    await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Quay lại', style: TextStyle(color: Colors.grey)),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              openAppSettings();
+            },
+            style: FilledButton.styleFrom(backgroundColor: AppColors.teal),
+            child: const Text('Mở cài đặt'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _toggleVoiceInput() async {
     if (_voiceListening) {
       await _voice.stop();
       if (mounted) setState(() => _voiceListening = false);
       return;
     }
-    if (!_voiceAvailable) {
+    final ok = await _voice.checkAvailability();
+    if (!ok) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -373,10 +404,20 @@ class _ChatScreenState extends State<ChatScreen> {
       return;
     }
     final ready = await _voice.ensureReady();
-    if (!ready && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Cần quyền micro để dùng giọng nói')),
-      );
+    if (!mounted) return;
+    if (!ready) {
+      final status = await Permission.microphone.status;
+      if (!mounted) return;
+      if (status.isPermanentlyDenied) {
+        await _showPermissionExplanationDialog(
+          title: 'Quyền truy cập Microphone',
+          message: 'Spend Diary cần quyền truy cập microphone để ghi nhận giọng nói. Vui lòng cấp quyền trong phần Cài đặt.',
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Cần quyền micro để dùng giọng nói')),
+        );
+      }
       return;
     }
     if (!mounted) return;
@@ -406,41 +447,70 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _initSession() async {
+    _walletId = widget.walletId;
     // If sessionId passed from history, reuse it and load messages
     if (widget.sessionId != null) {
       _sessionId = widget.sessionId;
       try {
         await _loadMessagesPage();
       } catch (_) {}
+
+      // Robust fallback: if _walletId is null, fetch sessions and resolve it
+      if (_walletId == null) {
+        try {
+          final sessions = await _api.getChatSessions();
+          final matched = sessions.firstWhere((s) => s['id'] == _sessionId, orElse: () => null);
+          if (matched != null) {
+            setState(() {
+              _walletId = matched['wallet_id'] as String? ?? matched['walletId'] as String?;
+            });
+          }
+        } catch (_) {}
+      }
       return;
     }
-    // Check if we are opening chat for a shared wallet (widget.walletId is not null)
-    if (widget.walletId != null) {
-      try {
-        String walletName = 'Ví chung';
-        try {
-          final wallet = await _api.getWallet(widget.walletId!);
-          walletName = wallet['name'] as String? ?? 'Ví chung';
-        } catch (_) {}
-        final session = await _api.createChatSession(title: 'Chat $walletName');
-        _sessionId = session['id'] as String?;
-        return;
-      } catch (_) {}
-    }
+
     try {
-      final sessions = await _api.getChatSessions();
-      final today = DateTime.now();
-      final todayStr = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
-      final todaySession = sessions.cast<Map<String, dynamic>>().where((s) {
-        final createdAt = s['created_at'] as String? ?? s['createdAt'] as String? ?? '';
-        return createdAt.startsWith(todayStr);
-      }).firstOrNull;
-      if (todaySession != null) {
-        _sessionId = todaySession['id'] as String?;
-        if (mounted) await _loadMessagesPage();
-      } else {
-        final session = await _api.createChatSession(title: 'Chat ${today.day}/${today.month}');
-        _sessionId = session['id'] as String?;
+      // 1. Resolve target wallet ID
+      if (_walletId == null) {
+        final wallets = await _api.getWallets();
+        if (wallets.isNotEmpty) {
+          _walletId = wallets[0]['id'] as String?;
+        }
+      }
+
+      // 2. Try to find existing session if not forced to create a new one
+      if (!widget.forceNew) {
+        final sessions = await _api.getChatSessions();
+        final matched = sessions.firstWhere(
+          (s) => s['wallet_id'] == _walletId || s['walletId'] == _walletId,
+          orElse: () => null,
+        );
+        if (matched != null) {
+          _sessionId = matched['id'] as String?;
+          if (mounted) {
+            await _loadMessagesPage();
+          }
+          return;
+        }
+      }
+
+      // 3. Create a new session
+      String walletName = 'Ví cá nhân';
+      if (_walletId != null) {
+        try {
+          final wallet = await _api.getWallet(_walletId!);
+          walletName = wallet['name'] as String? ?? 'Ví';
+        } catch (_) {}
+      }
+
+      final session = await _api.createChatSession(
+        title: 'Chat $walletName',
+        walletId: _walletId,
+      );
+      _sessionId = session['id'] as String?;
+      if (mounted) {
+        await _loadMessagesPage();
       }
     } catch (_) {}
   }
@@ -471,163 +541,56 @@ class _ChatScreenState extends State<ChatScreen> {
       try { await _api.sendChatMessage(_sessionId!, userText); } catch (_) {}
     }
 
-    // Call NLU for AI response
     try {
-      final nlu = await _api.aiNlu(userText, runLlm: true);
-      final intent = nluString(nlu['intent']) ?? 'Chitchat';
-      final amount = nlu['amount'] ?? nlu['amount_spent'];
-      final category = nluString(nlu['category']);
-      final intentConfidence = nluDouble(nlu['intent_confidence']) ?? nluDouble(nlu['confidence']) ?? 0;
+      final chatRes = await _api.aiChat(_sessionId!, userText);
+      final intentAction = chatRes['intentAction'] as Map<String, dynamic>? ?? {};
+      final assistantMsgMap = {
+        'role': 'assistant',
+        'content': chatRes['response'] as String? ?? '',
+        'intent_action': intentAction,
+        'created_at': DateTime.now().toIso8601String(),
+      };
 
-      String replyText;
+      final parsed = _parseMessagesFromApi([assistantMsgMap]);
+      if (parsed.isNotEmpty) {
+        final confirmMsg = parsed.first;
 
-      final llm = LlmMimoReply.fromNlu(nlu, intent: intent);
-
-      _ChatMsg? textMsg;
-      _ChatMsg? confirmMsg;
-      String aiText = '';
-
-      final rawMulti = nlu['multi_records'] ?? nlu['multiRecords'];
-      List<_TxPreview>? multiRecords;
-      if (rawMulti is List && rawMulti.length >= 2) {
-        multiRecords = rawMulti.map((r) {
-          final map = r as Map<String, dynamic>;
-          return _TxPreview(
-            category: map['category'] as String? ?? 'Other',
-            amount: (map['amount'] is num) ? (map['amount'] as num).toInt() : 0,
-            note: map['text'] as String? ?? map['note'] as String? ?? '',
-            recordType: map['record_type'] as String? ?? 'Expense',
-          );
-        }).toList();
-      }
-
-      if (multiRecords != null) {
-        final count = multiRecords.length;
-        replyText = _llmDisplayText(llm.text, '📝 Mimo nhận dạng được $count giao dịch:');
-        confirmMsg = _ChatMsg(
-          text: replyText,
-          isUser: false,
-          time: _now(),
-          chatEmotion: llm.emotionAsset,
-          multiRecords: multiRecords,
-        );
-      } else if (intent == 'Record' && amount != null) {
-        final amountInt = (amount is num) ? amount.toInt() : 0;
-        final recordType = nluString(nlu['record_type']) ?? 'Expense';
-        final defaultLabel = recordType == 'Income' ? '📝 Mimo hiểu bạn muốn ghi nhận thu nhập:' : '📝 Mimo hiểu bạn muốn ghi nhận chi tiêu:';
-        replyText = _llmDisplayText(llm.text, defaultLabel);
-        aiText = canonicalAiReplyText(llm, displayFallback: replyText);
-        confirmMsg = _ChatMsg(
-          text: replyText,
-          isUser: false,
-          time: _now(),
-          chatEmotion: llm.emotionAsset,
-          txPreview: _TxPreview(
-            category: category ?? 'Other',
-            amount: amountInt,
-            note: nluString(nlu['clean_content']) ?? userText,
-            recordType: recordType,
-            emotionAsset: llm.emotionAsset,
-            aiComment: aiText,
-            nlu: nlu,
-          ),
-        );
-      } else if (intent == 'Action') {
-        final actionType = nluString(nlu['action_type']) ?? 'Unknown';
-        final aiLine = _llmDisplayText(
-          llm.text,
-          '⚡ Mimo đã xử lý: ${_actionSummary(actionType)}',
-        );
-        aiText = canonicalAiReplyText(llm, displayFallback: aiLine);
-        final reportPreview = _reportPreviewFromNlu(nlu);
-
-        if (reportPreview != null) {
-          // Báo cáo: chỉ 1 card (BE đã thực thi), không bubble + không overlay trùng.
-          confirmMsg = _ChatMsg(
-            text: aiLine,
-            isUser: false,
-            time: _now(),
-            chatEmotion: llm.emotionAsset,
-            reportPreview: reportPreview,
-          );
-        } else if (_actionNeedsConfirm(actionType)) {
-          final preview = _actionPreviewFromNlu(nlu, userText, aiLine: aiLine);
-          final alreadyConfirmed = await _api.aiIsActionConfirmed(preview.signature);
+        // Handle confirm status for actions if already confirmed
+        if (confirmMsg.actionPreview != null) {
+          final alreadyConfirmed = await _api.aiIsActionConfirmed(confirmMsg.actionPreview!.signature);
           if (alreadyConfirmed) {
-            // Đã confirm trước đó → chạy action + hiện kết quả text thay vì card
-            await _runConfirmedAction(preview);
-            replyText = aiLine;
-            aiText = canonicalAiReplyText(llm, displayFallback: aiLine);
-          } else {
-            confirmMsg = _ChatMsg(
-              text: '',
-              isUser: false,
-              time: _now(),
-              chatEmotion: llm.emotionAsset,
-              actionPreview: preview,
-            );
+            confirmMsg.isConfirmed = true;
           }
-        } else {
-          final preview = _actionPreviewFromNlu(nlu, userText, aiLine: aiLine);
-          await _runConfirmedAction(preview);
         }
-        replyText = aiLine;
-        aiText = canonicalAiReplyText(llm, displayFallback: aiLine);
-      } else {
-        replyText = _llmDisplayText(llm.text, 'Mimo đây! Bạn cần gì nào? 😊');
-        aiText = canonicalAiReplyText(llm, displayFallback: replyText);
-        textMsg = _ChatMsg(
-          text: replyText,
-          isUser: false,
-          time: _now(),
-          chatEmotion: llm.emotionAsset,
-        );
+
+        if (!mounted) return;
+        setState(() {
+          _aiThinking = false;
+          _messages.insert(0, confirmMsg);
+        });
+        _scrollToBottom();
+
+        // Run non-confirm actions directly, or automatically run confirmed ones
+        if (confirmMsg.actionPreview != null) {
+          final action = confirmMsg.actionPreview!;
+          if (!_actionNeedsConfirm(action.actionType) || confirmMsg.isConfirmed) {
+            await _runConfirmedAction(action);
+          }
+        }
+
+        // Auto save transactions if confidence is high
+        final nlu = intentAction['nlu'] as Map<String, dynamic>? ?? {};
+        final intentConfidence = nluDouble(nlu['intent_confidence']) ?? nluDouble(nlu['confidence']) ?? 0;
+        if (confirmMsg.txPreview != null && intentConfidence >= 0.9) {
+          await _saveTransaction(confirmMsg);
+        } else if (confirmMsg.multiRecords != null && intentConfidence >= 0.9) {
+          await _saveMultiTransactions(confirmMsg);
+        }
       }
 
-      if (!mounted) return;
-      setState(() {
-        _aiThinking = false;
-        if (confirmMsg != null) _messages.insert(0, confirmMsg);
-        if (textMsg != null) _messages.insert(0, textMsg);
-      });
-      _scrollToBottom();
-
-      if (confirmMsg?.txPreview != null && intentConfidence >= 0.9) {
-        await _saveTransaction(confirmMsg!);
-      } else if (confirmMsg?.multiRecords != null && intentConfidence >= 0.9) {
-        await _saveMultiTransactions(confirmMsg!);
+      if (mounted) {
+        await StreakCelebration.instance.afterActivity(context);
       }
-
-      // Save AI reply to backend chat
-      if (_sessionId != null) {
-        try {
-          final fullText = aiText.isNotEmpty ? aiText : canonicalAiReplyText(llm, displayFallback: replyText);
-          final payload = {
-            'content': fullText,
-            'role': 'assistant',
-            'intentAction': {
-              'mood': llm.emotionAsset,
-              'intent': intent,
-              'amount': amount,
-              'category': category,
-              'aiComment': fullText,
-              'nlu': nlu,
-              if (multiRecords != null)
-                'multi_records': multiRecords.map((r) => {
-                  'category': r.category,
-                  'amount': r.amount,
-                  'text': r.note,
-                  'record_type': r.recordType,
-                }).toList(),
-            }
-          };
-          await _api.sendChatMessageRaw(_sessionId!, payload);
-        } catch (_) {}
-      }
-
-      // M4-02: Show mascot mood from API response
-      await StreakCelebration.instance.afterActivity(context);
-      // Không gọi mimoController ở chat — tránh trùng bubble; mascot/comment chỉ ở story feed.
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() {
@@ -712,6 +675,7 @@ class _ChatScreenState extends State<ChatScreen> {
             _ChatHeader(
               verbalStyle: _verbalStyle,
               personalityLabel: personalityLabelFromStyle(_verbalStyle),
+              walletId: _walletId,
             ),
             Expanded(
               child: ListView.builder(
@@ -816,7 +780,7 @@ class _ChatScreenState extends State<ChatScreen> {
       }
       final aiText = (preview.aiComment ?? msg.text).trim();
       await _api.createTransaction({
-        'walletId': widget.walletId ?? wallets[0]['id'],
+        'walletId': _walletId ?? widget.walletId ?? wallets[0]['id'],
         'amount': preview.amount,
         'type': preview.recordType == 'Income' ? 'income' : 'expense',
         'categoryCode': preview.category,
@@ -894,7 +858,7 @@ class _ChatScreenState extends State<ChatScreen> {
               Text('Danh mục', style: Theme.of(ctx).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
-                value: CategoryTheme.styles.containsKey(editCategory) ? editCategory : 'Other',
+                initialValue: CategoryTheme.styles.containsKey(editCategory) ? editCategory : 'Other',
                 decoration: InputDecoration(
                   contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadii.md)),
@@ -961,7 +925,7 @@ class _ChatScreenState extends State<ChatScreen> {
       }
       for (final preview in records) {
         await _api.createTransaction({
-          'walletId': widget.walletId ?? wallets[0]['id'],
+          'walletId': _walletId ?? widget.walletId ?? wallets[0]['id'],
           'amount': preview.amount,
           'type': preview.recordType == 'Income' ? 'income' : 'expense',
           'categoryCode': preview.category,
@@ -1083,7 +1047,8 @@ class _ChatMsg {
 class _ChatHeader extends StatelessWidget {
   final String verbalStyle;
   final String personalityLabel;
-  const _ChatHeader({required this.verbalStyle, required this.personalityLabel});
+  final String? walletId;
+  const _ChatHeader({required this.verbalStyle, required this.personalityLabel, this.walletId});
 
   @override
   Widget build(BuildContext ctx) {
@@ -1128,7 +1093,7 @@ class _ChatHeader extends StatelessWidget {
           ),
         ])),
         IconButton(
-          onPressed: () => ctx.push(AppRoutes.chatHistory),
+          onPressed: () => ctx.push(AppRoutes.chatHistory, extra: {'walletId': walletId}),
           icon: Container(
             width: 36, height: 36,
             decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), shape: BoxShape.circle),
@@ -1152,7 +1117,7 @@ class _ChatEmotionSticker extends StatelessWidget {
       child: Image.asset(
         'assets/MiMo/emotions/$emotionAsset.png',
         width: 56, height: 56,
-        errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+        errorBuilder: (_, _, _) => const SizedBox.shrink(),
       ),
     );
   }
@@ -1201,7 +1166,7 @@ class _TypingIndicator extends StatelessWidget {
           boxShadow: context.palette.softShadow,
         ),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Image.asset('assets/MiMo/emotions/Thinking.png', width: 22, height: 22, errorBuilder: (_, __, ___) => const Text('🤔', style: TextStyle(fontSize: 14))),
+          Image.asset('assets/MiMo/emotions/Thinking.png', width: 22, height: 22, errorBuilder: (_, _, _) => const Text('🤔', style: TextStyle(fontSize: 14))),
           const SizedBox(width: 8),
           Text('Mimo đang nghĩ', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.muted, fontStyle: FontStyle.italic)),
           const SizedBox(width: 4),
@@ -1500,13 +1465,7 @@ class _ActionConfirmCard extends StatelessWidget {
             ],
           ),
         ],
-        if (preview.aiLine != null && preview.aiLine!.isNotEmpty) ...[
-          const SizedBox(height: 6),
-          Text(
-            preview.aiLine!,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
-          ),
-        ],
+
         const SizedBox(height: 10),
         if (isConfirmed)
           Row(
@@ -1525,7 +1484,7 @@ class _ActionConfirmCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(Icons.cancel, color: Colors.grey, size: 16),
-              const SizedBox(width: 6),
+              SizedBox(width: 6),
               Text(
                 'Đã bỏ qua',
                 style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.w600),
@@ -1724,42 +1683,40 @@ class _ChatBubble extends StatelessWidget {
                   Text(message.txPreview!.note, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.muted)),
                 ],
                 const SizedBox(height: 8),
-                message.isSaved
-                    ? const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.check_circle, color: AppColors.teal, size: 16),
-                          SizedBox(width: 6),
-                          Text('Đã lưu giao dịch', style: TextStyle(color: AppColors.teal, fontSize: 12, fontWeight: FontWeight.w600)),
-                        ],
-                      )
-                    : Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton(
-                              onPressed: () => onEditTxCategory?.call(message),
-                              style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 8),
-                                side: const BorderSide(color: AppColors.teal),
-                              ),
-                              child: const Text('✏️ Chỉnh sửa', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.teal)),
-                            ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => onEditTxCategory?.call(message),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          side: const BorderSide(color: AppColors.teal),
+                        ),
+                        child: const Text(
+                          '✏️ Chỉnh sửa',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.teal,
                           ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: FilledButton.tonal(
-                              onPressed: () => onSaveTx?.call(message),
-                              style: FilledButton.styleFrom(
-                                backgroundColor: AppColors.teal,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(vertical: 8),
-                                textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                              ),
-                              child: const Text('💾 Lưu'),
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: FilledButton(
+                        onPressed: message.isSaved ? null : () => onSaveTx?.call(message),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: message.isSaved ? Colors.grey : AppColors.teal,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                        ),
+                        child: Text(message.isSaved ? '✓ Đã lưu' : '💾 Lưu'),
+                      ),
+                    ),
+                  ],
+                ),
               ]),
             ),
           ],
@@ -1834,31 +1791,22 @@ class _ChatBubble extends StatelessWidget {
                   );
                 }),
                 const SizedBox(height: 4),
-                message.isSaved
-                    ? const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.check_circle, color: AppColors.teal, size: 16),
-                          SizedBox(width: 6),
-                          Text('Đã lưu tất cả giao dịch', style: TextStyle(color: AppColors.teal, fontSize: 12, fontWeight: FontWeight.w600)),
-                        ],
-                      )
-                    : Row(
-                        children: [
-                          Expanded(
-                            child: FilledButton.tonal(
-                              onPressed: () => onSaveMultiTx?.call(message),
-                              style: FilledButton.styleFrom(
-                                backgroundColor: AppColors.teal,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(vertical: 8),
-                                textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                              ),
-                              child: const Text('💾 Lưu tất cả'),
-                            ),
-                          ),
-                        ],
+                Row(
+                  children: [
+                    Expanded(
+                      child: FilledButton(
+                        onPressed: message.isSaved ? null : () => onSaveMultiTx?.call(message),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: message.isSaved ? Colors.grey : AppColors.teal,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                        ),
+                        child: Text(message.isSaved ? '✓ Đã lưu tất cả' : '💾 Lưu tất cả'),
                       ),
+                    ),
+                  ],
+                ),
               ]),
             ),
           ],
@@ -1913,19 +1861,47 @@ class _ChatComposer extends StatelessWidget {
         if (voiceAvailable) const SizedBox(width: 8),
         const SizedBox(width: 8),
         Expanded(
-          child: TextField(
-            controller: controller,
-            textInputAction: TextInputAction.send,
-            onSubmitted: (_) => onSend(),
-            decoration: InputDecoration(
-              hintText: voiceListening ? 'Đang nghe...' : 'Nhắn tin cho Mimo...',
-              filled: true,
-              fillColor: context.palette.surfaceAlt,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadii.lg), borderSide: BorderSide.none),
-              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadii.lg), borderSide: BorderSide.none),
-            ),
-          ),
+          child: voiceListening
+              ? Container(
+                  height: 44,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  decoration: BoxDecoration(
+                    color: context.palette.surfaceAlt,
+                    borderRadius: BorderRadius.circular(AppRadii.lg),
+                  ),
+                  child: const Row(
+                    children: [
+                      Text(
+                        'Đang nghe...',
+                        style: TextStyle(
+                          color: AppColors.danger,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
+                      ),
+                      Spacer(),
+                      WaveformVisualizer(
+                        isAnimating: true,
+                        color: AppColors.danger,
+                        height: 24,
+                        width: 60,
+                      ),
+                    ],
+                  ),
+                )
+              : TextField(
+                  controller: controller,
+                  textInputAction: TextInputAction.send,
+                  onSubmitted: (_) => onSend(),
+                  decoration: InputDecoration(
+                    hintText: 'Nhắn tin cho Mimo...',
+                    filled: true,
+                    fillColor: context.palette.surfaceAlt,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadii.lg), borderSide: BorderSide.none),
+                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadii.lg), borderSide: BorderSide.none),
+                  ),
+                ),
         ),
         const SizedBox(width: 8),
         Container(

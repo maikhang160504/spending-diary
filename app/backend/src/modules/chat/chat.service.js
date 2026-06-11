@@ -17,11 +17,37 @@ async function listSessions(userId) {
 
 async function createSession(userId, payload) {
   const r = await query(
-    `INSERT INTO chat_sessions (user_id, title)
-     VALUES ($1, $2) RETURNING *`,
-    [userId, payload.title || null]
+    `INSERT INTO chat_sessions (user_id, title, wallet_id, last_message_at)
+     VALUES ($1, $2, $3, NOW()) RETURNING *`,
+    [userId, payload.title || null, payload.walletId || null]
   );
-  return r.rows[0];
+  const session = r.rows[0];
+
+  // Fetch verbal style
+  const settingsRes = await query('SELECT verbal_style FROM user_settings WHERE user_id = $1', [userId]);
+  const style = settingsRes.rows[0]?.verbal_style || 'funny';
+
+  let greeting = 'Hú! Mimo đây! Hôm nay muốn cùng Mimo ghi chép chi tiêu thế nào nào? 🎉';
+  if (style === 'funny') {
+    greeting = 'Hú! Mimo đây! Hôm nay muốn cùng Mimo quẩy nhật ký chi tiêu thế nào nào? Bắt đầu tám nha! 🎉';
+  } else if (style === 'gentle') {
+    greeting = 'Chào bạn thương, Mimo ở đây để lắng nghe và đồng hành cùng bạn trong việc quản lý chi tiêu. Hôm nay của bạn thế nào? 💕';
+  } else if (style === 'serious') {
+    greeting = 'Xin chào. Tôi là Mimo, trợ lý tài chính của bạn. Chúng ta bắt đầu ghi chép và kiểm soát ngân sách hôm nay nhé.';
+  } else if (style === 'sarcastic') {
+    greeting = 'Ồ, lại là người bạn thích tiêu tiền đây rồi. Mimo sẵn sàng ghi nhận xem hôm nay bạn đã tiêu hoang bao nhiêu rồi đấy! 😏';
+  } else if (style === 'strict') {
+    greeting = 'Này! Đã vào đây rồi thì lo mà ghi chép chi tiêu đầy đủ vào nhé. Mimo sẽ giám sát kỹ đấy! 😤';
+  }
+
+  // Insert mascot's greeting message
+  await query(
+    `INSERT INTO chat_messages (session_id, role, content, intent_action)
+     VALUES ($1, $2, $3, $4)`,
+    [session.id, 'assistant', greeting, { intent: 'Chitchat' }]
+  );
+
+  return session;
 }
 
 async function getMessages(userId, sessionId, opts = {}) {

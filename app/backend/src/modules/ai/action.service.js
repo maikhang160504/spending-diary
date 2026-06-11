@@ -590,8 +590,144 @@ async function executeAction(userId, payload) {
   if (type === 'SETTING' || type === 'SYSTEM_SETTING') {
     return { kind: 'navigate', navigate: 'settings', message: '⚙️ Mở màn hình cài đặt.' };
   }
+  if (type === 'SET_USERNAME') {
+    return executeSetUsername(userId, payload);
+  }
+  if (type === 'SET_INCOME') {
+    return executeSetIncome(userId, payload);
+  }
+  if (type === 'EDIT' || type === 'UPDATE_RECORD') {
+    return executeEditRecord(userId, payload);
+  }
+  if (type === 'EXPORT_DATA') {
+    return executeExportData(userId, payload);
+  }
+  if (type === 'SET_ALERT') {
+    return executeSetAlert(userId, payload);
+  }
 
   throw ApiError.badRequest(`Action type chưa hỗ trợ: ${type}`);
+}
+
+async function executeSetUsername(userId, payload) {
+  const actionDetails = payload.actionDetails || {};
+  const newName = actionDetails.value || payload.username || (payload.text ? extractNameFromText(payload.text) : null);
+  if (!newName) throw ApiError.badRequest('Không tìm thấy tên cần đổi.');
+  
+  const authService = require('../auth/auth.service');
+  const updatedUser = await authService.updateProfile(userId, { username: newName });
+  return {
+    kind: 'set_username',
+    username: updatedUser.username,
+    message: `✅ Mimo sẽ gọi bạn là "${updatedUser.username}" nhé!`,
+  };
+}
+
+function extractNameFromText(text) {
+  const m = text.match(/(?:gọi|goi)\s+(?:mình|tớ|tớ là|tôi|cậu là|anh là|chị là|em là|la|là)\s+([A-ZẮẰẲẴẶẤẦẨẪẬẾỀỂỄỆỐỒỔỖỘỚỜỞỠỢỨỪỬỮỰÝỲỶỸÝa-zA-Zàáâãèéêìíòóôõùúăđĩũơưđ\s]+)/i) ||
+            text.match(/(?:tên|ten)\s+(?:mình|tớ|tôi|la|là)\s+([A-ZẮẰẲẴẶẤẦẨẪẬẾỀỂỄỆỐỒỔỖỘỚỜỞỠỢỨỪỬỮỰÝỲỶỸÝa-zA-Zàáâãèéêìíòóôõùúăđĩũơưđ\s]+)/i);
+  return m ? m[1].trim() : null;
+}
+
+async function executeSetIncome(userId, payload) {
+  const actionDetails = payload.actionDetails || {};
+  const amount = resolveAmount(payload, actionDetails);
+  if (!amount) throw ApiError.badRequest('Thiếu số tiền thu nhập.');
+  
+  const authService = require('../auth/auth.service');
+  await authService.updateProfile(userId, { incomeAmount: amount });
+  return {
+    kind: 'set_income',
+    incomeAmount: amount,
+    message: `✅ Đã thiết lập thu nhập hàng tháng của bạn là ${formatVnd(amount)}đ.`,
+  };
+}
+
+async function executeEditRecord(userId, payload) {
+  const list = await txService.listForUser(userId, { pageSize: 1 });
+  if (!list.items?.length) throw ApiError.notFound('Không có giao dịch nào để chỉnh sửa.');
+  const lastTx = list.items[0];
+
+  const updates = {};
+  const actionDetails = payload.actionDetails || {};
+  const amount = resolveAmount(payload, actionDetails);
+  if (amount) {
+    updates.amount = amount;
+  }
+
+  const categoryCode = resolveCategoryCode(payload.categoryCode, actionDetails);
+  if (categoryCode) {
+    updates.categoryCode = categoryCode;
+  }
+
+  if (payload.note || actionDetails.note) {
+    updates.note = payload.note || actionDetails.note;
+  }
+
+  if (payload.occurredAt || actionDetails.occurredAt) {
+    updates.occurredAt = payload.occurredAt || actionDetails.occurredAt;
+  }
+
+  const updated = await txService.update(userId, lastTx.id, updates);
+  return {
+    kind: 'update_record',
+    transaction: updated,
+    message: `✅ Đã cập nhật giao dịch gần nhất thành công!`,
+  };
+}
+
+async function executeExportData(userId, payload) {
+  const authService = require('../auth/auth.service');
+  const user = await authService.findUserById(userId);
+  if (!user) throw ApiError.notFound('User not found.');
+
+  const range = payload.timeRange || inferTimeRangeFromText(payload.text || '');
+  const list = await txService.listForUser(userId, {
+    from: range.from,
+    to: range.to,
+    pageSize: 1000
+  });
+
+  let csvContent = 'ID,Ngay,Danh muc,So tien,Loai,Ghi chu\n';
+  for (const tx of list.items) {
+    csvContent += `"${tx.id}","${tx.occurredAt}","${tx.categoryCode}",${tx.amount},"${tx.type}","${tx.note || ''}"\n`;
+  }
+
+  console.log(`[Export Data] Generating CSV for user ${user.email}, ${list.items.length} records, length ${csvContent.length}`);
+
+  return {
+    kind: 'export_data',
+    email: user.email,
+    period: range.period_label,
+    message: `✅ Đã tạo tệp dữ liệu chi tiêu ${range.period_label.toLowerCase()}. Tệp CSV đang được gửi đến hòm thư ${user.email} của bạn.`,
+  };
+}
+
+async function executeSetAlert(userId, payload) {
+  const isEnable = !payload.text?.includes('tắt') && !payload.text?.includes('tat');
+  const actionDetails = payload.actionDetails || {};
+  const categoryCode = resolveCategoryCode(payload.categoryCode, actionDetails);
+
+  if (categoryCode) {
+    const budgets = await budgetsService.list(userId);
+    const budget = budgets.find(b => b.categoryCode === categoryCode);
+    if (budget) {
+      await budgetsService.update(userId, budget.id, { alertEnabled: isEnable });
+    }
+    return {
+      kind: 'set_alert',
+      categoryCode,
+      enabled: isEnable,
+      message: `✅ Đã ${isEnable ? 'bật' : 'tắt'} cảnh báo vượt hạn mức cho danh mục ${getCategoryLabelVi(categoryCode)}.`,
+    };
+  } else {
+    await settingsService.update(userId, { notificationsEnabled: isEnable });
+    return {
+      kind: 'set_alert',
+      enabled: isEnable,
+      message: `✅ Đã ${isEnable ? 'bật' : 'tắt'} thông báo cảnh báo chi tiêu.`,
+    };
+  }
 }
 
 async function executeSuggestBudget(userId, payload) {
@@ -741,12 +877,18 @@ function needsConfirm(actionType) {
   if (t.includes('REPORT')) return false;
   if (t.includes('SUGGEST')) return false;
   if (t === 'SETTING' || t === 'SYSTEM_SETTING') return false;
+  if (t === 'EXPORT_DATA') return false;
   return (
     t.includes('LIMIT') ||
     t.includes('DELETE') ||
     t.includes('GOAL') ||
     t.includes('TONE') ||
-    t.includes('SEARCH')
+    t.includes('SEARCH') ||
+    t === 'SET_USERNAME' ||
+    t === 'SET_INCOME' ||
+    t === 'EDIT' ||
+    t === 'UPDATE_RECORD' ||
+    t === 'SET_ALERT'
   );
 }
 
@@ -761,6 +903,11 @@ function actionPreviewLabel(actionType, { amount, categoryCode } = {}) {
   if (t.includes('TONE')) return 'Đổi giọng nói Mimo';
   if (t.includes('SEARCH')) return 'Tìm kiếm giao dịch';
   if (t.includes('SETTING')) return 'Mở cài đặt';
+  if (t === 'SET_USERNAME') return 'Đổi tên gọi Mimo gọi bạn';
+  if (t === 'SET_INCOME') return 'Cài đặt thu nhập hàng tháng';
+  if (t === 'EDIT' || t === 'UPDATE_RECORD') return 'Sửa giao dịch gần nhất';
+  if (t === 'EXPORT_DATA') return 'Xuất dữ liệu chi tiêu';
+  if (t === 'SET_ALERT') return 'Cài đặt cảnh báo chi tiêu';
   return actionType;
 }
 

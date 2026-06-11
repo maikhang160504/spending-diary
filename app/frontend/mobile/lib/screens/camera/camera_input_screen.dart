@@ -46,7 +46,14 @@ class _CameraInputScreenState extends State<CameraInputScreen> {
     try {
       // Get target wallet
       final wallets = await _api.getWallets();
-      final targetId = widget.walletId ?? (wallets.isNotEmpty ? wallets[0]['id'] as String : '');
+      wallets.sort((a, b) {
+        final aType = a['type'] as String? ?? 'personal';
+        final bType = b['type'] as String? ?? 'personal';
+        if (aType == 'personal' && bType != 'personal') return -1;
+        if (aType != 'personal' && bType == 'personal') return 1;
+        return 0;
+      });
+      final targetId = widget.walletId ?? ApiClient.lastSelectedWalletId ?? (wallets.isNotEmpty ? wallets[0]['id'] as String : '');
 
       final result = await _api.aiExpenseFromText(
         walletId: targetId,

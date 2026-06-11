@@ -28,7 +28,7 @@ class LoadingIndicator extends StatelessWidget {
           child: Lottie.asset(
             'assets/animations/Loading.json',
             repeat: true,
-            errorBuilder: (_, __, ___) => const Center(
+            errorBuilder: (_, _, _) => const Center(
               child: CircularProgressIndicator(color: AppColors.teal, strokeWidth: 3),
             ),
           ),
