@@ -368,7 +368,7 @@ class _GalleryCard extends StatelessWidget {
     String dateStr = '';
     if (occurredOn.isNotEmpty) {
       try {
-        final dt = DateTime.parse(occurredOn);
+        final dt = DateTime.parse(occurredOn).toLocal();
         dateStr = '${dt.day.toString().padLeft(2, '0')}-${dt.month.toString().padLeft(2, '0')}';
       } catch (_) {}
     }

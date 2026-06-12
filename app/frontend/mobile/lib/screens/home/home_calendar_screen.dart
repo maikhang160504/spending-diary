@@ -272,7 +272,7 @@ class _HomeCalendarScreenState extends State<HomeCalendarScreen> {
                                       '';
                                   if (dateStr.isEmpty) return false;
                                   try {
-                                    final dt = DateTime.parse(dateStr);
+                                    final dt = DateTime.parse(dateStr).toLocal();
                                     return dt.year == _focus.year && dt.month == _focus.month && dt.day == day;
                                   } catch (_) {
                                     return false;
@@ -328,7 +328,7 @@ class _HomeCalendarScreenState extends State<HomeCalendarScreen> {
                               '';
                           if (dateStr.isEmpty) return false;
                           try {
-                            final dt = DateTime.parse(dateStr);
+                            final dt = DateTime.parse(dateStr).toLocal();
                             return dt.year == _focus.year && dt.month == _focus.month && dt.day == _selectedDay;
                           } catch (_) {
                             return false;
@@ -338,7 +338,7 @@ class _HomeCalendarScreenState extends State<HomeCalendarScreen> {
                             final ds = t['occurredAt'] as String? ?? t['occurred_at'] as String? ?? t['createdAt'] as String? ?? t['created_at'] as String? ?? '';
                             if (ds.isEmpty) return false;
                             try {
-                              final d = DateTime.parse(ds);
+                              final d = DateTime.parse(ds).toLocal();
                               return d.year == _focus.year && d.month == _focus.month && d.day == _selectedDay;
                             } catch (_) { return false; }
                           }).map<String>((t) => (t['storyId'] as String?) ?? (t['story_id'] as String?) ?? (t['id'] as String?) ?? '').where((e) => e.isNotEmpty).toList();
@@ -925,7 +925,7 @@ class _TransactionStoryCard extends StatelessWidget {
 
   String _formatTime(String isoDate) {
     try {
-      final dt = DateTime.parse(isoDate);
+      final dt = DateTime.parse(isoDate).toLocal();
       return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')} ${dt.day}/${dt.month}';
     } catch (_) {
       return '';

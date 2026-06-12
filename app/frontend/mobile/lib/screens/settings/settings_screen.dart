@@ -8,6 +8,7 @@ import '../../routes/app_routes.dart';
 import '../../services/api_client.dart';
 import '../../services/app_queries.dart';
 import '../../services/fcm_service.dart';
+import '../../services/push_notification_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_palette.dart';
 import '../../theme/app_radii.dart';
@@ -952,13 +953,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   },
                                 ),
                               );
+                              PushNotificationService.instance.showNotification(
+                                id: 101,
+                                title: '💬 Mimo nhắc nhở bạn đó!',
+                                body: 'Ví mỏng như tờ lá lúa rồi bạn ơi 💸 Sáng nay ăn mì gói hay sao? Nói Mimo lưu lại story nhe!',
+                                payload: AppRoutes.camera,
+                              );
                             },
                           ),
                           _SettingRow(
                             icon: Icons.warning_amber_rounded,
                             label: 'Mô phỏng Cảnh báo (Tầng 2)',
                             subtitle: 'Cảnh báo chi tiêu chạm/vượt hạn mức',
-                            showDivider: false,
+                            showDivider: true,
                             onTap: () {
                               inAppNotificationController.show(
                                 InAppNotification(
@@ -969,6 +976,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                     context.push(AppRoutes.chat);
                                   },
                                 ),
+                              );
+                              PushNotificationService.instance.showNotification(
+                                id: 102,
+                                title: '🚨 Vượt hạn mức chi tiêu!',
+                                body: 'Nguy hiểm! Danh mục \'Ăn uống\' tháng này đã tiêu hết 105% hạn mức. Chạm để AI tư vấn.',
+                                payload: AppRoutes.chat,
+                              );
+                            },
+                          ),
+                          _SettingRow(
+                            icon: Icons.app_settings_alt_outlined,
+                            label: 'Kiểm tra Thông báo Hệ thống',
+                            subtitle: 'Gửi một thông báo test trực tiếp lên thanh trạng thái',
+                            showDivider: false,
+                            onTap: () {
+                              PushNotificationService.instance.showNotification(
+                                id: 103,
+                                title: '🔔 SpendDiary Test System Notification',
+                                body: 'Nếu bạn nhìn thấy thông báo này trên thanh trạng thái, tính năng đã hoạt động hoàn hảo! 🎉',
+                                payload: AppRoutes.home,
                               );
                             },
                           ),

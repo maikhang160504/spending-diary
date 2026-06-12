@@ -6,6 +6,7 @@ const { OAuth2Client } = require('google-auth-library');
 
 const { query, withTransaction } = require('../../config/db');
 const ApiError = require('../../utils/ApiError');
+const logger = require('../../config/logger');
 const {
   signAccessToken,
   signRefreshToken,
@@ -229,10 +230,14 @@ async function getStreak(userId) {
 }
 
 async function googleLogin({ idToken }) {
-  if (!idToken) throw ApiError.badRequest('idToken is required.');
+  if (!idToken) {
+    logger.warn('[googleLogin] idToken is missing in request body');
+    throw ApiError.badRequest('idToken is required.');
+  }
 
   let payload;
   if (idToken === 'mock-google-token' && process.env.NODE_ENV !== 'production') {
+    logger.info('[googleLogin] Using mock Google login (development fallback mode)');
     payload = {
       sub: 'mock-google-id-123456789',
       email: 'mimo_google_dev@diary.local',
@@ -241,12 +246,15 @@ async function googleLogin({ idToken }) {
     };
   } else {
     try {
+      logger.info({ audience: env.google.clientId }, '[googleLogin] Verifying real Google ID Token');
       const ticket = await _googleClient.verifyIdToken({
         idToken,
         audience: env.google.clientId || undefined,
       });
       payload = ticket.getPayload();
+      logger.info({ email: payload.email, sub: payload.sub }, '[googleLogin] Google token verified successfully');
     } catch (err) {
+      logger.error({ err: { message: err.message, stack: err.stack }, audience: env.google.clientId }, '[googleLogin] Real Google token verification failed');
       throw ApiError.unauthorized('Invalid Google token.', { reason: err.message });
     }
   }

@@ -153,5 +153,6 @@ router.post(
   controller.executeAction
 );
 router.post('/chat/:sessionId', controller.aiChat);
+router.post('/notifications/simulate', controller.simulateNotification);
 
 module.exports = router;

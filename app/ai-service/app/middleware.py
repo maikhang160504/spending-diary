@@ -44,7 +44,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
 class ApiKeyMiddleware(BaseHTTPMiddleware):
     """Optional shared-secret auth: enabled only when settings.api_key is set."""
 
-    PUBLIC_PATHS = ("/health", "/docs", "/redoc", "/openapi.json")
+    PUBLIC_PATHS = ("/health", "/docs", "/redoc", "/openapi.json", "/api/v1/internal/status")
 
     async def dispatch(self, request: Request, call_next) -> Response:
         settings = get_settings()

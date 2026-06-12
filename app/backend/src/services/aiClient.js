@@ -45,7 +45,13 @@ async function withRetry(fn, { retries = 2, baseDelayMs = 300 } = {}) {
       return await fn();
     } catch (err) {
       lastErr = err;
-      const isRetryable = !err.statusCode || err.statusCode >= 500;
+      const isRetryable = !err.statusCode || (
+        err.statusCode >= 500 &&
+        err.statusCode !== 503 &&
+        err.statusCode !== 429 &&
+        !String(err.message || '').toLowerCase().includes('high demand') &&
+        !String(err.message || '').toLowerCase().includes('spikes in demand')
+      );
       if (!isRetryable || attempt === retries) throw err;
       const delay = baseDelayMs * Math.pow(2, attempt);
       logger.info({ attempt: attempt + 1, delay }, 'Retrying AI call...');

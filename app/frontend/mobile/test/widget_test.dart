@@ -1,10 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mobile/app.dart';
+import 'package:mobile/screens/onboarding/onboarding_screen_1.dart';
+
+import 'helpers/test_app.dart';
 
 void main() {
   testWidgets('App renders onboarding intro', (WidgetTester tester) async {
-    await tester.pumpWidget(const SpendDiaryApp());
+    await pumpTestApp(tester, const OnboardingStep1());
 
-    expect(find.text('Xin chao! Minh la Mimo 😊'), findsOneWidget);
+    expect(find.text('Xin chào! Mình là Mimo 😊'), findsOneWidget);
   });
 }

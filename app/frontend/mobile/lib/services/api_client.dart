@@ -159,9 +159,15 @@ class ApiClient {
         await _saveTokens(data['accessToken'], data['refreshToken']);
         return true;
       }
-    } catch (_) {}
 
-    await clearTokens();
+      // Chỉ xóa token nếu server phản hồi lỗi xác thực rõ ràng
+      if (response.statusCode == 400 || response.statusCode == 401 || response.statusCode == 403) {
+        await clearTokens();
+      }
+    } catch (_) {
+      // Bỏ qua lỗi kết nối (SocketException/Timeout) để không tự động logout khi mất mạng
+    }
+
     return false;
   }
 
@@ -279,6 +285,10 @@ class ApiClient {
   ) async {
     final result = await _request('PATCH', '/wallets/$id', body: body);
     return result['data'] as Map<String, dynamic>;
+  }
+
+  Future<void> deleteWallet(String id) async {
+    await _request('DELETE', '/wallets/$id');
   }
 
   Future<Map<String, dynamic>> generateWalletInviteCode(String walletId) async {

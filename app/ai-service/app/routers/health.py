@@ -49,6 +49,13 @@ class StatusResponse(BaseModel):
     tags=["internal"],
 )
 def internal_status() -> StatusResponse:
+    from app.services.nlu_service import get_nlu_service
+    from app.services.ocr_service import get_ocr_service
+
+    # Trigger model load if not already initialized
+    get_nlu_service().try_load()
+    get_ocr_service().try_load()
+
     settings = get_settings()
     nlu_loaded = adapter.is_nlu_loaded()
     ocr_loaded = adapter.is_ocr_loaded()

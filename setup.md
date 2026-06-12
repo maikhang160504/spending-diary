@@ -120,11 +120,14 @@ flutter run --dart-define=API_BASE_URL=http://10.190.86.24:4000 --dart-define=AI
 ## 6. Chạy webadmin (terminal 4)
 
 ```
+
+cd d:\Luan-Van\Project\app\frontend\web-admin
+
 # Lần đầu
 npm install
 
 # Khởi động
-cd d:\Luan-Van\Project\app\webadmin
+
 npm run dev
 ```
 
@@ -208,3 +211,32 @@ Cần thêm `GoogleService-Info.plist` và bổ sung `ios` trong `firebase_optio
 1. Đăng nhập app trên thiết bị thật/emulator có Google Play.
 2. Vượt ngưỡng budget hoặc chờ recurring scheduler → notification trên status bar.
 3. Tap notification → mở đúng deep link (ví dụ `/report`).
+
+---
+
+## 10. Troubleshooting Google Sign-In
+
+Khi chạy trên Emulator hoặc môi trường phát triển, Google Sign-In có thể thất bại (gây ra cảnh báo: *"Google Sign-In lỗi (SHA-1/Emulator)..."* và tự động kích hoạt tài khoản Dev Thử nghiệm). Dưới đây là các nguyên nhân phổ biến và cách khắc phục:
+
+### 1. Thiếu mã vân tay SHA-1 của thiết bị phát triển (Android)
+Google Sign-In yêu cầu mã băm SHA-1 của keystore dùng để ký ứng dụng phải được đăng ký trong Firebase Console.
+* **Cách lấy mã SHA-1 (Debug Keystore):**
+  Mở terminal tại thư mục dự án và chạy:
+  ```powershell
+  cd app/frontend/mobile/android
+  ./gradlew signingReport
+  ```
+  Tìm phần cấu hình `Variant: debug` và copy dòng `SHA-1` (ví dụ: `5E:8F:16:C2:...`).
+* **Đăng ký trên Firebase Console:**
+  1. Vào **Firebase Console** -> **Project Settings** (Cài đặt dự án).
+  2. Chọn app Android `com.spendingdairy.app` dưới mục **My Apps**.
+  3. Nhấn **Add fingerprint** (Thêm vân tay) và dán mã SHA-1 vào.
+  4. Tải lại file `google-services.json` mới và ghi đè vào thư mục `app/frontend/mobile/android/app/`.
+
+### 2. Thiết bị giả lập (Emulator) không có Google Play Services
+Google Sign-In yêu cầu thiết bị phải cài đặt Google Play Services.
+* **Khắc phục:** Hãy tạo một thiết bị ảo (AVD) mới có biểu tượng Google Play Store trong cột **Play Store** của trình quản lý AVD Manager trong Android Studio. Đảm bảo bạn đã đăng nhập tài khoản Google của mình bên trong Emulator trước khi nhấn nút đăng nhập.
+
+### 3. Cấu hình xác thực Google Play App Signing (nếu đã release)
+Nếu ứng dụng đã xuất bản lên Google Play, mã SHA-1 dùng để ký ứng dụng trên máy của bạn sẽ bị thay thế bằng mã ký của Google Play App Signing.
+* **Khắc phục:** Copy mã SHA-1 từ **Play Console** -> **Setup** -> **App integrity** -> **App signing key certificate** và dán vào Firebase Console tương tự như bước 1.

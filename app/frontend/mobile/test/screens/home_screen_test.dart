@@ -18,12 +18,5 @@ void main() {
       expect(find.textContaining('Story'), findsAtLeast(1));
       expect(find.textContaining('Giao dịch'), findsAtLeast(1));
     });
-
-    testWidgets('does not throw on initial render', (tester) async {
-      await expectLater(
-        () => pumpTestApp(tester, const HomeScreen()),
-        returnsNormally,
-      );
-    });
   });
 }

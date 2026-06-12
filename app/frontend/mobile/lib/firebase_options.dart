@@ -15,13 +15,10 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: String.fromEnvironment(
-      'FIREBASE_ANDROID_API_KEY',
-      defaultValue: '',
-    ),
-    appId: '1:388012082045:android:0000000000000000',
+    apiKey: 'AIzaSyDazPGVFNBH_hu5xl-y3SQwJlpdiXfNG54',
+    appId: '1:388012082045:android:be53d68c9bb0eb0a09c214',
     messagingSenderId: '388012082045',
     projectId: 'powerful-bounty-477016-u8',
-    storageBucket: 'powerful-bounty-477016-u8.appspot.com',
+    storageBucket: 'powerful-bounty-477016-u8.firebasestorage.app',
   );
 }

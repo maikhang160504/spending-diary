@@ -12,7 +12,16 @@
           "package_name": "com.spendingdairy.app"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "388012082045-3t6pakclihrq25focvubq4eb6t2fbnap.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.spendingdairy.app",
+            "certificate_hash": "6ec298fe1cd1012a07004bf9595be5af7e4b0398"
+          }
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyDazPGVFNBH_hu5xl-y3SQwJlpdiXfNG54"

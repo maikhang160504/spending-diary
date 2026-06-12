@@ -16,7 +16,7 @@ void main() {
     testWidgets('send button is present', (tester) async {
       await pumpTestApp(tester, const ChatScreen());
 
-      expect(find.byIcon(Icons.send_rounded), findsOneWidget);
+      expect(find.byIcon(Icons.send), findsOneWidget);
     });
 
     testWidgets('quick-action chips are rendered', (tester) async {

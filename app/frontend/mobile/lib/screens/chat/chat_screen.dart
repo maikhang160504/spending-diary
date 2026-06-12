@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:permission_handler/permission_handler.dart';
+
 
 import '../../routes/app_routes.dart';
 import '../../services/api_client.dart';
 import '../../services/streak_celebration.dart';
-import '../../services/voice_input_service.dart';
 import '../../services/transaction_notifier.dart';
 import '../../utils/mimo_emotion.dart';
 import '../../utils/nlu_parse.dart';
@@ -15,8 +14,8 @@ import '../../theme/app_palette.dart';
 import '../../theme/app_radii.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/categories.dart';
+import '../../theme/theme_controller.dart';
 import '../../utils/formatters.dart';
-import '../../widgets/waveform_visualizer.dart';
 
 
 String _actionSignatureFromNlu(Map<String, dynamic> nlu) {
@@ -28,7 +27,9 @@ String _actionSignatureFromNlu(Map<String, dynamic> nlu) {
   final details = nlu['action_details'] as Map<String, dynamic>?;
   final amount = nlu['amount'] ?? nlu['action_param'] ?? details?['value'];
   final cat = _categoryFromNlu(nlu);
-  if (actionType.contains('LIMIT')) return '$actionType|${cat ?? 'all'}|$amount';
+  if (actionType.contains('LIMIT')) {
+    return '$actionType|${cat ?? 'all'}|$amount';
+  }
   if (actionType.contains('DELETE')) return '$actionType|last';
   if (actionType.contains('GOAL')) return '$actionType|$amount';
   return '$actionType|default';
@@ -52,17 +53,27 @@ int? _amountFromNlu(Map<String, dynamic> nlu) {
 String _actionSummary(String actionType, {int? amount, String? categoryCode}) {
   final t = actionType.toUpperCase();
   final amt = amount != null ? formatVnd(amount) : null;
-  final catLabel = categoryCode != null ? CategoryTheme.of(categoryCode).label : null;
-  if (t.contains('LIMIT')) return 'Đặt hạn mức${catLabel != null ? ' $catLabel' : ''}${amt != null ? ': $amt' : ''}';
+  final catLabel = categoryCode != null
+      ? CategoryTheme.of(categoryCode).label
+      : null;
+  if (t.contains('LIMIT')) {
+    return 'Đặt hạn mức${catLabel != null ? ' $catLabel' : ''}${amt != null ? ': $amt' : ''}';
+  }
   if (t.contains('DELETE')) return 'Xóa giao dịch gần nhất';
-  if (t.contains('GOAL')) return 'Tạo mục tiêu tiết kiệm${amt != null ? ' $amt' : ''}';
+  if (t.contains('GOAL')) {
+    return 'Tạo mục tiêu tiết kiệm${amt != null ? ' $amt' : ''}';
+  }
   if (t.contains('TONE')) return 'Đổi giọng nói Mimo';
   if (t.contains('SEARCH')) return 'Tìm kiếm giao dịch';
   if (t.contains('SETTING')) return 'Mở cài đặt ứng dụng';
   return actionType;
 }
 
-_ActionPreview _actionPreviewFromNlu(Map<String, dynamic> nlu, String userText, {String? aiLine}) {
+_ActionPreview _actionPreviewFromNlu(
+  Map<String, dynamic> nlu,
+  String userText, {
+  String? aiLine,
+}) {
   final actionType = nlu['action_type'] as String? ?? 'Unknown';
   final amount = _amountFromNlu(nlu);
   final categoryCode = _categoryFromNlu(nlu);
@@ -72,7 +83,11 @@ _ActionPreview _actionPreviewFromNlu(Map<String, dynamic> nlu, String userText, 
     originalText: userText,
     amount: amount,
     categoryCode: categoryCode,
-    summary: _actionSummary(actionType, amount: amount, categoryCode: categoryCode),
+    summary: _actionSummary(
+      actionType,
+      amount: amount,
+      categoryCode: categoryCode,
+    ),
     actionDetails: nlu['action_details'] as Map<String, dynamic>?,
     aiLine: aiLine,
   );
@@ -126,7 +141,8 @@ _ReportStoryPreview? _reportPreviewFromNlu(Map<String, dynamic> nlu) {
   }).toList();
   final kind = nluString(ar['report_kind']) ?? nluString(nlu['action_type']);
   return _ReportStoryPreview(
-    periodLabel: ar['period_label'] as String? ??
+    periodLabel:
+        ar['period_label'] as String? ??
         (nlu['time_range'] as Map?)?['period_label'] as String? ??
         'Báo cáo',
     totalExpense: (ar['total_expense'] as num?)?.toInt() ?? 0,
@@ -142,7 +158,12 @@ class ChatScreen extends StatefulWidget {
   final String? sessionId;
   final String? walletId;
   final bool forceNew;
-  const ChatScreen({super.key, this.sessionId, this.walletId, this.forceNew = false});
+  const ChatScreen({
+    super.key,
+    this.sessionId,
+    this.walletId,
+    this.forceNew = false,
+  });
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -155,17 +176,15 @@ class _ChatScreenState extends State<ChatScreen> {
   final List<_ChatMsg> _messages = [];
 
   bool _aiThinking = false;
-  bool _voiceListening = false;
-  bool _voiceAvailable = true;
   bool _loadingOlder = false;
   bool _hasMoreHistory = false;
+
   /// Tránh gọi load-more khi ListView reverse vừa layout (chưa ổn scroll).
   bool _readyForOlderLoad = false;
   String _verbalStyle = 'funny';
   String? _sessionId;
   String? _walletId;
   String? _oldestMessageId;
-  final _voice = VoiceInputService.instance;
 
   @override
   void initState() {
@@ -173,15 +192,17 @@ class _ChatScreenState extends State<ChatScreen> {
     _scrollCtrl.addListener(_onScrollLoadOlder);
     _initSession();
     _loadAiPersonality();
-    _voiceAvailable = true;
-    _voice.checkAvailability(); // Khởi chạy khởi động ngầm
   }
 
   Future<void> _loadAiPersonality() async {
     try {
       final settings = await _api.getSettings();
       if (!mounted) return;
-      setState(() => _verbalStyle = normalizeVerbalStyle(settings['verbal_style'] as String?));
+      setState(
+        () => _verbalStyle = normalizeVerbalStyle(
+          settings['verbal_style'] as String?,
+        ),
+      );
     } catch (_) {}
   }
 
@@ -194,7 +215,6 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void dispose() {
     _scrollCtrl.removeListener(_onScrollLoadOlder);
-    _voice.cancel();
     _inputCtrl.dispose();
     _scrollCtrl.dispose();
     super.dispose();
@@ -220,7 +240,9 @@ class _ChatScreenState extends State<ChatScreen> {
     for (final m in msgs) {
       final map = m as Map<String, dynamic>;
       final role = map['role'] as String? ?? 'user';
-      final metadata = (map['intent_action'] ?? map['intentAction'] ?? map['metadata']) as Map<String, dynamic>?;
+      final metadata =
+          (map['intent_action'] ?? map['intentAction'] ?? map['metadata'])
+              as Map<String, dynamic>?;
 
       _TxPreview? txPreview;
       _ActionPreview? actionPreview;
@@ -230,7 +252,10 @@ class _ChatScreenState extends State<ChatScreen> {
       var displayText = map['content'] as String? ?? '';
 
       if (metadata != null && role != 'user') {
-        final llmMeta = llmReplyFromChatMetadata(metadata, fallbackText: displayText);
+        final llmMeta = llmReplyFromChatMetadata(
+          metadata,
+          fallbackText: displayText,
+        );
         chatEmotion = llmMeta?.emotionAsset;
 
         final rawMulti = metadata['multi_records'] ?? metadata['multiRecords'];
@@ -239,9 +264,12 @@ class _ChatScreenState extends State<ChatScreen> {
             final rMap = r as Map<String, dynamic>;
             return _TxPreview(
               category: rMap['category'] as String? ?? 'Other',
-              amount: (rMap['amount'] is num) ? (rMap['amount'] as num).toInt() : 0,
+              amount: (rMap['amount'] is num)
+                  ? (rMap['amount'] as num).toInt()
+                  : 0,
               note: rMap['text'] as String? ?? rMap['note'] as String? ?? '',
               recordType: rMap['record_type'] as String? ?? 'Expense',
+              transactionId: rMap['transaction_id'] ?? rMap['transactionId'] as String?,
             );
           }).toList();
         }
@@ -250,7 +278,8 @@ class _ChatScreenState extends State<ChatScreen> {
         if (nlu != null) {
           final intent = nluString(metadata['intent']);
           if (intent == 'Record' && multiRecords == null) {
-            final amount = metadata['amount'] ?? nlu['amount_spent'] ?? nlu['amount'];
+            final amount =
+                metadata['amount'] ?? nlu['amount_spent'] ?? nlu['amount'];
             final amountInt = (amount is num) ? amount.toInt() : 0;
             final reply = llmMeta ?? LlmMimoReply.fromNlu(nlu, intent: intent);
             final llmText = reply.text.trim();
@@ -263,6 +292,7 @@ class _ChatScreenState extends State<ChatScreen> {
               emotionAsset: reply.emotionAsset,
               aiComment: llmText.isNotEmpty ? llmText : null,
               nlu: nlu,
+              transactionId: metadata['transaction_id'] ?? metadata['transactionId'] as String?,
             );
           } else if (intent == 'Action') {
             final report = _reportPreviewFromNlu(nlu);
@@ -274,7 +304,9 @@ class _ChatScreenState extends State<ChatScreen> {
             } else {
               final llmText = (llmMeta?.text ?? displayText).trim();
               final originalUser =
-                  nluString(nlu['text']) ?? nluString(nlu['clean_content']) ?? '';
+                  nluString(nlu['text']) ??
+                  nluString(nlu['clean_content']) ??
+                  '';
               actionPreview = _actionPreviewFromNlu(
                 nlu,
                 originalUser,
@@ -289,8 +321,12 @@ class _ChatScreenState extends State<ChatScreen> {
       }
 
       // Đọc trạng thái saved từ metadata thay vì mặc định true
-      final savedFlag = metadata?['saved'] == true;
-      out.add(_ChatMsg(
+      final nlu = metadata != null ? nluMap(metadata['nlu']) : null;
+      final intentConfidence = nluDouble(nlu?['intent_confidence']) ?? nluDouble(nlu?['confidence']) ?? 0.0;
+      final autoSaved = intentConfidence >= 0.9 && (txPreview != null || multiRecords != null);
+      final savedFlag = (metadata?['saved'] == true) || autoSaved;
+
+      final newMsg = _ChatMsg(
         text: role == 'user' ? displayText : displayText,
         isUser: role == 'user',
         time: _formatMsgTime(map['created_at'] as String?),
@@ -300,16 +336,53 @@ class _ChatScreenState extends State<ChatScreen> {
         reportPreview: reportPreview,
         multiRecords: multiRecords,
         isSaved: (txPreview != null || multiRecords != null) && savedFlag,
-      ));
+      );
+
+      // Nếu tin nhắn hiện tại là tin xác nhận đã lưu ("saved": true)
+      if (metadata != null && metadata['saved'] == true && role != 'user') {
+        // Tìm ngược trong danh sách 'out' để đánh dấu tin nhắn gốc là đã lưu
+        for (int i = out.length - 1; i >= 0; i--) {
+          final prevMsg = out[i];
+          if (prevMsg.txPreview != null || prevMsg.multiRecords != null) {
+            if (!prevMsg.isSaved) {
+              prevMsg.isSaved = true;
+              // Chuyển transactionId(s) sang parent preview
+              if (prevMsg.txPreview != null) {
+                prevMsg.txPreview!.transactionId = metadata['transaction_id'] ?? metadata['transactionId'] as String?;
+              } else if (prevMsg.multiRecords != null && metadata['multi_records'] is List) {
+                final list = metadata['multi_records'] as List;
+                for (int j = 0; j < prevMsg.multiRecords!.length && j < list.length; j++) {
+                  final item = list[j];
+                  if (item is Map) {
+                    prevMsg.multiRecords![j].transactionId = item['transaction_id'] ?? item['transactionId'] as String?;
+                  }
+                }
+              }
+              break;
+            }
+          }
+        }
+      }
+
+      out.add(newMsg);
     }
     return out;
   }
 
-  Future<void> _loadMessagesPage({String? before, bool loadOlder = false}) async {
+  Future<void> _loadMessagesPage({
+    String? before,
+    bool loadOlder = false,
+  }) async {
     if (_sessionId == null) return;
-    final page = await _api.getChatMessagesPage(_sessionId!, limit: 30, before: before);
+    final page = await _api.getChatMessagesPage(
+      _sessionId!,
+      limit: 30,
+      before: before,
+    );
     if (!mounted) return;
-    final parsed = _parseMessagesFromApi(page['messages'] as List<dynamic>? ?? []);
+    final parsed = _parseMessagesFromApi(
+      page['messages'] as List<dynamic>? ?? [],
+    );
     // API: chronological cũ→mới; ListView reverse: index 0 = tin mới nhất (đáy màn hình)
     final batchNewestFirst = parsed.reversed.toList();
     setState(() {
@@ -330,7 +403,9 @@ class _ChatScreenState extends State<ChatScreen> {
 
     for (final msg in batchNewestFirst) {
       if (msg.actionPreview != null) {
-        _api.aiIsActionConfirmed(msg.actionPreview!.signature).then((confirmed) {
+        _api.aiIsActionConfirmed(msg.actionPreview!.signature).then((
+          confirmed,
+        ) {
           if (confirmed && mounted) {
             setState(() {
               msg.isConfirmed = true;
@@ -358,94 +433,6 @@ class _ChatScreenState extends State<ChatScreen> {
     if (mounted) setState(() => _loadingOlder = false);
   }
 
-  Future<void> _showPermissionExplanationDialog({
-    required String title,
-    required String message,
-  }) async {
-    if (!mounted) return;
-    await showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(title),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Quay lại', style: TextStyle(color: Colors.grey)),
-          ),
-          FilledButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              openAppSettings();
-            },
-            style: FilledButton.styleFrom(backgroundColor: AppColors.teal),
-            child: const Text('Mở cài đặt'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _toggleVoiceInput() async {
-    if (_voiceListening) {
-      await _voice.stop();
-      if (mounted) setState(() => _voiceListening = false);
-      return;
-    }
-    final ok = await _voice.checkAvailability();
-    if (!ok) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Thiết bị/emulator không hỗ trợ nhận diện giọng nói. Hãy gõ tin nhắn hoặc dùng máy thật.'),
-          ),
-        );
-      }
-      return;
-    }
-    final ready = await _voice.ensureReady();
-    if (!mounted) return;
-    if (!ready) {
-      final status = await Permission.microphone.status;
-      if (!mounted) return;
-      if (status.isPermanentlyDenied) {
-        await _showPermissionExplanationDialog(
-          title: 'Quyền truy cập Microphone',
-          message: 'Spend Diary cần quyền truy cập microphone để ghi nhận giọng nói. Vui lòng cấp quyền trong phần Cài đặt.',
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Cần quyền micro để dùng giọng nói')),
-        );
-      }
-      return;
-    }
-    if (!mounted) return;
-    setState(() => _voiceListening = true);
-    try {
-      await _voice.startListening(
-        onPartial: (text) {
-          if (!mounted) return;
-          _inputCtrl.text = text;
-          _inputCtrl.selection = TextSelection.collapsed(offset: text.length);
-        },
-        onFinal: (text) async {
-          await _voice.stop();
-          if (!mounted) return;
-          setState(() => _voiceListening = false);
-          if (text.isNotEmpty) await _sendMessage(text);
-        },
-      );
-    } catch (e) {
-      if (mounted) {
-        setState(() => _voiceListening = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Không bật được micro: $e')),
-        );
-      }
-    }
-  }
-
   Future<void> _initSession() async {
     _walletId = widget.walletId;
     // If sessionId passed from history, reuse it and load messages
@@ -459,10 +446,15 @@ class _ChatScreenState extends State<ChatScreen> {
       if (_walletId == null) {
         try {
           final sessions = await _api.getChatSessions();
-          final matched = sessions.firstWhere((s) => s['id'] == _sessionId, orElse: () => null);
+          final matched = sessions.firstWhere(
+            (s) => s['id'] == _sessionId,
+            orElse: () => null,
+          );
           if (matched != null) {
             setState(() {
-              _walletId = matched['wallet_id'] as String? ?? matched['walletId'] as String?;
+              _walletId =
+                  matched['wallet_id'] as String? ??
+                  matched['walletId'] as String?;
             });
           }
         } catch (_) {}
@@ -538,12 +530,15 @@ class _ChatScreenState extends State<ChatScreen> {
 
     // Save to backend chat
     if (_sessionId != null) {
-      try { await _api.sendChatMessage(_sessionId!, userText); } catch (_) {}
+      try {
+        await _api.sendChatMessage(_sessionId!, userText);
+      } catch (_) {}
     }
 
     try {
       final chatRes = await _api.aiChat(_sessionId!, userText);
-      final intentAction = chatRes['intentAction'] as Map<String, dynamic>? ?? {};
+      final intentAction =
+          chatRes['intentAction'] as Map<String, dynamic>? ?? {};
       final assistantMsgMap = {
         'role': 'assistant',
         'content': chatRes['response'] as String? ?? '',
@@ -557,7 +552,9 @@ class _ChatScreenState extends State<ChatScreen> {
 
         // Handle confirm status for actions if already confirmed
         if (confirmMsg.actionPreview != null) {
-          final alreadyConfirmed = await _api.aiIsActionConfirmed(confirmMsg.actionPreview!.signature);
+          final alreadyConfirmed = await _api.aiIsActionConfirmed(
+            confirmMsg.actionPreview!.signature,
+          );
           if (alreadyConfirmed) {
             confirmMsg.isConfirmed = true;
           }
@@ -573,18 +570,28 @@ class _ChatScreenState extends State<ChatScreen> {
         // Run non-confirm actions directly, or automatically run confirmed ones
         if (confirmMsg.actionPreview != null) {
           final action = confirmMsg.actionPreview!;
-          if (!_actionNeedsConfirm(action.actionType) || confirmMsg.isConfirmed) {
+          if (!_actionNeedsConfirm(action.actionType) ||
+              confirmMsg.isConfirmed) {
             await _runConfirmedAction(action);
           }
         }
 
         // Auto save transactions if confidence is high
         final nlu = intentAction['nlu'] as Map<String, dynamic>? ?? {};
-        final intentConfidence = nluDouble(nlu['intent_confidence']) ?? nluDouble(nlu['confidence']) ?? 0;
+        final intentConfidence =
+            nluDouble(nlu['intent_confidence']) ??
+            nluDouble(nlu['confidence']) ??
+            0;
+        final willAutoSave =
+            intentConfidence >= 0.9 &&
+            (confirmMsg.txPreview != null || confirmMsg.multiRecords != null);
+        if (willAutoSave) {
+          confirmMsg.isSaved = true;
+        }
         if (confirmMsg.txPreview != null && intentConfidence >= 0.9) {
-          await _saveTransaction(confirmMsg);
+          await _saveTransaction(confirmMsg, force: true);
         } else if (confirmMsg.multiRecords != null && intentConfidence >= 0.9) {
-          await _saveMultiTransactions(confirmMsg);
+          await _saveMultiTransactions(confirmMsg, force: true);
         }
       }
 
@@ -595,7 +602,10 @@ class _ChatScreenState extends State<ChatScreen> {
       if (!mounted) return;
       setState(() {
         _aiThinking = false;
-        _messages.insert(0, _ChatMsg(text: e.localizedMessage, isUser: false, time: _now()));
+        _messages.insert(
+          0,
+          _ChatMsg(text: e.localizedMessage, isUser: false, time: _now()),
+        );
       });
       _scrollToBottom();
     } catch (e) {
@@ -603,7 +613,14 @@ class _ChatScreenState extends State<ChatScreen> {
       if (!mounted) return;
       setState(() {
         _aiThinking = false;
-        _messages.insert(0, _ChatMsg(text: 'Mimo gặp lỗi rồi 😅 Thử lại sau nhé!', isUser: false, time: _now()));
+        _messages.insert(
+          0,
+          _ChatMsg(
+            text: 'Mimo gặp lỗi rồi 😅 Thử lại sau nhé!',
+            isUser: false,
+            time: _now(),
+          ),
+        );
       });
       _scrollToBottom();
     }
@@ -614,29 +631,49 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<void> _runConfirmedAction(_ActionPreview action) async {
     try {
       if (action.navOnly) {
-        await _api.aiConfirmAction(action.signature, actionType: action.actionType);
+        await _api.aiConfirmAction(
+          action.signature,
+          actionType: action.actionType,
+        );
         if (!mounted) return;
         context.go(AppRoutes.settings);
         return;
       }
 
-      final result = await _api.aiExecuteAction(_executeBodyFromPreview(action));
-      await _api.aiConfirmAction(action.signature, actionType: action.actionType);
+      final result = await _api.aiExecuteAction(
+        _executeBodyFromPreview(action),
+      );
+      await _api.aiConfirmAction(
+        action.signature,
+        actionType: action.actionType,
+      );
       if (!mounted) return;
 
-      final message = result['message'] as String? ?? '✅ Đã thực hiện hành động!';
+      final message =
+          result['message'] as String? ?? '✅ Đã thực hiện hành động!';
       final searchPreview = _searchPreviewFromResult(result);
       final kind = result['kind'] as String?;
 
       if (kind == 'delete') notifyTransactionChanged();
+      if (kind == 'theme') {
+        final themeModeVal = result['themeMode'] as bool?;
+        if (themeModeVal != null) {
+          ThemeController.instance.setMode(
+            themeModeVal ? ThemeMode.dark : ThemeMode.light,
+          );
+        }
+      }
 
       setState(() {
-        _messages.insert(0, _ChatMsg(
-          text: message,
-          isUser: false,
-          time: _now(),
-          searchPreview: searchPreview,
-        ));
+        _messages.insert(
+          0,
+          _ChatMsg(
+            text: message,
+            isUser: false,
+            time: _now(),
+            searchPreview: searchPreview,
+          ),
+        );
       });
       _scrollToBottom();
 
@@ -645,7 +682,14 @@ class _ChatScreenState extends State<ChatScreen> {
     } catch (_) {
       if (!mounted) return;
       setState(() {
-        _messages.insert(0, _ChatMsg(text: '❌ Không thực hiện được hành động.', isUser: false, time: _now()));
+        _messages.insert(
+          0,
+          _ChatMsg(
+            text: '❌ Không thực hiện được hành động.',
+            isUser: false,
+            time: _now(),
+          ),
+        );
       });
       _scrollToBottom();
     }
@@ -681,8 +725,14 @@ class _ChatScreenState extends State<ChatScreen> {
               child: ListView.builder(
                 controller: _scrollCtrl,
                 reverse: true,
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl, vertical: AppSpacing.lg),
-                itemCount: _messages.length + (_aiThinking ? 1 : 0) + (_loadingOlder ? 1 : 0),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.xxl,
+                  vertical: AppSpacing.lg,
+                ),
+                itemCount:
+                    _messages.length +
+                    (_aiThinking ? 1 : 0) +
+                    (_loadingOlder ? 1 : 0),
                 itemBuilder: (context, index) {
                   final extraThinking = _aiThinking ? 1 : 0;
 
@@ -696,7 +746,11 @@ class _ChatScreenState extends State<ChatScreen> {
                     return const Padding(
                       padding: EdgeInsets.symmetric(vertical: 8),
                       child: Center(
-                        child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2)),
+                        child: SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
                       ),
                     );
                   }
@@ -718,22 +772,33 @@ class _ChatScreenState extends State<ChatScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
-                child: Row(children: [
-                  _QuickChip(label: 'Tuần này sao?', onTap: () => _sendMessage('Tuần này sao?')),
-                  const SizedBox(width: 8),
-                  _QuickChip(label: 'Tổng chi tiêu', onTap: () => _sendMessage('Tổng chi tiêu')),
-                  const SizedBox(width: 8),
-                  _QuickChip(label: 'Phở 50k', onTap: () => _sendMessage('Phở 50k')),
-                  const SizedBox(width: 8),
-                  _QuickChip(label: 'Cafe 35k', onTap: () => _sendMessage('Cafe 35k')),
-                ]),
+                child: Row(
+                  children: [
+                    _QuickChip(
+                      label: 'Tuần này sao?',
+                      onTap: () => _sendMessage('Tuần này sao?'),
+                    ),
+                    const SizedBox(width: 8),
+                    _QuickChip(
+                      label: 'Tổng chi tiêu',
+                      onTap: () => _sendMessage('Tổng chi tiêu'),
+                    ),
+                    const SizedBox(width: 8),
+                    _QuickChip(
+                      label: 'Phở 50k',
+                      onTap: () => _sendMessage('Phở 50k'),
+                    ),
+                    const SizedBox(width: 8),
+                    _QuickChip(
+                      label: 'Cafe 35k',
+                      onTap: () => _sendMessage('Cafe 35k'),
+                    ),
+                  ],
+                ),
               ),
             ),
             _ChatComposer(
               controller: _inputCtrl,
-              voiceAvailable: _voiceAvailable,
-              voiceListening: _voiceListening,
-              onVoice: _toggleVoiceInput,
               onSend: () {
                 final t = _inputCtrl.text.trim();
                 if (t.isEmpty) return;
@@ -757,19 +822,29 @@ class _ChatScreenState extends State<ChatScreen> {
       await _api.aiRejectAction(text: action.originalText);
       if (!mounted) return;
       setState(() {
-        _messages.insert(0, _ChatMsg(text: '❌ Đã bỏ qua. Mimo sẽ cải thiện sau!', isUser: false, time: _now()));
+        _messages.insert(
+          0,
+          _ChatMsg(
+            text: '❌ Đã bỏ qua. Mimo sẽ cải thiện sau!',
+            isUser: false,
+            time: _now(),
+          ),
+        );
       });
       _scrollToBottom();
     } catch (_) {}
   }
 
-  Future<void> _saveTransaction(_ChatMsg msg) async {
-    if (msg.isSaved) return;
+  Future<void> _saveTransaction(_ChatMsg msg, {bool force = false}) async {
+    if (msg.isSaved && !force) return;
     final preview = msg.txPreview;
     if (preview == null) return;
-    setState(() {
-      msg.isSaved = true;
-    });
+    final wasSavedBefore = msg.isSaved;
+    if (!msg.isSaved) {
+      setState(() {
+        msg.isSaved = true;
+      });
+    }
     try {
       final wallets = await _api.getWallets();
       if (wallets.isEmpty) {
@@ -779,7 +854,7 @@ class _ChatScreenState extends State<ChatScreen> {
         return;
       }
       final aiText = (preview.aiComment ?? msg.text).trim();
-      await _api.createTransaction({
+      final tx = await _api.createTransaction({
         'walletId': _walletId ?? widget.walletId ?? wallets[0]['id'],
         'amount': preview.amount,
         'type': preview.recordType == 'Income' ? 'income' : 'expense',
@@ -792,11 +867,13 @@ class _ChatScreenState extends State<ChatScreen> {
         ).toStoryPersistFields(),
         if (preview.nlu != null) 'aiMeta': {'nlu': preview.nlu},
       });
+      preview.transactionId = tx['id'] as String?;
+
       if (!mounted) return;
       notifyTransactionChanged();
       await StreakCelebration.instance.afterActivity(context);
       // Cập nhật trạng thái saved lên backend chat metadata
-      if (_sessionId != null) {
+      if (_sessionId != null && !wasSavedBefore) {
         try {
           await _api.sendChatMessageRaw(_sessionId!, {
             'content': '💾 Đã lưu giao dịch',
@@ -805,6 +882,7 @@ class _ChatScreenState extends State<ChatScreen> {
               'saved': true,
               'category': preview.category,
               'amount': preview.amount,
+              'transactionId': preview.transactionId,
             },
           });
         } catch (_) {}
@@ -813,7 +891,14 @@ class _ChatScreenState extends State<ChatScreen> {
       if (mounted) {
         setState(() {
           msg.isSaved = false;
-          _messages.insert(0, _ChatMsg(text: '❌ Không thể lưu giao dịch', isUser: false, time: _now()));
+          _messages.insert(
+            0,
+            _ChatMsg(
+              text: '❌ Không thể lưu giao dịch',
+              isUser: false,
+              time: _now(),
+            ),
+          );
         });
       }
     }
@@ -835,86 +920,166 @@ class _ChatScreenState extends State<ChatScreen> {
       backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSheetState) => Padding(
-          padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(ctx).viewInsets.bottom,
+          ),
           child: Container(
             padding: const EdgeInsets.all(AppSpacing.xl),
             decoration: BoxDecoration(
               color: ctx.palette.card,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadii.xl)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(AppRadii.xl),
+              ),
             ),
-            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(2)))),
-              const SizedBox(height: 16),
-              Text('Chỉnh sửa giao dịch', style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
-              const SizedBox(height: 16),
-              Text('Số tiền', style: Theme.of(ctx).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
-              const SizedBox(height: 8),
-              TextField(
-                controller: amountCtrl,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(hintText: 'Nhập số tiền', suffixText: 'đ'),
-              ),
-              const SizedBox(height: 12),
-              Text('Danh mục', style: Theme.of(ctx).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
-              const SizedBox(height: 8),
-              DropdownButtonFormField<String>(
-                initialValue: CategoryTheme.styles.containsKey(editCategory) ? editCategory : 'Other',
-                decoration: InputDecoration(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadii.md)),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: AppColors.border,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
                 ),
-                items: CategoryTheme.styles.entries
-                    .where((e) => CategoryTheme.primaryCodes.contains(e.key))
-                    .map((e) => DropdownMenuItem<String>(
+                const SizedBox(height: 16),
+                Text(
+                  'Chỉnh sửa giao dịch',
+                  style: Theme.of(ctx).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Số tiền',
+                  style: Theme.of(
+                    ctx,
+                  ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: amountCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    hintText: 'Nhập số tiền',
+                    suffixText: 'đ',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Danh mục',
+                  style: Theme.of(
+                    ctx,
+                  ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 8),
+                DropdownButtonFormField<String>(
+                  initialValue: CategoryTheme.styles.containsKey(editCategory)
+                      ? editCategory
+                      : 'Other',
+                  decoration: InputDecoration(
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppRadii.md),
+                    ),
+                  ),
+                  items: CategoryTheme.styles.entries
+                      .where((e) => CategoryTheme.primaryCodes.contains(e.key))
+                      .map(
+                        (e) => DropdownMenuItem<String>(
                           value: e.key,
-                          child: Row(children: [
-                            CategoryTheme.iconOf(e.key, size: 22),
-                            const SizedBox(width: 8),
-                            Text(e.value.label),
-                          ]),
-                        ))
-                    .toList(),
-                onChanged: (val) {
-                  if (val != null) setSheetState(() => editCategory = val);
-                },
-              ),
-              const SizedBox(height: 12),
-              Text('Ghi chú', style: Theme.of(ctx).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
-              const SizedBox(height: 8),
-              TextField(
-                controller: noteCtrl,
-                decoration: const InputDecoration(hintText: 'Ghi chú cho giao dịch'),
-              ),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: () {
-                    setState(() {
-                      preview.amount = int.tryParse(amountCtrl.text) ?? preview.amount;
-                      preview.note = noteCtrl.text;
-                      preview.category = editCategory;
-                    });
-                    ctx.pop();
+                          child: Row(
+                            children: [
+                              CategoryTheme.iconOf(e.key, size: 22),
+                              const SizedBox(width: 8),
+                              Text(e.value.label),
+                            ],
+                          ),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (val) {
+                    if (val != null) setSheetState(() => editCategory = val);
                   },
-                  style: FilledButton.styleFrom(backgroundColor: AppColors.teal, padding: const EdgeInsets.symmetric(vertical: 14)),
-                  child: const Text('Lưu chỉnh sửa'),
                 ),
-              ),
-            ]),
+                const SizedBox(height: 12),
+                Text(
+                  'Ghi chú',
+                  style: Theme.of(
+                    ctx,
+                  ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: noteCtrl,
+                  decoration: const InputDecoration(
+                    hintText: 'Ghi chú cho giao dịch',
+                  ),
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: () async {
+                      final parsedAmount =
+                          int.tryParse(amountCtrl.text) ?? preview.amount;
+                      final updatedNote = noteCtrl.text;
+                      final updatedCategory = editCategory;
+
+                      setState(() {
+                        preview.amount = parsedAmount;
+                        preview.note = updatedNote;
+                        preview.category = updatedCategory;
+                      });
+
+                      if (msg.isSaved && preview.transactionId != null) {
+                        try {
+                          await _api.updateTransaction(preview.transactionId!, {
+                            'amount': parsedAmount,
+                            'note': updatedNote,
+                            'categoryCode': updatedCategory,
+                          });
+                          notifyTransactionChanged();
+                        } catch (_) {}
+                      }
+                      if (ctx.mounted) {
+                        ctx.pop();
+                      }
+                    },
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.teal,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    child: const Text('Lưu chỉnh sửa'),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Future<void> _saveMultiTransactions(_ChatMsg msg) async {
-    if (msg.isSaved) return;
+  Future<void> _saveMultiTransactions(
+    _ChatMsg msg, {
+    bool force = false,
+  }) async {
+    if (msg.isSaved && !force) return;
     final records = msg.multiRecords;
     if (records == null || records.isEmpty) return;
-    setState(() {
-      msg.isSaved = true;
-    });
+    final wasSavedBefore = msg.isSaved;
+    if (!msg.isSaved) {
+      setState(() {
+        msg.isSaved = true;
+      });
+    }
     try {
       final wallets = await _api.getWallets();
       if (wallets.isEmpty) {
@@ -924,7 +1089,7 @@ class _ChatScreenState extends State<ChatScreen> {
         return;
       }
       for (final preview in records) {
-        await _api.createTransaction({
+        final tx = await _api.createTransaction({
           'walletId': _walletId ?? widget.walletId ?? wallets[0]['id'],
           'amount': preview.amount,
           'type': preview.recordType == 'Income' ? 'income' : 'expense',
@@ -936,22 +1101,26 @@ class _ChatScreenState extends State<ChatScreen> {
             emotionAsset: 'Success',
           ).toStoryPersistFields(),
         });
+        preview.transactionId = tx['id'] as String?;
       }
       if (!mounted) return;
       notifyTransactionChanged();
       await StreakCelebration.instance.afterActivity(context);
       // Cập nhật trạng thái saved lên backend chat metadata
-      if (_sessionId != null) {
+      if (_sessionId != null && !wasSavedBefore) {
         try {
           await _api.sendChatMessageRaw(_sessionId!, {
             'content': '💾 Đã lưu tất cả giao dịch',
             'role': 'assistant',
             'intentAction': {
               'saved': true,
-              'multi_records': records.map((r) => {
-                'category': r.category,
-                'amount': r.amount,
-              }).toList(),
+              'multi_records': records
+                  .map((r) => {
+                        'category': r.category,
+                        'amount': r.amount,
+                        'transactionId': r.transactionId,
+                      })
+                  .toList(),
             },
           });
         } catch (_) {}
@@ -960,7 +1129,14 @@ class _ChatScreenState extends State<ChatScreen> {
       if (mounted) {
         setState(() {
           msg.isSaved = false;
-          _messages.insert(0, _ChatMsg(text: '❌ Không thể lưu giao dịch', isUser: false, time: _now()));
+          _messages.insert(
+            0,
+            _ChatMsg(
+              text: '❌ Không thể lưu giao dịch',
+              isUser: false,
+              time: _now(),
+            ),
+          );
         });
       }
     }
@@ -973,7 +1149,11 @@ class _ReportCategoryRow {
   final String categoryCode;
   final int total;
   final int percent;
-  const _ReportCategoryRow({required this.categoryCode, required this.total, required this.percent});
+  const _ReportCategoryRow({
+    required this.categoryCode,
+    required this.total,
+    required this.percent,
+  });
 }
 
 class _ReportStoryPreview {
@@ -998,6 +1178,8 @@ class _TxPreview {
   int amount;
   String note;
   String recordType;
+  String? transactionId;
+
   /// Cùng LLM reply — khi lưu story: [aiComment] + [emotionAsset] (avatar).
   String? emotionAsset;
   String? aiComment;
@@ -1010,6 +1192,7 @@ class _TxPreview {
     this.emotionAsset,
     this.aiComment,
     this.nlu,
+    this.transactionId,
   });
 }
 
@@ -1022,6 +1205,7 @@ class _ChatMsg {
   final _ReportStoryPreview? reportPreview;
   final _SearchResultPreview? searchPreview;
   final List<_TxPreview>? multiRecords;
+
   /// Emoji chat (cùng emotion LLM, khác tên với avatar story).
   final String? chatEmotion;
   bool isSaved;
@@ -1048,7 +1232,11 @@ class _ChatHeader extends StatelessWidget {
   final String verbalStyle;
   final String personalityLabel;
   final String? walletId;
-  const _ChatHeader({required this.verbalStyle, required this.personalityLabel, this.walletId});
+  const _ChatHeader({
+    required this.verbalStyle,
+    required this.personalityLabel,
+    this.walletId,
+  });
 
   @override
   Widget build(BuildContext ctx) {
@@ -1064,43 +1252,79 @@ class _ChatHeader extends StatelessWidget {
         ),
       ),
       padding: const EdgeInsets.fromLTRB(8, 12, 8, 20),
-      child: Row(children: [
-        IconButton(
-          onPressed: () => ctx.pop(),
-          icon: Container(
-            width: 36, height: 36,
-            decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), shape: BoxShape.circle),
-            child: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 16),
-          ),
-        ),
-        Container(
-          width: 40, height: 40,
-          decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), shape: BoxShape.circle),
-          child: ClipOval(
-            child: Image.asset(
-              mascotAsset,
-              fit: BoxFit.cover,
-              errorBuilder: (_, e, s) => Center(child: Text(fallbackEmoji)),
+      child: Row(
+        children: [
+          IconButton(
+            onPressed: () => ctx.pop(),
+            icon: Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.2),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.arrow_back_ios_new,
+                color: Colors.white,
+                size: 16,
+              ),
             ),
           ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('Chat với Mimo', style: Theme.of(ctx).textTheme.titleMedium?.copyWith(color: Colors.white, fontWeight: FontWeight.w700)),
-          Text(
-            'Phong cách $personalityLabel · ghi nhận chi tiêu',
-            style: Theme.of(ctx).textTheme.bodySmall?.copyWith(color: Colors.white70),
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.2),
+              shape: BoxShape.circle,
+            ),
+            child: ClipOval(
+              child: Image.asset(
+                mascotAsset,
+                fit: BoxFit.cover,
+                errorBuilder: (_, e, s) => Center(child: Text(fallbackEmoji)),
+              ),
+            ),
           ),
-        ])),
-        IconButton(
-          onPressed: () => ctx.push(AppRoutes.chatHistory, extra: {'walletId': walletId}),
-          icon: Container(
-            width: 36, height: 36,
-            decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), shape: BoxShape.circle),
-            child: const Icon(Icons.access_time, color: Colors.white, size: 18),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Chat với Mimo',
+                  style: Theme.of(ctx).textTheme.titleMedium?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                Text(
+                  'Phong cách $personalityLabel · ghi nhận chi tiêu',
+                  style: Theme.of(
+                    ctx,
+                  ).textTheme.bodySmall?.copyWith(color: Colors.white70),
+                ),
+              ],
+            ),
           ),
-        ),
-      ]),
+          IconButton(
+            onPressed: () =>
+                ctx.push(AppRoutes.chatHistory, extra: {'walletId': walletId}),
+            icon: Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.2),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.access_time,
+                color: Colors.white,
+                size: 18,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -1116,7 +1340,8 @@ class _ChatEmotionSticker extends StatelessWidget {
       alignment: Alignment.centerLeft,
       child: Image.asset(
         'assets/MiMo/emotions/$emotionAsset.png',
-        width: 56, height: 56,
+        width: 56,
+        height: 56,
         errorBuilder: (_, _, _) => const SizedBox.shrink(),
       ),
     );
@@ -1140,7 +1365,12 @@ class _QuickChip extends StatelessWidget {
           border: Border.all(color: context.palette.border),
           boxShadow: context.palette.softShadow,
         ),
-        child: Text(label, style: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
+        child: Text(
+          label,
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
+        ),
       ),
     );
   }
@@ -1151,29 +1381,47 @@ class _TypingIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Container(
-        margin: const EdgeInsets.only(bottom: 12, right: 60),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: context.palette.card,
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(AppRadii.lg),
-            topRight: Radius.circular(AppRadii.lg),
-            bottomLeft: Radius.circular(4),
-            bottomRight: Radius.circular(AppRadii.lg),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          margin: const EdgeInsets.only(bottom: 12, right: 60),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: context.palette.card,
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(AppRadii.lg),
+              topRight: Radius.circular(AppRadii.lg),
+              bottomLeft: Radius.circular(4),
+              bottomRight: Radius.circular(AppRadii.lg),
+            ),
+            boxShadow: context.palette.softShadow,
           ),
-          boxShadow: context.palette.softShadow,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Image.asset(
+                'assets/MiMo/emotions/Thinking.png',
+                width: 22,
+                height: 22,
+                errorBuilder: (_, _, _) =>
+                    const Text('🤔', style: TextStyle(fontSize: 14)),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Mimo đang nghĩ',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppColors.muted,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+              const SizedBox(width: 4),
+              const _DotsAnimation(),
+            ],
+          ),
         ),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Image.asset('assets/MiMo/emotions/Thinking.png', width: 22, height: 22, errorBuilder: (_, _, _) => const Text('🤔', style: TextStyle(fontSize: 14))),
-          const SizedBox(width: 8),
-          Text('Mimo đang nghĩ', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.muted, fontStyle: FontStyle.italic)),
-          const SizedBox(width: 4),
-          const _DotsAnimation(),
-        ]),
-      ),
-    ]);
+      ],
+    );
   }
 }
 
@@ -1184,13 +1432,17 @@ class _DotsAnimation extends StatefulWidget {
   State<_DotsAnimation> createState() => _DotsAnimationState();
 }
 
-class _DotsAnimationState extends State<_DotsAnimation> with SingleTickerProviderStateMixin {
+class _DotsAnimationState extends State<_DotsAnimation>
+    with SingleTickerProviderStateMixin {
   late AnimationController _ctrl;
 
   @override
   void initState() {
     super.initState();
-    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200))..repeat();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat();
   }
 
   @override
@@ -1205,16 +1457,26 @@ class _DotsAnimationState extends State<_DotsAnimation> with SingleTickerProvide
       animation: _ctrl,
       builder: (_, _) {
         final phase = _ctrl.value;
-        return Row(mainAxisSize: MainAxisSize.min, children: List.generate(3, (i) {
-          final offset = ((phase * 3 - i) % 3).clamp(0.0, 1.0);
-          return Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 1),
-            child: Opacity(
-              opacity: 0.3 + 0.7 * (1 - offset),
-              child: Container(width: 4, height: 4, decoration: const BoxDecoration(color: AppColors.muted, shape: BoxShape.circle)),
-            ),
-          );
-        }));
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: List.generate(3, (i) {
+            final offset = ((phase * 3 - i) % 3).clamp(0.0, 1.0);
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 1),
+              child: Opacity(
+                opacity: 0.3 + 0.7 * (1 - offset),
+                child: Container(
+                  width: 4,
+                  height: 4,
+                  decoration: const BoxDecoration(
+                    color: AppColors.muted,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+            );
+          }),
+        );
       },
     );
   }
@@ -1245,23 +1507,27 @@ class _ActionPreview {
   });
 
   _ActionPreview copyWith({bool? navOnly}) => _ActionPreview(
-        actionType: actionType,
-        signature: signature,
-        originalText: originalText,
-        summary: summary,
-        aiLine: aiLine,
-        amount: amount,
-        categoryCode: categoryCode,
-        actionDetails: actionDetails,
-        navOnly: navOnly ?? this.navOnly,
-      );
+    actionType: actionType,
+    signature: signature,
+    originalText: originalText,
+    summary: summary,
+    aiLine: aiLine,
+    amount: amount,
+    categoryCode: categoryCode,
+    actionDetails: actionDetails,
+    navOnly: navOnly ?? this.navOnly,
+  );
 }
 
 class _SearchResultItem {
   final int amount;
   final String note;
   final String categoryCode;
-  const _SearchResultItem({required this.amount, required this.note, required this.categoryCode});
+  const _SearchResultItem({
+    required this.amount,
+    required this.note,
+    required this.categoryCode,
+  });
 }
 
 class _SearchResultPreview {
@@ -1276,13 +1542,18 @@ class _ReportStoryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final topCats = preview.categories.take(5).toList();
-    final maxCat = topCats.isEmpty ? 1 : topCats.map((c) => c.total).reduce((a, b) => a > b ? a : b);
+    final maxCat = topCats.isEmpty
+        ? 1
+        : topCats.map((c) => c.total).reduce((a, b) => a > b ? a : b);
 
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(AppRadii.lg),
         gradient: LinearGradient(
-          colors: [AppColors.teal.withValues(alpha: 0.08), context.palette.card],
+          colors: [
+            AppColors.teal.withValues(alpha: 0.08),
+            context.palette.card,
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -1290,109 +1561,182 @@ class _ReportStoryCard extends StatelessWidget {
         boxShadow: context.palette.softShadow,
       ),
       clipBehavior: Clip.antiAlias,
-      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          color: AppColors.teal.withValues(alpha: 0.12),
-          child: Row(children: [
-            Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(color: AppColors.teal.withValues(alpha: 0.15), shape: BoxShape.circle),
-              child: const Icon(Icons.bar_chart_rounded, color: AppColors.teal, size: 16),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                preview.periodLabel,
-                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            color: AppColors.teal.withValues(alpha: 0.12),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: AppColors.teal.withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.bar_chart_rounded,
+                    color: AppColors.teal,
+                    size: 16,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    preview.periodLabel,
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
                       fontWeight: FontWeight.w700,
                       color: AppColors.teal,
                     ),
-              ),
+                  ),
+                ),
+              ],
             ),
-          ]),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(
-              preview.reportKind != null && preview.reportKind!.toUpperCase().contains('INCOME')
-                  ? formatVnd(preview.totalIncome)
-                  : formatVnd(preview.totalExpense),
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  preview.reportKind != null &&
+                          preview.reportKind!.toUpperCase().contains('INCOME')
+                      ? formatVnd(preview.totalIncome)
+                      : formatVnd(preview.totalExpense),
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.w800,
                     color: context.palette.textPrimary,
                     height: 1.1,
                   ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              preview.reportKind != null && preview.reportKind!.toUpperCase().contains('INCOME')
-                  ? 'Tổng thu nhập'
-                  : 'Tổng chi tiêu',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.muted),
-            ),
-            if (preview.reportKind != null && preview.reportKind!.toUpperCase().contains('SAVING')) ...[
-              const SizedBox(height: 4),
-              Text(
-                'Thu ${formatVnd(preview.totalIncome)} · Chi ${formatVnd(preview.totalExpense)}',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.teal),
-              ),
-            ],
-            const SizedBox(height: 4),
-            Text(
-              '${preview.transactionCount} khoản chi trong kỳ',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.muted),
-            ),
-            if (topCats.isNotEmpty) ...[
-              const SizedBox(height: 14),
-              Text('Theo danh mục', style: Theme.of(context).textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w600)),
-              const SizedBox(height: 8),
-              ...topCats.map((c) {
-                final style = CategoryTheme.of(c.categoryCode);
-                final barW = maxCat > 0 ? (c.total / maxCat).clamp(0.05, 1.0) : 0.05;
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Row(children: [
-                    SizedBox(width: 22, child: Text(style.emoji, style: const TextStyle(fontSize: 14))),
-                    Expanded(
-                      flex: 3,
-                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                          Text(style.label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                          Text('${c.percent}%', style: const TextStyle(fontSize: 11, color: AppColors.muted)),
-                        ]),
-                        const SizedBox(height: 4),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(99),
-                          child: LinearProgressIndicator(
-                            value: barW,
-                            minHeight: 5,
-                            backgroundColor: context.palette.surfaceAlt,
-                            color: style.color,
-                          ),
-                        ),
-                      ]),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  preview.reportKind != null &&
+                          preview.reportKind!.toUpperCase().contains('INCOME')
+                      ? 'Tổng thu nhập'
+                      : 'Tổng chi tiêu',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: AppColors.muted),
+                ),
+                if (preview.reportKind != null &&
+                    preview.reportKind!.toUpperCase().contains('SAVING')) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Thu ${formatVnd(preview.totalIncome)} · Chi ${formatVnd(preview.totalExpense)}',
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodySmall?.copyWith(color: AppColors.teal),
+                  ),
+                ],
+                const SizedBox(height: 4),
+                Text(
+                  '${preview.transactionCount} khoản chi trong kỳ',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: AppColors.muted),
+                ),
+                if (topCats.isNotEmpty) ...[
+                  const SizedBox(height: 14),
+                  Text(
+                    'Theo danh mục',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
                     ),
-                    const SizedBox(width: 8),
-                    Text(formatVnd(c.total), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
-                  ]),
-                );
-              }),
-            ],
-            const SizedBox(height: 4),
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton.icon(
-                onPressed: () => context.go(AppRoutes.report),
-                icon: const Icon(Icons.arrow_forward_ios, size: 12),
-                label: const Text('Xem chi tiết', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                style: TextButton.styleFrom(foregroundColor: AppColors.teal, padding: EdgeInsets.zero),
-              ),
+                  ),
+                  const SizedBox(height: 8),
+                  ...topCats.map((c) {
+                    final style = CategoryTheme.of(c.categoryCode);
+                    final barW = maxCat > 0
+                        ? (c.total / maxCat).clamp(0.05, 1.0)
+                        : 0.05;
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Row(
+                        children: [
+                          SizedBox(
+                            width: 22,
+                            child: Text(
+                              style.emoji,
+                              style: const TextStyle(fontSize: 14),
+                            ),
+                          ),
+                          Expanded(
+                            flex: 3,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      style.label,
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    Text(
+                                      '${c.percent}%',
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        color: AppColors.muted,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(99),
+                                  child: LinearProgressIndicator(
+                                    value: barW,
+                                    minHeight: 5,
+                                    backgroundColor: context.palette.surfaceAlt,
+                                    color: style.color,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            formatVnd(c.total),
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+                ],
+                const SizedBox(height: 4),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton.icon(
+                    onPressed: () => context.go(AppRoutes.report),
+                    icon: const Icon(Icons.arrow_forward_ios, size: 12),
+                    label: const Text(
+                      'Xem chi tiết',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.teal,
+                      padding: EdgeInsets.zero,
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ]),
-        ),
-      ]),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -1438,84 +1782,112 @@ class _ActionConfirmCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadii.lg),
         border: Border.all(color: accent.withValues(alpha: 0.35)),
       ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Icon(_icon, color: accent, size: 18),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              preview.summary,
-              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: accent),
-            ),
-          ),
-        ]),
-        if (preview.amount != null || preview.categoryCode != null) ...[
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: [
-              if (preview.categoryCode != null)
-                _ActionChip(
-                  icon: CategoryTheme.iconOf(preview.categoryCode!, size: 14),
-                  label: CategoryTheme.of(preview.categoryCode!).label,
-                ),
-              if (preview.amount != null)
-                _ActionChip(label: formatVnd(preview.amount!), accent: accent),
-            ],
-          ),
-        ],
-
-        const SizedBox(height: 10),
-        if (isConfirmed)
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.check_circle, color: accent, size: 16),
-              const SizedBox(width: 6),
-              Text(
-                preview.navOnly ? 'Đã mở' : 'Đã xác nhận',
-                style: TextStyle(color: accent, fontSize: 12, fontWeight: FontWeight.w600),
+              Icon(_icon, color: accent, size: 18),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  preview.summary,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                    color: accent,
+                  ),
+                ),
               ),
             ],
-          )
-        else if (isRejected)
-          const Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.cancel, color: Colors.grey, size: 16),
-              SizedBox(width: 6),
-              Text(
-                'Đã bỏ qua',
-                style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.w600),
-              ),
-            ],
-          )
-        else
-          Row(children: [
-            Expanded(
-              child: OutlinedButton(
-                onPressed: onReject,
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  side: BorderSide(color: accent.withValues(alpha: 0.5)),
-                ),
-                child: Text(preview.navOnly ? 'Để sau' : 'Bỏ qua', style: TextStyle(fontSize: 12, color: accent)),
-              ),
+          ),
+          if (preview.amount != null || preview.categoryCode != null) ...[
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                if (preview.categoryCode != null)
+                  _ActionChip(
+                    icon: CategoryTheme.iconOf(preview.categoryCode!, size: 14),
+                    label: CategoryTheme.of(preview.categoryCode!).label,
+                  ),
+                if (preview.amount != null)
+                  _ActionChip(
+                    label: formatVnd(preview.amount!),
+                    accent: accent,
+                  ),
+              ],
             ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: FilledButton(
-                onPressed: onConfirm,
-                style: FilledButton.styleFrom(
-                  backgroundColor: accent,
-                  padding: const EdgeInsets.symmetric(vertical: 8),
+          ],
+
+          const SizedBox(height: 10),
+          if (isConfirmed)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.check_circle, color: accent, size: 16),
+                const SizedBox(width: 6),
+                Text(
+                  preview.navOnly ? 'Đã mở' : 'Đã xác nhận',
+                  style: TextStyle(
+                    color: accent,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-                child: Text(preview.navOnly ? 'Mở' : 'Xác nhận', style: const TextStyle(fontSize: 12)),
-              ),
+              ],
+            )
+          else if (isRejected)
+            const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.cancel, color: Colors.grey, size: 16),
+                SizedBox(width: 6),
+                Text(
+                  'Đã bỏ qua',
+                  style: TextStyle(
+                    color: Colors.grey,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            )
+          else
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: onReject,
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      side: BorderSide(color: accent.withValues(alpha: 0.5)),
+                    ),
+                    child: Text(
+                      preview.navOnly ? 'Để sau' : 'Bỏ qua',
+                      style: TextStyle(fontSize: 12, color: accent),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: FilledButton(
+                    onPressed: onConfirm,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: accent,
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                    ),
+                    child: Text(
+                      preview.navOnly ? 'Mở' : 'Xác nhận',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ]),
-      ]),
+        ],
+      ),
     );
   }
 }
@@ -1534,10 +1906,20 @@ class _ActionChip extends StatelessWidget {
         color: (accent ?? AppColors.teal).withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(AppRadii.sm),
       ),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        if (icon != null) ...[icon!, const SizedBox(width: 4)],
-        Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: accent ?? AppColors.teal)),
-      ]),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[icon!, const SizedBox(width: 4)],
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: accent ?? AppColors.teal,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -1562,22 +1944,28 @@ class _SearchResultCard extends StatelessWidget {
           final style = CategoryTheme.of(item.categoryCode);
           return Padding(
             padding: const EdgeInsets.symmetric(vertical: 4),
-            child: Row(children: [
-              Text(style.emoji, style: const TextStyle(fontSize: 14)),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  item.note.isNotEmpty ? item.note : style.label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 12),
+            child: Row(
+              children: [
+                Text(style.emoji, style: const TextStyle(fontSize: 14)),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    item.note.isNotEmpty ? item.note : style.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 12),
+                  ),
                 ),
-              ),
-              Text(
-                '-${formatVnd(item.amount)}',
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.danger),
-              ),
-            ]),
+                Text(
+                  '-${formatVnd(item.amount)}',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.danger,
+                  ),
+                ),
+              ],
+            ),
           );
         }).toList(),
       ),
@@ -1607,229 +1995,373 @@ class _ChatBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bubbleColor = message.isUser ? AppColors.teal : context.palette.card;
-    final textColor = message.isUser ? Colors.white : context.palette.textPrimary;
-    final alignment = message.isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start;
+    final textColor = message.isUser
+        ? Colors.white
+        : context.palette.textPrimary;
+    final alignment = message.isUser
+        ? CrossAxisAlignment.end
+        : CrossAxisAlignment.start;
 
-    return Column(crossAxisAlignment: alignment, children: [
-      Container(
-        margin: EdgeInsets.only(bottom: AppSpacing.md, left: message.isUser ? 60 : 0, right: message.isUser ? 0 : 60),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: bubbleColor,
-          borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(AppRadii.lg),
-            topRight: const Radius.circular(AppRadii.lg),
-            bottomLeft: Radius.circular(message.isUser ? AppRadii.lg : 4),
-            bottomRight: Radius.circular(message.isUser ? 4 : AppRadii.lg),
+    return Column(
+      crossAxisAlignment: alignment,
+      children: [
+        Container(
+          margin: EdgeInsets.only(
+            bottom: AppSpacing.md,
+            left: message.isUser ? 60 : 0,
+            right: message.isUser ? 0 : 60,
           ),
-          boxShadow: message.isUser ? null : const [BoxShadow(color: Color(0x12000000), blurRadius: 6, offset: Offset(0, 4))],
-        ),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          if (message.text.isNotEmpty) ...[
-            Text(message.text, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: textColor)),
-            if (!message.isUser && message.chatEmotion != null) ...[
-              const SizedBox(height: 6),
-              _ChatEmotionSticker(emotionAsset: message.chatEmotion!),
-            ],
-          ] else if (!message.isUser && message.chatEmotion != null) ...[
-            _ChatEmotionSticker(emotionAsset: message.chatEmotion!),
-          ],
-          // Report story card
-          if (message.reportPreview != null) ...[
-            if (message.text.isNotEmpty || message.chatEmotion != null)
-              const SizedBox(height: 8),
-            _ReportStoryCard(preview: message.reportPreview!),
-          ],
-          // Action confirm/reject card
-          if (message.actionPreview != null) ...[
-            if (message.text.isNotEmpty || message.chatEmotion != null)
-              const SizedBox(height: 8),
-            _ActionConfirmCard(
-              preview: message.actionPreview!,
-              isConfirmed: message.isConfirmed,
-              isRejected: message.isRejected,
-              onConfirm: () => onConfirmAction?.call(message),
-              onReject: () => onRejectAction?.call(message),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: bubbleColor,
+            borderRadius: BorderRadius.only(
+              topLeft: const Radius.circular(AppRadii.lg),
+              topRight: const Radius.circular(AppRadii.lg),
+              bottomLeft: Radius.circular(message.isUser ? AppRadii.lg : 4),
+              bottomRight: Radius.circular(message.isUser ? 4 : AppRadii.lg),
             ),
-          ],
-          if (message.searchPreview != null) ...[
-            _SearchResultCard(preview: message.searchPreview!),
-          ],
-          // Transaction preview card
-          if (message.txPreview != null) ...[
-            if (message.text.isNotEmpty || message.chatEmotion != null)
-              const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF0FDFB),
-                borderRadius: BorderRadius.circular(AppRadii.md),
-                border: Border.all(color: AppColors.teal.withValues(alpha: 0.3)),
-              ),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Row(children: [
-                  const Icon(Icons.receipt_long, color: AppColors.teal, size: 16),
-                  const SizedBox(width: 6),
-                  Text(message.txPreview!.category, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
-                  const Spacer(),
-                  Text(
-                    '${message.txPreview!.recordType == 'Income' ? '+' : '-'}${formatVnd(message.txPreview!.amount)}',
-                    style: TextStyle(
-                      color: message.txPreview!.recordType == 'Income' ? const Color(0xFF22C55E) : AppColors.danger,
-                      fontWeight: FontWeight.w700, fontSize: 14)),
-                ]),
-                if (message.txPreview!.note.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Text(message.txPreview!.note, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.muted)),
-                ],
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () => onEditTxCategory?.call(message),
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          side: const BorderSide(color: AppColors.teal),
-                        ),
-                        child: const Text(
-                          '✏️ Chỉnh sửa',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.teal,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: FilledButton(
-                        onPressed: message.isSaved ? null : () => onSaveTx?.call(message),
-                        style: FilledButton.styleFrom(
-                          backgroundColor: message.isSaved ? Colors.grey : AppColors.teal,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                        ),
-                        child: Text(message.isSaved ? '✓ Đã lưu' : '💾 Lưu'),
-                      ),
+            boxShadow: message.isUser
+                ? null
+                : const [
+                    BoxShadow(
+                      color: Color(0x12000000),
+                      blurRadius: 6,
+                      offset: Offset(0, 4),
                     ),
                   ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (message.text.isNotEmpty) ...[
+                Text(
+                  message.text,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyMedium?.copyWith(color: textColor),
                 ),
-              ]),
-            ),
-          ],
-          // Multi-transaction preview card
-          if (message.multiRecords != null && message.multiRecords!.isNotEmpty) ...[
-            if (message.text.isNotEmpty || message.chatEmotion != null)
-              const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF0FDFB),
-                borderRadius: BorderRadius.circular(AppRadii.md),
-                border: Border.all(color: AppColors.teal.withValues(alpha: 0.3)),
-              ),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Row(children: [
-                  const Icon(Icons.playlist_add_check_rounded, color: AppColors.teal, size: 18),
-                  const SizedBox(width: 6),
-                  Text(
-                    '${message.multiRecords!.length} giao dịch được nhận dạng',
-                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: AppColors.teal)
-                  ),
-                ]),
-                const SizedBox(height: 8),
-                ...message.multiRecords!.map((record) {
-                  final style = CategoryTheme.of(record.category);
-                  return Container(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(AppRadii.sm),
-                      border: Border.all(color: Colors.grey.shade200),
+                if (!message.isUser && message.chatEmotion != null) ...[
+                  const SizedBox(height: 6),
+                  _ChatEmotionSticker(emotionAsset: message.chatEmotion!),
+                ],
+              ] else if (!message.isUser && message.chatEmotion != null) ...[
+                _ChatEmotionSticker(emotionAsset: message.chatEmotion!),
+              ],
+              // Report story card
+              if (message.reportPreview != null) ...[
+                if (message.text.isNotEmpty || message.chatEmotion != null)
+                  const SizedBox(height: 8),
+                _ReportStoryCard(preview: message.reportPreview!),
+              ],
+              // Action confirm/reject card
+              if (message.actionPreview != null) ...[
+                if (message.text.isNotEmpty || message.chatEmotion != null)
+                  const SizedBox(height: 8),
+                _ActionConfirmCard(
+                  preview: message.actionPreview!,
+                  isConfirmed: message.isConfirmed,
+                  isRejected: message.isRejected,
+                  onConfirm: () => onConfirmAction?.call(message),
+                  onReject: () => onRejectAction?.call(message),
+                ),
+              ],
+              if (message.searchPreview != null) ...[
+                _SearchResultCard(preview: message.searchPreview!),
+              ],
+              // Transaction preview card
+              if (message.txPreview != null) ...[
+                if (message.text.isNotEmpty || message.chatEmotion != null)
+                  const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF0FDFB),
+                    borderRadius: BorderRadius.circular(AppRadii.md),
+                    border: Border.all(
+                      color: AppColors.teal.withValues(alpha: 0.3),
                     ),
-                    child: Row(children: [
-                      Text(style.emoji, style: const TextStyle(fontSize: 16)),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              style.label,
-                              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.receipt_long,
+                            color: AppColors.teal,
+                            size: 16,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            message.txPreview!.category,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 12,
                             ),
-                            if (record.note.isNotEmpty)
-                              Text(
-                                record.note,
-                                style: const TextStyle(fontSize: 11, color: Colors.grey),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                          ],
-                        ),
+                          ),
+                          const Spacer(),
+                          Text(
+                            '${message.txPreview!.recordType == 'Income' ? '+' : '-'}${formatVnd(message.txPreview!.amount)}',
+                            style: TextStyle(
+                              color: message.txPreview!.recordType == 'Income'
+                                  ? const Color(0xFF22C55E)
+                                  : AppColors.danger,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
                       ),
-                      Text(
-                        '${record.recordType == 'Income' ? '+' : '-'}${formatVnd(record.amount)}',
-                        style: TextStyle(
-                          color: record.recordType == 'Income' ? const Color(0xFF22C55E) : AppColors.danger,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 12,
-                        ),
-                      ),
-                      if (!message.isSaved) ...[
-                        const SizedBox(width: 6),
-                        GestureDetector(
-                          onTap: () => onEditTxPreview?.call(message, record),
-                          child: const Icon(Icons.edit_outlined, size: 16, color: AppColors.teal),
+                      if (message.txPreview!.note.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          message.txPreview!.note,
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(color: AppColors.muted),
                         ),
                       ],
-                    ]),
-                  );
-                }),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Expanded(
-                      child: FilledButton(
-                        onPressed: message.isSaved ? null : () => onSaveMultiTx?.call(message),
-                        style: FilledButton.styleFrom(
-                          backgroundColor: message.isSaved ? Colors.grey : AppColors.teal,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                        ),
-                        child: Text(message.isSaved ? '✓ Đã lưu tất cả' : '💾 Lưu tất cả'),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: () =>
+                                  onEditTxCategory?.call(message),
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 8,
+                                ),
+                                side: const BorderSide(color: AppColors.teal),
+                              ),
+                              child: const Text(
+                                '✏️ Chỉnh sửa',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.teal,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: message.isSaved
+                                ? OutlinedButton(
+                                    onPressed: null,
+                                    style: OutlinedButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 8,
+                                      ),
+                                      side: BorderSide(
+                                        color: AppColors.muted.withValues(
+                                          alpha: 0.3,
+                                        ),
+                                      ),
+                                    ),
+                                    child: const Text(
+                                      '✓ Đã lưu',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColors.muted,
+                                      ),
+                                    ),
+                                  )
+                                : FilledButton(
+                                    onPressed: () => onSaveTx?.call(message),
+                                    style: FilledButton.styleFrom(
+                                      backgroundColor: AppColors.teal,
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 8,
+                                      ),
+                                      textStyle: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    child: const Text('💾 Lưu'),
+                                  ),
+                          ),
+                        ],
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ]),
-            ),
-          ],
-          const SizedBox(height: 6),
-          Text(message.time, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: textColor.withValues(alpha: 0.7))),
-        ]),
-      ),
-    ]);
+              ],
+              // Multi-transaction preview card
+              if (message.multiRecords != null &&
+                  message.multiRecords!.isNotEmpty) ...[
+                if (message.text.isNotEmpty || message.chatEmotion != null)
+                  const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF0FDFB),
+                    borderRadius: BorderRadius.circular(AppRadii.md),
+                    border: Border.all(
+                      color: AppColors.teal.withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.playlist_add_check_rounded,
+                            color: AppColors.teal,
+                            size: 18,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            '${message.multiRecords!.length} giao dịch được nhận dạng',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13,
+                              color: AppColors.teal,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      ...message.multiRecords!.map((record) {
+                        final style = CategoryTheme.of(record.category);
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(AppRadii.sm),
+                            border: Border.all(color: Colors.grey.shade200),
+                          ),
+                          child: Row(
+                            children: [
+                              Text(
+                                style.emoji,
+                                style: const TextStyle(fontSize: 16),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      style.label,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                    if (record.note.isNotEmpty)
+                                      Text(
+                                        record.note,
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          color: Colors.grey,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                  ],
+                                ),
+                              ),
+                              Text(
+                                '${record.recordType == 'Income' ? '+' : '-'}${formatVnd(record.amount)}',
+                                style: TextStyle(
+                                  color: record.recordType == 'Income'
+                                      ? const Color(0xFF22C55E)
+                                      : AppColors.danger,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 12,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              GestureDetector(
+                                onTap: () =>
+                                    onEditTxPreview?.call(message, record),
+                                child: const Icon(
+                                  Icons.edit_outlined,
+                                  size: 16,
+                                  color: AppColors.teal,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: message.isSaved
+                                ? OutlinedButton(
+                                    onPressed: null,
+                                    style: OutlinedButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 8,
+                                      ),
+                                      side: BorderSide(
+                                        color: AppColors.muted.withValues(
+                                          alpha: 0.3,
+                                        ),
+                                      ),
+                                    ),
+                                    child: const Text(
+                                      '✓ Đã lưu',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColors.muted,
+                                      ),
+                                    ),
+                                  )
+                                : FilledButton(
+                                    onPressed: () => onSaveMultiTx?.call(message),
+                                    style: FilledButton.styleFrom(
+                                      backgroundColor: AppColors.teal,
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 8,
+                                      ),
+                                      textStyle: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    child: const Text('💾 Lưu'),
+                                  ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              const SizedBox(height: 6),
+              Text(
+                message.time,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: textColor.withValues(alpha: 0.7),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 }
 
 class _ChatComposer extends StatelessWidget {
   final TextEditingController controller;
   final VoidCallback onSend;
-  final VoidCallback onVoice;
-  final bool voiceListening;
-  final bool voiceAvailable;
   const _ChatComposer({
     required this.controller,
     required this.onSend,
-    required this.onVoice,
-    this.voiceListening = false,
-    this.voiceAvailable = false,
   });
 
   @override
@@ -1838,78 +2370,55 @@ class _ChatComposer extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
       decoration: BoxDecoration(
         color: context.palette.card,
-        boxShadow: const [BoxShadow(color: Color(0x14000000), blurRadius: 10, offset: Offset(0, -4))],
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x14000000),
+            blurRadius: 10,
+            offset: Offset(0, -4),
+          ),
+        ],
       ),
-      child: Row(children: [
-        if (voiceAvailable)
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+                    controller: controller,
+                    textInputAction: TextInputAction.send,
+                    onSubmitted: (_) => onSend(),
+                    decoration: InputDecoration(
+                      hintText: 'Nhắn tin cho Mimo...',
+                      filled: true,
+                      fillColor: context.palette.surfaceAlt,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(AppRadii.lg),
+                        borderSide: BorderSide.none,
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(AppRadii.lg),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                  ),
+          ),
+          const SizedBox(width: 8),
           Container(
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: voiceListening ? AppColors.danger.withValues(alpha: 0.15) : context.palette.surfaceAlt,
+              color: AppColors.teal.withValues(alpha: 0.15),
               shape: BoxShape.circle,
             ),
             child: IconButton(
-              onPressed: onVoice,
-              icon: Icon(
-                voiceListening ? Icons.stop_rounded : Icons.mic_none_rounded,
-                color: voiceListening ? AppColors.danger : AppColors.muted,
-                size: 22,
-              ),
+              onPressed: onSend,
+              icon: const Icon(Icons.send, color: AppColors.teal, size: 18),
             ),
           ),
-        if (voiceAvailable) const SizedBox(width: 8),
-        const SizedBox(width: 8),
-        Expanded(
-          child: voiceListening
-              ? Container(
-                  height: 44,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  decoration: BoxDecoration(
-                    color: context.palette.surfaceAlt,
-                    borderRadius: BorderRadius.circular(AppRadii.lg),
-                  ),
-                  child: const Row(
-                    children: [
-                      Text(
-                        'Đang nghe...',
-                        style: TextStyle(
-                          color: AppColors.danger,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13,
-                        ),
-                      ),
-                      Spacer(),
-                      WaveformVisualizer(
-                        isAnimating: true,
-                        color: AppColors.danger,
-                        height: 24,
-                        width: 60,
-                      ),
-                    ],
-                  ),
-                )
-              : TextField(
-                  controller: controller,
-                  textInputAction: TextInputAction.send,
-                  onSubmitted: (_) => onSend(),
-                  decoration: InputDecoration(
-                    hintText: 'Nhắn tin cho Mimo...',
-                    filled: true,
-                    fillColor: context.palette.surfaceAlt,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadii.lg), borderSide: BorderSide.none),
-                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadii.lg), borderSide: BorderSide.none),
-                  ),
-                ),
-        ),
-        const SizedBox(width: 8),
-        Container(
-          width: 44, height: 44,
-          decoration: BoxDecoration(color: AppColors.teal.withValues(alpha: 0.15), shape: BoxShape.circle),
-          child: IconButton(onPressed: onSend, icon: const Icon(Icons.send, color: AppColors.teal, size: 18)),
-        ),
-      ]),
+        ],
+      ),
     );
   }
 }

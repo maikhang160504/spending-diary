@@ -611,7 +611,7 @@ class _TotalCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFECFDF5),
+                    color: totalExpense < totalIncome ? const Color(0xFFECFDF5) : const Color(0xFFFEF2F2),
                     borderRadius: BorderRadius.circular(999),
                   ),
                   child: Row(children: [

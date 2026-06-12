@@ -895,7 +895,7 @@ class _TransactionStoryCard extends StatelessWidget {
 
   String _formatTime(String isoDate) {
     try {
-      final dt = DateTime.parse(isoDate);
+      final dt = DateTime.parse(isoDate).toLocal();
       return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')} ${dt.day}/${dt.month}';
     } catch (_) {
       return '';
@@ -918,7 +918,7 @@ class _StoryGalleryCard extends StatelessWidget {
     String dateStr = '';
     if (occurredOn.isNotEmpty) {
       try {
-        final dt = DateTime.parse(occurredOn);
+        final dt = DateTime.parse(occurredOn).toLocal();
         dateStr = '${dt.day.toString().padLeft(2, '0')}-${dt.month.toString().padLeft(2, '0')}';
       } catch (_) {}
     }
@@ -1049,7 +1049,7 @@ class _InlineCalendarViewState extends State<_InlineCalendarView> {
               final dateStr = tx['occurredAt'] as String? ?? tx['occurred_at'] as String? ?? tx['createdAt'] as String? ?? tx['created_at'] as String? ?? '';
               if (dateStr.isEmpty) return false;
               try {
-                final dt = DateTime.parse(dateStr);
+                final dt = DateTime.parse(dateStr).toLocal();
                 return dt.year == _focus.year && dt.month == _focus.month && dt.day == day;
               } catch (_) {
                 return false;
@@ -1086,7 +1086,7 @@ class _InlineCalendarViewState extends State<_InlineCalendarView> {
             final dateStr = tx['occurredAt'] as String? ?? tx['occurred_at'] as String? ?? tx['createdAt'] as String? ?? tx['created_at'] as String? ?? '';
             if (dateStr.isEmpty) return false;
             try {
-              final dt = DateTime.parse(dateStr);
+              final dt = DateTime.parse(dateStr).toLocal();
               return dt.year == _focus.year && dt.month == _focus.month && dt.day == _selectedDay;
             } catch (_) {
               return false;
@@ -1096,7 +1096,7 @@ class _InlineCalendarViewState extends State<_InlineCalendarView> {
               final ds = t['occurredAt'] as String? ?? t['occurred_at'] as String? ?? t['createdAt'] as String? ?? t['created_at'] as String? ?? '';
               if (ds.isEmpty) return false;
               try {
-                final d = DateTime.parse(ds);
+                final d = DateTime.parse(ds).toLocal();
                 return d.year == _focus.year && d.month == _focus.month && d.day == _selectedDay;
               } catch (_) { return false; }
             }).map<String>((t) => (t['storyId'] as String?) ?? (t['story_id'] as String?) ?? (t['id'] as String?) ?? '').where((e) => e.isNotEmpty).toList();

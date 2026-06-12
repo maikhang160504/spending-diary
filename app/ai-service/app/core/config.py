@@ -45,7 +45,7 @@ class Settings(BaseSettings):
     ocr_weights_path: str = Field(default="")
 
     gemini_api_key: str | None = Field(default=None, alias="GEMINI_API_KEY")
-    gemini_model: str = Field(default="gemini-3-flash")
+    gemini_model: str = Field(default="gemini-2.5-flash")
     run_llm: bool = Field(default=False)
 
     api_key: str | None = Field(

@@ -588,6 +588,14 @@ async function executeAction(userId, payload) {
     return executeSuggestBudget(userId, payload);
   }
   if (type === 'SETTING' || type === 'SYSTEM_SETTING') {
+    const normText = _norm(payload.text || '');
+    if (/\b(toi|dark|dem|night|den)\b/.test(normText)) {
+      await settingsService.update(userId, { themeMode: true });
+      return { kind: 'theme', themeMode: true, message: '✅ Đã chuyển sang giao diện tối!' };
+    } else if (/\b(sang|light|day|trang)\b/.test(normText)) {
+      await settingsService.update(userId, { themeMode: false });
+      return { kind: 'theme', themeMode: false, message: '✅ Đã chuyển sang giao diện sáng!' };
+    }
     return { kind: 'navigate', navigate: 'settings', message: '⚙️ Mở màn hình cài đặt.' };
   }
   if (type === 'SET_USERNAME') {

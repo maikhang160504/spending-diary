@@ -21,7 +21,7 @@ void main() {
       await tester.tap(loginBtn);
       await tester.pump();
 
-      expect(find.textContaining('email'), findsOneWidget);
+      expect(find.text('Vui lòng nhập email và mật khẩu'), findsOneWidget);
     });
 
     testWidgets('toggle password visibility button is present', (tester) async {

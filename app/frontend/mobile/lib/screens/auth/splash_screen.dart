@@ -34,7 +34,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   @override
   void initState() {
     super.initState();
-    _master = AnimationController(vsync: this, duration: const Duration(milliseconds: 2800));
+    _master = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200));
 
     // Logo: scale nhẹ từ 0.85 → 1.0, giữ nguyên không biến mất
     _logoScale = TweenSequence<double>([
@@ -87,17 +87,21 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   }
 
   Future<void> _navigate() async {
-    // Animation ~2.8s + giữ ~0.5s
-    await Future.delayed(const Duration(milliseconds: 3300));
+    // Start authentication and onboarding checks in parallel
+    final api = ApiClient();
+    final loggedInFuture = api.isLoggedIn;
+    final bypassedFuture = api.checkOnboardingBypassed();
+
+    // Minimum delay to let the logo animation play cleanly
+    await Future.delayed(const Duration(milliseconds: 1500));
     if (!mounted) return;
 
-    final api = ApiClient();
-    final loggedIn = await api.isLoggedIn;
+    final loggedIn = await loggedInFuture;
     if (!mounted) return;
 
     if (loggedIn) {
       try {
-        final bypassed = await api.checkOnboardingBypassed();
+        final bypassed = await bypassedFuture;
         if (!mounted) return;
         if (bypassed) {
           context.go(AppRoutes.home);

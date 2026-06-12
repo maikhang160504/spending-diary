@@ -9,7 +9,13 @@ import 'push_notification_service.dart';
 
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  try {
+    if (Firebase.apps.isEmpty) {
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+    }
+  } catch (_) {}
   await PushNotificationService.instance.initialize();
   await PushNotificationService.instance.showFromRemoteMessage(message);
 }
@@ -26,8 +32,7 @@ class FcmService {
   bool _initialized = false;
   String? _currentToken;
 
-  bool get isSupported =>
-      !kIsWeb && (Platform.isAndroid || Platform.isIOS);
+  bool get isSupported => !kIsWeb && (Platform.isAndroid || Platform.isIOS);
 
   Future<void> initialize({
     required Future<void> Function(String token, String platform) registerToken,
@@ -41,22 +46,22 @@ class FcmService {
     _onDeepLink = onDeepLink;
 
     try {
-      await Firebase.initializeApp(
-        options: DefaultFirebaseOptions.currentPlatform,
-      );
+      if (Firebase.apps.isEmpty) {
+        await Firebase.initializeApp(
+          options: DefaultFirebaseOptions.currentPlatform,
+        );
+      }
     } catch (e) {
       debugPrint('[FCM] Firebase init failed: $e');
-      return;
+      if (Firebase.apps.isEmpty) {
+        return;
+      }
     }
 
     _messaging = FirebaseMessaging.instance;
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
-    await _messaging!.requestPermission(
-      alert: true,
-      badge: true,
-      sound: true,
-    );
+    await _messaging!.requestPermission(alert: true, badge: true, sound: true);
 
     FirebaseMessaging.onMessage.listen(_onForegroundMessage);
     FirebaseMessaging.onMessageOpenedApp.listen(_onMessageOpened);

@@ -8,6 +8,7 @@ const logger = require('./config/logger');
 const { ping, pool } = require('./config/db');
 const { attachWsServer } = require('./services/wsHub');
 const { startScheduler, stopScheduler } = require('./modules/recurring/recurring.scheduler');
+const { startNotificationScheduler, stopNotificationScheduler } = require('./modules/fcm/notification.scheduler');
 
 async function start() {
   if (env.database.url) {
@@ -28,11 +29,13 @@ async function start() {
     );
     attachWsServer(server);
     startScheduler(); // Start checking for due recurring transaction rules
+    startNotificationScheduler(); // Start checking for due dynamic story prompts
   });
 
   const shutdown = async (signal) => {
     logger.info({ signal }, 'shutting down');
     stopScheduler(); // Stop scheduler before closing DB connection pool
+    stopNotificationScheduler(); // Stop notification scheduler
     server.close(() => {
       pool.end().finally(() => process.exit(0));
     });

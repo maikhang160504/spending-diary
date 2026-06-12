@@ -29,6 +29,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   String _tab = 'Story';
   String? _selectedWalletId;
+  String? _currentUserId;
 
   // API data
   bool _loading = true;
@@ -64,7 +65,10 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _loadData() async {
     // Nếu đã có cache thì không hiện skeleton (tránh chớp khi quay lại màn hình).
     final hasCache = AppQueries.wallets().state.data != null;
-    setState(() { _loading = !hasCache; _error = null; });
+    setState(() {
+      _loading = !hasCache;
+      _error = null;
+    });
     try {
       final meState = await AppQueries.me().result;
       final walletsState = await AppQueries.wallets().result;
@@ -78,17 +82,26 @@ class _HomeScreenState extends State<HomeScreen> {
         return 0;
       });
 
-      final failed = walletsState.status == QueryStatus.error && walletsState.data == null;
+      final failed =
+          walletsState.status == QueryStatus.error && walletsState.data == null;
       if (failed) {
         setState(() => _error = 'Không thể tải dữ liệu');
         return;
       }
 
       _userName = (me['user']?['username'] as String?) ?? 'bạn';
-      _userAvatar = me['user']?['avatarUrl'] as String? ?? me['user']?['avatar_url'] as String?;
+      _userAvatar =
+          me['user']?['avatarUrl'] as String? ??
+          me['user']?['avatar_url'] as String?;
+      _currentUserId = me['user']?['id'] as String?;
       _wallets = walletsList;
       AppQueries.streak().result.then((s) {
-        if (mounted) setState(() => _streakDays = (s.data?['currentStreak'] as num?)?.toInt() ?? 0);
+        if (mounted) {
+          setState(
+            () =>
+                _streakDays = (s.data?['currentStreak'] as num?)?.toInt() ?? 0,
+          );
+        }
       });
       if (_selectedWalletId == null && walletsList.isNotEmpty) {
         _selectedWalletId = walletsList[0]['id'] as String?;
@@ -136,13 +149,118 @@ class _HomeScreenState extends State<HomeScreen> {
   void _onWalletTap(dynamic wallet) async {
     final walletType = wallet['type'] as String?;
     if (walletType == 'group') {
-      await context.push(AppRoutes.shareWallet, extra: {'walletId': wallet['id'] as String? ?? ''});
+      await context.push(
+        AppRoutes.shareWallet,
+        extra: {'walletId': wallet['id'] as String? ?? ''},
+      );
       ApiClient.lastSelectedWalletId = _selectedWalletId;
       return;
     }
     setState(() => _selectedWalletId = wallet['id'] as String?);
     ApiClient.lastSelectedWalletId = _selectedWalletId;
     _loadWalletData();
+  }
+
+  Future<void> _deleteWallet(dynamic wallet) async {
+    final wId = wallet['id'] as String;
+    final wName = wallet['name'] as String? ?? 'Ví';
+
+    // Check ownership
+    final memberRole =
+        wallet['memberRole'] as String? ?? wallet['member_role'] as String?;
+    final ownerId =
+        wallet['ownerId'] as String? ?? wallet['owner_id'] as String?;
+    final isOwner =
+        memberRole == 'owner' || (ownerId != null && ownerId == _currentUserId);
+
+    if (!isOwner) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Bạn không thể xóa ví này vì bạn không phải chủ sở hữu.',
+          ),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        final palette = ctx.palette;
+        return AlertDialog(
+          backgroundColor: palette.card,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadii.lg),
+          ),
+          title: Text(
+            'Xóa ví',
+            style: TextStyle(
+              color: palette.textPrimary,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          content: Text(
+            'Bạn có chắc chắn muốn xóa ví "$wName" không?',
+            style: TextStyle(color: palette.textSecondary),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(
+                'Hủy',
+                style: TextStyle(
+                  color: palette.muted,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
+              child: const Text(
+                'Xóa',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirm != true) return;
+
+    setState(() => _loading = true);
+    try {
+      final api = ApiClient();
+      await api.deleteWallet(wId);
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Đã xóa ví "$wName" thành công ✓'),
+          backgroundColor: AppColors.teal,
+        ),
+      );
+
+      AppQueries.invalidateWalletData();
+      if (_selectedWalletId == wId) {
+        _selectedWalletId = null;
+      }
+      await _loadData();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Không thể xóa ví: ${e.toString()}'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
   Future<void> _onCreateWallet() async {
@@ -172,10 +290,16 @@ class _HomeScreenState extends State<HomeScreen> {
           final palette = ctx.palette;
           return AlertDialog(
             backgroundColor: palette.card,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadii.lg)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppRadii.lg),
+            ),
             title: Text(
               'Nhập mã mời ví',
-              style: TextStyle(color: palette.textPrimary, fontWeight: FontWeight.w800, fontSize: 18),
+              style: TextStyle(
+                color: palette.textPrimary,
+                fontWeight: FontWeight.w800,
+                fontSize: 18,
+              ),
             ),
             content: Column(
               mainAxisSize: MainAxisSize.min,
@@ -191,12 +315,19 @@ class _HomeScreenState extends State<HomeScreen> {
                   maxLength: 6,
                   autofocus: true,
                   textCapitalization: TextCapitalization.characters,
-                  style: TextStyle(color: palette.textPrimary, fontWeight: FontWeight.w600, fontSize: 16),
+                  style: TextStyle(
+                    color: palette.textPrimary,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 16,
+                  ),
                   decoration: InputDecoration(
                     hintText: 'VD: A1B2C3',
                     counterText: '',
                     errorText: errorMsg,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 12,
+                    ),
                   ),
                 ),
               ],
@@ -204,7 +335,13 @@ class _HomeScreenState extends State<HomeScreen> {
             actions: [
               TextButton(
                 onPressed: loading ? null : () => Navigator.pop(ctx),
-                child: Text('Hủy', style: TextStyle(color: palette.muted, fontWeight: FontWeight.w600)),
+                child: Text(
+                  'Hủy',
+                  style: TextStyle(
+                    color: palette.muted,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
               FilledButton(
                 onPressed: loading
@@ -212,7 +349,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     : () async {
                         final code = codeCtrl.text.trim();
                         if (code.length != 6) {
-                          setDialogState(() => errorMsg = 'Mã mời phải đúng 6 ký tự.');
+                          setDialogState(
+                            () => errorMsg = 'Mã mời phải đúng 6 ký tự.',
+                          );
                           return;
                         }
                         setDialogState(() {
@@ -223,10 +362,10 @@ class _HomeScreenState extends State<HomeScreen> {
                           final api = ApiClient();
                           final newWallet = await api.joinWalletByCode(code);
                           if (!mounted) return;
-                          
+
                           AppQueries.invalidateWalletData();
                           await _loadData();
-                          
+
                           if (mounted && ctx.mounted) {
                             setState(() {
                               _selectedWalletId = newWallet['id'] as String?;
@@ -235,7 +374,9 @@ class _HomeScreenState extends State<HomeScreen> {
                             Navigator.pop(ctx);
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                content: Text('Đã tham gia ví "${newWallet['name']}" thành công!'),
+                                content: Text(
+                                  'Đã tham gia ví "${newWallet['name']}" thành công!',
+                                ),
                                 backgroundColor: AppColors.teal,
                               ),
                             );
@@ -254,15 +395,23 @@ class _HomeScreenState extends State<HomeScreen> {
                       },
                 style: FilledButton.styleFrom(
                   backgroundColor: AppColors.teal,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadii.md)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppRadii.md),
+                  ),
                 ),
                 child: loading
                     ? const SizedBox(
                         width: 16,
                         height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
                       )
-                    : const Text('Tham gia', style: TextStyle(fontWeight: FontWeight.w700)),
+                    : const Text(
+                        'Tham gia',
+                        style: TextStyle(fontWeight: FontWeight.w700),
+                      ),
               ),
             ],
           );
@@ -273,7 +422,15 @@ class _HomeScreenState extends State<HomeScreen> {
 
   String _formattedDate() {
     final now = DateTime.now();
-    const weekdays = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
+    const weekdays = [
+      'Chủ Nhật',
+      'Thứ Hai',
+      'Thứ Ba',
+      'Thứ Tư',
+      'Thứ Năm',
+      'Thứ Sáu',
+      'Thứ Bảy',
+    ];
     return '${weekdays[now.weekday % 7]}, ${now.day} tháng ${now.month.toString().padLeft(2, '0')} ${now.year}';
   }
 
@@ -320,6 +477,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       expense: _totalExpense,
                       tab: _tab,
                       onWalletTap: _onWalletTap,
+                      onWalletLongPress: _deleteWallet,
                       onTabChanged: (t) => setState(() => _tab = t),
                       onStreakTap: () => context.push(AppRoutes.streak),
                       onCreateWallet: _onCreateWallet,
@@ -327,7 +485,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                   if (_error != null)
-                    SliverToBoxAdapter(child: ErrorBanner(message: _error!, onRetry: _loadData)),
+                    SliverToBoxAdapter(
+                      child: ErrorBanner(message: _error!, onRetry: _loadData),
+                    ),
                   const SliverToBoxAdapter(child: SizedBox(height: 16)),
                   // Draft Reminder Banner — ghim trên Timeline nếu có giao dịch chờ
                   if (_draftTransactions.isNotEmpty)
@@ -347,15 +507,22 @@ class _HomeScreenState extends State<HomeScreen> {
               right: AppSpacing.xxl,
               bottom: 24,
               child: GestureDetector(
-                onTap: () => context.push(AppRoutes.chat, extra: {'walletId': _selectedWalletId}),
+                onTap: () => context.push(
+                  AppRoutes.chat,
+                  extra: {'walletId': _selectedWalletId},
+                ),
                 child: Container(
-                  height: 48, width: 48,
+                  height: 48,
+                  width: 48,
                   decoration: BoxDecoration(
                     color: context.palette.card,
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: context.palette.cardShadow,
                   ),
-                  child: const Icon(Icons.chat_bubble_outline_rounded, color: AppColors.teal),
+                  child: const Icon(
+                    Icons.chat_bubble_outline_rounded,
+                    color: AppColors.teal,
+                  ),
                 ),
               ),
             ),
@@ -382,37 +549,58 @@ class _HomeScreenState extends State<HomeScreen> {
     if (_tab == 'Story') {
       if (_transactions.isEmpty) {
         return [
-          SliverToBoxAdapter(child: EmptyState(
-            emoji: '📝',
-            title: 'Chưa có giao dịch nào',
-            subtitle: 'Thêm giao dịch đầu tiên bằng cách chụp bill hoặc nhập tay',
-          )),
+          SliverToBoxAdapter(
+            child: EmptyState(
+              emoji: '📝',
+              title: 'Chưa có giao dịch nào',
+              subtitle:
+                  'Thêm giao dịch đầu tiên bằng cách chụp bill hoặc nhập tay',
+            ),
+          ),
         ];
       }
       final navIds = _transactions
-          .map<String>((t) => (t['storyId'] as String?) ?? (t['story_id'] as String?) ?? (t['id'] as String?) ?? '')
+          .map<String>(
+            (t) =>
+                (t['storyId'] as String?) ??
+                (t['story_id'] as String?) ??
+                (t['id'] as String?) ??
+                '',
+          )
           .where((e) => e.isNotEmpty)
           .toList();
       return [
         SliverList(
           delegate: SliverChildBuilderDelegate(
-            (ctx, i) => _TransactionStoryCard(tx: _transactions[i], allStoryIds: navIds, fallbackUserAvatar: _userAvatar),
+            (ctx, i) => _TransactionStoryCard(
+              tx: _transactions[i],
+              allStoryIds: navIds,
+              fallbackUserAvatar: _userAvatar,
+            ),
             childCount: _transactions.length,
           ),
         ),
       ];
     }
     if (_tab == 'Gallery') {
-      final galleryStories = _stories.where((s) =>
-        (s['cover_image_url'] as String? ?? s['coverImageUrl'] as String? ?? '').isNotEmpty
-      ).toList();
+      final galleryStories = _stories
+          .where(
+            (s) =>
+                (s['cover_image_url'] as String? ??
+                        s['coverImageUrl'] as String? ??
+                        '')
+                    .isNotEmpty,
+          )
+          .toList();
       if (galleryStories.isEmpty) {
         return [
-          SliverToBoxAdapter(child: EmptyState(
-            emoji: '📸',
-            title: 'Chưa có story nào',
-            subtitle: 'Chụp bill để lưu ảnh vào gallery',
-          )),
+          SliverToBoxAdapter(
+            child: EmptyState(
+              emoji: '📸',
+              title: 'Chưa có story nào',
+              subtitle: 'Chụp bill để lưu ảnh vào gallery',
+            ),
+          ),
         ];
       }
       final galleryIds = galleryStories
@@ -443,7 +631,11 @@ class _HomeScreenState extends State<HomeScreen> {
     }
     if (_tab == 'Calendar') {
       final byDay = (_dashboard['byDay'] as List<dynamic>?) ?? [];
-      return [SliverToBoxAdapter(child: _InlineCalendarView(byDay: byDay, transactions: _transactions))];
+      return [
+        SliverToBoxAdapter(
+          child: _InlineCalendarView(byDay: byDay, transactions: _transactions),
+        ),
+      ];
     }
     return [];
   }
@@ -475,12 +667,16 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSheetState) => Padding(
-          padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(ctx).viewInsets.bottom,
+          ),
           child: Container(
             padding: const EdgeInsets.all(AppSpacing.xl),
             decoration: BoxDecoration(
               color: ctx.palette.card,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadii.xl)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(AppRadii.xl),
+              ),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -499,23 +695,33 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(height: 16),
                 Text(
                   'Bổ sung số tiền',
-                  style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                  style: Theme.of(ctx).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
                 const SizedBox(height: 6),
                 Text(
                   'Điền số tiền còn thiếu cho "$label"',
-                  style: Theme.of(ctx).textTheme.bodySmall?.copyWith(color: AppColors.muted),
+                  style: Theme.of(
+                    ctx,
+                  ).textTheme.bodySmall?.copyWith(color: AppColors.muted),
                 ),
                 const SizedBox(height: 16),
                 TextField(
                   controller: amountCtrl,
                   keyboardType: TextInputType.number,
                   autofocus: true,
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
                   decoration: const InputDecoration(
                     hintText: 'Nhập số tiền',
                     suffixText: 'đ',
-                    contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 14,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 14),
@@ -525,7 +731,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     return InkWell(
                       onTap: () => amountCtrl.text = val.toString(),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
                         decoration: BoxDecoration(
                           color: ctx.palette.surfaceAlt,
                           borderRadius: BorderRadius.circular(AppRadii.md),
@@ -533,7 +742,10 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                         child: Text(
                           formatVnd(val),
-                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                     );
@@ -549,7 +761,9 @@ class _HomeScreenState extends State<HomeScreen> {
                             final parsed = int.tryParse(amountCtrl.text);
                             if (parsed == null || parsed <= 0) {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Vui lòng nhập số tiền hợp lệ')),
+                                const SnackBar(
+                                  content: Text('Vui lòng nhập số tiền hợp lệ'),
+                                ),
                               );
                               return;
                             }
@@ -566,7 +780,11 @@ class _HomeScreenState extends State<HomeScreen> {
                               setSheetState(() => saving = false);
                               if (context.mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Không thể cập nhật giao dịch')),
+                                  const SnackBar(
+                                    content: Text(
+                                      'Không thể cập nhật giao dịch',
+                                    ),
+                                  ),
                                 );
                               }
                             }
@@ -574,15 +792,23 @@ class _HomeScreenState extends State<HomeScreen> {
                     style: FilledButton.styleFrom(
                       backgroundColor: AppColors.teal,
                       padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadii.lg)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(AppRadii.lg),
+                      ),
                     ),
                     child: saving
                         ? const SizedBox(
                             width: 20,
                             height: 20,
-                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
                           )
-                        : const Text('Lưu giao dịch', style: TextStyle(fontWeight: FontWeight.w700)),
+                        : const Text(
+                            'Lưu giao dịch',
+                            style: TextStyle(fontWeight: FontWeight.w700),
+                          ),
                   ),
                 ),
               ],
@@ -592,7 +818,6 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
-
 }
 
 // ─── Collapsible Home Header (pinned SliverPersistentHeader) ──────────────────
@@ -611,6 +836,7 @@ class _HomeHeaderDelegate extends SliverPersistentHeaderDelegate {
   final int expense;
   final String tab;
   final void Function(dynamic wallet) onWalletTap;
+  final void Function(dynamic wallet)? onWalletLongPress;
   final ValueChanged<String> onTabChanged;
   final VoidCallback onStreakTap;
   final VoidCallback onCreateWallet;
@@ -628,6 +854,7 @@ class _HomeHeaderDelegate extends SliverPersistentHeaderDelegate {
     required this.expense,
     required this.tab,
     required this.onWalletTap,
+    this.onWalletLongPress,
     required this.onTabChanged,
     required this.onStreakTap,
     required this.onCreateWallet,
@@ -644,9 +871,15 @@ class _HomeHeaderDelegate extends SliverPersistentHeaderDelegate {
   double get maxExtent => 298 + _segmentH; // greeting + ngày + ví + số dư + tabs
 
   @override
-  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
     final maxShrink = maxExtent - minExtent;
-    final t = maxShrink <= 0 ? 1.0 : (1 - (shrinkOffset / maxShrink)).clamp(0.0, 1.0);
+    final t = maxShrink <= 0
+        ? 1.0
+        : (1 - (shrinkOffset / maxShrink)).clamp(0.0, 1.0);
     final theme = Theme.of(context);
 
     return ClipRect(
@@ -658,7 +891,10 @@ class _HomeHeaderDelegate extends SliverPersistentHeaderDelegate {
 
           // Nền gradient (bo góc dưới) — phủ từ trên xuống ngay trên dải tabs
           Positioned(
-            top: 0, left: 0, right: 0, bottom: _segmentH,
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: _segmentH,
             child: Container(
               decoration: const BoxDecoration(
                 gradient: AppGradients.teal,
@@ -672,108 +908,211 @@ class _HomeHeaderDelegate extends SliverPersistentHeaderDelegate {
 
           // GIỮ: lời chào + streak (luôn hiển thị)
           Positioned(
-            top: _greetingTop, left: 20, right: 20,
-            child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-              Expanded(
-                child: Row(children: [
-                  Flexible(
-                    child: Text(
-                      'Chào ${userName.isNotEmpty ? userName : 'bạn'}!',
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.titleMedium?.copyWith(color: Colors.white, fontWeight: FontWeight.w700),
+            top: _greetingTop,
+            left: 20,
+            right: 20,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          'Chào ${userName.isNotEmpty ? userName : 'bạn'}!',
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      const Text('👋', style: TextStyle(fontSize: 18)),
+                    ],
+                  ),
+                ),
+                GestureDetector(
+                  onTap: onStreakTap,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(AppRadii.md),
+                    ),
+                    child: Row(
+                      children: [
+                        const Text('🔥', style: TextStyle(fontSize: 14)),
+                        const SizedBox(width: 6),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '$streakDays ngày',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            Text(
+                              'Streak',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: Colors.white70,
+                                fontSize: 10,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(width: 4),
-                  const Text('👋', style: TextStyle(fontSize: 18)),
-                ]),
-              ),
-              GestureDetector(
-                onTap: onStreakTap,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(AppRadii.md)),
-                  child: Row(children: [
-                    const Text('🔥', style: TextStyle(fontSize: 14)),
-                    const SizedBox(width: 6),
-                    Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text('$streakDays ngày', style: theme.textTheme.bodySmall?.copyWith(color: Colors.white, fontWeight: FontWeight.w600)),
-                      Text('Streak', style: theme.textTheme.bodySmall?.copyWith(color: Colors.white70, fontSize: 10)),
-                    ]),
-                  ]),
                 ),
-              ),
-            ]),
+              ],
+            ),
           ),
 
           // ẨN dần: ngày + ví + thẻ số dư (fade theo t, không nhận chạm khi mờ)
           Positioned(
-            top: _fadeTop, left: 0, right: 0,
+            top: _fadeTop,
+            left: 0,
+            right: 0,
             child: IgnorePointer(
               ignoring: t < 0.05,
               child: Opacity(
                 opacity: t,
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(formattedDate, style: theme.textTheme.bodySmall?.copyWith(color: Colors.white70)),
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      height: 38,
-                      child: SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(children: [
-                          ...wallets.map((w) {
-                            final wId = w['id'] as String;
-                            final wName = w['name'] as String? ?? 'Ví';
-                            final wType = w['type'] as String? ?? 'personal';
-                            final memberCount = (w['member_count'] ?? 0) as int;
-                            final icon = wType == 'group' ? Icons.group_outlined : Icons.account_balance_wallet_outlined;
-                            final label = memberCount > 0 ? '$wName ($memberCount)' : wName;
-                            final unseenCount = (w['unseenCount'] ?? 0) as int;
-                            return Padding(
-                              padding: const EdgeInsets.only(right: 8),
-                              child: _WalletChip(
-                                label: label,
-                                icon: icon,
-                                isSelected: selectedWalletId == wId,
-                                unseenCount: unseenCount,
-                                onTap: () => onWalletTap(w),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        formattedDate,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: Colors.white70,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        height: 38,
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: [
+                              ...wallets.map((w) {
+                                final wId = w['id'] as String;
+                                final wName = w['name'] as String? ?? 'Ví';
+                                final wType =
+                                    w['type'] as String? ?? 'personal';
+                                final memberCount =
+                                    (w['member_count'] ?? 0) as int;
+                                final icon = wType == 'group'
+                                    ? Icons.group_outlined
+                                    : Icons.account_balance_wallet_outlined;
+                                final label = memberCount > 0
+                                    ? '$wName ($memberCount)'
+                                    : wName;
+                                final unseenCount =
+                                    (w['unseenCount'] ?? 0) as int;
+                                return Padding(
+                                  padding: const EdgeInsets.only(right: 8),
+                                  child: _WalletChip(
+                                    label: label,
+                                    icon: icon,
+                                    isSelected: selectedWalletId == wId,
+                                    unseenCount: unseenCount,
+                                    onTap: () => onWalletTap(w),
+                                    onLongPress: onWalletLongPress != null
+                                        ? () => onWalletLongPress!(w)
+                                        : null,
+                                  ),
+                                );
+                              }),
+                              _WalletChip(
+                                label: 'Tạo ví',
+                                icon: Icons.add_circle_outline,
+                                isSelected: false,
+                                onTap: onCreateWallet,
                               ),
-                            );
-                          }),
-                          _WalletChip(label: 'Tạo ví', icon: Icons.add_circle_outline, isSelected: false, onTap: onCreateWallet),
-                          const SizedBox(width: 8),
-                          _WalletChip(label: 'Nhập mã mời', icon: Icons.vpn_key_outlined, isSelected: false, onTap: onJoinWallet),
-                        ]),
+                              const SizedBox(width: 8),
+                              _WalletChip(
+                                label: 'Nhập mã mời',
+                                icon: Icons.vpn_key_outlined,
+                                isSelected: false,
+                                onTap: onJoinWallet,
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 14),
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: context.palette.card,
-                        borderRadius: BorderRadius.circular(AppRadii.lg),
-                        boxShadow: context.palette.softShadow,
+                      const SizedBox(height: 14),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: context.palette.card,
+                          borderRadius: BorderRadius.circular(AppRadii.lg),
+                          boxShadow: context.palette.softShadow,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.auto_awesome,
+                                  color: AppColors.teal,
+                                  size: 16,
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'Số dư hiện tại',
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            loading
+                                ? const SkeletonLine(width: 180, height: 28)
+                                : Text(
+                                    formatVnd(balance),
+                                    style: theme.textTheme.titleLarge?.copyWith(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 26,
+                                    ),
+                                  ),
+                            const SizedBox(height: 12),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _BalanceStat(
+                                    label: 'Thu nhập',
+                                    value: loading ? '...' : formatVnd(income),
+                                    color: AppColors.teal,
+                                  ),
+                                ),
+                                Container(
+                                  width: 1,
+                                  height: 28,
+                                  color: context.palette.border,
+                                ),
+                                Expanded(
+                                  child: _BalanceStat(
+                                    label: 'Chi tiêu',
+                                    value: loading ? '...' : formatVnd(expense),
+                                    color: AppColors.danger,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
-                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Row(children: [
-                          const Icon(Icons.auto_awesome, color: AppColors.teal, size: 16),
-                          const SizedBox(width: 6),
-                          Text('Số dư hiện tại', style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textSecondary)),
-                        ]),
-                        const SizedBox(height: 8),
-                        loading
-                            ? const SkeletonLine(width: 180, height: 28)
-                            : Text(formatVnd(balance), style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700, fontSize: 26)),
-                        const SizedBox(height: 12),
-                        Row(children: [
-                          Expanded(child: _BalanceStat(label: 'Thu nhập', value: loading ? '...' : formatVnd(income), color: AppColors.teal)),
-                          Container(width: 1, height: 28, color: context.palette.border),
-                          Expanded(child: _BalanceStat(label: 'Chi tiêu', value: loading ? '...' : formatVnd(expense), color: AppColors.danger)),
-                        ]),
-                      ]),
-                    ),
-                  ]),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -781,18 +1120,46 @@ class _HomeHeaderDelegate extends SliverPersistentHeaderDelegate {
 
           // GIỮ: segment tabs (ghim đáy, luôn hiển thị)
           Positioned(
-            bottom: 0, left: 0, right: 0, height: _segmentH,
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: _segmentH,
             child: Container(
               color: context.palette.bg,
-              padding: const EdgeInsets.fromLTRB(AppSpacing.xxl, 8, AppSpacing.xxl, 12),
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.xxl,
+                8,
+                AppSpacing.xxl,
+                12,
+              ),
               child: Container(
                 padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(color: context.palette.surfaceAlt, borderRadius: BorderRadius.circular(AppRadii.lg)),
-                child: Row(children: [
-                  _SegmentItem(label: 'Story', icon: Icons.article_outlined, isSelected: tab == 'Story', onTap: () => onTabChanged('Story')),
-                  _SegmentItem(label: 'Gallery', icon: Icons.grid_view, isSelected: tab == 'Gallery', onTap: () => onTabChanged('Gallery')),
-                  _SegmentItem(label: 'Calendar', icon: Icons.calendar_month, isSelected: tab == 'Calendar', onTap: () => onTabChanged('Calendar')),
-                ]),
+                decoration: BoxDecoration(
+                  color: context.palette.surfaceAlt,
+                  borderRadius: BorderRadius.circular(AppRadii.lg),
+                ),
+                child: Row(
+                  children: [
+                    _SegmentItem(
+                      label: 'Story',
+                      icon: Icons.article_outlined,
+                      isSelected: tab == 'Story',
+                      onTap: () => onTabChanged('Story'),
+                    ),
+                    _SegmentItem(
+                      label: 'Gallery',
+                      icon: Icons.grid_view,
+                      isSelected: tab == 'Gallery',
+                      onTap: () => onTabChanged('Gallery'),
+                    ),
+                    _SegmentItem(
+                      label: 'Calendar',
+                      icon: Icons.calendar_month,
+                      isSelected: tab == 'Calendar',
+                      onTap: () => onTabChanged('Calendar'),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -813,7 +1180,8 @@ class _HomeHeaderDelegate extends SliverPersistentHeaderDelegate {
         old.income != income ||
         old.expense != expense ||
         old.tab != tab ||
-        old.onJoinWallet != onJoinWallet;
+        old.onJoinWallet != onJoinWallet ||
+        old.onWalletLongPress != onWalletLongPress;
   }
 }
 
@@ -821,47 +1189,75 @@ class _HomeHeaderDelegate extends SliverPersistentHeaderDelegate {
 
 class _TransactionStoryCard extends StatelessWidget {
   final dynamic tx;
+
   /// Danh sách id để lướt qua trong màn hình chi tiết (tùy chọn).
   final List<String>? allStoryIds;
   final String? fallbackUserAvatar;
-  const _TransactionStoryCard({required this.tx, this.allStoryIds, this.fallbackUserAvatar});
+  const _TransactionStoryCard({
+    required this.tx,
+    this.allStoryIds,
+    this.fallbackUserAvatar,
+  });
 
   static const _categories = [
-    ('Food', 'Ăn uống'), ('Shopping', 'Mua sắm'), ('Transport', 'Di chuyển'),
-    ('Entertainment', 'Giải trí'), ('Housing', 'Nhà ở'), ('Health', 'Sức khoẻ'),
-    ('Education', 'Học tập'), ('Travel', 'Du lịch'), ('Others', 'Khác'),
+    ('Food', 'Ăn uống'),
+    ('Shopping', 'Mua sắm'),
+    ('Transport', 'Di chuyển'),
+    ('Entertainment', 'Giải trí'),
+    ('Housing', 'Nhà ở'),
+    ('Health', 'Sức khoẻ'),
+    ('Education', 'Học tập'),
+    ('Travel', 'Du lịch'),
+    ('Others', 'Khác'),
   ];
 
   Future<void> _onLongPress(BuildContext context) async {
     final api = ApiClient();
     final note = tx['note'] as String? ?? '';
-    final text = note.isNotEmpty ? note : (tx['category_name'] as String? ?? '');
+    final text = note.isNotEmpty
+        ? note
+        : (tx['category_name'] as String? ?? '');
     final picked = await showModalBottomSheet<String>(
       context: context,
       builder: (ctx) => SafeArea(
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: Text('Sửa danh mục (AI training)',
-              style: Theme.of(ctx).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
-          ),
-          ..._categories.map((c) => ListTile(
-            leading: CategoryTheme.iconOf(c.$1, size: 22),
-            title: Text(c.$2),
-            onTap: () => Navigator.pop(ctx, c.$1),
-          )),
-        ]),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: Text(
+                'Sửa danh mục (AI training)',
+                style: Theme.of(
+                  ctx,
+                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+              ),
+            ),
+            ..._categories.map(
+              (c) => ListTile(
+                leading: CategoryTheme.iconOf(c.$1, size: 22),
+                title: Text(c.$2),
+                onTap: () => Navigator.pop(ctx, c.$1),
+              ),
+            ),
+          ],
+        ),
       ),
     );
     if (picked == null) return;
     try {
-      await api.aiCorrection({'text': text, 'categoryCode': picked, 'recordType': tx['type'] == 'income' ? 'Income' : 'Expense'});
+      await api.aiCorrection({
+        'text': text,
+        'categoryCode': picked,
+        'recordType': tx['type'] == 'income' ? 'Income' : 'Expense',
+      });
       await api.updateTransaction(tx['id'] ?? '', {'categoryCode': picked});
       notifyTransactionChanged();
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Đã cập nhật giao dịch và ghi nhận góp ý! Mimo sẽ học thêm từ bạn 🙏'),
+            content: Text(
+              'Đã cập nhật giao dịch và ghi nhận góp ý! Mimo sẽ học thêm từ bạn 🙏',
+            ),
             backgroundColor: AppColors.teal,
           ),
         );
@@ -879,12 +1275,16 @@ class _TransactionStoryCard extends StatelessWidget {
       backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSheetState) => Padding(
-          padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(ctx).viewInsets.bottom,
+          ),
           child: Container(
             padding: const EdgeInsets.all(AppSpacing.xl),
             decoration: BoxDecoration(
               color: ctx.palette.card,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadii.xl)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(AppRadii.xl),
+              ),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -903,23 +1303,33 @@ class _TransactionStoryCard extends StatelessWidget {
                 const SizedBox(height: 16),
                 Text(
                   'Bổ sung số tiền',
-                  style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                  style: Theme.of(ctx).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
                 const SizedBox(height: 6),
                 Text(
                   'Điền số tiền còn thiếu cho "$label"',
-                  style: Theme.of(ctx).textTheme.bodySmall?.copyWith(color: AppColors.muted),
+                  style: Theme.of(
+                    ctx,
+                  ).textTheme.bodySmall?.copyWith(color: AppColors.muted),
                 ),
                 const SizedBox(height: 16),
                 TextField(
                   controller: amountCtrl,
                   keyboardType: TextInputType.number,
                   autofocus: true,
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
                   decoration: const InputDecoration(
                     hintText: 'Nhập số tiền',
                     suffixText: 'đ',
-                    contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 14,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 14),
@@ -932,7 +1342,10 @@ class _TransactionStoryCard extends StatelessWidget {
                         amountCtrl.text = val.toString();
                       },
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
                         decoration: BoxDecoration(
                           color: ctx.palette.surfaceAlt,
                           borderRadius: BorderRadius.circular(AppRadii.md),
@@ -940,7 +1353,10 @@ class _TransactionStoryCard extends StatelessWidget {
                         ),
                         child: Text(
                           formatVnd(val),
-                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                     );
@@ -956,7 +1372,9 @@ class _TransactionStoryCard extends StatelessWidget {
                             final parsed = int.tryParse(amountCtrl.text);
                             if (parsed == null || parsed <= 0) {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Vui lòng nhập số tiền hợp lệ')),
+                                const SnackBar(
+                                  content: Text('Vui lòng nhập số tiền hợp lệ'),
+                                ),
                               );
                               return;
                             }
@@ -973,7 +1391,11 @@ class _TransactionStoryCard extends StatelessWidget {
                               setSheetState(() => saving = false);
                               if (context.mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Không thể cập nhật giao dịch')),
+                                  const SnackBar(
+                                    content: Text(
+                                      'Không thể cập nhật giao dịch',
+                                    ),
+                                  ),
                                 );
                               }
                             }
@@ -981,15 +1403,23 @@ class _TransactionStoryCard extends StatelessWidget {
                     style: FilledButton.styleFrom(
                       backgroundColor: AppColors.teal,
                       padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadii.lg)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(AppRadii.lg),
+                      ),
                     ),
                     child: saving
                         ? const SizedBox(
                             width: 20,
                             height: 20,
-                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
                           )
-                        : const Text('Lưu giao dịch', style: TextStyle(fontWeight: FontWeight.w700)),
+                        : const Text(
+                            'Lưu giao dịch',
+                            style: TextStyle(fontWeight: FontWeight.w700),
+                          ),
                   ),
                 ),
               ],
@@ -1004,9 +1434,14 @@ class _TransactionStoryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final bool isDraft = tx['isDraft'] == true;
     if (isDraft) {
-      final category = tx['category_name'] as String? ?? tx['categoryCode'] as String? ?? tx['category_code'] as String? ?? 'Others';
+      final category =
+          tx['category_name'] as String? ??
+          tx['categoryCode'] as String? ??
+          tx['category_code'] as String? ??
+          'Others';
       final note = tx['note'] as String? ?? '';
-      final createdAt = tx['createdAt'] as String? ?? tx['created_at'] as String? ?? '';
+      final createdAt =
+          tx['createdAt'] as String? ?? tx['created_at'] as String? ?? '';
       final source = tx['source'] as String? ?? '';
       final catStyle = CategoryTheme.of(category);
       final label = note.isNotEmpty ? note : catStyle.label;
@@ -1019,7 +1454,10 @@ class _TransactionStoryCard extends StatelessWidget {
           decoration: BoxDecoration(
             color: const Color(0xFFFFFBEB), // Amber 50
             borderRadius: BorderRadius.circular(AppRadii.lg),
-            border: Border.all(color: const Color(0xFFFDE68A), width: 1.5), // Amber 200
+            border: Border.all(
+              color: const Color(0xFFFDE68A),
+              width: 1.5,
+            ), // Amber 200
             boxShadow: context.palette.softShadow,
           ),
           child: Column(
@@ -1035,9 +1473,11 @@ class _TransactionStoryCard extends StatelessWidget {
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
-                      source == 'voice' 
-                          ? Icons.mic_none_rounded 
-                          : (source == 'bill' ? Icons.receipt_long_rounded : Icons.edit_note_rounded),
+                      source == 'voice'
+                          ? Icons.mic_none_rounded
+                          : (source == 'bill'
+                                ? Icons.receipt_long_rounded
+                                : Icons.edit_note_rounded),
                       color: const Color(0xFFD97706), // Amber 600
                       size: 20,
                     ),
@@ -1048,9 +1488,11 @@ class _TransactionStoryCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          source == 'voice' 
-                              ? 'Nhập liệu giọng nói' 
-                              : (source == 'bill' ? 'Nhập hóa đơn' : 'Giao dịch nháp'),
+                          source == 'voice'
+                              ? 'Nhập liệu giọng nói'
+                              : (source == 'bill'
+                                    ? 'Nhập hóa đơn'
+                                    : 'Giao dịch nháp'),
                           style: const TextStyle(
                             color: Color(0xFFB45309), // Amber 700
                             fontSize: 10,
@@ -1091,10 +1533,7 @@ class _TransactionStoryCard extends StatelessWidget {
                 const SizedBox(height: 8),
                 Text(
                   _formatTime(createdAt),
-                  style: const TextStyle(
-                    color: Color(0xFFD97706),
-                    fontSize: 9,
-                  ),
+                  style: const TextStyle(color: Color(0xFFD97706), fontSize: 9),
                 ),
               ],
             ],
@@ -1103,23 +1542,42 @@ class _TransactionStoryCard extends StatelessWidget {
       );
     }
 
-    final amount = ((tx['amount'] ?? 0) is num) ? (tx['amount'] as num).toInt() : 0;
+    final amount = ((tx['amount'] ?? 0) is num)
+        ? (tx['amount'] as num).toInt()
+        : 0;
     final type = tx['type'] as String? ?? 'expense';
-    final category = tx['category_name'] as String? ?? tx['categoryCode'] as String? ?? tx['category_code'] as String? ?? 'Other';
+    final category =
+        tx['category_name'] as String? ??
+        tx['categoryCode'] as String? ??
+        tx['category_code'] as String? ??
+        'Other';
     final note = tx['note'] as String? ?? '';
-    final createdAt = tx['createdAt'] as String? ?? tx['created_at'] as String? ?? '';
+    final createdAt =
+        tx['createdAt'] as String? ?? tx['created_at'] as String? ?? '';
     final isExpense = type == 'expense';
     final catStyle = CategoryTheme.of(category);
 
-    final storyId = tx['storyId'] as String? ?? tx['story_id'] as String? ?? tx['id'] as String? ?? '';
+    final storyId =
+        tx['storyId'] as String? ??
+        tx['story_id'] as String? ??
+        tx['id'] as String? ??
+        '';
     final imageUrl = tx['imageUrl'] as String? ?? tx['image_url'] as String?;
     final aiComment = tx['aiComment'] as String? ?? tx['ai_message'] as String?;
-    final mascotMoodRaw = tx['mascotMood'] as String? ?? tx['mascot_mood'] as String?;
-    final mascotMood = normalizeMimoAssetName(mascotMoodRaw, fallback: 'Success');
+    final mascotMoodRaw =
+        tx['mascotMood'] as String? ?? tx['mascot_mood'] as String?;
+    final mascotMood = normalizeMimoAssetName(
+      mascotMoodRaw,
+      fallback: 'Success',
+    );
 
     // User display
-    final userName = tx['username'] as String? ?? tx['user_name'] as String? ?? 'Bạn';
-    final userAvatar = tx['userAvatar'] as String? ?? tx['user_avatar'] as String? ?? fallbackUserAvatar;
+    final userName =
+        tx['username'] as String? ?? tx['user_name'] as String? ?? 'Bạn';
+    final userAvatar =
+        tx['userAvatar'] as String? ??
+        tx['user_avatar'] as String? ??
+        fallbackUserAvatar;
 
     return GestureDetector(
       onTap: storyId.isNotEmpty
@@ -1127,10 +1585,10 @@ class _TransactionStoryCard extends StatelessWidget {
               final ids = allStoryIds;
               if (ids != null && ids.isNotEmpty) {
                 final idx = ids.indexOf(storyId);
-                context.push(AppRoutes.storyDetailOf(storyId), extra: {
-                  'storyIds': ids,
-                  'initialIndex': idx < 0 ? 0 : idx,
-                });
+                context.push(
+                  AppRoutes.storyDetailOf(storyId),
+                  extra: {'storyIds': ids, 'initialIndex': idx < 0 ? 0 : idx},
+                );
               } else {
                 context.push(AppRoutes.storyDetailOf(storyId));
               }
@@ -1154,11 +1612,15 @@ class _TransactionStoryCard extends StatelessWidget {
                 children: [
                   // User avatar circle (letter-based when no photo)
                   Container(
-                    width: 42, height: 42,
+                    width: 42,
+                    height: 42,
                     decoration: BoxDecoration(
                       color: catStyle.color.withValues(alpha: 0.15),
                       shape: BoxShape.circle,
-                      border: Border.all(color: catStyle.color.withValues(alpha: 0.3), width: 1.5),
+                      border: Border.all(
+                        color: catStyle.color.withValues(alpha: 0.3),
+                        width: 1.5,
+                      ),
                     ),
                     child: userAvatar != null && userAvatar.isNotEmpty
                         ? ClipOval(
@@ -1168,16 +1630,28 @@ class _TransactionStoryCard extends StatelessWidget {
                               memCacheWidth: 200,
                               errorWidget: (_, _, _) => Center(
                                 child: Text(
-                                  userName.isNotEmpty ? userName[0].toUpperCase() : 'B',
-                                  style: TextStyle(color: catStyle.color, fontWeight: FontWeight.w700, fontSize: 16),
+                                  userName.isNotEmpty
+                                      ? userName[0].toUpperCase()
+                                      : 'B',
+                                  style: TextStyle(
+                                    color: catStyle.color,
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 16,
+                                  ),
                                 ),
                               ),
                             ),
                           )
                         : Center(
                             child: Text(
-                              userName.isNotEmpty ? userName[0].toUpperCase() : 'B',
-                              style: TextStyle(color: catStyle.color, fontWeight: FontWeight.w700, fontSize: 16),
+                              userName.isNotEmpty
+                                  ? userName[0].toUpperCase()
+                                  : 'B',
+                              style: TextStyle(
+                                color: catStyle.color,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 16,
+                              ),
                             ),
                           ),
                   ),
@@ -1188,33 +1662,49 @@ class _TransactionStoryCard extends StatelessWidget {
                       children: [
                         Text(
                           userName,
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(fontWeight: FontWeight.w700),
                         ),
                         Row(
                           children: [
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
                               decoration: BoxDecoration(
                                 color: catStyle.color.withValues(alpha: 0.12),
                                 borderRadius: BorderRadius.circular(999),
                               ),
                               child: Text(
                                 catStyle.label,
-                                style: TextStyle(color: catStyle.color, fontSize: 9, fontWeight: FontWeight.w600),
+                                style: TextStyle(
+                                  color: catStyle.color,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                             ),
                             const SizedBox(width: 6),
                             if (createdAt.isNotEmpty)
                               Text(
                                 _formatTime(createdAt),
-                                style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.muted, fontSize: 10),
+                                style: Theme.of(context).textTheme.bodySmall
+                                    ?.copyWith(
+                                      color: AppColors.muted,
+                                      fontSize: 10,
+                                    ),
                               ),
                           ],
                         ),
                       ],
                     ),
                   ),
-                  const Icon(Icons.more_horiz, color: AppColors.muted, size: 20),
+                  const Icon(
+                    Icons.more_horiz,
+                    color: AppColors.muted,
+                    size: 20,
+                  ),
                 ],
               ),
             ),
@@ -1225,7 +1715,9 @@ class _TransactionStoryCard extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 14),
                 child: Text(
                   note,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(height: 1.4),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyMedium?.copyWith(height: 1.4),
                 ),
               ),
 
@@ -1252,7 +1744,10 @@ class _TransactionStoryCard extends StatelessWidget {
               child: Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
                     decoration: BoxDecoration(
                       color: isExpense
                           ? AppColors.danger.withValues(alpha: 0.1)
@@ -1263,7 +1758,9 @@ class _TransactionStoryCard extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
-                          isExpense ? Icons.arrow_downward_rounded : Icons.arrow_upward_rounded,
+                          isExpense
+                              ? Icons.arrow_downward_rounded
+                              : Icons.arrow_upward_rounded,
                           size: 12,
                           color: isExpense ? AppColors.danger : AppColors.teal,
                         ),
@@ -1271,7 +1768,9 @@ class _TransactionStoryCard extends StatelessWidget {
                         Text(
                           formatVnd(amount),
                           style: TextStyle(
-                            color: isExpense ? AppColors.danger : AppColors.teal,
+                            color: isExpense
+                                ? AppColors.danger
+                                : AppColors.teal,
                             fontWeight: FontWeight.w700,
                             fontSize: 13,
                           ),
@@ -1287,62 +1786,67 @@ class _TransactionStoryCard extends StatelessWidget {
 
             // ── AI comment: emotion avatar + comment bubble (luôn hiển thị) ──
             Padding(
-                padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: 34, height: 34,
+              padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 34,
+                    height: 34,
+                    decoration: BoxDecoration(
+                      color: AppColors.teal.withValues(alpha: 0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: ClipOval(
+                      child: Image.asset(
+                        'assets/MiMo/emotions/$mascotMood.png',
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) => const Center(
+                          child: Text('😎', style: TextStyle(fontSize: 16)),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
                       decoration: BoxDecoration(
-                        color: AppColors.teal.withValues(alpha: 0.15),
-                        shape: BoxShape.circle,
+                        color: context.palette.surfaceAlt,
+                        borderRadius: BorderRadius.circular(AppRadii.md),
                       ),
-                      child: ClipOval(
-                        child: Image.asset(
-                          'assets/MiMo/emotions/$mascotMood.png',
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, _, _) => const Center(
-                            child: Text('😎', style: TextStyle(fontSize: 16)),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Mimo AI',
+                            style: TextStyle(
+                              color: AppColors.teal,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
-                        ),
+                          const SizedBox(height: 2),
+                          Text(
+                            (aiComment != null && aiComment.isNotEmpty)
+                                ? aiComment
+                                : 'Mimo đã ghi nhận giao dịch này!',
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(
+                                  color: context.palette.textPrimary,
+                                  height: 1.4,
+                                ),
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: context.palette.surfaceAlt,
-                          borderRadius: BorderRadius.circular(AppRadii.md),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Mimo AI',
-                              style: TextStyle(
-                                color: AppColors.teal,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              (aiComment != null && aiComment.isNotEmpty)
-                                  ? aiComment
-                                  : 'Mimo đã ghi nhận giao dịch này!',
-                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: context.palette.textPrimary,
-                                height: 1.4,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
+            ),
           ],
         ),
       ),
@@ -1351,7 +1855,7 @@ class _TransactionStoryCard extends StatelessWidget {
 
   String _formatTime(String isoDate) {
     try {
-      final dt = DateTime.parse(isoDate);
+      final dt = DateTime.parse(isoDate).toLocal();
       return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')} ${dt.day}/${dt.month}';
     } catch (_) {
       return '';
@@ -1367,6 +1871,7 @@ class _WalletChip extends StatelessWidget {
   final bool isSelected;
   final int unseenCount;
   final VoidCallback onTap;
+  final VoidCallback? onLongPress;
 
   const _WalletChip({
     required this.label,
@@ -1374,29 +1879,37 @@ class _WalletChip extends StatelessWidget {
     required this.isSelected,
     this.unseenCount = 0,
     required this.onTap,
+    this.onLongPress,
   });
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
+      onLongPress: onLongPress,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.25),
+          color: isSelected
+              ? Colors.white
+              : Colors.white.withValues(alpha: 0.25),
           borderRadius: BorderRadius.circular(AppRadii.md),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 16, color: isSelected ? AppColors.teal : Colors.white),
+            Icon(
+              icon,
+              size: 16,
+              color: isSelected ? AppColors.teal : Colors.white,
+            ),
             const SizedBox(width: 6),
             Text(
               label,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: isSelected ? AppColors.teal : Colors.white,
-                    fontWeight: FontWeight.w600,
-                  ),
+                color: isSelected ? AppColors.teal : Colors.white,
+                fontWeight: FontWeight.w600,
+              ),
             ),
             if (unseenCount > 0) ...[
               const SizedBox(width: 6),
@@ -1426,17 +1939,35 @@ class _WalletChip extends StatelessWidget {
 class _BalanceStat extends StatelessWidget {
   final String label, value;
   final Color color;
-  const _BalanceStat({required this.label, required this.value, required this.color});
+  const _BalanceStat({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(label, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary)),
-        const SizedBox(height: 4),
-        Text(value, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: color, fontWeight: FontWeight.w700)),
-      ]),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: color,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -1446,7 +1977,12 @@ class _SegmentItem extends StatelessWidget {
   final IconData icon;
   final bool isSelected;
   final VoidCallback onTap;
-  const _SegmentItem({required this.label, required this.icon, required this.isSelected, required this.onTap});
+  const _SegmentItem({
+    required this.label,
+    required this.icon,
+    required this.isSelected,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1460,11 +1996,24 @@ class _SegmentItem extends StatelessWidget {
             borderRadius: BorderRadius.circular(AppRadii.md),
             boxShadow: isSelected ? context.palette.softShadow : null,
           ),
-          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-            Icon(icon, size: 16, color: isSelected ? AppColors.teal : AppColors.muted),
-            const SizedBox(width: 6),
-            Text(label, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: isSelected ? AppColors.teal : AppColors.muted, fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500)),
-          ]),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                size: 16,
+                color: isSelected ? AppColors.teal : AppColors.muted,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: isSelected ? AppColors.teal : AppColors.muted,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -1473,23 +2022,34 @@ class _SegmentItem extends StatelessWidget {
 
 class _StoryGalleryCard extends StatelessWidget {
   final Map<String, dynamic> story;
+
   /// Danh sách id để lướt qua trong màn hình chi tiết.
   final List<String>? allStoryIds;
+
   /// Vị trí của story hiện tại trong [allStoryIds].
   final int initialIndex;
-  const _StoryGalleryCard({required this.story, this.allStoryIds, this.initialIndex = 0});
+  const _StoryGalleryCard({
+    required this.story,
+    this.allStoryIds,
+    this.initialIndex = 0,
+  });
 
   @override
   Widget build(BuildContext context) {
     final id = story['id'] as String? ?? '';
     final title = story['title'] as String? ?? '';
-    final imageUrl = story['cover_image_url'] as String? ?? story['coverImageUrl'] as String? ?? '';
-    final occurredOn = story['occurred_on'] as String? ?? story['occurredOn'] as String? ?? '';
+    final imageUrl =
+        story['cover_image_url'] as String? ??
+        story['coverImageUrl'] as String? ??
+        '';
+    final occurredOn =
+        story['occurred_on'] as String? ?? story['occurredOn'] as String? ?? '';
     String dateStr = '';
     if (occurredOn.isNotEmpty) {
       try {
-        final dt = DateTime.parse(occurredOn);
-        dateStr = '${dt.day.toString().padLeft(2, '0')}-${dt.month.toString().padLeft(2, '0')}';
+        final dt = DateTime.parse(occurredOn).toLocal();
+        dateStr =
+            '${dt.day.toString().padLeft(2, '0')}-${dt.month.toString().padLeft(2, '0')}';
       } catch (_) {}
     }
     return GestureDetector(
@@ -1498,10 +2058,13 @@ class _StoryGalleryCard extends StatelessWidget {
               final ids = allStoryIds;
               if (ids != null && ids.isNotEmpty) {
                 final idx = ids.indexOf(id);
-                context.push(AppRoutes.storyDetailOf(id), extra: {
-                  'storyIds': ids,
-                  'initialIndex': idx < 0 ? initialIndex : idx,
-                });
+                context.push(
+                  AppRoutes.storyDetailOf(id),
+                  extra: {
+                    'storyIds': ids,
+                    'initialIndex': idx < 0 ? initialIndex : idx,
+                  },
+                );
               } else {
                 context.push(AppRoutes.storyDetailOf(id));
               }
@@ -1509,37 +2072,83 @@ class _StoryGalleryCard extends StatelessWidget {
           : null,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(AppRadii.md),
-        child: Stack(fit: StackFit.expand, children: [
-          imageUrl.isNotEmpty
-              ? CachedNetworkImage(imageUrl: imageUrl, fit: BoxFit.cover, memCacheWidth: 600,
-                  errorWidget: (ctx, url, e) => Container(color: const Color(0xFFCBD5E1),
-                      child: const Icon(Icons.photo_camera_outlined, color: Colors.white54, size: 24)))
-              : Container(color: const Color(0xFFCBD5E1),
-                  child: const Icon(Icons.photo_camera_outlined, color: Colors.white54, size: 24)),
-          Positioned.fill(child: DecoratedBox(decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter, end: Alignment.bottomCenter,
-              colors: [Colors.transparent, Colors.black.withValues(alpha: 0.55)],
-              stops: const [0.5, 1.0],
-            ),
-          ))),
-          if (dateStr.isNotEmpty)
-            Positioned(left: 5, top: 5,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(999)),
-                child: Text(dateStr, style: const TextStyle(color: Colors.white70, fontSize: 8)),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            imageUrl.isNotEmpty
+                ? CachedNetworkImage(
+                    imageUrl: imageUrl,
+                    fit: BoxFit.cover,
+                    memCacheWidth: 600,
+                    errorWidget: (ctx, url, e) => Container(
+                      color: const Color(0xFFCBD5E1),
+                      child: const Icon(
+                        Icons.photo_camera_outlined,
+                        color: Colors.white54,
+                        size: 24,
+                      ),
+                    ),
+                  )
+                : Container(
+                    color: const Color(0xFFCBD5E1),
+                    child: const Icon(
+                      Icons.photo_camera_outlined,
+                      color: Colors.white54,
+                      size: 24,
+                    ),
+                  ),
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.transparent,
+                      Colors.black.withValues(alpha: 0.55),
+                    ],
+                    stops: const [0.5, 1.0],
+                  ),
+                ),
               ),
             ),
-          Positioned(left: 5, bottom: 5, right: 5,
-            child: Text(
-              title.isNotEmpty ? title : 'Story',
-              style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w700,
-                shadows: [Shadow(color: Colors.black54, blurRadius: 4)]),
-              maxLines: 2, overflow: TextOverflow.ellipsis,
+            if (dateStr.isNotEmpty)
+              Positioned(
+                left: 5,
+                top: 5,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 5,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.black54,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    dateStr,
+                    style: const TextStyle(color: Colors.white70, fontSize: 8),
+                  ),
+                ),
+              ),
+            Positioned(
+              left: 5,
+              bottom: 5,
+              right: 5,
+              child: Text(
+                title.isNotEmpty ? title : 'Story',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 9,
+                  fontWeight: FontWeight.w700,
+                  shadows: [Shadow(color: Colors.black54, blurRadius: 4)],
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
-          ),
-        ]),
+          ],
+        ),
       ),
     );
   }
@@ -1550,7 +2159,10 @@ class _StoryGalleryCard extends StatelessWidget {
 class _InlineCalendarView extends StatefulWidget {
   final List<dynamic> byDay;
   final List<dynamic> transactions;
-  const _InlineCalendarView({this.byDay = const [] , this.transactions = const []});
+  const _InlineCalendarView({
+    this.byDay = const [],
+    this.transactions = const [],
+  });
   @override
   State<_InlineCalendarView> createState() => _InlineCalendarViewState();
 }
@@ -1584,118 +2196,217 @@ class _InlineCalendarViewState extends State<_InlineCalendarView> {
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
-      child: Column(children: [
-        Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-          IconButton(
-            icon: const Icon(Icons.chevron_left, size: 20),
-            onPressed: () => setState(() { _focus = DateTime(_focus.year, _focus.month - 1); _selectedDay = null; }),
-          ),
-          Text('tháng ${_focus.month} ${_focus.year}',
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
-          IconButton(
-            icon: const Icon(Icons.chevron_right, size: 20),
-            onPressed: () => setState(() { _focus = DateTime(_focus.year, _focus.month + 1); _selectedDay = null; }),
-          ),
-        ]),
-        Row(children: ['S','M','T','W','T','F','S'].map((d) =>
-          Expanded(child: Center(child: Text(d, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.muted, fontWeight: FontWeight.w600))))).toList()),
-        const SizedBox(height: 8),
-        GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: startWeekday + daysInMonth,
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 7,
-            mainAxisSpacing: 4,
-            crossAxisSpacing: 4,
-            childAspectRatio: 0.58,
-          ),
-          itemBuilder: (ctx, i) {
-            if (i < startWeekday) return const SizedBox();
-            final day = i - startWeekday + 1;
-            final isSelected = _selectedDay == day;
-            final isToday = _focus.month == DateTime.now().month && _focus.year == DateTime.now().year && day == DateTime.now().day;
-
-            final dayTxList = widget.transactions.where((tx) {
-              final dateStr = tx['occurredAt'] as String? ?? tx['occurred_at'] as String? ?? tx['createdAt'] as String? ?? tx['created_at'] as String? ?? '';
-              if (dateStr.isEmpty) return false;
-              try {
-                final dt = DateTime.parse(dateStr);
-                return dt.year == _focus.year && dt.month == _focus.month && dt.day == day;
-              } catch (_) {
-                return false;
-              }
-            }).toList();
-
-            return GestureDetector(
-              onTap: () => setState(() => _selectedDay = _selectedDay == day ? null : day),
-              child: _buildDayCell(day, dayTxList, isSelected, isToday),
-            );
-          },
-        ),
-        if (_selectedDay != null && dayMap[_selectedDay!] != null) ...[
-          const SizedBox(height: 16),
-          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            Text(
-              '$_selectedDay tháng ${_focus.month} ${_focus.year}',
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
-            ),
-            Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-              Text(
-                '-${formatVnd((dayMap[_selectedDay!]!['expense'] as num?)?.toInt() ?? 0)}',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.danger, fontWeight: FontWeight.w700),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.chevron_left, size: 20),
+                onPressed: () => setState(() {
+                  _focus = DateTime(_focus.year, _focus.month - 1);
+                  _selectedDay = null;
+                }),
               ),
-              if (((dayMap[_selectedDay!]!['income'] as num?)?.toInt() ?? 0) > 0)
-                Text(
-                  '+${formatVnd((dayMap[_selectedDay!]!['income'] as num?)?.toInt() ?? 0)}',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.teal, fontWeight: FontWeight.w600),
+              Text(
+                'tháng ${_focus.month} ${_focus.year}',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+              ),
+              IconButton(
+                icon: const Icon(Icons.chevron_right, size: 20),
+                onPressed: () => setState(() {
+                  _focus = DateTime(_focus.year, _focus.month + 1);
+                  _selectedDay = null;
+                }),
+              ),
+            ],
+          ),
+          Row(
+            children: ['S', 'M', 'T', 'W', 'T', 'F', 'S']
+                .map(
+                  (d) => Expanded(
+                    child: Center(
+                      child: Text(
+                        d,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.muted,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                )
+                .toList(),
+          ),
+          const SizedBox(height: 8),
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: startWeekday + daysInMonth,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 7,
+              mainAxisSpacing: 4,
+              crossAxisSpacing: 4,
+              childAspectRatio: 0.58,
+            ),
+            itemBuilder: (ctx, i) {
+              if (i < startWeekday) return const SizedBox();
+              final day = i - startWeekday + 1;
+              final isSelected = _selectedDay == day;
+              final isToday =
+                  _focus.month == DateTime.now().month &&
+                  _focus.year == DateTime.now().year &&
+                  day == DateTime.now().day;
+
+              final dayTxList = widget.transactions.where((tx) {
+                final dateStr =
+                    tx['occurredAt'] as String? ??
+                    tx['occurred_at'] as String? ??
+                    tx['createdAt'] as String? ??
+                    tx['created_at'] as String? ??
+                    '';
+                if (dateStr.isEmpty) return false;
+                try {
+                  final dt = DateTime.parse(dateStr).toLocal();
+                  return dt.year == _focus.year &&
+                      dt.month == _focus.month &&
+                      dt.day == day;
+                } catch (_) {
+                  return false;
+                }
+              }).toList();
+
+              return GestureDetector(
+                onTap: () => setState(
+                  () => _selectedDay = _selectedDay == day ? null : day,
                 ),
-            ]),
-          ]),
-          const SizedBox(height: 12),
-          ...widget.transactions.where((tx) {
-            final dateStr = tx['occurredAt'] as String? ?? tx['occurred_at'] as String? ?? tx['createdAt'] as String? ?? tx['created_at'] as String? ?? '';
-            if (dateStr.isEmpty) return false;
-            try {
-              final dt = DateTime.parse(dateStr);
-              return dt.year == _focus.year && dt.month == _focus.month && dt.day == _selectedDay;
-            } catch (_) {
-              return false;
-            }
-          }).map((tx) {
-            final dayNavIds = widget.transactions.where((t) {
-              final ds = t['occurredAt'] as String? ?? t['occurred_at'] as String? ?? t['createdAt'] as String? ?? t['created_at'] as String? ?? '';
-              if (ds.isEmpty) return false;
-              try {
-                final d = DateTime.parse(ds);
-                return d.year == _focus.year && d.month == _focus.month && d.day == _selectedDay;
-              } catch (_) { return false; }
-            }).map<String>((t) => (t['storyId'] as String?) ?? (t['story_id'] as String?) ?? (t['id'] as String?) ?? '').where((e) => e.isNotEmpty).toList();
-            return _TransactionStoryCard(tx: tx, allStoryIds: dayNavIds);
-          }),
+                child: _buildDayCell(day, dayTxList, isSelected, isToday),
+              );
+            },
+          ),
+          if (_selectedDay != null && dayMap[_selectedDay!] != null) ...[
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '$_selectedDay tháng ${_focus.month} ${_focus.year}',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      '-${formatVnd((dayMap[_selectedDay!]!['expense'] as num?)?.toInt() ?? 0)}',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AppColors.danger,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    if (((dayMap[_selectedDay!]!['income'] as num?)?.toInt() ??
+                            0) >
+                        0)
+                      Text(
+                        '+${formatVnd((dayMap[_selectedDay!]!['income'] as num?)?.toInt() ?? 0)}',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.teal,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            ...widget.transactions
+                .where((tx) {
+                  final dateStr =
+                      tx['occurredAt'] as String? ??
+                      tx['occurred_at'] as String? ??
+                      tx['createdAt'] as String? ??
+                      tx['created_at'] as String? ??
+                      '';
+                  if (dateStr.isEmpty) return false;
+                  try {
+                    final dt = DateTime.parse(dateStr).toLocal();
+                    return dt.year == _focus.year &&
+                        dt.month == _focus.month &&
+                        dt.day == _selectedDay;
+                  } catch (_) {
+                    return false;
+                  }
+                })
+                .map((tx) {
+                  final dayNavIds = widget.transactions
+                      .where((t) {
+                        final ds =
+                            t['occurredAt'] as String? ??
+                            t['occurred_at'] as String? ??
+                            t['createdAt'] as String? ??
+                            t['created_at'] as String? ??
+                            '';
+                        if (ds.isEmpty) return false;
+                        try {
+                          final d = DateTime.parse(ds).toLocal();
+                          return d.year == _focus.year &&
+                              d.month == _focus.month &&
+                              d.day == _selectedDay;
+                        } catch (_) {
+                          return false;
+                        }
+                      })
+                      .map<String>(
+                        (t) =>
+                            (t['storyId'] as String?) ??
+                            (t['story_id'] as String?) ??
+                            (t['id'] as String?) ??
+                            '',
+                      )
+                      .where((e) => e.isNotEmpty)
+                      .toList();
+                  return _TransactionStoryCard(tx: tx, allStoryIds: dayNavIds);
+                }),
+          ],
+          const SizedBox(height: 24),
         ],
-        const SizedBox(height: 24),
-      ]),
+      ),
     );
   }
 
-  Widget _buildDayCell(int day, List<dynamic> dayTxList, bool isSelected, bool isToday) {
+  Widget _buildDayCell(
+    int day,
+    List<dynamic> dayTxList,
+    bool isSelected,
+    bool isToday,
+  ) {
     if (dayTxList.isEmpty) {
       return Container(
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.teal.withValues(alpha: 0.1) : Colors.transparent,
+          color: isSelected
+              ? AppColors.teal.withValues(alpha: 0.1)
+              : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
           border: isSelected
               ? Border.all(color: AppColors.teal, width: 1.5)
               : isToday
-                  ? Border.all(color: AppColors.teal.withValues(alpha: 0.5), width: 1.5)
-                  : Border.all(color: context.palette.border, width: 0.5),
+              ? Border.all(
+                  color: AppColors.teal.withValues(alpha: 0.5),
+                  width: 1.5,
+                )
+              : Border.all(color: context.palette.border, width: 0.5),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           mainAxisSize: MainAxisSize.min,
           children: [
-            const SizedBox(width: 36, height: 36), // placeholder matching card stack size
+            const SizedBox(
+              width: 36,
+              height: 36,
+            ), // placeholder matching card stack size
             const SizedBox(height: 8),
             Text(
               '$day',
@@ -1711,7 +2422,8 @@ class _InlineCalendarViewState extends State<_InlineCalendarView> {
     }
 
     final imageTx = dayTxList.firstWhere(
-      (tx) => (tx['imageUrl'] as String? ?? tx['image_url'] as String? ?? '').isNotEmpty,
+      (tx) => (tx['imageUrl'] as String? ?? tx['image_url'] as String? ?? '')
+          .isNotEmpty,
       orElse: () => null,
     );
 
@@ -1719,7 +2431,8 @@ class _InlineCalendarViewState extends State<_InlineCalendarView> {
 
     Widget buildCardContent(dynamic tx) {
       if (tx == null) return Container(color: const Color(0xFFCBD5E1));
-      final imgUrl = tx['imageUrl'] as String? ?? tx['image_url'] as String? ?? '';
+      final imgUrl =
+          tx['imageUrl'] as String? ?? tx['image_url'] as String? ?? '';
       if (imgUrl.isNotEmpty) {
         return CachedNetworkImage(
           imageUrl: imgUrl,
@@ -1727,16 +2440,22 @@ class _InlineCalendarViewState extends State<_InlineCalendarView> {
           memCacheWidth: 200,
           errorWidget: (context, url, error) => Container(
             color: const Color(0xFFCBD5E1),
-            child: const Icon(Icons.broken_image_outlined, size: 14, color: Colors.white70),
+            child: const Icon(
+              Icons.broken_image_outlined,
+              size: 14,
+              color: Colors.white70,
+            ),
           ),
         );
       } else {
-        final category = tx['category_name'] as String? ?? tx['categoryCode'] as String? ?? tx['category_code'] as String? ?? 'Other';
+        final category =
+            tx['category_name'] as String? ??
+            tx['categoryCode'] as String? ??
+            tx['category_code'] as String? ??
+            'Other';
         return Container(
           color: CategoryTheme.colorOf(category).withValues(alpha: 0.85),
-          child: Center(
-            child: CategoryTheme.iconOf(category, size: 18),
-          ),
+          child: Center(child: CategoryTheme.iconOf(category, size: 18)),
         );
       }
     }
@@ -1799,18 +2518,12 @@ class _InlineCalendarViewState extends State<_InlineCalendarView> {
             Positioned(
               left: 0,
               top: 4,
-              child: Transform.rotate(
-                angle: -0.1,
-                child: bottomCard,
-              ),
+              child: Transform.rotate(angle: -0.1, child: bottomCard),
             ),
             Positioned(
               right: 0,
               top: 0,
-              child: Transform.rotate(
-                angle: 0.08,
-                child: topCard,
-              ),
+              child: Transform.rotate(angle: 0.08, child: topCard),
             ),
           ],
         ),
@@ -1819,9 +2532,7 @@ class _InlineCalendarViewState extends State<_InlineCalendarView> {
       stackWidget = SizedBox(
         width: cardSize + 6,
         height: cardSize + 4,
-        child: Center(
-          child: topCard,
-        ),
+        child: Center(child: topCard),
       );
     }
 
@@ -1864,13 +2575,18 @@ class _InlineCalendarViewState extends State<_InlineCalendarView> {
 
     return Container(
       decoration: BoxDecoration(
-        color: isSelected ? AppColors.teal.withValues(alpha: 0.1) : Colors.transparent,
+        color: isSelected
+            ? AppColors.teal.withValues(alpha: 0.1)
+            : Colors.transparent,
         borderRadius: BorderRadius.circular(8),
         border: isSelected
             ? Border.all(color: AppColors.teal, width: 1.5)
             : isToday
-                ? Border.all(color: AppColors.teal.withValues(alpha: 0.5), width: 1.5)
-                : Border.all(color: context.palette.border, width: 0.5),
+            ? Border.all(
+                color: AppColors.teal.withValues(alpha: 0.5),
+                width: 1.5,
+              )
+            : Border.all(color: context.palette.border, width: 0.5),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -1882,7 +2598,9 @@ class _InlineCalendarViewState extends State<_InlineCalendarView> {
             '$day',
             style: TextStyle(
               fontSize: 11,
-              fontWeight: (isToday || isSelected) ? FontWeight.w700 : FontWeight.w500,
+              fontWeight: (isToday || isSelected)
+                  ? FontWeight.w700
+                  : FontWeight.w500,
               color: isToday ? AppColors.teal : context.palette.textPrimary,
             ),
           ),
@@ -1917,12 +2635,14 @@ class _DraftReminderBannerState extends State<_DraftReminderBanner>
       duration: const Duration(milliseconds: 500),
       vsync: this,
     );
-    _slideAnim = Tween<double>(begin: -30, end: 0).animate(
-      CurvedAnimation(parent: _animCtrl, curve: Curves.easeOutCubic),
-    );
-    _fadeAnim = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(parent: _animCtrl, curve: Curves.easeIn),
-    );
+    _slideAnim = Tween<double>(
+      begin: -30,
+      end: 0,
+    ).animate(CurvedAnimation(parent: _animCtrl, curve: Curves.easeOutCubic));
+    _fadeAnim = Tween<double>(
+      begin: 0,
+      end: 1,
+    ).animate(CurvedAnimation(parent: _animCtrl, curve: Curves.easeIn));
     _animCtrl.forward();
   }
 
@@ -1939,10 +2659,7 @@ class _DraftReminderBannerState extends State<_DraftReminderBanner>
       builder: (context, child) {
         return Transform.translate(
           offset: Offset(0, _slideAnim.value),
-          child: Opacity(
-            opacity: _fadeAnim.value,
-            child: child,
-          ),
+          child: Opacity(opacity: _fadeAnim.value, child: child),
         );
       },
       child: GestureDetector(
@@ -1957,7 +2674,9 @@ class _DraftReminderBannerState extends State<_DraftReminderBanner>
               end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(AppRadii.lg),
-            border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.4)),
+            border: Border.all(
+              color: const Color(0xFFF59E0B).withValues(alpha: 0.4),
+            ),
             boxShadow: [
               BoxShadow(
                 color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
@@ -2070,12 +2789,15 @@ class _DraftListSheet extends StatelessWidget {
                 Text(
                   'Giao dịch chờ điền tiền',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
                 const Spacer(),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFFFEF3C7),
                     borderRadius: BorderRadius.circular(8),
@@ -2101,12 +2823,16 @@ class _DraftListSheet extends StatelessWidget {
               separatorBuilder: (_, _) => const SizedBox(height: 8),
               itemBuilder: (ctx, i) {
                 final tx = drafts[i] as Map<String, dynamic>;
-                final category = tx['category_name'] as String? ??
+                final category =
+                    tx['category_name'] as String? ??
                     tx['categoryCode'] as String? ??
                     tx['category_code'] as String? ??
                     'Others';
                 final note = tx['note'] as String? ?? '';
-                final createdAt = tx['createdAt'] as String? ?? tx['created_at'] as String? ?? '';
+                final createdAt =
+                    tx['createdAt'] as String? ??
+                    tx['created_at'] as String? ??
+                    '';
                 final catStyle = CategoryTheme.of(category);
                 final label = note.isNotEmpty ? note : catStyle.label;
                 final txId = tx['id'] as String? ?? '';
@@ -2114,7 +2840,7 @@ class _DraftListSheet extends StatelessWidget {
                 String timeAgo = '';
                 if (createdAt.isNotEmpty) {
                   try {
-                    final dt = DateTime.parse(createdAt);
+                    final dt = DateTime.parse(createdAt).toLocal();
                     final diff = DateTime.now().difference(dt);
                     if (diff.inDays > 0) {
                       timeAgo = '${diff.inDays} ngày trước';
@@ -2147,7 +2873,9 @@ class _DraftListSheet extends StatelessWidget {
                             color: catStyle.color.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(10),
                           ),
-                          child: Center(child: CategoryTheme.iconOf(category, size: 22)),
+                          child: Center(
+                            child: CategoryTheme.iconOf(category, size: 22),
+                          ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
@@ -2176,7 +2904,10 @@ class _DraftListSheet extends StatelessWidget {
                           ),
                         ),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
                           decoration: BoxDecoration(
                             color: const Color(0xFFF59E0B),
                             borderRadius: BorderRadius.circular(8),

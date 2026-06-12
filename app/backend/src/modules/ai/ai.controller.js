@@ -68,3 +68,11 @@ exports.aiChat = asyncHandler(async (req, res) => {
   const data = await service.aiChat(req.user.id, sessionId, content.trim());
   res.json({ success: true, data });
 });
+
+const { simulateUserPush } = require('../fcm/notification.scheduler');
+
+exports.simulateNotification = asyncHandler(async (req, res) => {
+  const data = await simulateUserPush(req.user.id);
+  res.json({ success: true, data });
+});
+
