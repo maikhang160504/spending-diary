@@ -114,7 +114,7 @@ flutter pub get
 flutter run --dart-define=API_BASE_URL=http://10.0.2.2:4000 --dart-define=AI_BASE_URL=http://10.0.2.2:8000
 
 # Real device (cùng WiFi — thay bằng IP máy dev)
-flutter run --dart-define=API_BASE_URL=http://10.190.86.24:4000 --dart-define=AI_BASE_URL=http://10.190.86.24:8000
+flutter run --dart-define=API_BASE_URL=http://10.190.86.24:4000 --dart-define=AI_BASE_URL=http://10.190.86.24:8000 --release
 ```
 
 ## 6. Chạy webadmin (terminal 4)

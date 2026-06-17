@@ -26,34 +26,33 @@ def create_app() -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(_: FastAPI):
-        import asyncio
         from app.services.nlu_service import get_nlu_service
         from app.services.ocr_service import get_ocr_service
+        from app.adapters.expense_ocr_nlu import pre_import_real_backends
 
-        async def load_models_bg():
-            # Wait a short delay to ensure port binding is done and probes are accepted
-            await asyncio.sleep(2.0)
-            logger.info("Starting background model loading...")
-            loop = asyncio.get_running_loop()
-            try:
-                nlu_loaded = await loop.run_in_executor(None, get_nlu_service().try_load)
-                ocr_loaded = await loop.run_in_executor(None, get_ocr_service().try_load)
-                logger.info(
-                    "Background model loading completed",
-                    extra={
-                        "event": "models_loaded",
-                        "extra_fields": {
-                            "nlu_loaded": nlu_loaded,
-                            "ocr_loaded": ocr_loaded,
-                            "use_real_nlu": settings.use_real_nlu,
-                            "use_real_ocr": settings.use_real_ocr,
-                        },
+        # 1. Run imports in the main thread to prevent import lock deadlocks
+        pre_import_real_backends()
+
+        # 2. Run model loading in the main thread to prevent thread-safety issues during initialization
+        logger.info("Starting model loading on startup...")
+        try:
+            nlu_loaded = get_nlu_service().try_load()
+            ocr_loaded = get_ocr_service().try_load()
+            logger.info(
+                "Model loading completed",
+                extra={
+                    "event": "models_loaded",
+                    "extra_fields": {
+                        "nlu_loaded": nlu_loaded,
+                        "ocr_loaded": ocr_loaded,
+                        "use_real_nlu": settings.use_real_nlu,
+                        "use_real_ocr": settings.use_real_ocr,
                     },
-                )
-            except Exception as e:
-                logger.error(f"Error in background model loading: {e}")
+                },
+            )
+        except Exception as e:
+            logger.error(f"Error during model loading: {e}")
 
-        asyncio.create_task(load_models_bg())
         yield
         logger.info("AI service shutdown")
 

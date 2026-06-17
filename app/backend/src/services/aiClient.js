@@ -153,6 +153,11 @@ async function getTrainStatus() {
   return r.data;
 }
 
+async function getInternalStatus() {
+  const r = await client.get('/api/v1/nlu/internal/status');
+  return r.data;
+}
+
 module.exports = {
   health,
   inferText,
@@ -164,4 +169,6 @@ module.exports = {
   savePrompts,
   triggerTrain,
   getTrainStatus,
+  getInternalStatus,
 };
+

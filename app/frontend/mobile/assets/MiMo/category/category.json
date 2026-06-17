@@ -5,7 +5,7 @@
         "vi": "Ăn uống"
     },
     {
-        "name": "Transportation",
+        "name": "Transport",
         "icon": "assets/MiMo/category/transportation.png",
         "vi": "Di Chuyển"
     },
@@ -23,7 +23,8 @@
         "name": "Health",
         "icon": "assets/MiMo/category/health.png",
         "vi": "Sức khỏe"
-    },{
+    },
+    {
         "name": "Education",
         "icon": "assets/MiMo/category/education.png",
         "vi": "Giáo dục"
@@ -62,7 +63,8 @@
         "name": "Essentials",
         "icon": "assets/MiMo/category/essentials.png",
         "vi": "Đồ dùng thiết yếu"
-    },{
+    },
+    {
         "name": "Debt",
         "icon": "assets/MiMo/category/debt.png",
         "vi": "Nợ"
@@ -71,7 +73,8 @@
         "name": "Investment",
         "icon": "assets/MiMo/category/investment.png",
         "vi": "Đầu tư"
-    },{
+    },
+    {
         "name": "Saving",
         "icon": "assets/MiMo/category/saving.png",
         "vi": "Tiết kiệm"
@@ -86,5 +89,4 @@
         "icon": "assets/MiMo/category/salary.png",
         "vi": "Lương"
     }
-
 ]

@@ -476,26 +476,55 @@ async function expenseFromBill(userId, fileBuffer, originalName, contentType, wa
 async function _fetchUserCorrections(userId) {
   if (!userId) return [];
   try {
-    const res = await query(
-      `SELECT DISTINCT ON (clean_text)
-              text, intent, "categoryCode", "recordType"
-       FROM (
-         SELECT text, intent, category_code AS "categoryCode", record_type AS "recordType",
-                LOWER(TRIM(text)) as clean_text, created_at
-         FROM user_corrections
-         WHERE user_id = $1
-       ) tmp
-       ORDER BY clean_text, created_at DESC`,
-      [userId]
-    );
-    return res.rows.map(r => ({
+    const [correctionsRes, overridesRes] = await Promise.all([
+      query(
+        `SELECT DISTINCT ON (clean_text)
+                text, intent, "categoryCode", "recordType"
+         FROM (
+           SELECT text, intent, category_code AS "categoryCode", record_type AS "recordType",
+                  LOWER(TRIM(text)) as clean_text, created_at
+           FROM user_corrections
+           WHERE user_id = $1
+         ) tmp
+         ORDER BY clean_text, created_at DESC`,
+        [userId]
+      ),
+      query(
+        `SELECT keyword AS text, category_code AS "categoryCode"
+         FROM user_category_mappings
+         WHERE user_id = $1`,
+        [userId]
+      )
+    ]);
+
+    const corrections = correctionsRes.rows.map(r => ({
       text: r.text,
       intent: r.intent || 'Record',
       category_code: r.categoryCode || null,
       record_type: r.recordType || null,
     }));
+
+    const overrides = overridesRes.rows.map(r => ({
+      text: r.text,
+      intent: 'Record',
+      category_code: r.categoryCode || null,
+      record_type: 'Expense',
+    }));
+
+    const merged = [...overrides];
+    const seenTexts = new Set(overrides.map(o => o.text.toLowerCase().trim()));
+
+    for (const corr of corrections) {
+      const cleanT = corr.text.toLowerCase().trim();
+      if (!seenTexts.has(cleanT)) {
+        seenTexts.add(cleanT);
+        merged.push(corr);
+      }
+    }
+
+    return merged;
   } catch (err) {
-    logger.warn({ err: err.message, userId }, 'failed to fetch user corrections');
+    logger.warn({ err: err.message, userId }, 'failed to fetch user corrections and overrides');
     return [];
   }
 }

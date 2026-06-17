@@ -108,3 +108,14 @@ def train(background_tasks: BackgroundTasks):
 @router.get("/train/status", summary="Lấy trạng thái huấn luyện")
 def train_status():
     return {"training_active": TRAINING_ACTIVE}
+
+
+@router.get("/internal/status", summary="Lấy thông tin mô hình NLU hiện tại")
+def internal_status():
+    service = get_nlu_service()
+    loaded = service.try_load()
+    return {
+        "loaded": loaded,
+        "backend": "real" if loaded else "mock"
+    }
+

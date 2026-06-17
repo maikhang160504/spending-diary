@@ -219,3 +219,20 @@ Cleaned up the codebase to ensure it is tidy, optimized, secure, and production-
 - Ran `npm test` in `app/backend` — **73/73 Node.js unit tests passed**.
 - Ran Python NLU tests in `expense-ocr-nlu` — **13/13 Python tests passed**.
 
+---
+
+## Part 8 — AI Service Startup Model Weight Loading Fix
+
+### Problem Solved
+Although the FastAPI service had startup hooks to import and trigger model loading at initialization, the underlying Hugging Face tokenizer and model weights (`vinai/phobert-base`) were still lazy-loaded inside the custom `_get_hf()` wrapper of `src.nlu.encoder_runtime` when the first NLU inference request was received. This caused high first-request latency (up to 15-25 seconds) and gave the impression that weights were not loaded at startup.
+
+### Actions Taken
+1. **Model Warmup at Startup**:
+   - Modified `_load_nlu_bundle_unlocked()` inside [expense_ocr_nlu.py](file:///d:/Luan-Van/Project/app/ai-service/app/adapters/expense_ocr_nlu.py) to dynamically import `src.nlu.encoder_runtime`.
+   - Iterated through the loaded model bundles (intent, category, action_type, record_type) and checked if their backend is configured as `"encoder"`.
+   - If so, it reads the target `encoder_model_name` (e.g. `vinai/phobert-base`) and calls `_get_hf(model_name)` during the startup lifespan hook.
+2. **Verified Startup Logs**:
+   - Confirmed the server logs now clearly show pre-loading and warming up of the Hugging Face encoder models for `intent`, `action_type`, and `record_type` during application startup, *before* the port is bound and the server accepts traffic.
+   - Subsequent NLU inference requests now process instantly without any lazy weight-loading latency.
+
+

@@ -56,10 +56,10 @@ export async function getNluAggregations() {
   return request("/api/admin/nlu/aggregations");
 }
 
-export async function curateNluAggregations(corrections) {
+export async function curateNluAggregations(corrections, autoRetrain = false) {
   return request("/api/admin/nlu/curate", {
     method: "POST",
-    body: JSON.stringify({ corrections })
+    body: JSON.stringify({ corrections, autoRetrain })
   });
 }
 
@@ -83,3 +83,8 @@ export async function triggerNluTrain() {
 export async function getNluTrainStatus() {
   return request("/api/admin/train/status");
 }
+
+export async function getNluModelMeta() {
+  return request("/api/admin/train/model-meta");
+}
+

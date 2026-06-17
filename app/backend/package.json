@@ -1,6 +1,6 @@
 {
   "name": "moneystory-backend",
-  "version": "1.0.0",
+  "version": "1.0.10",
   "description": "Backend orchestrator for MoneyStory expense management (Auth, Wallets, Transactions, Budgets, Stats, AI proxy, R2 upload).",
   "main": "src/index.js",
   "scripts": {

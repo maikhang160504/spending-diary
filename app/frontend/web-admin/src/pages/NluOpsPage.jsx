@@ -6,7 +6,8 @@ import {
   getNluAggregations,
   curateNluAggregations,
   triggerNluTrain,
-  getNluTrainStatus
+  getNluTrainStatus,
+  getNluModelMeta
 } from "../services/api";
 
 function NluOpsPage() {
@@ -22,15 +23,15 @@ function NluOpsPage() {
   const [newUserId, setNewUserId] = useState("");
 
   // Layer 2 state
-  const [aggregations, setAggregations] = useState([]);
+  const [autoRetrainAfterCurate, setAutoRetrainAfterCurate] = useState(true);
 
   // Model status state
   const [isTraining, setIsTraining] = useState(false);
   const [modelMeta, setModelMeta] = useState({
-    version: "v2.4-global",
-    trainedAt: "2026-06-03 14:22:00",
-    f1Score: "92.4%",
-    trainingRows: 47000,
+    version: "Loading...",
+    trainedAt: "Loading...",
+    f1Score: "Loading...",
+    trainingRows: 0,
   });
 
   const showToast = (msg) => {
@@ -66,11 +67,16 @@ function NluOpsPage() {
       });
   };
 
-  // Fetch training status
+  // Fetch training status and model metadata
   const fetchTrainStatus = () => {
     getNluTrainStatus()
       .then((data) => {
         setIsTraining(data.training_active);
+      })
+      .catch(() => {});
+    getNluModelMeta()
+      .then((data) => {
+        setModelMeta(data);
       })
       .catch(() => {});
   };
@@ -135,9 +141,12 @@ function NluOpsPage() {
       return;
     }
     setLoading(true);
-    curateNluAggregations(selected)
+    curateNluAggregations(selected, autoRetrainAfterCurate)
       .then((res) => {
         fetchAggregations();
+        if (autoRetrainAfterCurate) {
+          setIsTraining(true);
+        }
         showToast(res.message || `Appended ${selected.length} samples to global CSV!`);
       })
       .catch((err) => {
@@ -304,6 +313,12 @@ function NluOpsPage() {
                   <option value="Education">Education (Học tập)</option>
                   <option value="Travel">Travel (Du lịch)</option>
                   <option value="Others">Others (Khác)</option>
+                  <option value="Salary">Salary (Lương)</option>
+                  <option value="Bonus">Bonus (Thưởng/Lì xì)</option>
+                  <option value="Business">Business (Kinh doanh)</option>
+                  <option value="Essentials">Essentials (Thiết yếu)</option>
+                  <option value="Beauty">Beauty (Làm đẹp)</option>
+                  <option value="Social">Social (Xã hội)</option>
                 </select>
               </div>
 
@@ -328,6 +343,15 @@ function NluOpsPage() {
             <button className="btn btn-primary" onClick={handleExportCuration} disabled={aggregations.length === 0}>
               Approve & Curation Train
             </button>
+            <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", marginTop: "8px" }}>
+              <input
+                type="checkbox"
+                checked={autoRetrainAfterCurate}
+                onChange={(e) => setAutoRetrainAfterCurate(e.target.checked)}
+                style={{ width: "16px", height: "16px", accentColor: "var(--accent-emerald)" }}
+              />
+              Tự động retrain NLU sau khi duyệt curation
+            </label>
           </div>
 
           <div className="table-container">
@@ -337,6 +361,7 @@ function NluOpsPage() {
                   <th style={{ width: "40px", paddingLeft: "24px" }}>Curate</th>
                   <th>Raw Correction Term</th>
                   <th>User Mapped Category</th>
+                  <th>Record Type</th>
                   <th>Original AI Prediction</th>
                   <th>Anomaly Count (Votes)</th>
                   <th>Action State</th>
@@ -358,6 +383,9 @@ function NluOpsPage() {
                       <span className="badge badge-success">{agg.targetCategory}</span>
                     </td>
                     <td>
+                      <span className="badge badge-info">{agg.recordType || "Expense"}</span>
+                    </td>
+                    <td>
                       <span className="badge badge-danger">{agg.originalCategory}</span>
                     </td>
                     <td style={{ fontWeight: "700" }}>{agg.count.toLocaleString()}</td>
@@ -372,7 +400,7 @@ function NluOpsPage() {
                 ))}
                 {aggregations.length === 0 && (
                   <tr>
-                    <td colSpan="6" style={{ textAlign: "center", padding: "20px" }}>
+                    <td colSpan="7" style={{ textAlign: "center", padding: "20px" }}>
                       No active corrections aggregated in PostgreSQL log yet.
                     </td>
                   </tr>

@@ -88,6 +88,21 @@ def _load_nlu_bundle_unlocked() -> dict[str, Any]:
     }
     _NLU_BUNDLE = bundle
     logger.info("Loaded real NLU bundle from expense-ocr-nlu.")
+
+    # Auto-warmup/pre-load Hugging Face encoder models on startup to avoid lazy-loading on first request
+    try:
+        encoder_runtime = importlib.import_module("src.nlu.encoder_runtime")
+        for key in ("intent", "category", "action_type", "record_type"):
+            model_info = bundle.get(key)
+            if isinstance(model_info, dict) and model_info.get("backend") == "encoder":
+                inner_bundle = model_info.get("bundle")
+                if isinstance(inner_bundle, dict) and "encoder_model_name" in inner_bundle:
+                    model_name = inner_bundle["encoder_model_name"]
+                    logger.info(f"Pre-loading/Warming up Hugging Face encoder model '{model_name}' for {key}...")
+                    encoder_runtime._get_hf(model_name)
+    except Exception as exc:
+        logger.warning(f"Failed to pre-load Hugging Face encoder models during startup: {exc}")
+
     return bundle
 
 
@@ -230,7 +245,11 @@ def _load_ocr_pipeline_unlocked() -> Any:
         _OCR_ERROR = f"OCR import failed: {exc}"
         raise
 
-    _OCR_PIPELINE = pipeline_module.ReceiptOCRPipeline(weights_path).load()
+    _OCR_PIPELINE = pipeline_module.ReceiptOCRPipeline(
+        vietocr_weights=weights_path,
+        device=settings.device,
+        paddle_use_gpu=(settings.device == "cuda"),
+    ).load()
     logger.info("Loaded real OCR pipeline from expense-ocr-nlu.")
     return _OCR_PIPELINE
 
@@ -307,3 +326,32 @@ def run_real_ocr(image_bytes: bytes, filename_hint: str | None = None) -> dict[s
         "requires_confirmation": True,
         "backend": "real",
     }
+
+
+def pre_import_real_backends() -> None:
+    """Import heavy modules in the main thread to avoid thread/import lock deadlocks."""
+    settings = get_settings()
+    if settings.use_real_nlu:
+        try:
+            _ensure_paths_on_sys_path()
+            importlib.import_module("src.config.env")
+            importlib.import_module("src.config.settings")
+            importlib.import_module("src.nlu.models")
+            importlib.import_module("src.nlu.ner")
+            importlib.import_module("src.nlu.pipeline")
+            importlib.import_module("src.nlg.llm_runner")
+            importlib.import_module("src.nlg.context_meta")
+            importlib.import_module("src.nlu.json_sanitize")
+            importlib.import_module("src.nlu.action_executor")
+            logger.info("Main thread pre-import of real NLU modules completed.")
+        except Exception as exc:
+            logger.warning("Real NLU pre-import failed (will retry at load): %s", exc)
+
+    if settings.use_real_ocr:
+        try:
+            _ensure_paths_on_sys_path()
+            importlib.import_module("receipt_ocr.pipeline")
+            logger.info("Main thread pre-import of real OCR modules completed.")
+        except Exception as exc:
+            logger.warning("Real OCR pre-import failed (will retry at load): %s", exc)
+

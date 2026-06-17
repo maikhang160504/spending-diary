@@ -19,12 +19,12 @@ import '../../utils/formatters.dart';
 
 
 String _actionSignatureFromNlu(Map<String, dynamic> nlu) {
-  final fromApi = nlu['action_signature'] as String?;
+  final fromApi = nluString(nlu['action_signature']);
   if (fromApi != null && fromApi.isNotEmpty) return fromApi;
-  final actionType = (nlu['action_type'] as String? ?? 'UNKNOWN').toUpperCase();
-  final tr = nlu['time_range'] as Map<String, dynamic>?;
-  if (tr != null) return '$actionType|${tr['granularity'] ?? 'default'}';
-  final details = nlu['action_details'] as Map<String, dynamic>?;
+  final actionType = (nluString(nlu['action_type']) ?? 'UNKNOWN').toUpperCase();
+  final tr = nluMap(nlu['time_range']);
+  if (tr != null) return '$actionType|${nluString(tr['granularity']) ?? 'default'}';
+  final details = nluMap(nlu['action_details']);
   final amount = nlu['amount'] ?? nlu['action_param'] ?? details?['value'];
   final cat = _categoryFromNlu(nlu);
   if (actionType.contains('LIMIT')) {
@@ -36,18 +36,17 @@ String _actionSignatureFromNlu(Map<String, dynamic> nlu) {
 }
 
 String? _categoryFromNlu(Map<String, dynamic> nlu) {
-  final details = nlu['action_details'] as Map<String, dynamic>?;
-  final target = details?['target'] as String? ?? nlu['category'] as String?;
+  final details = nluMap(nlu['action_details']);
+  final target = nluString(details?['target']) ?? nluString(nlu['category']);
   if (target == null) return null;
   if (CategoryTheme.styles.containsKey(target)) return target;
   return null;
 }
 
 int? _amountFromNlu(Map<String, dynamic> nlu) {
-  final details = nlu['action_details'] as Map<String, dynamic>?;
+  final details = nluMap(nlu['action_details']);
   final raw = nlu['amount'] ?? nlu['action_param'] ?? details?['value'];
-  if (raw is num) return raw.toInt();
-  return null;
+  return nluInt(raw);
 }
 
 String _actionSummary(String actionType, {int? amount, String? categoryCode}) {
@@ -106,11 +105,11 @@ Map<String, dynamic> _executeBodyFromPreview(_ActionPreview preview) {
 _SearchResultPreview? _searchPreviewFromResult(Map<String, dynamic> result) {
   if (result['kind'] != 'search') return null;
   final items = (result['items'] as List<dynamic>? ?? []).map((e) {
-    final m = e as Map<String, dynamic>;
+    final m = nluMap(e) ?? {};
     return _SearchResultItem(
-      amount: (m['amount'] as num?)?.toInt() ?? 0,
-      note: m['note'] as String? ?? '',
-      categoryCode: m['categoryCode'] as String? ?? 'Others',
+      amount: nluInt(m['amount']) ?? 0,
+      note: nluString(m['note']) ?? '',
+      categoryCode: nluString(m['categoryCode']) ?? 'Others',
     );
   }).toList();
   if (items.isEmpty) return null;
@@ -129,26 +128,26 @@ bool _actionNeedsConfirm(String actionType) {
 }
 
 _ReportStoryPreview? _reportPreviewFromNlu(Map<String, dynamic> nlu) {
-  final ar = nlu['action_result'] as Map<String, dynamic>?;
+  final ar = nluMap(nlu['action_result']);
   if (ar == null) return null;
   final cats = (ar['by_category'] as List<dynamic>? ?? []).map((c) {
-    final m = c as Map<String, dynamic>;
+    final m = nluMap(c) ?? {};
     return _ReportCategoryRow(
-      categoryCode: m['categoryCode'] as String? ?? 'Others',
-      total: (m['total'] as num?)?.toInt() ?? 0,
-      percent: (m['percent'] as num?)?.toInt() ?? 0,
+      categoryCode: nluString(m['categoryCode']) ?? 'Others',
+      total: nluInt(m['total']) ?? 0,
+      percent: nluInt(m['percent']) ?? 0,
     );
   }).toList();
   final kind = nluString(ar['report_kind']) ?? nluString(nlu['action_type']);
   return _ReportStoryPreview(
     periodLabel:
-        ar['period_label'] as String? ??
-        (nlu['time_range'] as Map?)?['period_label'] as String? ??
+        nluString(ar['period_label']) ??
+        nluString(nluMap(nlu['time_range'])?['period_label']) ??
         'Báo cáo',
-    totalExpense: (ar['total_expense'] as num?)?.toInt() ?? 0,
-    totalIncome: (ar['total_income'] as num?)?.toInt() ?? 0,
+    totalExpense: nluInt(ar['total_expense']) ?? 0,
+    totalIncome: nluInt(ar['total_income']) ?? 0,
     reportKind: kind,
-    transactionCount: (ar['transaction_count'] as num?)?.toInt() ?? 0,
+    transactionCount: nluInt(ar['transaction_count']) ?? 0,
     categories: cats,
   );
 }
@@ -186,9 +185,38 @@ class _ChatScreenState extends State<ChatScreen> {
   String? _walletId;
   String? _oldestMessageId;
 
+  static const List<String> _candidateSuggestions = [
+    'Thống kê chi tiêu tuần này',
+    'Tổng chi tiêu tháng này',
+    'Tháng trước chi hết bao nhiêu?',
+    'Hôm nay tiêu gì rồi?',
+    'Phở 50k',
+    'Cafe 35k',
+    'Đổ xăng 50k',
+    'Đặt hạn mức Ăn uống 3 triệu',
+    'Xem hạn mức tháng này',
+    'Xóa giao dịch gần nhất',
+    'Tìm các giao dịch ăn uống',
+    'Đặt mục tiêu tiết kiệm 10 triệu',
+    'Đổi giọng nói của Mimo',
+    'Chuyển sang giao diện tối',
+    'Gợi ý hạn mức tháng mới',
+  ];
+
+  final List<String> _suggestions = [];
+
+  void _generateRandomSuggestions() {
+    final list = List<String>.from(_candidateSuggestions);
+    list.shuffle();
+    _suggestions
+      ..clear()
+      ..addAll(list.take(4));
+  }
+
   @override
   void initState() {
     super.initState();
+    _generateRandomSuggestions();
     _scrollCtrl.addListener(_onScrollLoadOlder);
     _initSession();
     _loadAiPersonality();
@@ -238,18 +266,17 @@ class _ChatScreenState extends State<ChatScreen> {
   List<_ChatMsg> _parseMessagesFromApi(List<dynamic> msgs) {
     final out = <_ChatMsg>[];
     for (final m in msgs) {
-      final map = m as Map<String, dynamic>;
-      final role = map['role'] as String? ?? 'user';
-      final metadata =
-          (map['intent_action'] ?? map['intentAction'] ?? map['metadata'])
-              as Map<String, dynamic>?;
+      final map = nluMap(m);
+      if (map == null) continue;
+      final role = nluString(map['role']) ?? 'user';
+      final metadata = nluMap(map['intent_action'] ?? map['intentAction'] ?? map['metadata']);
 
       _TxPreview? txPreview;
       _ActionPreview? actionPreview;
       _ReportStoryPreview? reportPreview;
       List<_TxPreview>? multiRecords;
       String? chatEmotion;
-      var displayText = map['content'] as String? ?? '';
+      var displayText = nluString(map['content']) ?? '';
 
       if (metadata != null && role != 'user') {
         final llmMeta = llmReplyFromChatMetadata(
@@ -261,15 +288,13 @@ class _ChatScreenState extends State<ChatScreen> {
         final rawMulti = metadata['multi_records'] ?? metadata['multiRecords'];
         if (rawMulti is List && rawMulti.length >= 2) {
           multiRecords = rawMulti.map((r) {
-            final rMap = r as Map<String, dynamic>;
+            final rMap = nluMap(r) ?? {};
             return _TxPreview(
-              category: rMap['category'] as String? ?? 'Other',
-              amount: (rMap['amount'] is num)
-                  ? (rMap['amount'] as num).toInt()
-                  : 0,
-              note: rMap['text'] as String? ?? rMap['note'] as String? ?? '',
-              recordType: rMap['record_type'] as String? ?? 'Expense',
-              transactionId: rMap['transaction_id'] ?? rMap['transactionId'] as String?,
+              category: nluString(rMap['category']) ?? 'Other',
+              amount: nluInt(rMap['amount']) ?? 0,
+              note: nluString(rMap['text']) ?? nluString(rMap['note']) ?? '',
+              recordType: nluString(rMap['record_type']) ?? 'Expense',
+              transactionId: nluString(rMap['transaction_id'] ?? rMap['transactionId']),
             );
           }).toList();
         }
@@ -280,7 +305,7 @@ class _ChatScreenState extends State<ChatScreen> {
           if (intent == 'Record' && multiRecords == null) {
             final amount =
                 metadata['amount'] ?? nlu['amount_spent'] ?? nlu['amount'];
-            final amountInt = (amount is num) ? amount.toInt() : 0;
+            final amountInt = nluInt(amount) ?? 0;
             final reply = llmMeta ?? LlmMimoReply.fromNlu(nlu, intent: intent);
             final llmText = reply.text.trim();
             if (llmText.isNotEmpty) displayText = llmText;
@@ -292,7 +317,7 @@ class _ChatScreenState extends State<ChatScreen> {
               emotionAsset: reply.emotionAsset,
               aiComment: llmText.isNotEmpty ? llmText : null,
               nlu: nlu,
-              transactionId: metadata['transaction_id'] ?? metadata['transactionId'] as String?,
+              transactionId: nluString(metadata['transaction_id'] ?? metadata['transactionId']),
             );
           } else if (intent == 'Action') {
             final report = _reportPreviewFromNlu(nlu);
@@ -327,9 +352,9 @@ class _ChatScreenState extends State<ChatScreen> {
       final savedFlag = (metadata?['saved'] == true) || autoSaved;
 
       final newMsg = _ChatMsg(
-        text: role == 'user' ? displayText : displayText,
+        text: displayText,
         isUser: role == 'user',
-        time: _formatMsgTime(map['created_at'] as String?),
+        time: _formatMsgTime(nluString(map['created_at'])),
         chatEmotion: chatEmotion,
         txPreview: txPreview,
         actionPreview: actionPreview,
@@ -348,13 +373,14 @@ class _ChatScreenState extends State<ChatScreen> {
               prevMsg.isSaved = true;
               // Chuyển transactionId(s) sang parent preview
               if (prevMsg.txPreview != null) {
-                prevMsg.txPreview!.transactionId = metadata['transaction_id'] ?? metadata['transactionId'] as String?;
+                prevMsg.txPreview!.transactionId = nluString(metadata['transaction_id'] ?? metadata['transactionId']);
               } else if (prevMsg.multiRecords != null && metadata['multi_records'] is List) {
                 final list = metadata['multi_records'] as List;
                 for (int j = 0; j < prevMsg.multiRecords!.length && j < list.length; j++) {
                   final item = list[j];
-                  if (item is Map) {
-                    prevMsg.multiRecords![j].transactionId = item['transaction_id'] ?? item['transactionId'] as String?;
+                  final itemMap = nluMap(item);
+                  if (itemMap != null) {
+                    prevMsg.multiRecords![j].transactionId = nluString(itemMap['transaction_id'] ?? itemMap['transactionId']);
                   }
                 }
               }
@@ -527,6 +553,30 @@ class _ChatScreenState extends State<ChatScreen> {
       _aiThinking = true;
     });
     _scrollToBottom();
+
+    if (_sessionId == null) {
+      try {
+        await _initSession();
+      } catch (e) {
+        debugPrint('Failed to initialize session: $e');
+      }
+      if (_sessionId == null) {
+        if (!mounted) return;
+        setState(() {
+          _aiThinking = false;
+          _messages.insert(
+            0,
+            _ChatMsg(
+              text: 'Mimo chưa kết nối được. Vui lòng kiểm tra mạng và thử lại nhé! 🌐',
+              isUser: false,
+              time: _now(),
+            ),
+          );
+        });
+        _scrollToBottom();
+        return;
+      }
+    }
 
     // Save to backend chat
     if (_sessionId != null) {
@@ -768,35 +818,24 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
             ),
             // Quick action chips
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: [
-                    _QuickChip(
-                      label: 'Tuần này sao?',
-                      onTap: () => _sendMessage('Tuần này sao?'),
-                    ),
-                    const SizedBox(width: 8),
-                    _QuickChip(
-                      label: 'Tổng chi tiêu',
-                      onTap: () => _sendMessage('Tổng chi tiêu'),
-                    ),
-                    const SizedBox(width: 8),
-                    _QuickChip(
-                      label: 'Phở 50k',
-                      onTap: () => _sendMessage('Phở 50k'),
-                    ),
-                    const SizedBox(width: 8),
-                    _QuickChip(
-                      label: 'Cafe 35k',
-                      onTap: () => _sendMessage('Cafe 35k'),
-                    ),
-                  ],
+            if (_suggestions.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      for (int i = 0; i < _suggestions.length; i++) ...[
+                        _QuickChip(
+                          label: _suggestions[i],
+                          onTap: () => _sendMessage(_suggestions[i]),
+                        ),
+                        if (i < _suggestions.length - 1) const SizedBox(width: 8),
+                      ]
+                    ],
+                  ),
                 ),
               ),
-            ),
             _ChatComposer(
               controller: _inputCtrl,
               onSend: () {

@@ -1199,18 +1199,6 @@ class _TransactionStoryCard extends StatelessWidget {
     this.fallbackUserAvatar,
   });
 
-  static const _categories = [
-    ('Food', 'Ăn uống'),
-    ('Shopping', 'Mua sắm'),
-    ('Transport', 'Di chuyển'),
-    ('Entertainment', 'Giải trí'),
-    ('Housing', 'Nhà ở'),
-    ('Health', 'Sức khoẻ'),
-    ('Education', 'Học tập'),
-    ('Travel', 'Du lịch'),
-    ('Others', 'Khác'),
-  ];
-
   Future<void> _onLongPress(BuildContext context) async {
     final api = ApiClient();
     final note = tx['note'] as String? ?? '';
@@ -1226,17 +1214,23 @@ class _TransactionStoryCard extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
               child: Text(
-                'Sửa danh mục (AI training)',
+                'Sửa danh mục',
                 style: Theme.of(
                   ctx,
                 ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
               ),
             ),
-            ..._categories.map(
-              (c) => ListTile(
-                leading: CategoryTheme.iconOf(c.$1, size: 22),
-                title: Text(c.$2),
-                onTap: () => Navigator.pop(ctx, c.$1),
+            Flexible(
+              child: ListView(
+                shrinkWrap: true,
+                children: CategoryTheme.primaryCodes.map((code) {
+                  final style = CategoryTheme.of(code);
+                  return ListTile(
+                    leading: CategoryTheme.iconOf(code, size: 22),
+                    title: Text(style.label),
+                    onTap: () => Navigator.pop(ctx, code),
+                  );
+                }).toList(),
               ),
             ),
           ],

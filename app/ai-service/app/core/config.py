@@ -6,7 +6,7 @@ from functools import lru_cache
 from pathlib import Path
 
 from dotenv import load_dotenv
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -19,6 +19,14 @@ EXPENSE_OCR_NLU_DIR = PROJECT_ROOT / "expense-ocr-nlu"
 _ENV_PATH = SERVICE_ROOT / ".env"
 if _ENV_PATH.exists():
     load_dotenv(_ENV_PATH, override=False)
+
+# Force CPU mode early if DEVICE is set to "cpu" or defaults to it.
+# This avoids CUDA context initialization hangs on environments with broken/unconfigured drivers.
+_device_env = (os.getenv("DEVICE") or os.getenv("device") or "cpu").lower().strip().replace('"', '').replace("'", "")
+if _device_env == "cpu":
+    os.environ["CUDA_VISIBLE_DEVICES"] = ""
+    os.environ["USE_CUDA"] = "0"
+    os.environ["NVIDIA_VISIBLE_DEVICES"] = ""
 
 
 class Settings(BaseSettings):
@@ -36,6 +44,7 @@ class Settings(BaseSettings):
     host: str = Field(default="0.0.0.0")
     port: int = Field(default=8000)
     log_level: str = Field(default="INFO")
+    device: str = Field(default="cpu", description="Target device for ML models ('cpu' or 'cuda').")
 
     use_real_nlu: bool = Field(default=False, description="Load full NLU pipeline (joblib + PhoBERT).")
     use_real_ocr: bool = Field(default=False, description="Load PaddleOCR + VietOCR weights.")
@@ -53,6 +62,20 @@ class Settings(BaseSettings):
         description="Optional shared secret. When set, requests must send X-API-Key header.",
     )
     cors_origins: str = Field(default="*")
+
+    @model_validator(mode="after")
+    def resolve_relative_paths(self) -> Settings:
+        # Resolve expense_ocr_nlu_dir relative to SERVICE_ROOT if it's relative
+        p_nlu = Path(self.expense_ocr_nlu_dir)
+        if not p_nlu.is_absolute():
+            self.expense_ocr_nlu_dir = str((SERVICE_ROOT / p_nlu).resolve())
+
+        # Resolve ocr_weights_path relative to SERVICE_ROOT if it's relative
+        if self.ocr_weights_path:
+            p_ocr = Path(self.ocr_weights_path)
+            if not p_ocr.is_absolute():
+                self.ocr_weights_path = str((SERVICE_ROOT / p_ocr).resolve())
+        return self
 
     @property
     def cors_origins_list(self) -> list[str]:
