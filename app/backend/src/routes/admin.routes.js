@@ -4,6 +4,13 @@ const express = require('express');
 const router = express.Router();
 const fs = require('fs');
 const path = require('path');
+const multer = require('multer');
+const { randomUUID } = require('crypto');
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 8 * 1024 * 1024 },
+});
 
 const { query } = require('../config/db');
 const aiClient = require('../services/aiClient');
@@ -269,6 +276,328 @@ router.get('/train/model-meta', async (req, res, next) => {
       trainingRows: trainingRows,
       loaded: statusRes.loaded
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ── Bill OCR retrain (WebAdmin Labeling Canvas) ─────────────────────────────
+
+const billRetrainStore = require('../services/billRetrainStore');
+const retrainReadiness = require('../services/retrainReadiness');
+
+router.get('/retrain-readiness', async (req, res, next) => {
+  try {
+    const data = await retrainReadiness.getRetrainReadiness();
+    res.json(data);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/ai-service/reload', async (req, res, next) => {
+  try {
+    const scope = req.body?.scope || 'ocr';
+    const result = await aiClient.reloadModels(scope);
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/bill-retrain/ocr-status', async (req, res, next) => {
+  try {
+    const health = await aiClient.health();
+    res.json({
+      ocr_loaded: Boolean(health.ocr_loaded),
+      ocr_real: Boolean(health.ocr_real),
+      nlu_loaded: Boolean(health.nlu_loaded),
+      version: health.version,
+      hint: health.ocr_loaded
+        ? null
+        : 'Set OCR_WEIGHTS_PATH=.../OCR/models/vietocr/vietocr_receipt.pth in ai-service/.env and restart.',
+    });
+  } catch (err) {
+    res.json({
+      ocr_loaded: false,
+      ocr_real: false,
+      error: err.message || 'AI service unreachable',
+      hint: 'Start ai-service on port 8000 with USE_REAL_OCR=true',
+    });
+  }
+});
+
+router.get('/bill-retrain/samples', async (req, res, next) => {
+  try {
+    const status = req.query.status || null;
+    res.json(billRetrainStore.listSamples(status || undefined));
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/bill-retrain/samples/:id', async (req, res, next) => {
+  try {
+    const sample = billRetrainStore.getSample(req.params.id);
+    if (!sample) return res.status(404).json({ message: 'Sample not found' });
+    res.json(sample);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/bill-retrain/samples/:id/image', async (req, res, next) => {
+  try {
+    const image = billRetrainStore.readImage(req.params.id);
+    if (!image) return res.status(404).json({ message: 'Image not found' });
+    const mime = image.ext.toLowerCase() === '.png' ? 'image/png' : 'image/jpeg';
+    res.setHeader('Content-Type', mime);
+    res.sendFile(image.filePath);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/bill-retrain/upload', upload.single('file'), async (req, res, next) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'Missing file upload (field: file)' });
+    }
+    const id = randomUUID();
+    const ext = path.extname(req.file.originalname || '') || '.jpg';
+    const imageUrl = billRetrainStore.saveImage(id, req.file.buffer, ext);
+    const sample = billRetrainStore.upsertSample({
+      id,
+      status: 'pending',
+      imageUrl,
+      imageExt: ext,
+      autoLabels: null,
+      adminLabels: [],
+      metadata: {},
+    });
+    res.json({ sample });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/bill-retrain/prelabel', upload.single('file'), async (req, res, next) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'Missing file upload (field: file)' });
+    }
+    const prelabel = await aiClient.billPrelabel(
+      req.file.buffer,
+      req.file.originalname,
+      req.file.mimetype
+    );
+    const id = randomUUID();
+    const ext = path.extname(req.file.originalname || '') || '.jpg';
+    const imageUrl = billRetrainStore.saveImage(id, req.file.buffer, ext);
+    const sample = billRetrainStore.upsertSample({
+      id,
+      status: 'pending',
+      imageUrl,
+      imageExt: ext,
+      autoLabels: prelabel,
+      adminLabels: prelabel.boxes || [],
+      metadata: {
+        amount: prelabel.amount,
+        category: prelabel.category,
+        kieBackend: prelabel.kie_backend,
+        prelabelError: prelabel.error || null,
+      },
+    });
+    res.json({ sample, prelabel });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.delete('/bill-retrain/samples/:id', async (req, res, next) => {
+  try {
+    const removed = billRetrainStore.deleteSample(req.params.id);
+    if (!removed) return res.status(404).json({ message: 'Sample not found' });
+    res.json({ ok: true, id: req.params.id });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/bill-retrain/samples/:id/prelabel', async (req, res, next) => {
+  try {
+    const existing = billRetrainStore.getSample(req.params.id);
+    if (!existing) return res.status(404).json({ message: 'Sample not found' });
+    const image = billRetrainStore.readImage(req.params.id);
+    if (!image?.filePath) return res.status(400).json({ message: 'Sample has no image file' });
+    const buffer = fs.readFileSync(image.filePath);
+    const prelabel = await aiClient.billPrelabel(
+      buffer,
+      `${existing.id}${existing.imageExt || '.jpg'}`,
+      image.ext === '.png' ? 'image/png' : 'image/jpeg'
+    );
+    const updated = billRetrainStore.upsertSample({
+      ...existing,
+      autoLabels: prelabel,
+      adminLabels: prelabel.boxes?.length ? prelabel.boxes : existing.adminLabels,
+      metadata: {
+        ...(existing.metadata || {}),
+        amount: prelabel.amount,
+        category: prelabel.category,
+        kieBackend: prelabel.kie_backend,
+        prelabelError: prelabel.error || null,
+      },
+    });
+    res.json({ sample: updated, prelabel });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.put('/bill-retrain/samples/:id', async (req, res, next) => {
+  try {
+    const { adminLabels, status } = req.body;
+    const existing = billRetrainStore.getSample(req.params.id);
+    if (!existing) return res.status(404).json({ message: 'Sample not found' });
+    const updated = billRetrainStore.upsertSample({
+      ...existing,
+      adminLabels: adminLabels || existing.adminLabels,
+      status: status || existing.status,
+    });
+    res.json(updated);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/bill-retrain/samples/:id/approve', async (req, res, next) => {
+  try {
+    const { adminLabels } = req.body;
+    const existing = billRetrainStore.getSample(req.params.id);
+    if (!existing) return res.status(404).json({ message: 'Sample not found' });
+    const approved = billRetrainStore.approveSample(
+      req.params.id,
+      adminLabels || existing.adminLabels || existing.autoLabels?.boxes || [],
+      req.user?.id || null
+    );
+    res.json(approved);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/bill-retrain/export', async (req, res, next) => {
+  try {
+    const approved = billRetrainStore.approvedForExport();
+    if (!approved.length) {
+      return res.status(400).json({ message: 'No approved samples to export' });
+    }
+    const triggerKaggle = Boolean(req.body?.triggerKaggle);
+    const archiveImages = req.body?.archiveImages !== false;
+    const webhookUrl =
+      req.body?.webhookUrl ||
+      `${req.protocol}://${req.get('host')}/api/admin/bill-retrain/kaggle/webhook`;
+    const result = await aiClient.billExportVerified(
+      approved,
+      triggerKaggle,
+      req.body?.kaggleJobType,
+      webhookUrl
+    );
+    let archive = null;
+    if (archiveImages) {
+      const batchId =
+        result?.training_pack?.created_at ||
+        result?.manifest?.created_at ||
+        new Date().toISOString();
+      archive = billRetrainStore.archiveExportedSamples(
+        approved.map((s) => s.id),
+        batchId
+      );
+    }
+    res.json({
+      success: true,
+      exported: approved.length,
+      ...result,
+      archivedImages: archive?.archivedImages ?? 0,
+      archiveBatchId: archive?.batchId ?? null,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/bill-retrain/kaggle/trigger', async (req, res, next) => {
+  try {
+    const jobType = req.body.jobType || 'layoutlmv3';
+    const result = await aiClient.billKaggleTrigger(jobType, req.body.webhookUrl, req.body.cloudFallbackUrl);
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/bill-retrain/kaggle/jobs', async (req, res, next) => {
+  try {
+    const jobs = await aiClient.billKaggleJobs(req.query.limit || 20);
+    res.json(jobs);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/bill-retrain/kaggle/jobs/:jobId', async (req, res, next) => {
+  try {
+    const job = await aiClient.billKaggleJob(req.params.jobId);
+    res.json(job);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/bill-retrain/kaggle/deploy', async (req, res, next) => {
+  try {
+    const { source, jobType, batchId } = req.body;
+    const result = await aiClient.billKaggleDeploy(source, jobType || 'layoutlmv3', batchId);
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/bill-retrain/kaggle/webhook', async (req, res, next) => {
+  try {
+    const { job_id: jobId, status, auto_reload: autoReload } = req.body || {};
+    logger.info('Bill retrain webhook received: %j', req.body);
+    let reload = null;
+    if (status === 'completed' && (autoReload !== false)) {
+      try {
+        reload = await aiClient.reloadModels('ocr');
+        logger.info('Auto-reloaded OCR after Kaggle job %s', jobId);
+      } catch (reloadErr) {
+        logger.warn('Auto-reload OCR failed after Kaggle job: %s', reloadErr.message);
+        reload = { ok: false, error: reloadErr.message };
+      }
+    }
+    res.json({ ok: true, received: req.body, reload });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/bill-retrain/kaggle/plan', async (req, res, next) => {
+  try {
+    const jobType = req.body.jobType || 'layoutlmv3';
+    const plan = await aiClient.billKagglePlan(jobType);
+    res.json(plan);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/bill-retrain/golden-eval', async (req, res, next) => {
+  try {
+    const report = await aiClient.billGoldenEval();
+    res.json(report);
   } catch (err) {
     next(err);
   }

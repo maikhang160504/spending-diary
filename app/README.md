@@ -1,211 +1,175 @@
 # MoneyStory — Fullstack Expense Management with AI
 
-Hệ thống quản lý chi tiêu cá nhân + AI nhận dạng (NLU text tiếng Việt + OCR hóa đơn). Đã được refactor thành 3 service rõ ràng + docker-compose chạy được toàn bộ ở local.
+Hệ thống quản lý chi tiêu cá nhân + AI nhận dạng (NLU text tiếng Việt + **hybrid OCR hóa đơn**: PaddleOCR + VietOCR + LayoutLMv3 KIE). Gồm mobile app, **WebAdmin** (retrain & curation), backend orchestrator và AI microservice.
 
 ```
                           +----------------------+
-                          |  Mobile / Web-admin  |
+                          |  Mobile + WebAdmin   |
                           +----------+-----------+
                                      | HTTPS (JWT)
                                      v
 +-----------+    +-------------------+--------------------+   HTTP   +-----------------+
 | Cloudflare|<---|         Backend (Node.js/Express)       |--------->|  AI Service     |
-|  R2       |    |  /api/v1/{auth,wallets,transactions,    |          |  (FastAPI)      |
-|  bucket   |    |          budgets,stats,categories,      |          |  /api/v1/{nlu,  |
-+-----------+    |          ai,upload}                     |          |        ocr,     |
-                 |  Swagger UI @ /docs                     |          |        expense} |
-                 +-------------------+--------------------+          |  Swagger /docs  |
-                                     | pg                            +--------+--------+
-                                     v                                        |
+|  R2       |    |  /api/v1/*  +  /api/admin/*            |          |  (FastAPI)      |
++-----------+    +-------------------+--------------------+          |  NLU + Hybrid   |
+                                     | pg                            |  OCR pipeline   |
+                                     v                               +--------+--------+
                           +----------+----------+                              |
-                          |   PostgreSQL /      |                              |
-                          |   CockroachDB       |                              |
-                          +---------------------+                              |
-                                                                               v
-                                                                +-------------------------+
-                                                                | expense-ocr-nlu (repo)  |
-                                                                | text_nlu/models/        |
-                                                                | OCR/models/             |
-                                                                +-------------------------+
+                          | PostgreSQL /        |                              v
+                          | CockroachDB         |              +-------------------------+
+                          +---------------------+              | expense-ocr-nlu         |
+                                                                 | text_nlu/models/        |
+                                                                 | OCR/models/vietocr/     |
+                                                                 | OCR/models/layoutlmv3_kie/
+                                                                 +-------------------------+
 ```
+
+> **Hướng dẫn chạy đầy đủ:** xem [`../setup.md`](../setup.md) (env, terminal, smoke test, Kaggle, FCM).
 
 ## Cấu trúc thư mục
 
 ```
 app/
-├── ai-service/          FastAPI microservice nhận dạng (NLU + OCR)
-│   ├── app/{core,schemas,services,adapters,routers}/
-│   ├── tests/
-│   ├── Dockerfile
-│   └── README.md
-├── backend/             Node.js orchestrator REST API
-│   ├── src/
-│   │   ├── modules/{auth,categories,wallets,transactions,budgets,stats,ai,upload}/
-│   │   ├── services/{aiClient,r2Client}.js
-│   │   ├── middlewares/, utils/, config/, routes/
-│   │   └── db/{migrate,seed}.js
-│   ├── tests/unit/
-│   ├── Dockerfile
-│   └── README.md
-├── database/
-│   ├── schema.sql       Master schema (Postgres + Cockroach)
-│   └── README.md
+├── ai-service/          FastAPI — NLU + hybrid OCR + bill-retrain API
+├── backend/             Node.js REST + admin routes + R2 + bill queue
+├── database/            schema.sql, migrations
 ├── frontend/
-│   ├── mobile/          (Flutter)
-│   └── web-admin/       (React + Vite)
-└── docker-compose.yml   postgres + ai-service + backend
+│   ├── mobile/          Flutter
+│   └── web-admin/       React + Vite (Dashboard, Bill Retrain, NLU Ops)
+└── docker-compose.yml
 ```
 
-## Cách chạy nhanh nhất
+## Cách chạy nhanh
 
-### Option A — docker-compose (đầy đủ)
+### Option A — docker-compose
 
 ```powershell
 cd app
-copy backend\.env.example backend\.env    # mở ra sửa JWT_SECRET, R2 keys nếu cần
+copy backend\.env.example backend\.env
 docker compose up -d --build
 docker compose exec backend npm run migrate
 docker compose exec backend npm run seed
 ```
 
-- Backend → http://localhost:4000/docs
-- AI service → http://localhost:8000/docs
-- Postgres → localhost:5432 (user/pass `postgres`)
+- Backend → http://localhost:4000/docs  
+- AI service → http://localhost:8000/docs  
 
-### Option B — chạy thủ công (dev nhanh)
+### Option B — dev local (khuyến nghị)
+
+Dùng **venv của `expense-ocr-nlu`** cho AI service (PaddleOCR/VietOCR/transformers). Chi tiết từng bước: **[`setup.md`](../setup.md)**.
+
+| # | Service | URL |
+|---|---------|-----|
+| 1 | AI Service | http://localhost:8000/docs |
+| 2 | Backend | http://localhost:4000/docs |
+| 3 | WebAdmin | http://localhost:5173 |
+| 4 | Flutter | emulator / thiết bị |
 
 ```powershell
-# 1) DB local (1 trong 2):
-#    docker run -d -p 5432:5432 -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=expense_ai postgres:16-alpine
-#    hoặc dùng CockroachDB cluster có sẵn trong app\backend\.env (DATABASE_URL=cluster_connect)
-
-# 2) AI service
+# Tóm tắt — xem setup.md để biết env đầy đủ
 cd app\ai-service
-python -m venv .venv-lite
-.venv-lite\Scripts\Activate.ps1
-pip install -r requirements.txt
-copy .env.example .env
-uvicorn app.main:app --host 127.0.0.1 --port 8000
+# ... Activate expense-ocr-nlu\.venv, USE_REAL_NLU=true, USE_REAL_OCR=true
+uvicorn app.main:app --host 0.0.0.0 --port 8000
 
-# 3) Backend (terminal khác)
-cd app\backend
-copy .env.example .env
-npm install
-npm run migrate            # tạo bảng
-npm run seed               # tuỳ chọn: tạo demo@money.local / demo1234
-npm run dev                # http://localhost:4000/docs
+cd app\backend && npm run dev
+cd app\frontend\web-admin && npm run dev
 ```
 
-## Endpoint chính (Backend)
+## WebAdmin
 
-| Group | Method | Path | Mô tả |
-|-------|--------|------|------|
-| Auth | POST | `/api/v1/auth/register` | Đăng ký |
-| | POST | `/api/v1/auth/login` | Đăng nhập, trả `accessToken` + `refreshToken` |
-| | POST | `/api/v1/auth/refresh` | Cấp lại token (rotation) |
-| | POST | `/api/v1/auth/logout` | Revoke refresh token |
-| | GET | `/api/v1/auth/me` | User hiện tại |
-| Categories | GET / POST / PATCH / DELETE | `/api/v1/categories/...` | System + user-defined |
-| Wallets | GET / POST / PATCH / DELETE | `/api/v1/wallets/...` | Ví cá nhân & nhóm |
-| | GET / POST / DELETE | `/api/v1/wallets/:id/members[/:memberId]` | Thành viên |
-| Transactions | GET / POST / PATCH / DELETE | `/api/v1/transactions/...` | CRUD + filter date/category/type |
-| Budgets | GET / POST / PATCH / DELETE | `/api/v1/budgets/...` | |
-| | GET | `/api/v1/budgets/summary` | Spent / remain / over budget |
-| Stats | GET | `/api/v1/stats/dashboard` | Tổng quan + breakdown theo category & day |
-| | GET | `/api/v1/stats/by-month` | Thu/chi theo tháng cả năm |
-| AI | POST | `/api/v1/ai/nlu` | Text → intent + amount + category |
-| | POST | `/api/v1/ai/expense/from-text` | "ăn phở 45k" → tạo giao dịch |
-| | POST | `/api/v1/ai/expense/from-bill` | Upload ảnh hóa đơn → suggestion |
-| | POST | `/api/v1/ai/corrections` | User sửa nhãn (TASK-08) |
-| | POST | `/api/v1/ai/actions/{confirm,reject}` | Popup Action (TASK-09) |
-| Upload | POST | `/api/v1/upload/presign` | Presigned R2 URL |
-| | POST | `/api/v1/upload/direct` | Proxy upload qua backend |
+| Trang | Path | Mô tả |
+|-------|------|-------|
+| Dashboard | `/` | Fusion metrics + **Retrain Readiness** |
+| Bill OCR Retrain | `/bill-retrain` | Auto-label → duyệt bbox → export → Kaggle |
+| NLU Ops | `/nlu-ops` | User corrections → curation → retrain category |
+| User Inspector | `/user-inspector` | Corrections theo user |
 
-Toàn bộ trừ `/health`, `/docs`, `/openapi.json`, `/auth/*` (trừ `/me`) đều yêu cầu header `Authorization: Bearer <accessToken>`.
+**Retrain ngưỡng (mặc định):** Category ≥ 500 corrections · OCR/KIE ≥ 2.000 bill approved WebAdmin. Chi tiết: [`RETRAIN.md`](../RETRAIN.md).
 
-## Endpoint AI service (riêng, port 8000)
+## Endpoint Backend (`/api/v1`)
+
+| Group | Path | Mô tả |
+|-------|------|-------|
+| Auth | `/api/v1/auth/*` | register, login, refresh, logout, me |
+| Wallets / Transactions / Budgets / Stats | `/api/v1/...` | CRUD + dashboard |
+| AI | `/api/v1/ai/nlu`, `expense/from-text`, `expense/from-bill`, `corrections` | Proxy + lưu correction |
+| Upload | `/api/v1/upload/*` | R2 presign / direct |
+
+## Endpoint Admin (`/api/admin`)
+
+| Path | Mô tả |
+|------|-------|
+| `GET /analytics` | Fusion convergence |
+| `GET /retrain-readiness` | Ngưỡng sẵn sàng retrain (Dashboard) |
+| `GET/POST /bill-retrain/*` | Label queue, export, Kaggle trigger/jobs |
+| `GET/POST /nlu/*` | Aggregations, curate → `intent_record.csv` |
+| `GET /user-inspector/:id` | User corrections |
+
+## Endpoint AI service (port 8000)
 
 | Method | Path | Mô tả |
-|--------|------|------|
-| GET | `/health` | Liveness + xem backend nào loaded (real/mock) |
+|--------|------|-------|
+| GET | `/health` | `nlu_loaded`, `ocr_loaded` (real-hybrid / mock) |
 | POST | `/api/v1/nlu/infer` | NLU text |
-| POST | `/api/v1/ocr/image` | OCR ảnh (multipart) |
-| POST | `/api/v1/ocr/text` | Parse text đã OCR sẵn |
-| POST | `/api/v1/expense/from-text` | Text → expense |
-| POST | `/api/v1/expense/from-bill` | Image → expense |
+| POST | `/api/v1/ocr/image` | Hybrid OCR ảnh |
+| POST | `/api/v1/expense/from-bill` | Bill → amount + category + items |
+| POST | `/api/v1/bill-retrain/*` | Prelabel, export, Kaggle, golden eval |
+
+## Pipeline OCR (production)
+
+1. **PaddleOCR** — detect bbox  
+2. **VietOCR** — nhận dạng chữ (`OCR/models/vietocr/vietocr_receipt.pth`)  
+3. **LayoutLMv3 KIE** — SELLER, TOTAL_COST, … (`OCR/models/layoutlmv3_kie/model-best/`)  
+4. **NLU** — weighted voting category (`split_mode=false`)
+
+Thiếu weights hoặc `USE_REAL_OCR=false` → fallback mock, service không crash.
+
+## Bật AI thật
+
+Trong `app/ai-service/.env`:
+
+```ini
+USE_REAL_NLU=true
+USE_REAL_OCR=true
+OCR_WEIGHTS_PATH=../../expense-ocr-nlu/OCR/models/vietocr/vietocr_receipt.pth
+LAYOUTLMV3_MODEL_DIR=../../expense-ocr-nlu/OCR/models/layoutlmv3_kie/model-best
+```
+
+Test E2E bill:
+
+```powershell
+$env:USE_REAL_OCR='true'
+d:\Luan-Van\Project\expense-ocr-nlu\.venv\Scripts\python.exe -m pytest `
+  expense-ocr-nlu\OCR\tests\test_e2e_bill_demo.py -q
+```
+
+## Kaggle retrain (tuỳ chọn)
+
+- Credentials: `app/backend/kaggle.json` → copy `%USERPROFILE%\.kaggle\kaggle.json`  
+- Dataset gốc: [vietnamese-receipts-mc-ocr-2021](https://www.kaggle.com/datasets/domixi1989/vietnamese-receipts-mc-ocr-2021)  
+- Incremental: WebAdmin export → `OCR/verified_ocr_labels/kaggle_upload/`  
+- Kernel: `OCR/kaggle/kernels/retrain-layoutlmv3`  
+
+Xem [`setup.md` §11](../setup.md) và [`RETRAIN.md`](../RETRAIN.md).
 
 ## Sample (PowerShell)
 
 ```powershell
-# 1) Health
 Invoke-RestMethod http://localhost:8000/health
+Invoke-RestMethod http://localhost:4000/api/admin/retrain-readiness
 
-# 2) NLU mock
-$body = @{ text='ăn phở 45k' } | ConvertTo-Json
-Invoke-RestMethod -Method POST http://localhost:8000/api/v1/nlu/infer `
-  -Body $body -ContentType 'application/json; charset=utf-8'
-
-# 3) Login (sau khi seed user demo)
 $login = Invoke-RestMethod -Method POST http://localhost:4000/api/v1/auth/login `
-  -Body '{"email":"demo@money.local","password":"demo1234"}' `
-  -ContentType 'application/json'
+  -Body '{"email":"demo@money.local","password":"demo1234"}' -ContentType 'application/json'
 $token = $login.data.accessToken
-
-# 4) Lấy danh sách ví
-Invoke-RestMethod http://localhost:4000/api/v1/wallets `
-  -Headers @{ Authorization = "Bearer $token" }
-
-# 5) Tạo giao dịch tay
-$wid = (Invoke-RestMethod http://localhost:4000/api/v1/wallets `
-   -Headers @{ Authorization = "Bearer $token" }).data[0].id
-$tx = @{ walletId=$wid; amount=45000; categoryCode='Food'; note='Phở' } | ConvertTo-Json
-Invoke-RestMethod -Method POST http://localhost:4000/api/v1/transactions `
-  -Body $tx -ContentType 'application/json' `
-  -Headers @{ Authorization = "Bearer $token" }
-
-# 6) Parse + lưu tự động từ text
-$nl = @{ walletId=$wid; text='trà sữa 35k' } | ConvertTo-Json
-Invoke-RestMethod -Method POST http://localhost:4000/api/v1/ai/expense/from-text `
-  -Body $nl -ContentType 'application/json; charset=utf-8' `
-  -Headers @{ Authorization = "Bearer $token" }
+Invoke-RestMethod http://localhost:4000/api/v1/wallets -Headers @{ Authorization = "Bearer $token" }
 ```
 
-## Trạng thái triển khai (smoke kiểm thử)
+## Tài liệu liên quan
 
-| Hạng mục | Kiểm thử | Kết quả |
-|----------|----------|--------|
-| AI service mock NLU `ăn phở 45k` | `pytest tests` | 6/6 passed |
-| AI service `/health`, `/docs`, `/nlu/infer`, `/ocr/text` live | curl PowerShell | 200, JSON đúng (amount=45000, cat=Food) |
-| Backend Jest (schema + supertest 401/404/200 + OpenAPI 28 paths) | `npm test` | 9/9 passed |
-| Backend boot + Swagger UI live | `node src/index.js` | http://localhost:4000/docs trả 200 |
-| Backend AI proxy 401 khi không token | curl | đúng 401 |
-
-## Bật pipeline AI thật
-
-`USE_REAL_NLU=true` + `USE_REAL_OCR=true` để service load `text_nlu/models/*.joblib` + `OCR/models/vietocr_receipt.pth` từ `expense-ocr-nlu/`. Nếu thiếu weights → log warning, fallback mock (không crash). Xem `app/ai-service/README.md`.
-
-## Bật CockroachDB cloud cluster (.env đã có sẵn)
-
-Backend `.env`:
-
-```ini
-DATABASE_URL=postgresql://khangb2205881:<password>@spending-stories-15879.jxf.gcp-asia-southeast1.cockroachlabs.cloud:26257/spending-stories?sslmode=verify-full
-DATABASE_SSL=true
-```
-
-R2 keys (cũng có sẵn trong file `.env` ban đầu):
-
-```ini
-R2_ACCOUNT_ID=50905d6bc974e5e0dcf6631d2f112b51
-R2_ACCESS_KEY_ID=...
-R2_SECRET_ACCESS_KEY=...
-R2_BUCKET=spending-stories
-R2_PUBLIC_BASE_URL=https://pub-cd3feb925e7842d992cb977ca4e5b92d.r2.dev
-```
-
-## Tài liệu chi tiết
-
-- `app/ai-service/README.md` — schemas, mock/real backend, env, train Gemini.
-- `app/backend/README.md` — modules, endpoints, sample curl, security note.
-- `app/database/README.md` — sơ đồ quan hệ + chạy migration.
-- `expense-ocr-nlu/ARCHITECTURE_TRIEN_KHAI.md` — kiến trúc gốc, TASK-08/09 (correction + action confirm) đã được map vào DB schema.
+| File | Nội dung |
+|------|----------|
+| [`setup.md`](../setup.md) | Chạy thử đầy đủ (env, 4 terminal, FCM, troubleshooting) |
+| [`RETRAIN.md`](../RETRAIN.md) | Chiến lược retrain, WebAdmin flow, Kaggle |
+| `app/ai-service/README.md` | Schemas, env AI service |
+| `app/backend/README.md` | Modules backend |
+| `expense-ocr-nlu/` | Models NLU/OCR, tests, Kaggle kernels |

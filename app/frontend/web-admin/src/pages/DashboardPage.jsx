@@ -1,5 +1,40 @@
 import { useState, useEffect } from "react";
-import { getAdminAnalytics } from "../services/api";
+import { Link } from "react-router-dom";
+import { getAdminAnalytics, getRetrainReadiness } from "../services/api";
+
+function ProgressBar({ percent, level }) {
+  const color =
+    level === "ready" ? "var(--accent-emerald)" : level === "building" ? "var(--accent-amber)" : "var(--text-muted)";
+  return (
+    <div className="retrain-progress">
+      <div className="retrain-progress-fill" style={{ width: `${percent}%`, background: color }} />
+    </div>
+  );
+}
+
+function ReadinessCard({ title, current, threshold, percent, level, ready, extra, actionTo, actionLabel }) {
+  return (
+    <div className={`retrain-card retrain-${level}`}>
+      <div className="retrain-card-head">
+        <h3>{title}</h3>
+        <span className={`badge ${ready ? "badge-success" : level === "building" ? "badge-warning" : "badge-muted"}`}>
+          {ready ? "Sẵn sàng retrain" : `${percent}%`}
+        </span>
+      </div>
+      <p className="retrain-count">
+        <strong>{current.toLocaleString()}</strong>
+        <span className="muted"> / {threshold.toLocaleString()}</span>
+      </p>
+      <ProgressBar percent={percent} level={level} />
+      {extra && <p className="retrain-extra muted">{extra}</p>}
+      {actionTo && (
+        <Link to={actionTo} className="btn btn-sm">
+          {actionLabel}
+        </Link>
+      )}
+    </div>
+  );
+}
 
 function DashboardPage() {
   const [analytics, setAnalytics] = useState({
@@ -8,6 +43,7 @@ function DashboardPage() {
     totalExpenseAmount: 0,
     fusionSuccessRate: 90.0
   });
+  const [readiness, setReadiness] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -21,9 +57,10 @@ function DashboardPage() {
   const [showToast, setShowToast] = useState(false);
 
   useEffect(() => {
-    getAdminAnalytics()
-      .then((data) => {
-        setAnalytics(data);
+    Promise.all([getAdminAnalytics(), getRetrainReadiness()])
+      .then(([analyticsData, readinessData]) => {
+        setAnalytics(analyticsData);
+        setReadiness(readinessData);
         setLoading(false);
       })
       .catch((err) => {
@@ -59,6 +96,52 @@ function DashboardPage() {
       </div>
 
       {error && <div className="toast" style={{ borderColor: "var(--accent-rose)" }}><span>Error: {error}</span></div>}
+
+      {readiness && (
+        <section className="panel retrain-panel">
+          <div className="panel-header">
+            <h2 className="panel-title">Retrain Readiness</h2>
+            <span className={`badge ${readiness.anyReady ? "badge-success" : "badge-muted"}`}>
+              {readiness.anyReady ? "Có thể lên lịch retrain" : "Chưa đủ ngưỡng batch"}
+            </span>
+          </div>
+          <p className="page-desc" style={{ marginBottom: 16 }}>
+            Ngưỡng: Category ≥ {readiness.thresholds.categoryCorrections} corrections · OCR/KIE ≥{" "}
+            {readiness.thresholds.ocrKieApproved} bill đã duyệt WebAdmin. Không retrain mỗi bill lẻ.
+          </p>
+          <div className="retrain-grid">
+            <ReadinessCard
+              title="Category model (NLU)"
+              current={readiness.category.curatedPool}
+              threshold={readiness.category.threshold}
+              percent={readiness.category.percent}
+              level={readiness.category.level}
+              ready={readiness.category.ready}
+              extra={`${readiness.category.correctionRows} correction rows trong DB`}
+              actionTo="/nlu-ops"
+              actionLabel="NLU Ops → duyệt"
+            />
+            <ReadinessCard
+              title="OCR / LayoutLMv3 KIE"
+              current={readiness.billOcr.approved}
+              threshold={readiness.billOcr.threshold}
+              percent={readiness.billOcr.percent}
+              level={readiness.billOcr.level}
+              ready={readiness.billOcr.ready}
+              extra={`Pending: ${readiness.billOcr.pending} · Exported: ${readiness.billOcr.exported} · Có ảnh: ${readiness.billOcr.approvedWithImage}`}
+              actionTo="/bill-retrain"
+              actionLabel="Bill OCR Retrain"
+            />
+          </div>
+          {readiness.recommendations?.length > 0 && (
+            <ul className="retrain-recs">
+              {readiness.recommendations.map((r) => (
+                <li key={r}>{r}</li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
 
       <div className="metrics-grid">
         <div className="metric-card">

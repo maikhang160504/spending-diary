@@ -4,11 +4,13 @@
   "description": "Backend orchestrator for MoneyStory expense management (Auth, Wallets, Transactions, Budgets, Stats, AI proxy, R2 upload).",
   "main": "src/index.js",
   "scripts": {
-    "dev": "nodemon src/index.js",
+    "dev": "nodemon --config nodemon.json src/index.js",
     "start": "node src/index.js",
     "test": "jest --runInBand --detectOpenHandles",
     "migrate": "node src/db/migrate.js",
-    "seed": "node src/db/seed.js"
+    "seed": "node src/db/seed.js",
+    "clean:bill-orphans": "node scripts/clean_bill_retrain_orphans.js",
+    "clean:bill-orphans:delete": "node scripts/clean_bill_retrain_orphans.js --delete"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.654.0",

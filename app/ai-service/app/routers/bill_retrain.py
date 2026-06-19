@@ -1,0 +1,222 @@
+"""WebAdmin bill retrain API endpoints."""
+
+from __future__ import annotations
+
+
+
+from typing import Any
+
+
+
+from fastapi import APIRouter, File, HTTPException, UploadFile
+
+from pydantic import BaseModel, Field
+
+
+
+from app.services.bill_retrain_service import (
+
+    deploy_artifact,
+
+    export_verified,
+
+    get_kaggle_job,
+
+    kaggle_retrain_plan,
+
+    kaggle_webhook,
+
+    list_kaggle_jobs,
+
+    prelabel_image,
+
+    run_golden_eval,
+
+    trigger_kaggle_retrain,
+
+)
+
+
+
+
+
+router = APIRouter(prefix="/bill-retrain", tags=["bill-retrain"])
+
+
+
+MAX_BYTES = 8 * 1024 * 1024
+
+
+
+
+
+class VerifiedSample(BaseModel):
+
+    id: str
+
+    admin_labels: list[dict[str, Any]] = Field(default_factory=list)
+
+    image_url: str | None = None
+
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+
+
+
+class ExportRequest(BaseModel):
+
+    samples: list[VerifiedSample]
+
+    trigger_kaggle: bool = False
+
+    kaggle_job_type: str = Field(default="layoutlmv3", pattern="^(layoutlmv3|vietocr)$")
+
+    webhook_url: str | None = None
+
+
+
+
+
+class KagglePlanRequest(BaseModel):
+
+    job_type: str = Field(default="layoutlmv3", pattern="^(layoutlmv3|vietocr)$")
+
+
+
+
+
+class KaggleTriggerRequest(BaseModel):
+
+    job_type: str = Field(default="layoutlmv3", pattern="^(layoutlmv3|vietocr)$")
+
+    webhook_url: str | None = None
+
+    cloud_fallback_url: str | None = None
+
+
+
+
+
+class KaggleDeployRequest(BaseModel):
+
+    source: str = Field(description="Local path, zip, or https URL to trained artifact")
+
+    job_type: str = Field(default="layoutlmv3", pattern="^(layoutlmv3|vietocr)$")
+
+    batch_id: str | None = None
+
+
+
+
+
+@router.post("/prelabel")
+
+async def bill_prelabel(file: UploadFile = File(...)) -> dict[str, Any]:
+
+    raw = await file.read()
+
+    if len(raw) > MAX_BYTES:
+
+        from app.core.exceptions import InvalidInputError
+
+        raise InvalidInputError("Image is larger than 8 MB.")
+
+    return prelabel_image(raw, file.filename)
+
+
+
+
+
+@router.post("/export-verified")
+
+def bill_export_verified(body: ExportRequest) -> dict[str, Any]:
+
+    samples = [s.model_dump() for s in body.samples]
+
+    result = export_verified(samples)
+
+    if body.trigger_kaggle:
+
+        job = trigger_kaggle_retrain(
+            body.kaggle_job_type,
+            webhook_url=body.webhook_url,
+            auto_after_export=True,
+        )
+
+        result["kaggle_job"] = job
+
+    return result
+
+
+
+
+
+@router.post("/kaggle/plan")
+
+def bill_kaggle_plan(body: KagglePlanRequest) -> dict[str, Any]:
+
+    return kaggle_retrain_plan(body.job_type)
+
+
+
+
+
+@router.post("/kaggle/trigger")
+
+def bill_kaggle_trigger(body: KaggleTriggerRequest) -> dict[str, Any]:
+
+    return trigger_kaggle_retrain(body.job_type, body.webhook_url, body.cloud_fallback_url)
+
+
+
+
+
+@router.get("/kaggle/jobs")
+
+def bill_kaggle_jobs(limit: int = 20) -> list[dict[str, Any]]:
+
+    return list_kaggle_jobs(limit)
+
+
+
+
+
+@router.get("/kaggle/jobs/{job_id}")
+
+def bill_kaggle_job_status(job_id: str) -> dict[str, Any]:
+    job = get_kaggle_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
+    return job
+
+
+
+
+
+@router.post("/kaggle/deploy")
+
+def bill_kaggle_deploy(body: KaggleDeployRequest) -> dict[str, Any]:
+
+    return deploy_artifact(body.source, body.job_type, body.batch_id)
+
+
+
+
+
+@router.post("/kaggle/webhook")
+
+def bill_kaggle_webhook(payload: dict[str, Any]) -> dict[str, Any]:
+
+    return kaggle_webhook(payload)
+
+
+
+
+
+@router.get("/golden-eval")
+
+def bill_golden_eval() -> dict[str, Any]:
+
+    return run_golden_eval()
+

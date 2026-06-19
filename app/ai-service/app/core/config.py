@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import sys
 from functools import lru_cache
 from pathlib import Path
 
@@ -48,10 +49,17 @@ class Settings(BaseSettings):
 
     use_real_nlu: bool = Field(default=False, description="Load full NLU pipeline (joblib + PhoBERT).")
     use_real_ocr: bool = Field(default=False, description="Load PaddleOCR + VietOCR weights.")
+    lazy_load_models: bool = Field(
+        default=True,
+        description="If true, skip NLU/OCR weight load at startup; load on first request or reload-models.",
+    )
 
     expense_ocr_nlu_dir: str = Field(default=str(EXPENSE_OCR_NLU_DIR))
     nlu_models_dir: str = Field(default="")
     ocr_weights_path: str = Field(default="")
+    layoutlmv3_model_dir: str = Field(default="")
+    kaggle_config_dir: str = Field(default="")
+    verified_ocr_labels_dir: str = Field(default="")
 
     gemini_api_key: str | None = Field(default=None, alias="GEMINI_API_KEY")
     gemini_model: str = Field(default="gemini-2.5-flash")
@@ -75,6 +83,28 @@ class Settings(BaseSettings):
             p_ocr = Path(self.ocr_weights_path)
             if not p_ocr.is_absolute():
                 self.ocr_weights_path = str((SERVICE_ROOT / p_ocr).resolve())
+            # Auto-correct legacy path models/vietocr_receipt.pth → models/vietocr/vietocr_receipt.pth
+            if not Path(self.ocr_weights_path).is_file():
+                try:
+                    from receipt_ocr.model_paths import resolve_vietocr_weights_path
+
+                    resolved = resolve_vietocr_weights_path(self.ocr_weights_path)
+                    if resolved.is_file():
+                        self.ocr_weights_path = str(resolved)
+                except Exception:
+                    pass
+        elif EXPENSE_OCR_NLU_DIR:
+            try:
+                ocr_root = Path(self.expense_ocr_nlu_dir) / "OCR"
+                if str(ocr_root) not in sys.path:
+                    sys.path.insert(0, str(ocr_root / "src"))
+                from receipt_ocr.model_paths import resolve_vietocr_weights_path
+
+                resolved = resolve_vietocr_weights_path(None)
+                if resolved.is_file():
+                    self.ocr_weights_path = str(resolved)
+            except Exception:
+                pass
         return self
 
     @property

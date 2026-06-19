@@ -23,6 +23,7 @@ function NluOpsPage() {
   const [newUserId, setNewUserId] = useState("");
 
   // Layer 2 state
+  const [aggregations, setAggregations] = useState([]);
   const [autoRetrainAfterCurate, setAutoRetrainAfterCurate] = useState(true);
 
   // Model status state

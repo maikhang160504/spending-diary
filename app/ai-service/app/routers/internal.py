@@ -1,0 +1,52 @@
+"""Internal ops: reload models without restarting uvicorn."""
+from __future__ import annotations
+
+from typing import Literal
+
+from fastapi import APIRouter
+from pydantic import BaseModel, Field
+
+from app.adapters import expense_ocr_nlu as adapter
+from app.services.nlu_service import get_nlu_service
+from app.services.ocr_service import get_ocr_service
+
+
+router = APIRouter(prefix="/internal", tags=["internal"])
+
+
+class ReloadModelsRequest(BaseModel):
+    scope: Literal["all", "ocr", "nlu"] = Field(default="all")
+
+
+@router.post("/reload-models", summary="Hot-reload NLU/OCR models from disk")
+def reload_models(body: ReloadModelsRequest | None = None) -> dict:
+    scope = (body.scope if body else "all")
+    result: dict = {"scope": scope, "ok": True}
+
+    if scope in ("all", "nlu"):
+        nlu_ok = get_nlu_service().reload()
+        result["nlu_loaded"] = nlu_ok
+        result["nlu_error"] = adapter.get_nlu_error()
+
+    if scope in ("all", "ocr"):
+        import receipt_ocr.layoutlmv3_kie as kie_mod
+        kie_mod.reset_kie_engine()
+        ocr_ok = get_ocr_service().reload()
+        result["ocr_loaded"] = ocr_ok
+        result["ocr_error"] = adapter.get_ocr_error()
+        if ocr_ok:
+            pipeline = adapter._OCR_PIPELINE
+            layoutlm_dir = getattr(pipeline, "layoutlmv3_dir", None)
+            result["layoutlmv3_status"] = kie_mod.layoutlmv3_weights_status(layoutlm_dir)
+            result["kie_backend"] = getattr(getattr(pipeline, "_kie", None), "backend", None)
+            if result["kie_backend"] is None and pipeline:
+                result["kie_backend"] = pipeline._get_kie().backend
+
+    if scope == "all":
+        result["ok"] = bool(result.get("nlu_loaded")) and bool(result.get("ocr_loaded"))
+    elif scope == "ocr":
+        result["ok"] = bool(result.get("ocr_loaded"))
+    else:
+        result["ok"] = bool(result.get("nlu_loaded"))
+
+    return result

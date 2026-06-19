@@ -41,6 +41,21 @@ class OCRService:
             logger.warning("Real OCR not loadable: %s", adapter.get_ocr_error())
         return self._real_available
 
+    def reload(self) -> bool:
+        """Hot-reload OCR weights (VietOCR + LayoutLMv3 KIE) after deploy."""
+        self._tried_load = False
+        self._real_available = False
+        if not get_settings().use_real_ocr:
+            logger.info("USE_REAL_OCR=false — skip OCR reload.")
+            return False
+        self._tried_load = True
+        self._real_available = adapter.reload_ocr()
+        if not self._real_available:
+            logger.warning("OCR reload failed: %s", adapter.get_ocr_error())
+        else:
+            logger.info("OCR pipeline reloaded from disk.")
+        return self._real_available
+
     def infer_image(self, image_bytes: bytes, filename: str | None = None) -> OCRResponse:
         start = time.perf_counter()
         try:

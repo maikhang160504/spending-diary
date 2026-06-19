@@ -33,25 +33,31 @@ def create_app() -> FastAPI:
         # 1. Run imports in the main thread to prevent import lock deadlocks
         pre_import_real_backends()
 
-        # 2. Run model loading in the main thread to prevent thread-safety issues during initialization
-        logger.info("Starting model loading on startup...")
-        try:
-            nlu_loaded = get_nlu_service().try_load()
-            ocr_loaded = get_ocr_service().try_load()
+        # 2. Optional eager load — skip when LAZY_LOAD_MODELS=true (default) for fast startup
+        if settings.lazy_load_models:
             logger.info(
-                "Model loading completed",
-                extra={
-                    "event": "models_loaded",
-                    "extra_fields": {
-                        "nlu_loaded": nlu_loaded,
-                        "ocr_loaded": ocr_loaded,
-                        "use_real_nlu": settings.use_real_nlu,
-                        "use_real_ocr": settings.use_real_ocr,
-                    },
-                },
+                "Lazy load enabled — models load on first infer/prelabel or POST /internal/reload-models",
+                extra={"event": "lazy_load_skipped"},
             )
-        except Exception as e:
-            logger.error(f"Error during model loading: {e}")
+        else:
+            logger.info("Starting model loading on startup...")
+            try:
+                nlu_loaded = get_nlu_service().try_load()
+                ocr_loaded = get_ocr_service().try_load()
+                logger.info(
+                    "Model loading completed",
+                    extra={
+                        "event": "models_loaded",
+                        "extra_fields": {
+                            "nlu_loaded": nlu_loaded,
+                            "ocr_loaded": ocr_loaded,
+                            "use_real_nlu": settings.use_real_nlu,
+                            "use_real_ocr": settings.use_real_ocr,
+                        },
+                    },
+                )
+            except Exception as e:
+                logger.error(f"Error during model loading: {e}")
 
         yield
         logger.info("AI service shutdown")
@@ -121,6 +127,9 @@ def create_app() -> FastAPI:
     app.include_router(ocr.router, prefix=api_prefix)
     app.include_router(expense.router, prefix=api_prefix)
     app.include_router(chat.router, prefix=api_prefix)
+    from app.routers import bill_retrain, internal
+    app.include_router(bill_retrain.router, prefix=api_prefix)
+    app.include_router(internal.router, prefix=api_prefix)
 
     # ── Backward-compatible /infer route (old clients) ──────────
     @app.post("/infer", response_model=NLUResponse, tags=["compat"],

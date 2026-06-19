@@ -234,23 +234,39 @@ def _load_ocr_pipeline_unlocked() -> Any:
 
     root = _ensure_paths_on_sys_path()
     settings = get_settings()
-    weights_path = Path(settings.ocr_weights_path or root / "OCR" / "models" / "vietocr_receipt.pth")
+    from receipt_ocr.model_paths import LAYOUTLMV3_MODEL_DIR, resolve_vietocr_weights_path
+
+    weights_path = resolve_vietocr_weights_path(settings.ocr_weights_path or None)
     if not weights_path.is_file():
-        _OCR_ERROR = f"VietOCR weights missing at {weights_path}"
+        _OCR_ERROR = (
+            f"VietOCR weights missing at {weights_path}. "
+            f"Expected: OCR/models/vietocr/vietocr_receipt.pth — "
+            f"fix OCR_WEIGHTS_PATH in ai-service/.env and restart."
+        )
         raise FileNotFoundError(_OCR_ERROR)
 
     try:
-        pipeline_module = importlib.import_module("receipt_ocr.pipeline")
+        pipeline_module = importlib.import_module("receipt_ocr.hybrid_pipeline")
     except Exception as exc:
-        _OCR_ERROR = f"OCR import failed: {exc}"
+        _OCR_ERROR = f"Hybrid OCR import failed: {exc}"
         raise
 
-    _OCR_PIPELINE = pipeline_module.ReceiptOCRPipeline(
+    import receipt_ocr.layoutlmv3_kie as kie_mod
+    kie_mod.reset_kie_engine()
+
+    layoutlm_dir = getattr(settings, "layoutlmv3_model_dir", None) or LAYOUTLMV3_MODEL_DIR
+    _OCR_PIPELINE = pipeline_module.HybridReceiptOCRPipeline(
         vietocr_weights=weights_path,
         device=settings.device,
+        layoutlmv3_dir=layoutlm_dir,
         paddle_use_gpu=(settings.device == "cuda"),
     ).load()
-    logger.info("Loaded real OCR pipeline from expense-ocr-nlu.")
+    kie_status = importlib.import_module("receipt_ocr.layoutlmv3_kie").layoutlmv3_weights_status(layoutlm_dir)
+    logger.info(
+        "Loaded hybrid OCR pipeline. LayoutLMv3 ready=%s dir=%s",
+        kie_status.get("ready"),
+        kie_status.get("model_dir"),
+    )
     return _OCR_PIPELINE
 
 
@@ -261,6 +277,20 @@ def load_real_ocr_safe() -> bool:
     with _LOCK:
         if _OCR_PIPELINE is not None:
             return True
+        try:
+            _load_ocr_pipeline_unlocked()
+        except Exception as exc:  # noqa: BLE001
+            _OCR_ERROR = str(exc)
+            return False
+    return True
+
+
+def reload_ocr() -> bool:
+    """Force reload hybrid OCR pipeline (VietOCR + LayoutLMv3 KIE) from disk."""
+    global _OCR_PIPELINE, _OCR_ERROR
+    with _LOCK:
+        _OCR_PIPELINE = None
+        _OCR_ERROR = None
         try:
             _load_ocr_pipeline_unlocked()
         except Exception as exc:  # noqa: BLE001
@@ -288,24 +318,22 @@ def run_real_ocr(image_bytes: bytes, filename_hint: str | None = None) -> dict[s
         tmp_path = tmp.name
     try:
         image_rgb = pipeline._read_rgb(tmp_path)
-        df_boxes = pipeline.ocr_boxes(image_rgb)
-        df_lines = pipeline.group_lines(df_boxes)
-        
-        from receipt_ocr.receipt_nlu import extract_receipt_summary
-        summary = extract_receipt_summary(df_lines)
+        result = pipeline.process_image_rgb(image_rgb, split_mode=False)
+        summary = result
+        df_lines_data = result.get("lines", [])
+        labeled_boxes = result.get("boxes", [])
         
         lines_data = []
         raw_text_list = []
-        if not df_lines.empty:
-            for _, r in df_lines.iterrows():
-                t = str(r["line_text"]).strip()
-                if t:
-                    raw_text_list.append(t)
-                    lines_data.append({
-                        "text": t,
-                        "bbox": [float(x) for x in r["bbox"]] if r.get("bbox") is not None else None,
-                        "confidence": 0.90,
-                    })
+        for item in df_lines_data:
+            t = str(item.get("text", "")).strip()
+            if t:
+                raw_text_list.append(t)
+                lines_data.append({
+                    "text": t,
+                    "bbox": item.get("bbox"),
+                    "confidence": 0.90,
+                })
         
         joined_text = "\n".join(raw_text_list)
     finally:
@@ -317,6 +345,9 @@ def run_real_ocr(image_bytes: bytes, filename_hint: str | None = None) -> dict[s
     return {
         "text": joined_text,
         "lines": lines_data,
+        "boxes": labeled_boxes,
+        "kie_fields": summary.get("kie_fields", {}),
+        "kie_backend": summary.get("kie_backend", "heuristic"),
         "suggestion": {
             "amount": summary.get("amount"),
             "category": summary.get("category"),
@@ -324,7 +355,9 @@ def run_real_ocr(image_bytes: bytes, filename_hint: str | None = None) -> dict[s
             "currency": summary.get("currency", "VND"),
         },
         "requires_confirmation": True,
-        "backend": "real",
+        "backend": "real-hybrid",
+        "warnings": summary.get("warnings", []),
+        "items_count": summary.get("items_count", 0),
     }
 
 

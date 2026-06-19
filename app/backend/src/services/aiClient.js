@@ -158,6 +158,72 @@ async function getInternalStatus() {
   return r.data;
 }
 
+async function billPrelabel(fileBuffer, filename, contentType) {
+  const form = new FormData();
+  form.append('file', fileBuffer, {
+    filename: filename || 'bill.jpg',
+    contentType: contentType || 'image/jpeg',
+  });
+  const r = await client.post('/api/v1/bill-retrain/prelabel', form, {
+    headers: form.getHeaders(),
+    timeout: 300000,
+  });
+  return r.data;
+}
+
+async function billExportVerified(samples, triggerKaggle = false, kaggleJobType = 'layoutlmv3', webhookUrl) {
+  const r = await client.post('/api/v1/bill-retrain/export-verified', {
+    samples,
+    trigger_kaggle: triggerKaggle,
+    kaggle_job_type: kaggleJobType,
+    webhook_url: webhookUrl || undefined,
+  });
+  return r.data;
+}
+
+async function billKagglePlan(jobType) {
+  const r = await client.post('/api/v1/bill-retrain/kaggle/plan', { job_type: jobType });
+  return r.data;
+}
+
+async function billKaggleTrigger(jobType, webhookUrl, cloudUrl) {
+  const r = await client.post('/api/v1/bill-retrain/kaggle/trigger', {
+    job_type: jobType,
+    webhook_url: webhookUrl || undefined,
+    cloud_fallback_url: cloudUrl || undefined,
+  });
+  return r.data;
+}
+
+async function billKaggleJob(jobId) {
+  const r = await client.get(`/api/v1/bill-retrain/kaggle/jobs/${jobId}`);
+  return r.data;
+}
+
+async function billKaggleJobs(limit = 20) {
+  const r = await client.get(`/api/v1/bill-retrain/kaggle/jobs?limit=${limit}`);
+  return r.data;
+}
+
+async function billKaggleDeploy(source, jobType, batchId) {
+  const r = await client.post('/api/v1/bill-retrain/kaggle/deploy', {
+    source,
+    job_type: jobType,
+    batch_id: batchId,
+  });
+  return r.data;
+}
+
+async function billGoldenEval() {
+  const r = await client.get('/api/v1/bill-retrain/golden-eval');
+  return r.data;
+}
+
+async function reloadModels(scope = 'ocr') {
+  const r = await client.post('/api/v1/internal/reload-models', { scope }, { timeout: 300000 });
+  return r.data;
+}
+
 module.exports = {
   health,
   inferText,
@@ -170,5 +236,14 @@ module.exports = {
   triggerTrain,
   getTrainStatus,
   getInternalStatus,
+  billPrelabel,
+  billExportVerified,
+  billKagglePlan,
+  billKaggleTrigger,
+  billKaggleJob,
+  billKaggleJobs,
+  billKaggleDeploy,
+  billGoldenEval,
+  reloadModels,
 };
 

@@ -21,6 +21,10 @@ export async function getAdminAnalytics() {
   return request("/api/admin/analytics");
 }
 
+export async function getRetrainReadiness() {
+  return request("/api/admin/retrain-readiness");
+}
+
 export async function getAdminUsers() {
   return request("/api/admin/users");
 }
@@ -86,5 +90,128 @@ export async function getNluTrainStatus() {
 
 export async function getNluModelMeta() {
   return request("/api/admin/train/model-meta");
+}
+
+export function fetchBillOcrStatus() {
+  return request("/api/admin/bill-retrain/ocr-status");
+}
+
+export function deleteBillSample(id) {
+  return request(`/api/admin/bill-retrain/samples/${id}`, { method: "DELETE" });
+}
+
+export function rePrelabelBillSample(id) {
+  return request(`/api/admin/bill-retrain/samples/${id}/prelabel`, { method: "POST" });
+}
+
+export function fetchBillSamples(status) {
+  const q = status ? `?status=${encodeURIComponent(status)}` : "";
+  return request(`/api/admin/bill-retrain/samples${q}`);
+}
+
+export function uploadBillSample(file) {
+  const form = new FormData();
+  form.append("file", file);
+  return fetch(`${API_BASE_URL}/api/admin/bill-retrain/upload`, {
+    method: "POST",
+    body: form,
+  }).then(async (res) => {
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || "Upload failed");
+    }
+    return res.json();
+  });
+}
+
+export function prelabelBill(file) {
+  const form = new FormData();
+  form.append("file", file);
+  return fetch(`${API_BASE_URL}/api/admin/bill-retrain/prelabel`, {
+    method: "POST",
+    body: form,
+  }).then(async (res) => {
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || "Prelabel failed");
+    }
+    return res.json();
+  });
+}
+
+export function saveBillSample(id, adminLabels, status = "pending") {
+  return request(`/api/admin/bill-retrain/samples/${id}`, {
+    method: "PUT",
+    body: JSON.stringify({ adminLabels, status }),
+  });
+}
+
+export function approveBillSample(id, adminLabels) {
+  return request(`/api/admin/bill-retrain/samples/${id}/approve`, {
+    method: "POST",
+    body: JSON.stringify({ adminLabels }),
+  });
+}
+
+export function billRetrainKaggleWebhookUrl() {
+  return `${API_BASE_URL}/api/admin/bill-retrain/kaggle/webhook`;
+}
+
+export function exportBillVerified(
+  triggerKaggle = false,
+  kaggleJobType = "layoutlmv3",
+  webhookUrl,
+  archiveImages = true
+) {
+  return request("/api/admin/bill-retrain/export", {
+    method: "POST",
+    body: JSON.stringify({
+      triggerKaggle,
+      kaggleJobType,
+      webhookUrl: webhookUrl || billRetrainKaggleWebhookUrl(),
+      archiveImages,
+    }),
+  });
+}
+
+export function fetchBillKagglePlan(jobType = "layoutlmv3") {
+  return request("/api/admin/bill-retrain/kaggle/plan", {
+    method: "POST",
+    body: JSON.stringify({ jobType }),
+  });
+}
+
+export function triggerBillKaggle(jobType = "layoutlmv3", webhookUrl, cloudUrl) {
+  return request("/api/admin/bill-retrain/kaggle/trigger", {
+    method: "POST",
+    body: JSON.stringify({
+      jobType,
+      webhookUrl: webhookUrl || billRetrainKaggleWebhookUrl(),
+      cloudFallbackUrl: cloudUrl,
+    }),
+  });
+}
+
+export function fetchBillKaggleJob(jobId) {
+  return request(`/api/admin/bill-retrain/kaggle/jobs/${jobId}`);
+}
+
+export function fetchBillKaggleJobs(limit = 20) {
+  return request(`/api/admin/bill-retrain/kaggle/jobs?limit=${limit}`);
+}
+
+export function runBillGoldenEval() {
+  return request("/api/admin/bill-retrain/golden-eval");
+}
+
+export function reloadAiModels(scope = "ocr") {
+  return request("/api/admin/ai-service/reload", {
+    method: "POST",
+    body: JSON.stringify({ scope }),
+  });
+}
+
+export function billSampleImageUrl(id) {
+  return `${API_BASE_URL}/api/admin/bill-retrain/samples/${id}/image`;
 }
 
