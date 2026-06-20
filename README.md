@@ -20,7 +20,6 @@ root/
 ## Luồng Hoạt Động AI
 
 1. **Xử lý Đầu vào**: 
-   - **Giọng nói (STT)**: Chuyển giọng nói tiếng Việt thành văn bản trên mobile kèm chuẩn hóa từ lóng tiền tệ Việt Nam (`cành`, `lít`, `củ`, `xị`...) về số.
    - **Quét Hóa đơn (OCR)**: Chuyển ảnh hóa đơn thành text, trích xuất tổng tiền, gợi ý danh mục và nhận diện thương hiệu.
    - **Gộp Logic (Fusion)**: Ghi chú bằng giọng nói đè lên kết quả OCR hóa đơn mà vẫn giữ nguyên số tiền gốc.
 
@@ -85,3 +84,7 @@ npm run dev
 ### 3. Biểu đồ Phân tích Nâng cao
 - Thống kê chi tiêu MoM theo từng danh mục.
 - Line Chart so sánh chi tiêu lũy kế so với ngân sách hạn mức để ngăn ngừa chi tiêu quá nhanh ở đầu tháng.
+
+### 4. Pipeline Retrain NLU & PICK KIE (Kaggle)
+- **Retrain NLU**: Huấn luyện lại bộ phân loại ý định và NER cục bộ (qua `retrain_all.py` chạy ngầm) mỗi khi admin phê duyệt các điều chỉnh từ người dùng. Hệ thống tự động ghi nhận lịch sử huấn luyện (số mẫu, f1-score, thời gian chạy).
+- **Retrain OCR-KIE (PICK)**: Đồng bộ hóa nhãn đã duyệt từ WebAdmin thành tập dữ liệu `webadmin-verified-receipts` trên Kaggle, tự động kích hoạt job huấn luyện trên Kaggle GPU qua API, tải weights `model_best.pth` mới nhất, tự động deploy và cập nhật F1-score để theo dõi sự tăng trưởng hiệu năng. Hỗ trợ tự động tải ảnh từ Cloudflare R2 khi vận hành trên Cloud.

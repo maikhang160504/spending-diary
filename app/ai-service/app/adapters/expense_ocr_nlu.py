@@ -234,13 +234,13 @@ def _load_ocr_pipeline_unlocked() -> Any:
 
     root = _ensure_paths_on_sys_path()
     settings = get_settings()
-    from receipt_ocr.model_paths import LAYOUTLMV3_MODEL_DIR, resolve_vietocr_weights_path
+    from receipt_ocr.model_paths import PICK_KIE_MODEL_PATH, resolve_vietocr_weights_path
 
     weights_path = resolve_vietocr_weights_path(settings.ocr_weights_path or None)
     if not weights_path.is_file():
         _OCR_ERROR = (
             f"VietOCR weights missing at {weights_path}. "
-            f"Expected: OCR/models/vietocr/vietocr_receipt.pth — "
+            f"Expected: OCR/models/vietocr/vgg_transformer.pth — "
             f"fix OCR_WEIGHTS_PATH in ai-service/.env and restart."
         )
         raise FileNotFoundError(_OCR_ERROR)
@@ -248,24 +248,31 @@ def _load_ocr_pipeline_unlocked() -> Any:
     try:
         pipeline_module = importlib.import_module("receipt_ocr.hybrid_pipeline")
     except Exception as exc:
-        _OCR_ERROR = f"Hybrid OCR import failed: {exc}"
+        _OCR_ERROR = f"MC-OCR pipeline import failed: {exc}"
         raise
 
-    import receipt_ocr.layoutlmv3_kie as kie_mod
+    import receipt_ocr.pick_kie as kie_mod
     kie_mod.reset_kie_engine()
 
-    layoutlm_dir = getattr(settings, "layoutlmv3_model_dir", None) or LAYOUTLMV3_MODEL_DIR
+    pick_model = getattr(settings, "pick_kie_model_path", None) or PICK_KIE_MODEL_PATH
+    rot_path = getattr(settings, "rotation_model_path", None) or None
+    use_rotation = getattr(settings, "use_rotation_corrector", True)
     _OCR_PIPELINE = pipeline_module.HybridReceiptOCRPipeline(
         vietocr_weights=weights_path,
         device=settings.device,
-        layoutlmv3_dir=layoutlm_dir,
+        pick_kie_model=pick_model,
+        rotation_weights=rot_path or None,
+        use_rotation=use_rotation,
         paddle_use_gpu=(settings.device == "cuda"),
     ).load()
-    kie_status = importlib.import_module("receipt_ocr.layoutlmv3_kie").layoutlmv3_weights_status(layoutlm_dir)
+    kie_status = kie_mod.pick_kie_weights_status(pick_model)
+    rot_mod = importlib.import_module("receipt_ocr.rotation_corrector")
+    rot_status = rot_mod.rotation_weights_status(rot_path)
     logger.info(
-        "Loaded hybrid OCR pipeline. LayoutLMv3 ready=%s dir=%s",
+        "Loaded MC-OCR pipeline (Paddle+Rotation+VietOCR+PICK). "
+        "PICK ready=%s rotation ready=%s",
         kie_status.get("ready"),
-        kie_status.get("model_dir"),
+        rot_status.get("ready"),
     )
     return _OCR_PIPELINE
 
@@ -286,7 +293,7 @@ def load_real_ocr_safe() -> bool:
 
 
 def reload_ocr() -> bool:
-    """Force reload hybrid OCR pipeline (VietOCR + LayoutLMv3 KIE) from disk."""
+    """Force reload MC-OCR pipeline (VietOCR + PICK KIE) from disk."""
     global _OCR_PIPELINE, _OCR_ERROR
     with _LOCK:
         _OCR_PIPELINE = None

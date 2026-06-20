@@ -281,6 +281,16 @@ router.get('/train/model-meta', async (req, res, next) => {
   }
 });
 
+// 15. GET /api/admin/train/history
+router.get('/train/history', async (req, res, next) => {
+  try {
+    const history = await aiClient.getNluTrainHistory();
+    res.json(history);
+  } catch (err) {
+    next(err);
+  }
+});
+
 // ── Bill OCR retrain (WebAdmin Labeling Canvas) ─────────────────────────────
 
 const billRetrainStore = require('../services/billRetrainStore');
@@ -456,13 +466,20 @@ router.post('/bill-retrain/samples/:id/prelabel', async (req, res, next) => {
 
 router.put('/bill-retrain/samples/:id', async (req, res, next) => {
   try {
-    const { adminLabels, status } = req.body;
+    const { adminLabels, status, category } = req.body;
     const existing = billRetrainStore.getSample(req.params.id);
     if (!existing) return res.status(404).json({ message: 'Sample not found' });
+    
+    const metadata = { ...existing.metadata };
+    if (category) {
+      metadata.category = category;
+    }
+
     const updated = billRetrainStore.upsertSample({
       ...existing,
       adminLabels: adminLabels || existing.adminLabels,
       status: status || existing.status,
+      metadata,
     });
     res.json(updated);
   } catch (err) {
@@ -472,9 +489,18 @@ router.put('/bill-retrain/samples/:id', async (req, res, next) => {
 
 router.post('/bill-retrain/samples/:id/approve', async (req, res, next) => {
   try {
-    const { adminLabels } = req.body;
+    const { adminLabels, category } = req.body;
     const existing = billRetrainStore.getSample(req.params.id);
     if (!existing) return res.status(404).json({ message: 'Sample not found' });
+    
+    if (category) {
+      existing.metadata = {
+        ...existing.metadata,
+        category,
+      };
+      billRetrainStore.upsertSample(existing);
+    }
+
     const approved = billRetrainStore.approveSample(
       req.params.id,
       adminLabels || existing.adminLabels || existing.autoLabels?.boxes || [],
@@ -528,7 +554,7 @@ router.post('/bill-retrain/export', async (req, res, next) => {
 
 router.post('/bill-retrain/kaggle/trigger', async (req, res, next) => {
   try {
-    const jobType = req.body.jobType || 'layoutlmv3';
+    const jobType = req.body.jobType || 'pick_retrain';
     const result = await aiClient.billKaggleTrigger(jobType, req.body.webhookUrl, req.body.cloudFallbackUrl);
     res.json(result);
   } catch (err) {
@@ -557,7 +583,7 @@ router.get('/bill-retrain/kaggle/jobs/:jobId', async (req, res, next) => {
 router.post('/bill-retrain/kaggle/deploy', async (req, res, next) => {
   try {
     const { source, jobType, batchId } = req.body;
-    const result = await aiClient.billKaggleDeploy(source, jobType || 'layoutlmv3', batchId);
+    const result = await aiClient.billKaggleDeploy(source, jobType || 'pick_retrain', batchId);
     res.json(result);
   } catch (err) {
     next(err);
@@ -586,7 +612,7 @@ router.post('/bill-retrain/kaggle/webhook', async (req, res, next) => {
 
 router.post('/bill-retrain/kaggle/plan', async (req, res, next) => {
   try {
-    const jobType = req.body.jobType || 'layoutlmv3';
+    const jobType = req.body.jobType || 'pick_retrain';
     const plan = await aiClient.billKagglePlan(jobType);
     res.json(plan);
   } catch (err) {

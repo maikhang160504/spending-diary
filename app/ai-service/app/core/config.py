@@ -57,7 +57,12 @@ class Settings(BaseSettings):
     expense_ocr_nlu_dir: str = Field(default=str(EXPENSE_OCR_NLU_DIR))
     nlu_models_dir: str = Field(default="")
     ocr_weights_path: str = Field(default="")
-    layoutlmv3_model_dir: str = Field(default="")
+    pick_kie_model_path: str = Field(default="")
+    rotation_model_path: str = Field(default="")
+    use_rotation_corrector: bool = Field(
+        default=True,
+        description="Apply MC_OCR MobileNetV3 page rotation before OCR (pretrained weights).",
+    )
     kaggle_config_dir: str = Field(default="")
     verified_ocr_labels_dir: str = Field(default="")
 
@@ -83,7 +88,7 @@ class Settings(BaseSettings):
             p_ocr = Path(self.ocr_weights_path)
             if not p_ocr.is_absolute():
                 self.ocr_weights_path = str((SERVICE_ROOT / p_ocr).resolve())
-            # Auto-correct legacy path models/vietocr_receipt.pth → models/vietocr/vietocr_receipt.pth
+            # Auto-correct legacy paths → models/vietocr/vgg_transformer.pth
             if not Path(self.ocr_weights_path).is_file():
                 try:
                     from receipt_ocr.model_paths import resolve_vietocr_weights_path

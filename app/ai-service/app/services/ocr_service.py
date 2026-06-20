@@ -42,7 +42,7 @@ class OCRService:
         return self._real_available
 
     def reload(self) -> bool:
-        """Hot-reload OCR weights (VietOCR + LayoutLMv3 KIE) after deploy."""
+        """Hot-reload OCR weights (VietOCR + PICK KIE) after deploy."""
         self._tried_load = False
         self._real_available = False
         if not get_settings().use_real_ocr:

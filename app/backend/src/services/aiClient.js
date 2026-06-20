@@ -171,7 +171,7 @@ async function billPrelabel(fileBuffer, filename, contentType) {
   return r.data;
 }
 
-async function billExportVerified(samples, triggerKaggle = false, kaggleJobType = 'layoutlmv3', webhookUrl) {
+async function billExportVerified(samples, triggerKaggle = false, kaggleJobType = 'pick_retrain', webhookUrl) {
   const r = await client.post('/api/v1/bill-retrain/export-verified', {
     samples,
     trigger_kaggle: triggerKaggle,
@@ -224,6 +224,11 @@ async function reloadModels(scope = 'ocr') {
   return r.data;
 }
 
+async function getNluTrainHistory() {
+  const r = await client.get('/api/v1/nlu/train/history');
+  return r.data;
+}
+
 module.exports = {
   health,
   inferText,
@@ -245,5 +250,6 @@ module.exports = {
   billKaggleDeploy,
   billGoldenEval,
   reloadModels,
+  getNluTrainHistory,
 };
 

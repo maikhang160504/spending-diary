@@ -132,8 +132,8 @@ function BillToast({ toast, onDismiss }) {
 
 function shortenOcrError(msg) {
   if (!msg) return "";
-  if (msg.includes("vietocr_receipt.pth")) {
-    return "Thiếu file VietOCR weights — đặt tại OCR/models/vietocr/vietocr_receipt.pth và bấm Tải lại model OCR.";
+  if (msg.includes("vgg_transformer.pth") || msg.includes("vietocr_receipt.pth")) {
+    return "Thiếu file VietOCR weights — đặt tại OCR/models/vietocr/vgg_transformer.pth (pretrained) và bấm Tải lại model OCR.";
   }
   return msg.length > 180 ? `${msg.slice(0, 177)}…` : msg;
 }
@@ -148,7 +148,7 @@ function formatPrelabelMessage(prelabel) {
   if (n === 0) {
     return "Auto-label trả về 0 box — kiểm tra OCR online rồi bấm Gán nhãn auto lại.";
   }
-  const kieLabel = kie === "layoutlmv3" ? "LayoutLMv3 KIE" : `heuristic (${kie})`;
+  const kieLabel = kie === "pick" ? "PICK KIE" : `heuristic (${kie})`;
   return `Gán nhãn auto: ${n} boxes · entity: ${kieLabel} · ${engine}`;
 }
 
@@ -184,11 +184,12 @@ export default function BillRetrainPage() {
   const [kaggleJobs, setKaggleJobs] = useState([]);
   const [activeJob, setActiveJob] = useState(null);
   const [triggerKaggleOnExport, setTriggerKaggleOnExport] = useState(false);
-  const [exportJobType, setExportJobType] = useState("layoutlmv3");
+  const [exportJobType, setExportJobType] = useState("pick_retrain");
   const [archiveImagesOnExport, setArchiveImagesOnExport] = useState(true);
   const [drawMode, setDrawMode] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [toast, setToast] = useState(null);
+  const [activeCategory, setActiveCategory] = useState("Others");
   const handledJobsRef = useRef(new Set());
   const toastTimerRef = useRef(null);
 
@@ -238,7 +239,7 @@ export default function BillRetrainPage() {
       setMessageIsError(!r.ok);
       setMessage(
         r.ok
-          ? `Đã tải lại OCR — KIE: ${r.kie_backend || "unknown"}${r.kie_backend === "layoutlmv3" ? " (LayoutLMv3 active)" : ""}`
+          ? `Đã tải lại OCR — KIE: ${r.kie_backend || "unknown"}${r.kie_backend === "pick" ? " (PICK active)" : ""}`
           : r.ocr_error || "Reload OCR thất bại — kiểm tra ai-service port 8000."
       );
     } catch (err) {
@@ -366,7 +367,7 @@ export default function BillRetrainPage() {
     if (boxes.length > 0 && !window.confirm(`Gán nhãn auto sẽ ghi đè ${boxes.length} box hiện tại. Tiếp tục?`)) {
       return;
     }
-    setBusy(true, "Đang gán nhãn auto (PaddleOCR + VietOCR + LayoutLMv3)...");
+    setBusy(true, "Đang gán nhãn auto (PaddleOCR + VietOCR + PICK)...");
     setMessage("");
     setMessageIsError(false);
     try {
@@ -408,6 +409,7 @@ export default function BillRetrainPage() {
     setDrawMode(false);
     setActive(s);
     setBoxes(s.adminLabels || s.autoLabels?.boxes || []);
+    setActiveCategory(s.metadata?.category || s.autoLabels?.category || "Others");
     setSelectedIdx(null);
     if (!s.metadata?.prelabelError) {
       setMessage("");
@@ -444,7 +446,7 @@ export default function BillRetrainPage() {
     if (!active) return;
     setBusy(true, "Đang lưu nháp...");
     try {
-      await saveBillSample(active.id, boxes, "pending");
+      await saveBillSample(active.id, boxes, "pending", activeCategory);
       await loadSamples();
       setMessageIsError(false);
       setMessage("Đã lưu nháp");
@@ -465,10 +467,10 @@ export default function BillRetrainPage() {
     }
     setBusy(true, "Đang duyệt nhãn...");
     try {
-      await approveBillSample(active.id, boxes);
+      await approveBillSample(active.id, boxes, activeCategory);
       await loadSamples();
       setMessageIsError(false);
-      setMessage("Đã duyệt — nhãn dùng cho export LayoutLMv3 + VietOCR");
+      setMessage("Đã duyệt — nhãn dùng cho export PICK KIE");
     } catch (err) {
       setMessageIsError(true);
       setMessage(err.message);
@@ -486,8 +488,7 @@ export default function BillRetrainPage() {
         undefined,
         archiveImagesOnExport
       );
-      let msg = `Exported ${r.exported} approved → PICK TSV + VietOCR crops`;
-      if (r.vietocr_crop_count != null) msg += ` · ${r.vietocr_crop_count} text crops`;
+      let msg = `Exported ${r.exported} approved → PICK TSV`;
       if (r.archivedImages > 0) msg += ` · đã archive ${r.archivedImages} ảnh local`;
       if (r.kaggle_job?.job_id) {
         setActiveJob(r.kaggle_job);
@@ -548,7 +549,7 @@ export default function BillRetrainPage() {
   const onKagglePlan = async () => {
     setBusy(true, "Đang kiểm tra Kaggle plan...");
     try {
-      const plan = await fetchBillKagglePlan("layoutlmv3");
+      const plan = await fetchBillKagglePlan("pick_retrain");
       setKagglePlan(plan);
       setMessageIsError(!plan.kaggle_configured);
       setMessage(plan.kaggle_configured ? "Kaggle CLI sẵn sàng" : "Kaggle CLI chưa sẵn sàng");
@@ -593,7 +594,7 @@ export default function BillRetrainPage() {
           <p className="bill-page-eyebrow">Pipeline retrain</p>
           <h1 className="page-title">Bill OCR Retrain</h1>
           <p className="page-desc">
-            Upload, gán nhãn auto, duyệt và export cho LayoutLMv3 + VietOCR trên Kaggle.
+            Upload, gán nhãn auto, duyệt và export cho PICK KIE trên Kaggle.
           </p>
           <div className="bill-stat-strip">
             <div className="bill-stat">
@@ -688,6 +689,24 @@ export default function BillRetrainPage() {
         <div className="bill-toolbar-divider" aria-hidden="true" />
 
         <div className="bill-toolbar-group">
+          <span className="bill-toolbar-label">Category</span>
+          <div className="bill-toolbar-actions">
+            <select
+              className="bill-select"
+              value={activeCategory}
+              onChange={(e) => setActiveCategory(e.target.value)}
+              disabled={!active || isArchivedSample}
+            >
+              {["Food", "Essentials", "Social", "Transport", "Shopping", "Housing", "Health", "Beauty", "Education", "Entertainment", "Investment", "Others"].map((cat) => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="bill-toolbar-divider" aria-hidden="true" />
+
+        <div className="bill-toolbar-group">
           <span className="bill-toolbar-label">Export</span>
           <div className="bill-toolbar-actions">
             <button type="button" className="btn btn-secondary" onClick={onExport} disabled={loading}>
@@ -702,8 +721,7 @@ export default function BillRetrainPage() {
               <span>Auto Kaggle</span>
             </label>
             <select className="bill-select" value={exportJobType} onChange={(e) => setExportJobType(e.target.value)}>
-              <option value="layoutlmv3">LayoutLMv3</option>
-              <option value="vietocr">VietOCR</option>
+              <option value="pick_retrain">PICK retrain</option>
             </select>
           </div>
         </div>
@@ -713,11 +731,8 @@ export default function BillRetrainPage() {
         <div className="bill-toolbar-group">
           <span className="bill-toolbar-label">Kaggle</span>
           <div className="bill-toolbar-actions">
-            <button type="button" className="btn btn-secondary" onClick={() => onKaggleTrigger("layoutlmv3")} disabled={loading}>
-              LayoutLMv3
-            </button>
-            <button type="button" className="btn btn-secondary" onClick={() => onKaggleTrigger("vietocr")} disabled={loading}>
-              VietOCR
+            <button type="button" className="btn btn-secondary" onClick={() => onKaggleTrigger("pick_retrain")} disabled={loading}>
+              PICK retrain
             </button>
             <button type="button" className="btn btn-ghost" onClick={onGolden} disabled={loading}>
               Golden

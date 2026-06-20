@@ -70,7 +70,7 @@ class ExportRequest(BaseModel):
 
     trigger_kaggle: bool = False
 
-    kaggle_job_type: str = Field(default="layoutlmv3", pattern="^(layoutlmv3|vietocr)$")
+    kaggle_job_type: str = Field(default="pick_retrain", pattern="^(pick_retrain|pick_train)$")
 
     webhook_url: str | None = None
 
@@ -80,7 +80,7 @@ class ExportRequest(BaseModel):
 
 class KagglePlanRequest(BaseModel):
 
-    job_type: str = Field(default="layoutlmv3", pattern="^(layoutlmv3|vietocr)$")
+    job_type: str = Field(default="pick_retrain", pattern="^(pick_retrain|pick_train)$")
 
 
 
@@ -88,7 +88,7 @@ class KagglePlanRequest(BaseModel):
 
 class KaggleTriggerRequest(BaseModel):
 
-    job_type: str = Field(default="layoutlmv3", pattern="^(layoutlmv3|vietocr)$")
+    job_type: str = Field(default="pick_retrain", pattern="^(pick_retrain|pick_train)$")
 
     webhook_url: str | None = None
 
@@ -102,7 +102,7 @@ class KaggleDeployRequest(BaseModel):
 
     source: str = Field(description="Local path, zip, or https URL to trained artifact")
 
-    job_type: str = Field(default="layoutlmv3", pattern="^(layoutlmv3|vietocr)$")
+    job_type: str = Field(default="pick_retrain", pattern="^(pick_retrain|pick_train)$")
 
     batch_id: str | None = None
 

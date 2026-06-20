@@ -133,3 +133,45 @@ Lưu Ý Sống Còn Cho Cả 2 Luồng
 Luồng Text - Tránh hiểu nhầm con số: Nếu user gõ: "Dẫn bồ đi ăn tiệm đồ cũ hết 200k", bộ Parser Regex ở Backend có thể bị lầm lẫn giữa chữ "cũ" (chữ) hoặc các con số ngày tháng với số tiền. Hàm trích xuất ở BE cần được cài đặt trọng số ưu tiên cho các chữ đi kèm ký tự đơn vị tệ như k, đ, vnd, triệu.
 
 Luồng Ảnh - Tiết kiệm Token cho LLM: Kết quả trả về từ PaddleOCR rất dài và chứa nhiều ký tự rác (ký tự đặc biệt, mã vạch...). BE sau khi dùng Core ML để đoán Category và trích xuất số tiền xong, chỉ nên gửi các thông tin cốt lõi (Số tiền đã lọc, Danh mục đã đoán, Tên các món ăn chính) kèm gói ContextMeta sang cho LLM sinh lời thoại, tuyệt đối không quăng nguyên cục text thô OCR vào LLM để tránh làm loãng ngữ cảnh và tốn chi phí API.
+
+---
+
+## 🏛️ LUỒNG 3: LUỒNG RETRAIN & ĐỒNG BỘ MÔ HÌNH (ADMIN OPS)
+
+Luồng này áp dụng khi Admin thực hiện quản lý, duyệt dữ liệu và huấn luyện lại (retrain) mô hình nhằm tăng độ chính xác trong thực tế.
+
+```text
+ [ WebAdmin (React) ]         [ Backend API (Node) ]      [ AI Service (FastAPI) ]       [ Kaggle API ]
+          │                             │                             │                        │
+   (Duyệt & Export)                     │                             │                        │
+          ├─────── 1. Export Approved ─>│                             │                        │
+          │                             ├─ 2. Gọi Export API ────────>│                        │
+          │                             │  (Kèm danh sách nhãn)       ├─ 3. Download ảnh R2 ───┤ (Nếu ở Cloud)
+          │                             │                             ├─ 4. Đóng gói KIE TSV   │
+          │                             │                             │  (vào kaggle_upload)   │
+          │                             │<── Trả Export Result ───────┤                        │
+          │                             │                             │                        │
+  (Kích hoạt Retrain)                   │                             │                        │
+          ├────── 5. Trigger Retrain ──>│                             │                        │
+          │        (NLU / KIE)          ├─ 6. Gọi Train API ─────────>│                        │
+          │                             │                             ├─ 7. Chạy NLU local     │
+          │                             │                             │  (Background task)     │
+          │                             │                             │                        │
+          │                             │                             ├─ 8. Chạy KIE (Kaggle) ─> (datasets version)
+          │                             │                             │                        ─> (kernels push)
+          │                             │                             │                        ─> (poll status)
+          │                             │                             │                        ─> (download output)
+          │                             │                             │                        ─> (deploy & reload)
+          │                             │                             │<── Ghi nhận F1-Score ──┤
+          │<── 9. Trả trạng thái/Log ───┤                             │                        │
+```
+
+1. **Retrain NLU (Local)**:
+   * Chạy trực tiếp qua script `retrain_all.py` ở background của AI Service.
+   * Ghi log kết quả và số lượng mẫu vào `nlu_training_history.json` để hiển thị biểu đồ tăng trưởng độ chính xác trên WebAdmin.
+
+2. **Retrain PICK KIE (Kaggle)**:
+   * Đóng gói tập dữ liệu nhãn đã duyệt từ WebAdmin (`webadmin-verified-receipts`).
+   * Sử dụng Kaggle API để đẩy phiên bản dataset mới và kích hoạt kernel `retrain-pick-kie` huấn luyện trên GPU Kaggle.
+   * Polling trạng thái, tự động tải model output `model_best.pth`, cập nhật `meta.json` kèm F1-score mới nhất, reload model và hot-deploy trực tiếp vào production folder.
+   * Lưu trữ lịch sử tất cả các job vào `kaggle_jobs.json`.

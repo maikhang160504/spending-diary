@@ -122,7 +122,7 @@ function DashboardPage() {
               actionLabel="NLU Ops → duyệt"
             />
             <ReadinessCard
-              title="OCR / LayoutLMv3 KIE"
+              title="OCR / PICK KIE"
               current={readiness.billOcr.approved}
               threshold={readiness.billOcr.threshold}
               percent={readiness.billOcr.percent}

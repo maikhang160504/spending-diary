@@ -29,15 +29,15 @@ def reload_models(body: ReloadModelsRequest | None = None) -> dict:
         result["nlu_error"] = adapter.get_nlu_error()
 
     if scope in ("all", "ocr"):
-        import receipt_ocr.layoutlmv3_kie as kie_mod
+        import receipt_ocr.pick_kie as kie_mod
         kie_mod.reset_kie_engine()
         ocr_ok = get_ocr_service().reload()
         result["ocr_loaded"] = ocr_ok
         result["ocr_error"] = adapter.get_ocr_error()
         if ocr_ok:
             pipeline = adapter._OCR_PIPELINE
-            layoutlm_dir = getattr(pipeline, "layoutlmv3_dir", None)
-            result["layoutlmv3_status"] = kie_mod.layoutlmv3_weights_status(layoutlm_dir)
+            pick_path = getattr(pipeline, "pick_kie_model", None)
+            result["pick_kie_status"] = kie_mod.pick_kie_weights_status(pick_path)
             result["kie_backend"] = getattr(getattr(pipeline, "_kie", None), "backend", None)
             if result["kie_backend"] is None and pipeline:
                 result["kie_backend"] = pipeline._get_kie().backend

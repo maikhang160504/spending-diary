@@ -139,17 +139,17 @@ export function prelabelBill(file) {
   });
 }
 
-export function saveBillSample(id, adminLabels, status = "pending") {
+export function saveBillSample(id, adminLabels, status = "pending", category = null) {
   return request(`/api/admin/bill-retrain/samples/${id}`, {
     method: "PUT",
-    body: JSON.stringify({ adminLabels, status }),
+    body: JSON.stringify({ adminLabels, status, category }),
   });
 }
 
-export function approveBillSample(id, adminLabels) {
+export function approveBillSample(id, adminLabels, category = null) {
   return request(`/api/admin/bill-retrain/samples/${id}/approve`, {
     method: "POST",
-    body: JSON.stringify({ adminLabels }),
+    body: JSON.stringify({ adminLabels, category }),
   });
 }
 
@@ -159,7 +159,7 @@ export function billRetrainKaggleWebhookUrl() {
 
 export function exportBillVerified(
   triggerKaggle = false,
-  kaggleJobType = "layoutlmv3",
+  kaggleJobType = "pick_retrain",
   webhookUrl,
   archiveImages = true
 ) {
@@ -174,14 +174,14 @@ export function exportBillVerified(
   });
 }
 
-export function fetchBillKagglePlan(jobType = "layoutlmv3") {
+export function fetchBillKagglePlan(jobType = "pick_retrain") {
   return request("/api/admin/bill-retrain/kaggle/plan", {
     method: "POST",
     body: JSON.stringify({ jobType }),
   });
 }
 
-export function triggerBillKaggle(jobType = "layoutlmv3", webhookUrl, cloudUrl) {
+export function triggerBillKaggle(jobType = "pick_retrain", webhookUrl, cloudUrl) {
   return request("/api/admin/bill-retrain/kaggle/trigger", {
     method: "POST",
     body: JSON.stringify({

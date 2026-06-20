@@ -72,13 +72,12 @@ def prelabel_image(image_bytes: bytes, filename: str | None = None) -> dict[str,
         payload = pipeline.prelabel_for_admin(image_rgb)
         payload["backend"] = payload.get("auto_label_engine", "real-hybrid")
         payload["ocr_loaded"] = True
-        kie_mod = importlib.import_module("receipt_ocr.layoutlmv3_kie")
-        payload["layoutlmv3_status"] = kie_mod.layoutlmv3_weights_status(
-            getattr(pipeline, "layoutlmv3_dir", None)
-        )
-        if payload.get("kie_backend") != "layoutlmv3":
+        kie_mod = importlib.import_module("receipt_ocr.pick_kie")
+        pick_path = getattr(pipeline, "pick_kie_model", None)
+        payload["pick_kie_status"] = kie_mod.pick_kie_weights_status(pick_path)
+        if payload.get("kie_backend") != "pick":
             payload.setdefault("warnings", []).append(
-                "Auto-label đang dùng heuristic — bấm Tải lại model OCR sau khi deploy LayoutLMv3."
+                "Auto-label đang dùng heuristic — deploy model_best.pth (PICK) rồi bấm Tải lại model OCR."
             )
         return payload
     finally:
@@ -150,7 +149,7 @@ def run_golden_eval() -> dict[str, Any]:
     _ocr_paths()
     golden_mod = importlib.import_module("receipt_ocr.golden_eval")
     nlu_mod = importlib.import_module("receipt_ocr.receipt_nlu")
-    kie_mod = importlib.import_module("receipt_ocr.layoutlmv3_kie")
+    kie_mod = importlib.import_module("receipt_ocr.pick_kie")
     import pandas as pd
 
     fixtures_path = Path(get_settings().expense_ocr_nlu_dir) / "OCR" / "tests" / "golden" / "fixtures.jsonl"

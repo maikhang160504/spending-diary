@@ -66,7 +66,7 @@ export default function BillHelpModal({ open, onClose }) {
                 <span className="bill-help-step-num">2</span>
                 <div>
                   <strong>Gán nhãn auto</strong>
-                  <p>PaddleOCR + VietOCR + LayoutLMv3 — hoặc chỉnh tay: kéo bbox, <strong>Thêm bbox</strong> vẽ vùng mới, sửa text/entity, Xóa nhãn.</p>
+                  <p>PaddleOCR + VietOCR + PICK KIE — hoặc chỉnh tay: kéo bbox, <strong>Thêm bbox</strong> vẽ vùng mới, sửa text/entity, Xóa nhãn.</p>
                 </div>
               </li>
               <li>
@@ -80,7 +80,7 @@ export default function BillHelpModal({ open, onClose }) {
                 <span className="bill-help-step-num">4</span>
                 <div>
                   <strong>Export &amp; Kaggle</strong>
-                  <p>Xuất PICK TSV + VietOCR crops. Bật Auto Kaggle để train ngay sau export.</p>
+                  <p>Xuất PICK TSV. Bật Auto Kaggle để retrain PICK ngay sau export.</p>
                 </div>
               </li>
               <li>
@@ -118,7 +118,7 @@ export default function BillHelpModal({ open, onClose }) {
               </div>
               <div className="bill-help-card">
                 <strong>Export approved</strong>
-                <p>Đóng gói nhãn cho kernel LayoutLMv3 / VietOCR.</p>
+                <p>Đóng gói nhãn cho kernel PICK KIE retrain.</p>
               </div>
               <div className="bill-help-card">
                 <strong>Tải lại model OCR</strong>

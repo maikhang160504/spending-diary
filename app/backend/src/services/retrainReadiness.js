@@ -71,7 +71,7 @@ async function getRetrainReadiness() {
     );
   }
   if (ocrKie.ready) {
-    recommendations.push('Đủ ngưỡng OCR/KIE — có thể Export + Kaggle retrain (LayoutLMv3 / VietOCR).');
+    recommendations.push('Đủ ngưỡng OCR/KIE — có thể Export + Kaggle retrain PICK KIE.');
   }
   if (category.ready) {
     recommendations.push('Đủ ngưỡng category — duyệt NLU curation và retrain category model.');

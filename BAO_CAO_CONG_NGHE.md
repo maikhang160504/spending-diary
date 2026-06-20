@@ -73,7 +73,7 @@ Backend đóng vai **orchestrator** — không tự train model, mà điều ph�
 |-------|-----------------|------------|
 | **Text** ("ăn phở 45k") | Có — NLU | BE gọi AI → trích amount + category → auto-save nếu confidence đủ |
 | **Story** (ảnh + user nhập tay) | Không | Lưu trực tiếp amount/category user nhập kèm URL ảnh |
-| **Scan bill** (ảnh hóa đơn) | Có — OCR + NLU | BE trả HTTP 202 ngay → xử lý nền → push WebSocket khi xong |
+| **Scan bill** (ảnh hóa đơn) | Có — OCR + NLU | BE trả HTTP 202 ngay → xử lý nền → push WebSocket → user confirm/sửa **amount + category** trên app |
 
 **Luồng chat AI (Intent):**
 
@@ -359,12 +359,13 @@ Nhập câu chat của User ──► [Tiền xử lý text]
 
 #### 4.2.7. Cơ chế Tái huấn luyện & Tải nóng (Retraining & Hot-reload)
 
-Khi dữ liệu gom cụm sửa đổi từ các người dùng được Admin phê duyệt (Curated), luồng tái huấn luyện sẽ được thực thi bất động bộ:
+Khi dữ liệu gom cụm sửa đổi được Admin phê duyệt (Curated), luồng tái huấn luyện tách theo loại model:
 
-1. **Tích hợp dữ liệu**: Backend ghi các mẫu duyệt mới dưới dạng định dạng CSV vào `text_nlu/datasets/intent_record.csv`.
-2. **Kích hoạt ngầm**: Web Admin gọi `/api/admin/train`, backend chuyển tiếp đến FastAPI AI Service gọi `POST /api/v1/nlu/train`.
-3. **Background Subprocess**: FastAPI chạy script `retrain_all.py` ở chế độ ngầm bằng trình thông dịch python của môi trường ảo (virtual environment).
-4. **Hot-reload trong bộ nhớ**: Sau khi script huấn luyện hoàn tất tạo ra các file `.joblib` mới trên đĩa, tiến trình train gọi `get_nlu_service().reload()`. Hàm này sẽ giải phóng bundle model cũ và nạp lại toàn bộ file weight/model mới vào RAM. Toàn bộ quá trình diễn ra tức thời và không yêu cầu khởi động lại Server FastAPI.
+1. **Category (từ app correction amount/category):** Backend append CSV → `intent_record.csv` → `retrain_all.py` (local CPU).
+2. **OCR / LayoutLMv3:** Chỉ từ **WebAdmin Labeling Canvas** → `verified_ocr_labels` → Kaggle batch (xem `RETRAIN.md`).
+3. **Kích hoạt:** Web Admin `/api/admin/train` (NLU) hoặc nút Kaggle train (OCR).
+4. **Hot-reload:** Sau train NLU, `get_nlu_service().reload()` nạp `.joblib` mới không restart FastAPI.
+5. **QA gate:** Chạy Golden Test Set trước deploy OCR weights.
 
 ---
 
@@ -372,15 +373,17 @@ Khi dữ liệu gom cụm sửa đổi từ các người dùng được Admin p
 
 #### 4.3.1. Kiến trúc nhận dạng
 
-Pipeline **2 tầng OCR** + **rule extraction**:
+Pipeline **hybrid OCR + KIE** + **phân loại bill**:
 
 | Bước | Công nghệ | Vai trò |
 |------|-----------|---------|
-| 1. Text detection | **PaddleOCR** | Tìm vùng chữ trên ảnh hóa đơn (bounding box) |
-| 2. Text recognition | **VietOCR** (Transformer + VGG19 backbone) | Đọc nội dung từng dòng tiếng Việt |
-| 3. Field extraction | Rule-based + keyword | Trích `TOTAL_COST`, danh mục, merchant… |
+| 1. Text detection | **PaddleOCR** | Tìm bounding box trên ảnh hóa đơn |
+| 2. Text recognition | **VietOCR** | Đọc nội dung từng vùng chữ tiếng Việt |
+| 3. KIE (tùy chọn) | **LayoutLMv3** fine-tune | Gán entity SELLER, ADDRESS, TIMESTAMP, TOTAL_COST |
+| 4. Item pairing | Rule geometry (`align_skewed_items_and_prices`) | Ghép `(tên_món, giá)` từ bbox |
+| 5. Phân loại bill | **Item-level `category_model` + Weighted Voting** | Mặc định `split_mode=False`: $\text{Score}(C)=\sum_i \text{Price}_i \times \text{Confidence}_i$ |
 
-**Không dùng LLM cho OCR** — toàn bộ nhận dạng chữ bằng deep learning; chỉ phần gợi ý category sau OCR dùng keyword map sang nhãn NLU (Food, Essentials, Shopping…).
+**Không dùng LLM cho OCR.** Phân loại danh mục bill dùng **`category_model`** (Food, Shopping…), **không** dùng `record_type_model` (Income/Expense) hay `intent_model` (Record/Action/Chitchat).
 
 #### 4.3.2. Dữ liệu train OCR
 
@@ -403,9 +406,13 @@ Nhãn gốc MC-OCR: SELLER, ADDRESS, TIMESTAMP, TOTAL_COST, TAX_ID, PRODUCT.
    - Batch size: 16, 8000 iterations
    - Optimizer: OneCycleLR, max_lr 0.0003
    - Augmentation: image aug + masked language model
-3. **Output**: `vietocr_receipt.pth` — weight chuyên cho receipt
+3. **Output**: `models/vietocr/vietocr_receipt.pth` — weight chuyên cho receipt
 
-Train chạy trên **Kaggle GPU** (notebook `vietnamese_receipts_mc_ocr_train.ipynb`) — log và config lưu trong `receipt_ocr_artifacts/`.
+Train chạy trên **Kaggle GPU** (`kaggle/kernels/retrain-vietocr`) — log train lưu `artifacts/vietocr/`, weights production tại `models/vietocr/`.
+
+**LayoutLMv3 KIE:** weights tại `models/layoutlmv3_kie/model-best/`; retrain kernel `kaggle/kernels/retrain-layoutlmv3`. Luôn merge **base** [MC-OCR 2021](https://www.kaggle.com/datasets/domixi1989/vietnamese-receipts-mc-ocr-2021) + **incremental** WebAdmin (`verified_ocr_labels/kaggle_upload/`).
+
+**Retrain WebAdmin:** ảnh chờ duyệt → `storage/bill_retrain/images/`; sau export → `verified_ocr_labels/incremental/`. Chi tiết: `RETRAIN.md` PHẦN 4–5.
 
 **PaddleOCR** dùng model pretrained có sẵn — không fine-tune riêng trong repo; chỉ detect box, VietOCR đọc chữ.
 
@@ -415,10 +422,12 @@ Train chạy trên **Kaggle GPU** (notebook `vietnamese_receipts_mc_ocr_train.ip
 2. PaddleOCR detect → danh sách bounding box
 3. Crop từng vùng → VietOCR recognize → DataFrame các dòng text
 4. `extract_receipt_summary()`:
-   - Tìm dòng TOTAL / TỔNG CỘNG / THANH TOÁN → parse số tiền VN
-   - Quét keyword sản phẩm/merchant → gợi ý category NLU
-   - Trả `{ amount, category, confidence, lines[] }`
-5. BE yêu cầu user **confirm** trước khi lưu (vì OCR có thể sai)
+   - Trích tổng tiền (`extract_total_amount` + kiểm chéo với tổng món)
+   - Ghép item → `predict_item_category` từng tên món qua **`category_model`**
+   - **`resolve_mixed_receipt_categories(split_mode=False)`** — Weighted Voting by Value → một `category` đại diện
+   - Trả `{ amount, category, transactions[], vote_score, warnings[] }`
+5. Mobile `CameraConfirmScreen`: user có thể sửa **số tiền**, **danh mục**, ví, ghi chú — **không** sửa OCR bbox/transcript
+6. Correction trên app → `user_corrections` — **chỉ đủ retrain category** sau khi admin duyệt; **retrain VietOCR/LayoutLMv3 bắt buộc qua WebAdmin Labeling Canvas** (xem `RETRAIN.md`)
 
 ---
 
@@ -463,7 +472,7 @@ Response luôn có field `backend: "real" | "mock"` để biết nguồn kết q
 2. **Ảnh mờ/nghiêng** — PaddleOCR miss box → VietOCR không có gì để đọc.
 3. **PaddleOCR + Python version** — Paddle 2.x vs 3.x khác nhau theo Python 3.12 → cần `paddle_compat.py`.
 4. **GPU vs CPU** — Train trên Kaggle GPU; inference local CPU chậm (~vài giây/ảnh).
-5. **Không có end-to-end deep extraction** — Category sau OCR dựa keyword, chưa train model riêng cho field TOTAL.
+5. **Không có nhãn OCR từ app** — User chỉ sửa amount/category; train OCR/KIE cần WebAdmin verified labels.
 
 ### 4.6. Hướng tối ưu expense-ocr-nlu
 
@@ -472,7 +481,9 @@ Response luôn có field `backend: "real" | "mock"` để biết nguồn kết q
 | NLU intent | Tiếp tục augment Action + hard negative; thử XLM-R multilingual |
 | NLU category | Chuyển dần từ TF-IDF sang encoder-only khi đủ GPU |
 | NER | Thêm entity MERCHANT, PAYMENT_METHOD; tăng data PRODUCT |
-| OCR | Fine-tune Paddle detection trên receipt VN; thêm deskew/preprocess ảnh |
+| OCR | Hybrid Paddle+VietOCR+LayoutLMv3; Weighted Voting category; deskew/preprocess |
+| Retrain data | App correction → category only (admin duyệt); OCR → WebAdmin Canvas only |
+| Golden Test Set | 200–500 ảnh label 100%, không train; QA gate trước deploy (xem `RETRAIN.md`) |
 | Inference | ONNX export PhoBERT head; 1 GPU server + request queue |
 | User learning (TASK-08) | Exact match correction → user model logistic trên embedding |
 | Confidence | Threshold rõ: < 0.7 → bắt user nhập tay, không auto-save |
@@ -498,9 +509,10 @@ Flutter → POST /ai/nlu
 ```
 Flutter chụp ảnh → nén → POST /ai/expense/from-bill
     → BE tạo tx pending, trả 202 + transactionId
-    → Background: AI Service OCR (Paddle+VietOCR) → amount + category
+    → Background: OCR → item-level category → Weighted Voting → amount + category
     → BE update tx, gửi WebSocket transaction_done
-    → Flutter hiện form confirm → user sửa → PATCH transaction → lưu
+    → Flutter CameraConfirmScreen: user sửa amount/category (± ví, ghi chú) → PATCH → lưu
+    → Nếu sửa category: ghi user_corrections (chờ admin duyệt mới vào train)
 ```
 
 ### 5.3. User nhập "trà sữa 35k"
@@ -512,22 +524,26 @@ Flutter → POST /ai/expense/from-text (autoSave=true)
     → Flutter refresh home + streak celebration
 ```
 
-### 5.4. Quy trình Curation & Huấn luyện lại NLU
+### 5.4. Quy trình Curation & Huấn luyện lại
 
 ```
-User sửa giao dịch (Mobile) ──► Lưu user_corrections (Postgres)
-                                          │
-                                   Web Admin tải dữ liệu
-                                          │
-                                          ▼
-Web Admin duyệt chỉnh sửa ──► API /nlu/curate ──► Ghi vào intent_record.csv
-                                                           │
-                                                           ▼
-Web Admin bấm "Retrain"  ──► API /train ────────► Chạy retrain_all.py (ngầm)
-                                                           │
-                                                           ▼
-FastAPI reload bundle ◄── Tải model .joblib mới ◄── Model mới lưu lên đĩa
+User sửa amount/category trên app (Bill) ──► user_corrections (Postgres)
+User sửa câu text NLU ──► user_corrections
+                          │
+                   Web Admin duyệt (/nlu/curate)
+                          │
+          ┌───────────────┴────────────────┐
+          ▼                                ▼
+  intent_record.csv                  verified_ocr_labels (Canvas)
+  → retrain category (local)         → Kaggle: VietOCR / LayoutLMv3
+          │                                │
+          └──────── Golden Test QA ────────┘
+                          │
+                          ▼
+              Deploy nếu Accuracy_new ≥ baseline
 ```
+
+**Lưu ý:** Bill upload **không** tự động vào train OCR. Chỉ mẫu **WebAdmin verified** (bbox + transcript + entity) mới export sang Kaggle. Retrain category từ app correction: Web Admin `/train` → `retrain_all.py` → hot-reload `.joblib`.
 
 ---
 
@@ -747,5 +763,33 @@ Nhằm giải quyết vấn đề ứng dụng phải gọi API và tải lại 
    - Thiết lập giao thức đồng bộ hóa delta (`/api/v1/sync?since=timestamp`). Client chỉ lấy các phần dữ liệu thay đổi kể từ lần đồng bộ trước đó và ghi đè vào DB cục bộ. UI sẽ lắng nghe (stream) trực tiếp từ DB cục bộ, cho phép app hiển thị dữ liệu tức thời (0ms load) và hoạt động offline hoàn toàn.
 
 *Cập nhật: 11/06/2026*
+
+## 13. Hệ thống Tái huấn luyện (Retraining Ops) & Cập nhật mô hình tự động (Cập nhật 20/06/2026)
+
+Hệ thống đã triển khai hoàn thiện cơ chế tự động hóa quy trình tái huấn luyện cho cả hai phân hệ chính: NLU văn bản và OCR-KIE hóa đơn nhằm mục đích nâng cao độ chính xác liên tục theo dữ liệu thực tế.
+
+### 13.1. Quy trình huấn luyện lại NLU (NLU Retraining)
+1. **Gom cụm và bổ sung dữ liệu**:
+   - Mọi chỉnh sửa của người dùng đối với kết quả dự đoán của NLU được lưu vết trong bảng `user_corrections` ở Backend.
+   - Admin kiểm tra chất lượng và duyệt (Curated) dữ liệu trên WebAdmin. Backend Node.js thực thi append trực tiếp các bản ghi này vào dataset huấn luyện `intent_record.csv` của AI-service.
+2. **Triển khai chạy huấn luyện ngầm (Local CPU)**:
+   - AI-service kích hoạt chạy ngầm kịch bản `retrain_all.py` sử dụng thư viện `FastAPI BackgroundTasks`.
+   - Tiến trình train lại toàn bộ mô hình Logistic Regression TF-IDF và SpaCy NER cục bộ.
+   - Sau khi thành công, model được tự động nạp chồng lên RAM (`hot-reload`) thông qua phương thức `get_nlu_service().reload()` để phục vụ các yêu cầu API tiếp theo ngay lập tức mà không làm dừng service.
+3. **Ghi nhận lịch sử tăng trưởng**:
+   - Hệ thống tự động ghi nhật ký huấn luyện vào tệp `nlu_training_history.json` bao gồm các thông số: thời điểm huấn luyện (`trained_at`), số dòng dữ liệu (`training_rows`), thời gian huấn luyện (`duration_sec`), trạng thái (`status`), và F1-score để WebAdmin hiển thị biểu đồ theo dõi hiệu năng.
+
+### 13.2. Quy trình huấn luyện lại OCR-KIE (Kaggle PICK KIE Retraining)
+1. **Đóng gói nhãn và đồng bộ hóa lưu trữ**:
+   - Khi Admin duyệt nhãn trên Canvas (`BillRetrainPage.jsx`), nhãn được xuất thành định dạng TSV chuẩn của mô hình PICK.
+   - Đối với ảnh hóa đơn trên môi trường Cloud (Cloudflare R2), AI-service tự động tải ảnh qua internet về local temporary directory trước khi nén zip đóng gói dataset `webadmin-verified-receipts` để đẩy lên Kaggle.
+2. **Gọi Kaggle API tự động**:
+   - AI-service tích hợp Kaggle API Client để cập nhật phiên bản Dataset trên Kaggle và tự động kích hoạt đẩy kernel `retrain-pick-kie` lên Kaggle GPU.
+   - Tiến hành polling bất đồng bộ để theo dõi tiến độ huấn luyện qua 7 bước: `queued` -> `versioning_dataset` -> `pushing_kernel` -> `running_on_kaggle` -> `deploying` -> `deploying_from_cloud` -> `completed`.
+3. **Thu hồi, Deploy & Đo lường độ chính xác**:
+   - Khi job trên Kaggle hoàn tất, AI-service tự động tải model output `model_best.pth` và trích xuất độ chính xác `f1_score` từ tệp cấu hình `meta.json` của checkpoint.
+   - Tự động thay thế weight cũ, cập nhật manifest, reload OCR service và hiển thị thông số so sánh độ chính xác cũ/mới lên màn hình quản trị của Admin.
+
+*Cập nhật: 20/06/2026*
 
 
