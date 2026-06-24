@@ -150,10 +150,18 @@ def build_nlu_notebook_and_meta(nlu_root: Path, kernel_dir: Path) -> None:
                     "import os\n",
                     "import shutil\n",
                     "\n",
-                    "if os.path.exists(\"text_nlu_src.zip\"):\n",
-                    "    with zipfile.ZipFile(\"text_nlu_src.zip\", \"r\") as zf:\n",
+                    "src_zip = \"text_nlu_src.zip\"\n",
+                    "if not os.path.exists(src_zip):\n",
+                    "    # Search in /kaggle/input\n",
+                    "    for root, dirs, files in os.walk(\"/kaggle/input\"):\n",
+                    "        if \"text_nlu_src.zip\" in files:\n",
+                    "            src_zip = os.path.join(root, \"text_nlu_src.zip\")\n",
+                    "            break\n",
+                    "\n",
+                    "if os.path.exists(src_zip):\n",
+                    "    with zipfile.ZipFile(src_zip, \"r\") as zf:\n",
                     "        zf.extractall(\".\")\n",
-                    "    print(\"Source code extracted successfully.\")\n",
+                    "    print(f\"Source code extracted successfully from {src_zip}.\")\n",
                     "else:\n",
                     "    print(\"Error: text_nlu_src.zip not found!\")\n"
                 ]
@@ -263,6 +271,11 @@ def version_nlu_dataset(nlu_root: Path) -> dict[str, Any]:
         src_file = datasets_src / f
         if src_file.is_file():
             shutil.copy2(src_file, upload_dir / f)
+
+    # Copy text_nlu_src.zip if it exists
+    zip_src = nlu_root / "text_nlu" / "kaggle" / "kernels" / KERNEL_SLUG / "text_nlu_src.zip"
+    if zip_src.is_file():
+        shutil.copy2(zip_src, upload_dir / "text_nlu_src.zip")
             
     # Write dataset-metadata.json
     username = kaggle_runner.kaggle_username() or "YOUR_USERNAME"
@@ -343,19 +356,19 @@ def _run_nlu_retrain_job(
     kernel_ref = f"{username}/{KERNEL_SLUG}" if username else KERNEL_SLUG
     
     try:
-        # Step 1: Version/Create dataset
+        # Step 1: Build NLU source zip
+        update_job(jobs_file, job_id, status="packaging_source")
+        kernel_dir = nlu_root / "text_nlu" / "kaggle" / "kernels" / KERNEL_SLUG
+        dest_zip = kernel_dir / "text_nlu_src.zip"
+        build_nlu_source_zip(nlu_root, dest_zip)
+
+        # Step 2: Version/Create dataset (including the zip we just created)
         update_job(jobs_file, job_id, status="versioning_dataset")
         ver_result = version_nlu_dataset(nlu_root)
         update_job(jobs_file, job_id, version_result=ver_result)
         if not ver_result.get("ok"):
             raise RuntimeError(ver_result.get("error") or "Dataset sync failed")
             
-        # Step 2: Build NLU source zip
-        update_job(jobs_file, job_id, status="packaging_source")
-        kernel_dir = nlu_root / "text_nlu" / "kaggle" / "kernels" / KERNEL_SLUG
-        dest_zip = kernel_dir / "text_nlu_src.zip"
-        build_nlu_source_zip(nlu_root, dest_zip)
-        
         # Step 3: Build Notebook and metadata
         build_nlu_notebook_and_meta(nlu_root, kernel_dir)
         
