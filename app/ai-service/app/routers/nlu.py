@@ -114,7 +114,9 @@ def run_retraining(nlu_dir: Path):
             cwd=str(nlu_dir),
             check=True,
             capture_output=True,
-            text=True
+            text=True,
+            encoding="utf-8",
+            errors="replace"
         )
         
         # Force reload in memory
