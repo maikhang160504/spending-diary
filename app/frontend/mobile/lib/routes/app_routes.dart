@@ -230,7 +230,13 @@ final GoRouter appRouter = GoRouter(
     ),
 
     // ── Overlays / Full-screen ───────────────────────────────
-    GoRoute(path: AppRoutes.limits,         builder: (context, state) => const LimitsScreen()),
+    GoRoute(
+      path: AppRoutes.limits,
+      builder: (context, state) {
+        final catCode = state.uri.queryParameters['categoryCode'];
+        return LimitsScreen(initialCategoryCode: catCode);
+      },
+    ),
     GoRoute(path: AppRoutes.recurring,      builder: (context, state) => const RecurringRulesScreen()),
     GoRoute(
       path: AppRoutes.shareWallet,

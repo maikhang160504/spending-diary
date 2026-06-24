@@ -21,6 +21,10 @@ export async function getAdminAnalytics() {
   return request("/api/admin/analytics");
 }
 
+export async function getAdminAnalyticsHistory(days = 7) {
+  return request(`/api/admin/analytics/history?days=${days}`);
+}
+
 export async function getRetrainReadiness() {
   return request("/api/admin/retrain-readiness");
 }
@@ -90,6 +94,10 @@ export async function getNluTrainStatus() {
 
 export async function getNluModelMeta() {
   return request("/api/admin/train/model-meta");
+}
+
+export async function getNluTrainHistory() {
+  return request("/api/admin/train/history");
 }
 
 export function fetchBillOcrStatus() {
@@ -213,5 +221,36 @@ export function reloadAiModels(scope = "ocr") {
 
 export function billSampleImageUrl(id) {
   return `${API_BASE_URL}/api/admin/bill-retrain/samples/${id}/image`;
+}
+
+export function getSystemStatus() {
+  return request("/api/admin/system/status");
+}
+
+export function getSystemSettings() {
+  return request("/api/admin/settings");
+}
+
+export function saveSystemSettings(settings) {
+  return request("/api/admin/settings", {
+    method: "POST",
+    body: JSON.stringify(settings)
+  });
+}
+
+export function importNluCsv(file, autoRetrain = false) {
+  const form = new FormData();
+  form.append("file", file);
+  form.append("autoRetrain", autoRetrain.toString());
+  return fetch(`${API_BASE_URL}/api/admin/nlu/import-csv`, {
+    method: "POST",
+    body: form,
+  }).then(async (res) => {
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || "Import failed");
+    }
+    return res.json();
+  });
 }
 

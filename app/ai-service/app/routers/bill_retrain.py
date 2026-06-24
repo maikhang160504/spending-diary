@@ -34,6 +34,8 @@ from app.services.bill_retrain_service import (
 
     trigger_kaggle_retrain,
 
+    kaggle_username,
+
 )
 
 
@@ -57,6 +59,10 @@ class VerifiedSample(BaseModel):
     admin_labels: list[dict[str, Any]] = Field(default_factory=list)
 
     image_url: str | None = None
+
+    image_path: str | None = None
+
+    image_ext: str | None = None
 
     metadata: dict[str, Any] = Field(default_factory=dict)
 
@@ -135,6 +141,8 @@ def bill_export_verified(body: ExportRequest) -> dict[str, Any]:
     samples = [s.model_dump() for s in body.samples]
 
     result = export_verified(samples)
+
+    result["kaggle_username"] = kaggle_username()
 
     if body.trigger_kaggle:
 

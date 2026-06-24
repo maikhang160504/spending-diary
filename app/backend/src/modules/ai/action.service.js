@@ -472,7 +472,7 @@ async function executeDeleteLastRecord(userId) {
   if (!list.items?.length) throw ApiError.notFound('Không có giao dịch để xóa.');
 
   const tx = list.items[0];
-  await txService.remove(userId, tx.id);
+  await txService.softDelete(userId, tx.id);
 
   return {
     kind: 'delete',

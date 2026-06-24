@@ -709,7 +709,13 @@ class _BarChart extends StatelessWidget {
               ),
             ),
             topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 12,
+                getTitlesWidget: (value, meta) => const SizedBox.shrink(),
+              ),
+            ),
           ),
           gridData: FlGridData(
             show: true,
@@ -1017,7 +1023,13 @@ class _TrendChart extends StatelessWidget {
               ),
             ),
             topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 12,
+                getTitlesWidget: (value, meta) => const SizedBox.shrink(),
+              ),
+            ),
           ),
           borderData: FlBorderData(show: false),
           lineBarsData: [
@@ -1151,7 +1163,13 @@ class _MoMGroupedBarChart extends StatelessWidget {
               ),
             ),
             topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 12,
+                getTitlesWidget: (value, meta) => const SizedBox.shrink(),
+              ),
+            ),
           ),
           gridData: FlGridData(
             show: true,
@@ -1298,7 +1316,13 @@ class _CumulativeBudgetLineChart extends StatelessWidget {
               ),
             ),
             topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 12,
+                getTitlesWidget: (value, meta) => const SizedBox.shrink(),
+              ),
+            ),
           ),
           borderData: FlBorderData(show: false),
           lineBarsData: [

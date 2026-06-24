@@ -21,6 +21,10 @@ _ENV_PATH = SERVICE_ROOT / ".env"
 if _ENV_PATH.exists():
     load_dotenv(_ENV_PATH, override=False)
 
+_NLU_ENV_PATH = SERVICE_ROOT.parent.parent / "expense-ocr-nlu" / ".env"
+if _NLU_ENV_PATH.exists():
+    load_dotenv(_NLU_ENV_PATH, override=False)
+
 # Force CPU mode early if DEVICE is set to "cpu" or defaults to it.
 # This avoids CUDA context initialization hangs on environments with broken/unconfigured drivers.
 _device_env = (os.getenv("DEVICE") or os.getenv("device") or "cpu").lower().strip().replace('"', '').replace("'", "")

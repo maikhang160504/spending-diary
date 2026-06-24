@@ -32,6 +32,7 @@ function row(r) {
     username: r.username || null,
     userAvatar: r.avatar_url || null,
     isDraft: r.is_draft || false,
+    originalText: r.original_text || null,
   };
 }
 
@@ -72,14 +73,14 @@ async function create(userId, payload) {
     );
     const storyId = storyRes.rows[0].id;
 
-    // 2. Create a story item
+    // 2. Create a story item — raw_text ưu tiên câu gốc user nhập (originalText)
     const itemRes = await client.query(
       `INSERT INTO story_items (story_id, raw_text, media_url, media_type)
        VALUES ($1, $2, $3, $4)
        RETURNING id`,
       [
         storyId,
-        payload.note || null,
+        payload.originalText || payload.note || null,
         payload.imageUrl || null,
         payload.imageUrl ? 'image' : 'text',
       ]
@@ -139,7 +140,7 @@ async function create(userId, payload) {
         payload.note || null,
         payload.imageUrl || null,
         payload.thumbnailUrl || null,
-        payload.aiExtracted || false,
+        payload.aiExtracted || payload.source === 'text' || payload.source === 'bill' || false,
         payload.aiConfidence || null,
         payload.aiMeta || {},
         payload.occurredAt || null,
@@ -198,6 +199,7 @@ async function listForUser(userId, filters) {
   values.push(limit, offset);
   const dataQ = await query(
     `SELECT t.*, si.story_id,
+            si.raw_text AS original_text,
             s.user_id AS story_user_id,
             ac.content_text AS ai_message,
             ac.emotion AS ai_emotion,
@@ -356,7 +358,63 @@ async function checkBudgetLimitsAndAlert(userId, categoryCode, walletId) {
   try {
     const summaries = await budgetsService.summary(userId);
     const budget = summaries.find(b => b.categoryCode === categoryCode && b.isActive);
-    if (!budget || !budget.alertEnabled) {
+    if (!budget) {
+      // Suggest setting a budget limit for a category that doesn't have one
+      try {
+        const localDateStr = new Date(Date.now() + 7 * 3600000).toISOString().split('T')[0];
+        const timePeriod = `limit_${categoryCode}`.substring(0, 20); // Max 20 chars for time_period
+        
+        const logCheck = await query(
+          `SELECT 1 FROM user_notification_logs 
+           WHERE user_id = $1 AND sent_date = $2::date AND time_period = $3`,
+          [userId, localDateStr, timePeriod]
+        );
+
+        if (logCheck.rows.length === 0) {
+          try {
+            await query(
+              `INSERT INTO user_notification_logs (user_id, notification_type, time_period, sent_date)
+               VALUES ($1, 'BUDGET_SUGGEST_LIMIT', $2, $3::date)`,
+              [userId, timePeriod, localDateStr]
+            );
+          } catch (dbErr) {
+            return;
+          }
+
+          const VI_CATEGORY_LABELS = {
+            'Food': 'Ăn uống',
+            'Transport': 'Di chuyển',
+            'Housing': 'Nhà ở',
+            'Shopping': 'Mua sắm',
+            'Entertainment': 'Giải trí',
+            'Health': 'Sức khỏe',
+            'Education': 'Giáo dục',
+            'Beauty': 'Làm đẹp',
+            'Social': 'Xã hội',
+            'Others': 'Tiêu dùng khác',
+          };
+          const catLabel = VI_CATEGORY_LABELS[categoryCode] || categoryCode;
+          const title = '💡 Gợi ý đặt hạn mức';
+          const message = `Bạn vừa chi tiêu cho '${catLabel}' nhưng chưa đặt hạn mức. Hãy đặt hạn mức để kiểm soát chi tiêu tốt hơn nhé!`;
+
+          await dispatchUserNotification(userId, {
+            type: 'BUDGET_SUGGEST_LIMIT',
+            payload: {
+              title,
+              message,
+              categoryCode,
+              deepLink: `/limits?categoryCode=${categoryCode}`,
+            },
+          });
+          console.log(`[Budget Suggest] Notification dispatched to user ${userId} to set budget limit for ${categoryCode}`);
+        }
+      } catch (err) {
+        console.error('[Budget Suggest] Failed to run suggestion check:', err.message);
+      }
+      return;
+    }
+
+    if (!budget.alertEnabled) {
       return;
     }
 

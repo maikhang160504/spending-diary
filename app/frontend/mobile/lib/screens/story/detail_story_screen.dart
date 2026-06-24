@@ -320,7 +320,7 @@ class _StoryPageState extends State<_StoryPage> {
       }
     }
 
-    final curAmount = ((primaryTx?['amount'] ?? _story?['amount'] ?? 0) as num).toInt();
+    final curAmount = parseToInt(primaryTx?['amount'] ?? _story?['amount'] ?? 0);
     final curNote = (primaryTx?['note'] as String?) ?? (_story?['note'] as String?) ?? '';
     final curCat = (primaryTx?['category_code'] as String?)
         ?? (primaryTx?['categoryCode'] as String?)
@@ -329,7 +329,11 @@ class _StoryPageState extends State<_StoryPage> {
 
     final amountCtrl = TextEditingController(text: curAmount.toString());
     final noteCtrl = TextEditingController(text: curNote);
-    String editCategory = CategoryTheme.styles.containsKey(curCat) ? curCat : 'Other';
+    String editCategory = CategoryTheme.canonicalCodeOf(
+        CategoryTheme.styles.containsKey(curCat) ? curCat : 'Other');
+    if (!CategoryTheme.primaryCodes.contains(editCategory)) {
+      editCategory = 'Other';
+    }
     bool saving = false;
 
     showModalBottomSheet(
@@ -436,12 +440,29 @@ class _StoryPageState extends State<_StoryPage> {
   @override
   Widget build(BuildContext context) {
     final categoryCode = _story?['categoryCode'] as String? ?? _story?['category_code'] as String? ?? _story?['category'] as String?;
-    final title = _story?['title'] as String? ?? _story?['note'] as String? ?? 'Giao dịch';
+    final items = _story?['items'] as List<dynamic>?;
+    
+    String title = _story?['title'] as String? ?? _story?['note'] as String? ?? '';
+    final isGeneric = title.isEmpty || 
+        title.toLowerCase() == 'giao dịch' || 
+        title.toLowerCase() == 'khoản chi' || 
+        title.toLowerCase() == 'khoản thu' ||
+        title.toLowerCase() == 'chi tiêu';
+    if (isGeneric && items != null && items.isNotEmpty) {
+      final firstItem = items.first;
+      final rawText = firstItem['raw_text'] as String? ?? firstItem['rawText'] as String?;
+      if (rawText != null && rawText.trim().isNotEmpty) {
+        title = rawText.trim();
+      }
+    }
+    if (title.isEmpty) {
+      title = 'Giao dịch';
+    }
+
     final aiMessage = _story?['aiMessage'] as String? ?? _story?['ai_message'] as String? ?? _story?['aiComment'] as String? ?? _story?['ai_comment'] as String? ?? _story?['story'] as String? ?? 'Mimo đã ghi nhận giao dịch này!';
     final occurredAt = _story?['occurredAt'] as String? ?? _story?['occurred_on'] as String?;
     final aiEmotionRaw = _story?['mascotMood'] as String? ?? _story?['mascot_mood'] as String? ?? _story?['aiEmotion'] as String? ?? _story?['ai_emotion'] as String?;
     final mascotMood = normalizeMimoAssetName(aiEmotionRaw, fallback: 'Success');
-    final items = _story?['items'] as List<dynamic>?;
 
     int amount = 0;
     if (items != null) {
@@ -449,14 +470,14 @@ class _StoryPageState extends State<_StoryPage> {
         final txs = item['transactions'] as List<dynamic>?;
         if (txs != null) {
           for (final tx in txs) {
-            final amt = ((tx['amount'] ?? 0) is num) ? (tx['amount'] as num).toInt() : 0;
+            final amt = parseToInt(tx['amount']);
             amount += amt;
           }
         }
       }
     }
     if (amount == 0) {
-      amount = ((_story?['amount'] ?? _story?['total_amount'] ?? 0) as num).toInt();
+      amount = parseToInt(_story?['amount'] ?? _story?['total_amount'] ?? 0);
     }
 
     String? imageUrl = _story?['imageUrl'] as String? ?? _story?['cover_image_url'] as String?;
@@ -553,6 +574,20 @@ class _StoryPageState extends State<_StoryPage> {
       }
     }
 
+    bool isExpense = true;
+    final storyType = (_story?['type'] as String? ?? '').toLowerCase();
+    if (storyType == 'income') {
+      isExpense = false;
+    } else {
+      for (final tx in txList) {
+        final txType = (tx['type'] as String? ?? '').toLowerCase();
+        if (txType == 'income') {
+          isExpense = false;
+          break;
+        }
+      }
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -599,7 +634,7 @@ class _StoryPageState extends State<_StoryPage> {
                   child: Column(
                     children: [
                       Text(
-                        '-${formatVnd(amount)}',
+                        '${isExpense ? '-' : '+'}${formatVnd(amount)}',
                         style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                               color: Colors.white,
                               fontWeight: FontWeight.w700,
@@ -704,12 +739,12 @@ class _StoryPageState extends State<_StoryPage> {
                   ),
                   const SizedBox(height: 8),
                   ...txList.map((tx) {
-                    final txAmount = ((tx['amount'] ?? 0) is num) ? (tx['amount'] as num).toInt() : 0;
+                    final txAmount = parseToInt(tx['amount']);
                     final txNote = tx['note'] as String? ?? '';
                     final txCat = tx['category_name'] as String? ?? tx['category_code'] as String? ?? 'Other';
                     final txTime = tx['occurred_at'] as String? ?? tx['occurredAt'] as String? ?? '';
                     final txImg = tx['image_url'] as String? ?? tx['imageUrl'] as String?;
-                    final isExpense = (tx['type'] as String? ?? 'expense') == 'expense';
+                    final isExpense = (tx['type'] as String? ?? 'expense').toLowerCase() == 'expense';
                     final catStyle = CategoryTheme.of(txCat);
 
                     return Container(

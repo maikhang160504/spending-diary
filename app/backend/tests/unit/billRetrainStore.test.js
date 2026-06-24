@@ -3,8 +3,6 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const test = require('node:test');
-const assert = require('node:assert/strict');
 
 const storePath = path.join(os.tmpdir(), `bill_retrain_test_${Date.now()}`);
 const originalStorage = path.join(__dirname, '../../storage/bill_retrain');
@@ -19,12 +17,12 @@ test('billRetrainStore deleteSample removes index and image', () => {
   store.upsertSample({ id, status: 'pending', imageExt: '.jpg' });
   store.saveImage(id, Buffer.from('fake'), '.jpg');
   const imgPath = path.join(storePath, 'bill_retrain', 'images', `${id}.jpg`);
-  assert.ok(fs.existsSync(imgPath), 'image file should exist before delete');
+  expect(fs.existsSync(imgPath)).toBe(true);
   const removed = store.deleteSample(id);
-  assert.ok(removed);
-  assert.equal(store.getSample(id), null);
-  assert.equal(store.readImage(id), null);
-  assert.ok(!fs.existsSync(imgPath), 'image file should be removed from disk');
+  expect(removed).toBeTruthy();
+  expect(store.getSample(id)).toBeNull();
+  expect(store.readImage(id)).toBeNull();
+  expect(fs.existsSync(imgPath)).toBe(false);
 });
 
 test('billRetrainStore upsert and approve', () => {
@@ -37,21 +35,21 @@ test('billRetrainStore upsert and approve', () => {
     adminLabels: [{ text: 'WINMART', entity: 'SELLER' }],
   });
   const listed = store.listSamples('pending');
-  assert.ok(listed.some((s) => s.id === id));
+  expect(listed.some((s) => s.id === id)).toBe(true);
   const approved = store.approveSample(id, [{ text: 'WINMART', entity: 'SELLER' }], 'admin');
-  assert.equal(approved.status, 'approved');
+  expect(approved.status).toBe('approved');
   const exportRows = store.approvedForExport();
-  assert.ok(exportRows.length >= 1);
+  expect(exportRows.length).toBeGreaterThanOrEqual(1);
 });
 
 test('billRetrainStore saveImage and readImage', () => {
   const id = 'test-image-1';
   store.upsertSample({ id, status: 'pending', imageExt: '.jpg' });
   const url = store.saveImage(id, Buffer.from('fake-image'), '.jpg');
-  assert.match(url, /\/image$/);
+  expect(url).toMatch(/\/image$/);
   const img = store.readImage(id);
-  assert.ok(img?.filePath);
-  assert.equal(img.ext, '.jpg');
+  expect(img?.filePath).toBeTruthy();
+  expect(img.ext).toBe('.jpg');
 });
 
 test('billRetrainStore archiveExportedSamples removes images and updates status', () => {
@@ -59,18 +57,18 @@ test('billRetrainStore archiveExportedSamples removes images and updates status'
   store.upsertSample({ id, status: 'approved', imageExt: '.jpg', imageUrl: '/api/admin/bill-retrain/samples/x/image' });
   store.saveImage(id, Buffer.from('fake'), '.jpg');
   const imgPath = path.join(storePath, 'bill_retrain', 'images', `${id}.jpg`);
-  assert.ok(fs.existsSync(imgPath));
+  expect(fs.existsSync(imgPath)).toBe(true);
 
   const result = store.archiveExportedSamples([id], 'batch-test-1');
-  assert.equal(result.archivedImages, 1);
-  assert.equal(result.batchId, 'batch-test-1');
-  assert.ok(!fs.existsSync(imgPath));
+  expect(result.archivedImages).toBe(1);
+  expect(result.batchId).toBe('batch-test-1');
+  expect(fs.existsSync(imgPath)).toBe(false);
 
   const sample = store.getSample(id);
-  assert.equal(sample.status, 'exported_archived');
-  assert.equal(sample.imageArchived, true);
-  assert.equal(sample.exportBatchId, 'batch-test-1');
-  assert.equal(sample.imageUrl, null);
-  assert.equal(store.readImage(id), null);
-  assert.equal(store.approvedForExport().some((s) => s.id === id), false);
+  expect(sample.status).toBe('exported_archived');
+  expect(sample.imageArchived).toBe(true);
+  expect(sample.exportBatchId).toBe('batch-test-1');
+  expect(sample.imageUrl).toBeNull();
+  expect(store.readImage(id)).toBeNull();
+  expect(store.approvedForExport().some((s) => s.id === id)).toBe(false);
 });

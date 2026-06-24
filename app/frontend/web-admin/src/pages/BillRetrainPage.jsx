@@ -132,7 +132,7 @@ function BillToast({ toast, onDismiss }) {
 
 function shortenOcrError(msg) {
   if (!msg) return "";
-  if (msg.includes("vgg_transformer.pth") || msg.includes("vietocr_receipt.pth")) {
+  if (msg.includes("vgg_transformer.pth")) {
     return "Thiếu file VietOCR weights — đặt tại OCR/models/vietocr/vgg_transformer.pth (pretrained) và bấm Tải lại model OCR.";
   }
   return msg.length > 180 ? `${msg.slice(0, 177)}…` : msg;
@@ -256,21 +256,26 @@ export default function BillRetrainPage() {
       setMessage(e.message);
     });
     refreshOcrStatus();
-    fetchBillKaggleJobs()
-      .then((jobs) => {
-        setKaggleJobs(jobs);
-        const running = jobs.find(
-          (j) => j.status && !["completed", "failed"].includes(j.status)
-        );
-        if (running) setActiveJob(running);
-      })
-      .catch(() => {});
+    
+    const storedJobId = localStorage.getItem("active_kaggle_job_id");
+    if (storedJobId) {
+      fetchBillKaggleJob(storedJobId)
+        .then((job) => {
+          if (job && job.status && !["completed", "failed"].includes(job.status)) {
+            setActiveJob(job);
+          } else {
+            localStorage.removeItem("active_kaggle_job_id");
+          }
+        })
+        .catch(() => {});
+    }
   }, [loadSamples, refreshOcrStatus]);
 
   useEffect(() => {
     const jobId = activeJob?.id || activeJob?.job_id;
     if (!jobId) return undefined;
     if (activeJob.status === "completed" || activeJob.status === "failed") {
+      localStorage.removeItem("active_kaggle_job_id");
       return undefined;
     }
     const t = setInterval(async () => {
@@ -278,10 +283,12 @@ export default function BillRetrainPage() {
         const job = await fetchBillKaggleJob(jobId);
         setActiveJob(job);
         if (job.status === "completed" || job.status === "failed") {
+          localStorage.removeItem("active_kaggle_job_id");
           clearInterval(t);
           fetchBillKaggleJobs().then(setKaggleJobs).catch(() => {});
         }
       } catch {
+        localStorage.removeItem("active_kaggle_job_id");
         clearInterval(t);
       }
     }, 5000);
@@ -488,11 +495,13 @@ export default function BillRetrainPage() {
         undefined,
         archiveImagesOnExport
       );
-      let msg = `Exported ${r.exported} approved → PICK TSV`;
-      if (r.archivedImages > 0) msg += ` · đã archive ${r.archivedImages} ảnh local`;
+      const username = r.kaggle_username || "mainhatkhangb2205881";
+      let msg = `Đã thêm ${r.exported} hóa đơn vào dataset Kaggle (${username}/webadmin-verified-receipts).`;
+      if (r.archivedImages > 0) msg += ` Đã archive ${r.archivedImages} ảnh local.`;
       if (r.kaggle_job?.job_id) {
         setActiveJob(r.kaggle_job);
-        msg += ` · Kaggle ${exportJobType} ${r.kaggle_job.job_id.slice(0, 8)} — theo dõi tiến độ bên dưới`;
+        localStorage.setItem("active_kaggle_job_id", r.kaggle_job.id || r.kaggle_job.job_id);
+        msg += ` Bắt đầu train job ${r.kaggle_job.job_id.slice(0, 8)} trên Kaggle.`;
       }
       setMessageIsError(false);
       setMessage(msg);
@@ -500,7 +509,13 @@ export default function BillRetrainPage() {
       setSamples(rows);
       if (active?.id) {
         const refreshed = rows.find((s) => s.id === active.id);
-        if (refreshed) setActive(refreshed);
+        if (refreshed && refreshed.status !== "exported_archived") {
+          setActive(refreshed);
+        } else {
+          setActive(null);
+          setBoxes([]);
+          setSelectedIdx(null);
+        }
       }
       fetchBillKaggleJobs().then(setKaggleJobs).catch(() => {});
     } catch (err) {
@@ -516,7 +531,9 @@ export default function BillRetrainPage() {
     try {
       const job = await triggerBillKaggle(jobType);
       setActiveJob(job);
-      setMessageIsError(!job.ok);
+      if (job.ok && job.job_id) {
+        localStorage.setItem("active_kaggle_job_id", job.job_id);
+      }
       setMessage(
         job.ok
           ? `Kaggle ${jobType} đã queue — job ${job.job_id?.slice(0, 8)}`
@@ -562,7 +579,9 @@ export default function BillRetrainPage() {
   };
 
   const imageUrl =
-    active?.imageUrl && !active?.imageArchived ? billSampleImageUrl(active.id) : null;
+    active?.imageUrl && !active?.imageArchived
+      ? (active.imageUrl.startsWith("http") ? active.imageUrl : billSampleImageUrl(active.id))
+      : null;
   const isArchivedSample = Boolean(active?.imageArchived || active?.status === "exported_archived");
   const ocrReady = Boolean(ocrStatus?.ocr_loaded);
   const showStalePrelabel =
@@ -598,7 +617,7 @@ export default function BillRetrainPage() {
           </p>
           <div className="bill-stat-strip">
             <div className="bill-stat">
-              <span className="bill-stat-value">{samples.length}</span>
+              <span className="bill-stat-value">{pendingCount + approvedCount}</span>
               <span className="bill-stat-label">Hàng đợi</span>
             </div>
             <div className="bill-stat">
@@ -762,7 +781,7 @@ export default function BillRetrainPage() {
             </div>
           )}
           <ul className="sample-list">
-            {samples.map((s) => (
+            {samples.filter((s) => s.status !== "exported_archived").map((s) => (
               <li key={s.id} className="sample-list-row">
                 <button
                   type="button"
@@ -869,18 +888,35 @@ export default function BillRetrainPage() {
         </section>
       </div>
 
-      {kaggleJobs.length > 0 && (
-        <section className="bill-surface bill-jobs-panel">
-          <div className="bill-surface-head">
-            <div>
-              <p className="bill-surface-eyebrow">History</p>
-              <h2 className="bill-surface-title">Kaggle jobs</h2>
-            </div>
+      <section className="bill-surface bill-jobs-panel">
+        <div className="bill-surface-head">
+          <div>
+            <p className="bill-surface-eyebrow">History</p>
+            <h2 className="bill-surface-title">Kaggle jobs</h2>
           </div>
+          {kaggleJobs.length === 0 && (
+            <button
+              type="button"
+              className="btn btn-secondary"
+              style={{ padding: "6px 12px", fontSize: "12px", height: "auto" }}
+              onClick={() => fetchBillKaggleJobs().then(setKaggleJobs).catch(() => {})}
+            >
+              Tải lịch sử
+            </button>
+          )}
+        </div>
+        {kaggleJobs.length > 0 ? (
           <ul className="kaggle-job-list">
             {kaggleJobs.slice(0, 8).map((j) => (
               <li key={j.id || j.job_id}>
-                <button type="button" className="kaggle-job-btn" onClick={() => setActiveJob(j)}>
+                <button type="button" className="kaggle-job-btn" onClick={() => {
+                  setActiveJob(j);
+                  if (j && j.status && !["completed", "failed"].includes(j.status)) {
+                    localStorage.setItem("active_kaggle_job_id", j.id || j.job_id);
+                  } else {
+                    localStorage.removeItem("active_kaggle_job_id");
+                  }
+                }}>
                   <code>{(j.id || j.job_id || "").slice(0, 8)}</code>
                   <span className={`job-status ${j.status}`}>{j.status}</span>
                   <span className="muted">{j.job_type}</span>
@@ -888,8 +924,10 @@ export default function BillRetrainPage() {
               </li>
             ))}
           </ul>
-        </section>
-      )}
+        ) : (
+          <p className="muted" style={{ padding: "12px 0 0 0", fontSize: "13px" }}>Bấm nút Tải lịch sử bên trên để truy xuất danh sách job từ Kaggle.</p>
+        )}
+      </section>
 
       {golden && <pre className="code-block">{JSON.stringify(golden, null, 2)}</pre>}
       {kagglePlan && <pre className="code-block">{JSON.stringify(kagglePlan, null, 2)}</pre>}

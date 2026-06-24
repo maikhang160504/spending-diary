@@ -118,7 +118,7 @@ cd app\frontend\web-admin && npm run dev
 ## Pipeline OCR (production)
 
 1. **PaddleOCR** — detect bbox  
-2. **VietOCR** — nhận dạng chữ (`OCR/models/vietocr/vietocr_receipt.pth`)  
+2. **VietOCR** — nhận dạng chữ (`OCR/models/vietocr/vgg_transformer.pth`)  
 3. **LayoutLMv3 KIE** — SELLER, TOTAL_COST, … (`OCR/models/layoutlmv3_kie/model-best/`)  
 4. **NLU** — weighted voting category (`split_mode=false`)
 
@@ -131,7 +131,7 @@ Trong `app/ai-service/.env`:
 ```ini
 USE_REAL_NLU=true
 USE_REAL_OCR=true
-OCR_WEIGHTS_PATH=../../expense-ocr-nlu/OCR/models/vietocr/vietocr_receipt.pth
+OCR_WEIGHTS_PATH=../../expense-ocr-nlu/OCR/models/vietocr/vgg_transformer.pth
 LAYOUTLMV3_MODEL_DIR=../../expense-ocr-nlu/OCR/models/layoutlmv3_kie/model-best
 ```
 

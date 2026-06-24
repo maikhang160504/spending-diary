@@ -36,5 +36,5 @@ class OCRResponse(BaseModel):
     lines: list[OCRLine] = []
     suggestion: OCRSuggestion
     requires_confirmation: bool = True
-    backend: Literal["real", "mock"] = "mock"
+    backend: str = Field(default="mock")
     latency_ms: int | None = None

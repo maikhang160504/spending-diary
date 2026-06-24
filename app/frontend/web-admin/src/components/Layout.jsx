@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet } from "react-router-dom";
-import { fetchBillKaggleJobs } from "../services/api";
+import { fetchBillKaggleJob, getSystemStatus } from "../services/api";
 
 const navItems = [
   { path: "/", label: "Fusion & AI Quality" },
@@ -19,13 +19,32 @@ function useActiveKaggleRetrainJob() {
     let cancelled = false;
 
     const poll = async () => {
+      const jobId = localStorage.getItem("active_kaggle_job_id");
+      if (!jobId) {
+        if (activeJob !== null) {
+          setActiveJob(null);
+        }
+        return;
+      }
+
       try {
-        const jobs = await fetchBillKaggleJobs(12);
+        const job = await fetchBillKaggleJob(jobId);
         if (cancelled) return;
-        const running = jobs.find((j) => j.status && !TERMINAL_JOB_STATUSES.has(j.status));
-        setActiveJob(running || null);
-      } catch {
-        if (!cancelled) setActiveJob(null);
+        if (!job || (job.status && TERMINAL_JOB_STATUSES.has(job.status))) {
+          localStorage.removeItem("active_kaggle_job_id");
+          setActiveJob(null);
+        } else {
+          setActiveJob(job);
+        }
+      } catch (err) {
+        if (cancelled) return;
+        const msg = String(err.message || "").toLowerCase();
+        if (msg.includes("not found") || msg.includes("404") || msg.includes("failed")) {
+          localStorage.removeItem("active_kaggle_job_id");
+          setActiveJob(null);
+        } else {
+          if (!cancelled) setActiveJob(null);
+        }
       }
     };
 
@@ -35,13 +54,52 @@ function useActiveKaggleRetrainJob() {
       cancelled = true;
       clearInterval(timer);
     };
-  }, []);
+  }, [activeJob]);
 
   return activeJob;
 }
 
+function useSystemStatus() {
+  const [status, setStatus] = useState({
+    nluOnline: false,
+    nluVersion: "Loading...",
+    nluLoaded: false,
+    ocrLoaded: false,
+  });
+
+  useEffect(() => {
+    let cancelled = false;
+    const update = async () => {
+      try {
+        const res = await getSystemStatus();
+        if (cancelled) return;
+        setStatus(res);
+      } catch {
+        if (!cancelled) {
+          setStatus({
+            nluOnline: false,
+            nluVersion: "v2.5-offline",
+            nluLoaded: false,
+            ocrLoaded: false,
+          });
+        }
+      }
+    };
+    update();
+    const timer = setInterval(update, 10000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, []);
+
+  return status;
+}
+
 function Layout() {
   const activeKaggleJob = useActiveKaggleRetrainJob();
+  const systemStatus = useSystemStatus();
+
   const jobShortId = (activeKaggleJob?.id || activeKaggleJob?.job_id || "").slice(0, 8);
   const jobStatus = activeKaggleJob?.status?.replace(/_/g, " ") || "running";
 
@@ -60,12 +118,40 @@ function Layout() {
               <code>{jobShortId}</code>
             </Link>
           )}
+
           <div className="status-indicator">
-            <span className="status-dot"></span>
-            <span>NLU Core: Online</span>
+            <span className="status-dot" style={{ backgroundColor: systemStatus.nluOnline ? "var(--accent-emerald)" : "var(--accent-rose)" }}></span>
+            <span>NLU Core: {systemStatus.nluOnline ? "Online" : "Offline"}</span>
           </div>
-          <div className="status-indicator" style={{ borderStyle: "dashed" }}>
-            <span style={{ color: "var(--accent-blue)" }}>Model: v2.4-global</span>
+
+          <div className="status-indicator" style={{ borderStyle: "dashed", borderColor: "rgba(2, 132, 199, 0.3)" }}>
+            <span style={{ color: "var(--accent-blue-hover)" }}>Model: {systemStatus.nluVersion}</span>
+            <span className="status-badge" style={{
+              marginLeft: "6px",
+              fontSize: "10px",
+              padding: "2px 6px",
+              borderRadius: "4px",
+              background: systemStatus.nluLoaded ? "rgba(16, 185, 129, 0.15)" : "rgba(245, 158, 11, 0.15)",
+              color: systemStatus.nluLoaded ? "var(--accent-emerald-hover)" : "var(--accent-amber-hover)",
+              fontWeight: "600"
+            }}>
+              {systemStatus.nluLoaded ? "Loaded" : "Lazy Load"}
+            </span>
+          </div>
+
+          <div className="status-indicator" style={{ borderStyle: "dashed", borderColor: "rgba(16, 185, 129, 0.3)" }}>
+            <span style={{ color: "var(--text-secondary)" }}>OCR Engine</span>
+            <span className="status-badge" style={{
+              marginLeft: "6px",
+              fontSize: "10px",
+              padding: "2px 6px",
+              borderRadius: "4px",
+              background: systemStatus.ocrLoaded ? "rgba(16, 185, 129, 0.15)" : "rgba(245, 158, 11, 0.15)",
+              color: systemStatus.ocrLoaded ? "var(--accent-emerald-hover)" : "var(--accent-amber-hover)",
+              fontWeight: "600"
+            }}>
+              {systemStatus.ocrLoaded ? "Loaded" : "Lazy Load"}
+            </span>
           </div>
         </div>
       </header>

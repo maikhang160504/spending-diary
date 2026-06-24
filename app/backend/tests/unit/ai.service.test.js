@@ -117,4 +117,38 @@ describe('ai.service unit tests', () => {
       content: 'Mimo hiểu rồi nha!',
     }));
   });
+
+  test('aiChat generates fallback text when LLM response is empty and intent is Record', async () => {
+    query.mockImplementation((sql, params) => {
+      if (sql.includes('wallet_members') && sql.includes('LIMIT 1')) {
+        return Promise.resolve({ rows: [{ wallet_id: 'wallet-123' }] });
+      }
+      if (sql.includes('user_settings') && sql.includes('verbal_style')) {
+        return Promise.resolve({ rows: [{ verbal_style: 'funny' }] });
+      }
+      if (sql.includes('user_corrections')) {
+        return Promise.resolve({ rows: [] });
+      }
+      return Promise.resolve({ rows: [] });
+    });
+
+    chatService.getMessages.mockResolvedValue({ messages: [] });
+
+    aiClient.aiChat.mockResolvedValue({
+      intent: 'Record',
+      record_type: 'Expense',
+      category: 'Food',
+      amount: 50000,
+      backend: 'mock',
+      latency_ms: 10,
+    });
+
+    const result = await aiService.aiChat('user-123', 'session-456', 'cơm sườn 50k');
+
+    expect(result.response).toBe('Mimo đã ghi nhận khoản chi 50.000đ cho Ăn uống vào ví của bạn. Hãy cân đối chi tiêu hợp lý nhé!');
+    expect(chatService.addMessage).toHaveBeenCalledWith('user-123', 'session-456', expect.objectContaining({
+      role: 'assistant',
+      content: 'Mimo đã ghi nhận khoản chi 50.000đ cho Ăn uống vào ví của bạn. Hãy cân đối chi tiêu hợp lý nhé!',
+    }));
+  });
 });

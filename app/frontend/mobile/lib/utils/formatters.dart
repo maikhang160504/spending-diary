@@ -1,5 +1,33 @@
 import 'package:flutter/services.dart';
 
+int parseToInt(dynamic val) {
+  if (val == null) return 0;
+  if (val is int) return val;
+  if (val is double) return val.toInt();
+  if (val is num) return val.toInt();
+  if (val is String) {
+    final cleaned = val.trim();
+    final parsedDouble = double.tryParse(cleaned);
+    if (parsedDouble != null) return parsedDouble.toInt();
+    final parsedInt = int.tryParse(cleaned);
+    if (parsedInt != null) return parsedInt;
+  }
+  return 0;
+}
+
+double parseToDouble(dynamic val) {
+  if (val == null) return 0.0;
+  if (val is double) return val;
+  if (val is int) return val.toDouble();
+  if (val is num) return val.toDouble();
+  if (val is String) {
+    final cleaned = val.trim();
+    final parsedDouble = double.tryParse(cleaned);
+    if (parsedDouble != null) return parsedDouble;
+  }
+  return 0.0;
+}
+
 String formatVnd(int value) {
   final isNegative = value < 0;
   final digits = value.abs().toString();

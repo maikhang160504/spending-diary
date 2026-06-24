@@ -122,14 +122,34 @@ async function expenseFromBill(fileBuffer, filename, userId, contentType) {
       filename: filename || 'bill.jpg',
       contentType: contentType || 'image/jpeg',
     });
-    if (userId) {
-      form.append('user_id', String(userId));
-    }
 
-    const r = await client.post('/api/v1/expense/from-bill', form, {
+    const submitRes = await client.post('/api/v1/pipeline/process', form, {
       headers: form.getHeaders(),
     });
-    return r.data;
+    const jobId = submitRes.data.job_id;
+    logger.info({ jobId, filename }, 'Submitted bill to async pipeline');
+
+    const pollIntervalMs = 200;
+    const maxPolls = 150; // 30 seconds max timeout
+
+    for (let i = 0; i < maxPolls; i++) {
+      await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+      
+      const statusRes = await client.get(`/api/v1/pipeline/jobs/${jobId}`);
+      const job = statusRes.data;
+
+      if (job.status === 'completed') {
+        logger.info({ jobId }, 'Async pipeline job completed');
+        return job.result;
+      }
+
+      if (job.status === 'failed') {
+        logger.error({ jobId, error: job.error }, 'Async pipeline job failed');
+        throw new Error(job.error || 'Async pipeline job failed');
+      }
+    }
+
+    throw new Error('Async pipeline job timeout');
   });
 }
 

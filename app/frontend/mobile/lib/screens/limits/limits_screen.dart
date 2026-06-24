@@ -13,7 +13,8 @@ import '../../widgets/skeleton.dart';
 
 /// Spending Limits Screen - matches /limits route
 class LimitsScreen extends StatefulWidget {
-  const LimitsScreen({super.key});
+  final String? initialCategoryCode;
+  const LimitsScreen({super.key, this.initialCategoryCode});
 
   @override
   State<LimitsScreen> createState() => _LimitsScreenState();
@@ -28,7 +29,11 @@ class _LimitsScreenState extends State<LimitsScreen> {
   @override
   void initState() {
     super.initState();
-    _loadBudgets();
+    _loadBudgets().then((_) {
+      if (widget.initialCategoryCode != null && mounted) {
+        _showAddBudget(initialCategory: widget.initialCategoryCode);
+      }
+    });
   }
 
   Future<void> _loadBudgets() async {
@@ -86,9 +91,9 @@ class _LimitsScreenState extends State<LimitsScreen> {
     return 'Tháng ${now.month}/${now.year}';
   }
 
-  void _showAddBudget() {
+  void _showAddBudget({String? initialCategory}) {
     final amountCtrl = TextEditingController();
-    String? selectedCategory;
+    String? selectedCategory = initialCategory;
 
     showModalBottomSheet(
       context: context,

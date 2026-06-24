@@ -18,18 +18,33 @@ TRAINING_ACTIVE = False
 import datetime
 import time
 
+
+def _count_csv_rows(csv_path: Path) -> int:
+    """Count non-empty rows in a CSV file (excluding header)."""
+    if not csv_path.exists():
+        return 0
+    try:
+        with open(csv_path, "r", encoding="utf-8") as f:
+            return max(0, sum(1 for line in f if line.strip()) - 1)
+    except Exception:
+        return 0
+
+
 def append_nlu_history(nlu_dir: Path, status: str, duration_sec: float, error_msg: str | None = None):
+    """Append a training run record using **real** metrics from retrain_all_metrics.json."""
     history_file = nlu_dir / "text_nlu" / "models" / "nlu_training_history.json"
-    csv_path = nlu_dir / "text_nlu" / "datasets" / "intent_record.csv"
-    
-    training_rows = 0
-    if csv_path.exists():
-        try:
-            with open(csv_path, "r", encoding="utf-8") as f:
-                training_rows = len([line for line in f if line.strip()])
-        except Exception:
-            pass
-            
+    metrics_file = nlu_dir / "text_nlu" / "models" / "retrain_all_metrics.json"
+
+    # Count training rows from each dataset
+    datasets_dir = nlu_dir / "text_nlu" / "datasets"
+    training_rows = {
+        "intent_record": _count_csv_rows(datasets_dir / "intent_record.csv"),
+        "intent_action": _count_csv_rows(datasets_dir / "intent_action.csv"),
+        "intent_chitchat": _count_csv_rows(datasets_dir / "intent_chitchat.csv"),
+    }
+    total_rows = sum(training_rows.values())
+
+    # Load existing history
     history = []
     if history_file.exists():
         try:
@@ -37,18 +52,36 @@ def append_nlu_history(nlu_dir: Path, status: str, duration_sec: float, error_ms
                 history = json.load(f)
         except Exception:
             pass
-            
+
+    run_idx = len(history) + 1
+
+    # Read REAL metrics from retrain_all_metrics.json (produced by retrain_all.py)
+    metrics = None
+    f1_score = None
+    if status == "success" and metrics_file.exists():
+        try:
+            with open(metrics_file, "r", encoding="utf-8") as f:
+                metrics = json.load(f)
+            # Use category weighted_f1 as the headline F1 (largest model)
+            cat = metrics.get("category", {})
+            f1_score = f"{cat.get('weighted_f1', cat.get('accuracy', 0))}".rstrip("0").rstrip(".")
+        except Exception as e:
+            print(f"[NLU history] Failed to read metrics file: {e}", flush=True)
+
     record = {
+        "run_index": run_idx,
         "trained_at": datetime.datetime.utcnow().isoformat() + "Z",
         "duration_sec": round(duration_sec, 2),
         "status": status,
-        "training_rows": training_rows,
+        "training_rows": total_rows,
+        "training_rows_detail": training_rows,
         "error": error_msg,
-        "f1_score": "92.4%" if status == "success" else "N/A"
+        "f1_score": f1_score,
+        "metrics": metrics,
     }
     history.append(record)
     history = history[-100:]
-    
+
     try:
         history_file.parent.mkdir(parents=True, exist_ok=True)
         with open(history_file, "w", encoding="utf-8") as f:

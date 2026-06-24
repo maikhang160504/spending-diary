@@ -29,9 +29,13 @@ def create_app() -> FastAPI:
         from app.services.nlu_service import get_nlu_service
         from app.services.ocr_service import get_ocr_service
         from app.adapters.expense_ocr_nlu import pre_import_real_backends
+        from app.services import asynchronous_pipeline
 
         # 1. Run imports in the main thread to prevent import lock deadlocks
         pre_import_real_backends()
+
+        # Start background workers for asynchronous pipeline
+        asynchronous_pipeline.start_pipeline()
 
         # 2. Optional eager load — skip when LAZY_LOAD_MODELS=true (default) for fast startup
         if settings.lazy_load_models:
@@ -59,8 +63,12 @@ def create_app() -> FastAPI:
             except Exception as e:
                 logger.error(f"Error during model loading: {e}")
 
-        yield
-        logger.info("AI service shutdown")
+        try:
+            yield
+        finally:
+            # Stop background workers
+            asynchronous_pipeline.stop_pipeline()
+            logger.info("AI service shutdown")
 
     app = FastAPI(
         lifespan=lifespan,
@@ -78,6 +86,7 @@ def create_app() -> FastAPI:
             {"name": "nlu", "description": "Text NLU: intent + amount + category."},
             {"name": "ocr", "description": "OCR hóa đơn (ảnh) hoặc text đã extract."},
             {"name": "expense", "description": "Endpoint cấp cao: text/ảnh → giao dịch."},
+            {"name": "pipeline", "description": "Asynchronous 5-stage processing pipeline."},
         ],
     )
 
@@ -127,9 +136,10 @@ def create_app() -> FastAPI:
     app.include_router(ocr.router, prefix=api_prefix)
     app.include_router(expense.router, prefix=api_prefix)
     app.include_router(chat.router, prefix=api_prefix)
-    from app.routers import bill_retrain, internal
+    from app.routers import bill_retrain, internal, pipeline_router
     app.include_router(bill_retrain.router, prefix=api_prefix)
     app.include_router(internal.router, prefix=api_prefix)
+    app.include_router(pipeline_router.router, prefix=api_prefix)
 
     # ── Backward-compatible /infer route (old clients) ──────────
     @app.post("/infer", response_model=NLUResponse, tags=["compat"],

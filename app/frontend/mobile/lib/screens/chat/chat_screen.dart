@@ -16,6 +16,7 @@ import '../../theme/app_spacing.dart';
 import '../../theme/categories.dart';
 import '../../theme/theme_controller.dart';
 import '../../utils/formatters.dart';
+import '../../utils/budget_prompt.dart';
 
 
 String _actionSignatureFromNlu(Map<String, dynamic> nlu) {
@@ -75,7 +76,9 @@ _ActionPreview _actionPreviewFromNlu(
 }) {
   final actionType = nlu['action_type'] as String? ?? 'Unknown';
   final amount = _amountFromNlu(nlu);
-  final categoryCode = _categoryFromNlu(nlu);
+  final isLimitOrSearch = actionType.toUpperCase().contains('LIMIT') ||
+      actionType.toUpperCase().contains('SEARCH');
+  final categoryCode = isLimitOrSearch ? _categoryFromNlu(nlu) : null;
   return _ActionPreview(
     actionType: actionType,
     signature: _actionSignatureFromNlu(nlu),
@@ -388,6 +391,8 @@ class _ChatScreenState extends State<ChatScreen> {
             }
           }
         }
+        // Không hiển thị tin nhắn xác nhận "đã lưu" — chỉ đánh dấu parent
+        continue;
       }
 
       out.add(newMsg);
@@ -460,7 +465,7 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _initSession() async {
-    _walletId = widget.walletId;
+    _walletId = widget.walletId ?? ApiClient.lastSelectedWalletId;
     // If sessionId passed from history, reuse it and load messages
     if (widget.sessionId != null) {
       _sessionId = widget.sessionId;
@@ -893,12 +898,14 @@ class _ChatScreenState extends State<ChatScreen> {
         return;
       }
       final aiText = (preview.aiComment ?? msg.text).trim();
+      final originalUserText = preview.nlu?['text'] as String? ?? preview.note;
       final tx = await _api.createTransaction({
         'walletId': _walletId ?? widget.walletId ?? wallets[0]['id'],
         'amount': preview.amount,
         'type': preview.recordType == 'Income' ? 'income' : 'expense',
         'categoryCode': preview.category,
         'note': preview.note,
+        'originalText': originalUserText,
         'source': 'text',
         ...LlmMimoReply(
           text: aiText,
@@ -911,6 +918,9 @@ class _ChatScreenState extends State<ChatScreen> {
       if (!mounted) return;
       notifyTransactionChanged();
       await StreakCelebration.instance.afterActivity(context);
+      if (mounted) {
+        checkCategoryLimitAndSuggest(context, preview.category);
+      }
       // Cập nhật trạng thái saved lên backend chat metadata
       if (_sessionId != null && !wasSavedBefore) {
         try {
@@ -951,7 +961,11 @@ class _ChatScreenState extends State<ChatScreen> {
   void _showEditTxPreviewSheet(_ChatMsg msg, _TxPreview preview) {
     final amountCtrl = TextEditingController(text: preview.amount.toString());
     final noteCtrl = TextEditingController(text: preview.note);
-    String editCategory = preview.category;
+    // Chuẩn hóa category code để tránh crash DropdownButton khi value là alias
+    String editCategory = CategoryTheme.canonicalCodeOf(preview.category);
+    if (!CategoryTheme.primaryCodes.contains(editCategory)) {
+      editCategory = 'Other';
+    }
 
     showModalBottomSheet(
       context: context,
@@ -1016,9 +1030,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 ),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<String>(
-                  initialValue: CategoryTheme.styles.containsKey(editCategory)
-                      ? editCategory
-                      : 'Other',
+                  initialValue: editCategory,
                   decoration: InputDecoration(
                     contentPadding: const EdgeInsets.symmetric(
                       horizontal: 12,
@@ -1070,6 +1082,7 @@ class _ChatScreenState extends State<ChatScreen> {
                           int.tryParse(amountCtrl.text) ?? preview.amount;
                       final updatedNote = noteCtrl.text;
                       final updatedCategory = editCategory;
+                      final oldCategory = preview.category;
 
                       setState(() {
                         preview.amount = parsedAmount;
@@ -1085,6 +1098,18 @@ class _ChatScreenState extends State<ChatScreen> {
                             'categoryCode': updatedCategory,
                           });
                           notifyTransactionChanged();
+
+                          // Ghi nhận correction cho NLU learning khi đổi category
+                          if (oldCategory != updatedCategory) {
+                            try {
+                              await _api.aiCorrection({
+                                'text': preview.note,
+                                'correctedCategory': updatedCategory,
+                                'originalCategory': oldCategory,
+                                'source': 'chat_edit',
+                              });
+                            } catch (_) {}
+                          }
                         } catch (_) {}
                       }
                       if (ctx.mounted) {
@@ -1145,6 +1170,9 @@ class _ChatScreenState extends State<ChatScreen> {
       if (!mounted) return;
       notifyTransactionChanged();
       await StreakCelebration.instance.afterActivity(context);
+      if (mounted && records.isNotEmpty) {
+        checkCategoryLimitAndSuggest(context, records.first.category);
+      }
       // Cập nhật trạng thái saved lên backend chat metadata
       if (_sessionId != null && !wasSavedBefore) {
         try {
@@ -1710,13 +1738,18 @@ class _ReportStoryCard extends StatelessWidget {
                                   mainAxisAlignment:
                                       MainAxisAlignment.spaceBetween,
                                   children: [
-                                    Text(
-                                      style.label,
-                                      style: const TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
+                                    Expanded(
+                                      child: Text(
+                                        style.label,
+                                        overflow: TextOverflow.ellipsis,
+                                        maxLines: 1,
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                        ),
                                       ),
                                     ),
+                                    const SizedBox(width: 8),
                                     Text(
                                       '${c.percent}%',
                                       style: const TextStyle(
@@ -1840,22 +1873,16 @@ class _ActionConfirmCard extends StatelessWidget {
               ),
             ],
           ),
-          if (preview.amount != null || preview.categoryCode != null) ...[
+          if (preview.amount != null) ...[
             const SizedBox(height: 8),
             Wrap(
               spacing: 6,
               runSpacing: 6,
               children: [
-                if (preview.categoryCode != null)
-                  _ActionChip(
-                    icon: CategoryTheme.iconOf(preview.categoryCode!, size: 14),
-                    label: CategoryTheme.of(preview.categoryCode!).label,
-                  ),
-                if (preview.amount != null)
-                  _ActionChip(
-                    label: formatVnd(preview.amount!),
-                    accent: accent,
-                  ),
+                _ActionChip(
+                  label: formatVnd(preview.amount!),
+                  accent: accent,
+                ),
               ],
             ),
           ],

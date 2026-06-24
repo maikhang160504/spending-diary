@@ -98,6 +98,12 @@ def kaggle_retrain_plan(job_type: str) -> dict[str, Any]:
     return kaggle_mod.build_retrain_plan(job_type, _verified_dir())
 
 
+def kaggle_username() -> str | None:
+    _ocr_paths()
+    kaggle_mod = importlib.import_module("receipt_ocr.kaggle_runner")
+    return kaggle_mod.kaggle_username()
+
+
 def trigger_kaggle_retrain(
     job_type: str,
     webhook_url: str | None = None,

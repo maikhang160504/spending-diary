@@ -49,7 +49,6 @@ File: `app/ai-service/.env` (copy từ `app/ai-service/.env.example`)
 HOST=0.0.0.0
 PORT=8000
 DEVICE=cpu
-
 # NLU thật — models tại expense-ocr-nlu/text_nlu/models/
 USE_REAL_NLU=true
 
@@ -58,7 +57,7 @@ USE_REAL_NLU=true
 USE_REAL_OCR=true
 
 EXPENSE_OCR_NLU_DIR=../../expense-ocr-nlu
-OCR_WEIGHTS_PATH=../../expense-ocr-nlu/OCR/models/vietocr/vietocr_receipt.pth
+OCR_WEIGHTS_PATH=../../expense-ocr-nlu/OCR/models/vietocr/vgg_transformer.pth
 PICK_KIE_MODEL_PATH=../../expense-ocr-nlu/OCR/models/pick_kie/model_best.pth
 VERIFIED_OCR_LABELS_DIR=../../expense-ocr-nlu/OCR/verified_ocr_labels
 
@@ -81,6 +80,9 @@ pip install -r d:\Luan-Van\Project\app\ai-service\requirements.txt
 # Bước 2: chạy service
 cd d:\Luan-Van\Project\app\ai-service
 d:\Luan-Van\Project\expense-ocr-nlu\.venv\Scripts\Activate.ps1
+$env:RUN_LLM='1'
+$env:RUN_LLM_CHITCHAT='1'
+$env:LOG_MIMO_EMOTION='1'
 $env:USE_REAL_NLU='true'
 $env:USE_REAL_OCR='true'
 $env:LAZY_LOAD_MODELS='true'
@@ -141,7 +143,7 @@ flutter pub get      # lần đầu
 flutter run --dart-define=API_BASE_URL=http://10.0.2.2:4000 --dart-define=AI_BASE_URL=http://10.0.2.2:8000
 
 # Real device (cùng WiFi — thay IP máy dev)
-flutter run --dart-define=API_BASE_URL=http://<IP>:4000 --dart-define=AI_BASE_URL=http://<IP>:8000
+flutter run --dart-define=API_BASE_URL=http://10.171.6.24:4000 --dart-define=AI_BASE_URL=http://10.171.6.24:8000
 ```
 
 ---
@@ -199,7 +201,7 @@ d:\Luan-Van\Project\expense-ocr-nlu\.venv\Scripts\python.exe -m pytest `
 - **Database:** CockroachDB cloud — không cần Postgres local (trừ khi dùng docker-compose).
 - **NLU:** models tại `expense-ocr-nlu/text_nlu/models/*.joblib`.
 - **OCR hybrid:** PaddleOCR detect → VietOCR recognize → LayoutLMv3 KIE (SELLER, TOTAL_COST, …) → NLU weighted voting category.
-- **OCR mock:** nếu thiếu `vietocr_receipt.pth` hoặc `USE_REAL_OCR=false`, service fallback mock — không crash.
+- **OCR mock:** nếu thiếu `vgg_transformer.pth` hoặc `USE_REAL_OCR=false`, service fallback mock — không crash.
 - **R2:** upload bill lưu bucket `spending-stories`.
 - **Retrain:** không train mỗi bill — xem ngưỡng trên Dashboard WebAdmin hoặc `RETRAIN.md`.
 - Warning `httpx` khi cài ai-service requirements vào venv OCR — thường không nghiêm trọng.
@@ -212,7 +214,7 @@ d:\Luan-Van\Project\expense-ocr-nlu\.venv\Scripts\python.exe -m pytest `
 expense-ocr-nlu/OCR/
 ├── models/
 │   ├── vietocr/
-│   │   ├── vietocr_receipt.pth    ← bắt buộc cho USE_REAL_OCR
+│   │   ├── vgg_transformer.pth    ← bắt buộc cho USE_REAL_OCR
 │   │   ├── config.yml
 │   │   └── meta.json
 │   └── layoutlmv3_kie/
@@ -299,7 +301,7 @@ Thêm SHA-1 từ Play Console → App integrity → App signing key vào Firebas
 
 | Triệu chứng | Cách xử lý |
 | --- | --- |
-| `ocr_loaded: false` | Kiểm tra `OCR/models/vietocr/vietocr_receipt.pth`, `USE_REAL_OCR=true` |
+| `ocr_loaded: false` | Kiểm tra `OCR/models/vietocr/vgg_transformer.pth`, `USE_REAL_OCR=true` |
 | LayoutLMv3 heuristic thay vì model | Kiểm tra `OCR/models/layoutlmv3_kie/model-best/model.safetensors` |
 | Backend crash `billRetrainStore` | `npm run dev` — nodemon tự restart sau sửa |
 | Kaggle `kaggle_configured: false` | Copy `kaggle.json` → `%USERPROFILE%\.kaggle\`, `pip install kaggle` trong venv |

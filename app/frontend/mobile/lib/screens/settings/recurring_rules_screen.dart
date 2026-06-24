@@ -470,16 +470,21 @@ class _AddRecurringRuleSheetState extends State<AddRecurringRuleSheet> {
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final screenHeight = MediaQuery.of(context).size.height;
     return Container(
+      constraints: BoxConstraints(maxHeight: screenHeight * 0.9),
       decoration: BoxDecoration(
         color: context.palette.bg,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadii.xl)),
       ),
-      padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + bottomInset),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+      child: SafeArea(
+        child: SingleChildScrollView(
+          padding: EdgeInsets.only(bottom: 20 + bottomInset),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
           Center(
             child: Container(
               width: 38,
@@ -686,7 +691,7 @@ class _AddRecurringRuleSheetState extends State<AddRecurringRuleSheet> {
           ),
           const SizedBox(height: 16),
           // Tần suất
-          const Text('Tần suất lặp lại', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Colors.black87)),
+          Text('Tần suất lặp lại', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: context.palette.textPrimary)),
           const SizedBox(height: 8),
           Row(
             children: ['daily', 'weekly', 'monthly'].map((freq) {
@@ -760,6 +765,8 @@ class _AddRecurringRuleSheetState extends State<AddRecurringRuleSheet> {
             ),
           ),
         ],
+          ),
+        ),
       ),
     );
   }

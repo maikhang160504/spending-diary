@@ -92,7 +92,7 @@ class NLUService:
             return self._real_available
         self._tried_load = True
         if not get_settings().use_real_nlu:
-            logger.info("USE_REAL_NLU=false → mock pipeline only.")
+            logger.info("USE_REAL_NLU=false -> mock pipeline only.")
             return False
         self._real_available = adapter.load_real_nlu_safe()
         if not self._real_available:
@@ -191,6 +191,68 @@ class NLUService:
                 for amt in result.multi_amounts
             ]
         mimo_emotion = _intent_mimo_fallback(result.intent, result.record_type)
+
+        fallback_emotion = mimo_emotion
+        category = result.category or "Others"
+        amount = result.amount
+        
+        viet_category_map = {
+            "Food": "Ăn uống",
+            "Transport": "Di chuyển",
+            "Housing": "Nhà ở",
+            "Shopping": "Mua sắm",
+            "Entertainment": "Giải trí",
+            "Health": "Sức khỏe",
+            "Education": "Giáo dục",
+            "Others": "Tiêu dùng khác",
+            "Other": "Tiêu dùng khác",
+            "Essentials": "Thiết yếu",
+            "Beauty": "Làm đẹp",
+            "Social": "Xã hội",
+            "Salary": "Lương",
+            "Bonus": "Thưởng",
+            "Business": "Kinh doanh"
+        }
+        viet_cat = viet_category_map.get(category, category)
+        
+        if result.intent == "Record":
+            if amount is not None and amount > 0:
+                amt_str = f"{int(amount):,}".replace(",", ".")
+                if result.record_type == "Income":
+                    fallback_text = f"Tuyệt vời! Mimo đã ghi nhận khoản thu nhập {amt_str}đ vào danh mục {viet_cat}. Tích tiểu thành đại, cố gắng phát huy nhé! 🎉"
+                else:
+                    fallback_text = f"Mimo đã ghi nhận khoản chi {amt_str}đ cho {viet_cat} vào ví của bạn. Hãy cân đối chi tiêu hợp lý nhé!"
+            else:
+                if result.record_type == "Income":
+                    fallback_text = f"Mimo đã chuẩn bị sẵn phiếu ghi nhận thu nhập cho danh mục {viet_cat}. Bạn hãy nhập số tiền và bấm lưu nhé!"
+                else:
+                    fallback_text = f"Mimo đã chuẩn bị sẵn phiếu ghi nhận chi tiêu cho danh mục {viet_cat}. Bạn hãy nhập số tiền và bấm lưu nhé!"
+        elif result.intent == "Action":
+            action_type = result.action_type or "Thao tác"
+            action_labels = {
+                "LIMIT": "Đặt hạn mức",
+                "DELETE": "Xóa giao dịch gần nhất",
+                "GOAL": "Tạo mục tiêu tiết kiệm",
+                "TONE": "Đổi giọng nói Mimo",
+                "SEARCH": "Tìm kiếm giao dịch",
+                "SETTING": "Mở cài đặt ứng dụng"
+            }
+            action_label = action_type
+            for key, val in action_labels.items():
+                if key in action_type.upper():
+                    action_label = val
+                    break
+            fallback_text = f"Mimo đã chuẩn bị sẵn thao tác: {action_label}. Bạn có muốn thực hiện không?"
+        else:
+            fallback_text = "Chào bạn! Tôi là Mimo. Hôm nay bạn thế nào? Cần tôi hỗ trợ gì về quản lý chi tiêu không?"
+
+        gemini_json = {
+            "response": fallback_text,
+            "story": fallback_text,
+            "mimo_emotion": fallback_emotion,
+            "emotion": fallback_emotion
+        }
+
         return {
             "intent": result.intent,
             "intent_confidence": result.intent_confidence,
@@ -208,7 +270,9 @@ class NLUService:
             "multi_record_task": len(multi) >= 1,
             "sentiment": None,
             "nlg_prompt": None,
-            "gemini_json": None,
+            "gemini_json": gemini_json,
+            "llama_json": None,
+            "nlg_response": fallback_text,
             "mimo_emotion": mimo_emotion,
             "llm_emotion": mimo_emotion,
             "mascot_mood": mimo_emotion,

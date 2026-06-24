@@ -123,17 +123,59 @@ def load_real_nlu_safe() -> bool:
 
 
 def reload_nlu() -> bool:
-    """Force reload the NLU model bundle from disk."""
+    """Force reload the NLU model bundle from disk with zero downtime."""
     global _NLU_BUNDLE, _NLU_ERROR
-    with _LOCK:
-        _NLU_BUNDLE = None
-        _NLU_ERROR = None
+    _ensure_paths_on_sys_path()
+    try:
+        env_module = importlib.import_module("src.config.env")
+        settings_module = importlib.import_module("src.config.settings")
+        models_module = importlib.import_module("src.nlu.models")
+        ner_module = importlib.import_module("src.nlu.ner")
+        pipeline_module = importlib.import_module("src.nlu.pipeline")
+        llm_runner = importlib.import_module("src.nlg.llm_runner")
+        context_meta = importlib.import_module("src.nlg.context_meta")
+        json_sanitize = importlib.import_module("src.nlu.json_sanitize")
+        action_executor = importlib.import_module("src.nlu.action_executor")
+        
+        env_module.load_env_file(settings_module.ENV_PATH)
+        
+        bundle = {
+            "intent": models_module.load_intent_model(),
+            "category": models_module.load_category_model(),
+            "action_type": models_module.load_action_type_model(),
+            "record_type": models_module.load_record_type_model(),
+            "sentiment": models_module.load_chitchat_sentiment_model(),
+            "ner": ner_module.load_ner_model(settings_module.NER_MODEL_DIR),
+            "prompts": llm_runner.load_prompts(settings_module.PROMPTS_PATH),
+            "request_template": llm_runner.load_request_template(settings_module.REQUEST_TEMPLATE_PATH),
+            "pipeline_module": pipeline_module,
+            "llm_runner": llm_runner,
+            "context_meta": context_meta,
+            "json_sanitize": json_sanitize,
+            "action_executor": action_executor,
+        }
+        
         try:
-            _load_nlu_bundle_unlocked()
-        except Exception as exc:  # noqa: BLE001
+            encoder_runtime = importlib.import_module("src.nlu.encoder_runtime")
+            for key in ("intent", "category", "action_type", "record_type"):
+                model_info = bundle.get(key)
+                if isinstance(model_info, dict) and model_info.get("backend") == "encoder":
+                    inner_bundle = model_info.get("bundle")
+                    if isinstance(inner_bundle, dict) and "encoder_model_name" in inner_bundle:
+                        model_name = inner_bundle["encoder_model_name"]
+                        logger.info(f"Pre-loading/Warming up Hugging Face encoder model '{model_name}' for {key}...")
+                        encoder_runtime._get_hf(model_name)
+        except Exception as exc:
+            logger.warning(f"Failed to pre-load Hugging Face encoder models during reload: {exc}")
+
+        with _LOCK:
+            _NLU_BUNDLE = bundle
+            _NLU_ERROR = None
+        return True
+    except Exception as exc:  # noqa: BLE001
+        with _LOCK:
             _NLU_ERROR = str(exc)
-            return False
-    return True
+        return False
 
 
 def is_nlu_loaded() -> bool:
@@ -218,6 +260,7 @@ def run_real_nlu(
             )
         except Exception as exc:  # noqa: BLE001
             logger.warning("LLM enrichment failed: %s", exc)
+            result["llm_error"] = str(exc)
 
     return json_sanitize_mod.json_sanitize(result)
 
@@ -293,17 +336,47 @@ def load_real_ocr_safe() -> bool:
 
 
 def reload_ocr() -> bool:
-    """Force reload MC-OCR pipeline (VietOCR + PICK KIE) from disk."""
+    """Force reload MC-OCR pipeline (VietOCR + PICK KIE) from disk with zero downtime."""
     global _OCR_PIPELINE, _OCR_ERROR
-    with _LOCK:
-        _OCR_PIPELINE = None
-        _OCR_ERROR = None
-        try:
-            _load_ocr_pipeline_unlocked()
-        except Exception as exc:  # noqa: BLE001
+    try:
+        root = _ensure_paths_on_sys_path()
+        settings = get_settings()
+        from receipt_ocr.model_paths import PICK_KIE_MODEL_PATH, resolve_vietocr_weights_path
+
+        weights_path = resolve_vietocr_weights_path(settings.ocr_weights_path or None)
+        if not weights_path.is_file():
+            _OCR_ERROR = (
+                f"VietOCR weights missing at {weights_path}. "
+                f"Expected: OCR/models/vietocr/vgg_transformer.pth — "
+                f"fix OCR_WEIGHTS_PATH in ai-service/.env and restart."
+            )
+            raise FileNotFoundError(_OCR_ERROR)
+
+        pipeline_module = importlib.import_module("receipt_ocr.hybrid_pipeline")
+        import receipt_ocr.pick_kie as kie_mod
+        kie_mod.reset_kie_engine()
+
+        pick_model = getattr(settings, "pick_kie_model_path", None) or PICK_KIE_MODEL_PATH
+        rot_path = getattr(settings, "rotation_model_path", None) or None
+        use_rotation = getattr(settings, "use_rotation_corrector", True)
+
+        new_pipeline = pipeline_module.HybridReceiptOCRPipeline(
+            vietocr_weights=weights_path,
+            device=settings.device,
+            pick_kie_model=pick_model,
+            rotation_weights=rot_path or None,
+            use_rotation=use_rotation,
+            paddle_use_gpu=(settings.device == "cuda"),
+        ).load()
+
+        with _LOCK:
+            _OCR_PIPELINE = new_pipeline
+            _OCR_ERROR = None
+        return True
+    except Exception as exc:  # noqa: BLE001
+        with _LOCK:
             _OCR_ERROR = str(exc)
-            return False
-    return True
+        return False
 
 
 def is_ocr_loaded() -> bool:

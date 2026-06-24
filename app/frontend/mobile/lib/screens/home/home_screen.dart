@@ -1536,9 +1536,7 @@ class _TransactionStoryCard extends StatelessWidget {
       );
     }
 
-    final amount = ((tx['amount'] ?? 0) is num)
-        ? (tx['amount'] as num).toInt()
-        : 0;
+    final amount = parseToInt(tx['amount']);
     final type = tx['type'] as String? ?? 'expense';
     final category =
         tx['category_name'] as String? ??
@@ -1546,9 +1544,11 @@ class _TransactionStoryCard extends StatelessWidget {
         tx['category_code'] as String? ??
         'Other';
     final note = tx['note'] as String? ?? '';
+    final originalText = tx['originalText'] as String? ?? tx['original_text'] as String? ?? '';
+    final caption = originalText.isNotEmpty ? originalText : note;
     final createdAt =
         tx['createdAt'] as String? ?? tx['created_at'] as String? ?? '';
-    final isExpense = type == 'expense';
+    final isExpense = type.toLowerCase() == 'expense';
     final catStyle = CategoryTheme.of(category);
 
     final storyId =
@@ -1704,11 +1704,11 @@ class _TransactionStoryCard extends StatelessWidget {
             ),
 
             // ── Caption: user's note (text they typed) ──
-            if (note.isNotEmpty)
+            if (caption.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 14),
                 child: Text(
-                  note,
+                  caption,
                   style: Theme.of(
                     context,
                   ).textTheme.bodyMedium?.copyWith(height: 1.4),
@@ -1760,7 +1760,7 @@ class _TransactionStoryCard extends StatelessWidget {
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          formatVnd(amount),
+                          '${isExpense ? '-' : '+'}${formatVnd(amount)}',
                           style: TextStyle(
                             color: isExpense
                                 ? AppColors.danger

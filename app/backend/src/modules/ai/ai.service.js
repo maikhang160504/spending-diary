@@ -8,6 +8,116 @@ const actionService = require('./action.service');
 const ApiError = require('../../utils/ApiError');
 const logger = require('../../config/logger');
 const { normalizeMascotMood, pickMimoEmotionFromNlu } = require('../../utils/mascotMood');
+const path = require('path');
+
+class Semaphore {
+  constructor(maxConcurrency) {
+    this.maxConcurrency = maxConcurrency;
+    this.currentConcurrency = 0;
+    this.queue = [];
+  }
+
+  async acquire() {
+    if (this.currentConcurrency < this.maxConcurrency) {
+      this.currentConcurrency++;
+      return;
+    }
+    return new Promise((resolve) => {
+      this.queue.push(resolve);
+    });
+  }
+
+  release() {
+    this.currentConcurrency--;
+    if (this.queue.length > 0) {
+      this.currentConcurrency++;
+      const next = this.queue.shift();
+      next();
+    }
+  }
+
+  async run(fn) {
+    await this.acquire();
+    try {
+      return await fn();
+    } finally {
+      this.release();
+    }
+  }
+}
+
+const ocrSemaphore = new Semaphore(3);
+const walletProfileCache = new Map();
+const userCorrectionsCache = new Map();
+
+async function _getSystemSettings() {
+  try {
+    const result = await query('SELECT key, value FROM system_settings');
+    const settings = {};
+    for (const r of result.rows) {
+      settings[r.key] = r.value;
+    }
+    return {
+      ocrWeight: settings.ocr_weight !== undefined ? parseFloat(settings.ocr_weight) : 0.75,
+      nluThreshold: settings.nlu_threshold !== undefined ? parseFloat(settings.nlu_threshold) : 0.85,
+      dateFallback: settings.date_fallback !== undefined ? String(settings.date_fallback) : 'transaction',
+    };
+  } catch (err) {
+    logger.warn({ err: err.message }, 'Failed to fetch system settings, using defaults');
+    return {
+      ocrWeight: 0.75,
+      nluThreshold: 0.85,
+      dateFallback: 'transaction',
+    };
+  }
+}
+
+function parseBillDate(dateStr) {
+  if (!dateStr || typeof dateStr !== 'string') return null;
+  const cleaned = dateStr.trim().replace(/\s+/g, ' ');
+  
+  const dmyMatch = cleaned.match(/^(\d{1,2})[/\-](\d{1,2})[/\-](\d{4})/);
+  if (dmyMatch) {
+    const day = parseInt(dmyMatch[1], 10);
+    const month = parseInt(dmyMatch[2], 10) - 1;
+    const year = parseInt(dmyMatch[3], 10);
+    
+    const timeMatch = cleaned.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+    if (timeMatch) {
+      const hour = parseInt(timeMatch[1], 10);
+      const min = parseInt(timeMatch[2], 10);
+      const sec = timeMatch[3] ? parseInt(timeMatch[3], 10) : 0;
+      const date = new Date(year, month, day, hour, min, sec);
+      if (!isNaN(date.getTime())) return date;
+    } else {
+      const date = new Date(year, month, day, 12, 0, 0);
+      if (!isNaN(date.getTime())) return date;
+    }
+  }
+
+  const ymdMatch = cleaned.match(/^(\d{4})[/\-](\d{1,2})[/\-](\d{1,2})/);
+  if (ymdMatch) {
+    const year = parseInt(ymdMatch[1], 10);
+    const month = parseInt(ymdMatch[2], 10) - 1;
+    const day = parseInt(ymdMatch[3], 10);
+    
+    const timeMatch = cleaned.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+    if (timeMatch) {
+      const hour = parseInt(timeMatch[1], 10);
+      const min = parseInt(timeMatch[2], 10);
+      const sec = timeMatch[3] ? parseInt(timeMatch[3], 10) : 0;
+      const date = new Date(year, month, day, hour, min, sec);
+      if (!isNaN(date.getTime())) return date;
+    } else {
+      const date = new Date(year, month, day, 12, 0, 0);
+      if (!isNaN(date.getTime())) return date;
+    }
+  }
+
+  const d = new Date(cleaned);
+  if (!isNaN(d.getTime())) return d;
+  return null;
+}
 
 async function _resolveWalletId(userId) {
   try {
@@ -71,7 +181,7 @@ async function _enrichNluWithAction(userId, payload, response) {
           response.llama_json = secondRes.llama_json || response.llama_json;
         }
       } catch (err) {
-        logger.warn({ err: err.message, userId }, 'Second LLM call for report narrative failed, falling back to static story');
+        logger.error({ err: err.message, userId }, 'Second LLM call for report narrative failed, falling back to static story');
       }
     }
 
@@ -178,6 +288,14 @@ async function nluInfer(userId, payload) {
 }
 
 async function _fetchWalletProfile(userId, walletId) {
+  if (!walletId) return null;
+  const now = Date.now();
+  const cacheKey = `${userId}:${walletId}`;
+  const cached = walletProfileCache.get(cacheKey);
+  if (cached && cached.expiresAt > now) {
+    return cached.data;
+  }
+
   try {
     const [walletRes, catRes, spendRes] = await Promise.all([
       query(
@@ -238,7 +356,7 @@ async function _fetchWalletProfile(userId, walletId) {
 
     if (walletRes.rows[0]) {
       const row = walletRes.rows[0];
-      return {
+      const data = {
         budget_total:     Number(row.budget_total) || 0,
         budget_remain:    Number(row.budget_remain) || 0,
         spent_today:      Number(spendRes.rows[0]?.spent_today) || 0,
@@ -249,6 +367,8 @@ async function _fetchWalletProfile(userId, walletId) {
         member_count:     Number(row.member_count) || 0,
         category_stats,
       };
+      walletProfileCache.set(cacheKey, { data, expiresAt: now + 30000 });
+      return data;
     }
   } catch (_) {}
   return null;
@@ -300,6 +420,8 @@ async function expenseFromText(userId, payload) {
       aiMeta: { nlu: aiResponse.nlu },
       isDraft,
     });
+    // Invalidate wallet profile cache on new transaction
+    walletProfileCache.delete(`${userId}:${payload.walletId}`);
   }
   return {
     extracted,
@@ -323,6 +445,29 @@ async function _processBillBackground(userId, walletId, transactionId, fileBuffe
       latency_ms: aiResponse.latency_ms,
       confidence: aiResponse.extracted?.confidence,
     });
+    
+    // Resolve Date Convergence setting
+    const sysSettings = await _getSystemSettings();
+    const dateFallback = sysSettings.dateFallback || 'transaction';
+    
+    let occurredAt = new Date();
+    let dateExtracted = false;
+    
+    const timestampStr = aiResponse.ocr?.kie_fields?.TIMESTAMP;
+    if (timestampStr) {
+      const parsedDate = parseBillDate(timestampStr);
+      if (parsedDate) {
+        occurredAt = parsedDate;
+        dateExtracted = true;
+      }
+    }
+    
+    if (dateFallback === 'current' && !dateExtracted) {
+      occurredAt = new Date();
+    } else if (dateFallback === 'reject' && !dateExtracted) {
+      throw new Error('Date Convergence Policy: Missing or invalid receipt date.');
+    }
+
     const extracted = aiResponse.extracted || {};
     const categoryId = extracted.category
       ? (await query(
@@ -346,8 +491,8 @@ async function _processBillBackground(userId, walletId, transactionId, fileBuffe
     try {
       const storyRes = await query(
         `INSERT INTO stories (user_id, wallet_id, title, total_amount, cover_image_url, occurred_on)
-         VALUES ($1, $2, $3, $4, $5, CURRENT_DATE) RETURNING id`,
-        [userId, walletId, extracted.note || extracted.category || 'Hóa đơn', extracted.amount || 0, imageUrl]
+         VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+        [userId, walletId, extracted.note || extracted.category || 'Hóa đơn', extracted.amount || 0, imageUrl, occurredAt]
       );
       const storyId = storyRes.rows[0].id;
       const itemRes = await query(
@@ -379,6 +524,7 @@ async function _processBillBackground(userId, walletId, transactionId, fileBuffe
          ai_meta           = $7,
          story_item_id     = COALESCE($8, story_item_id),
          processing_status = 'done',
+         occurred_at       = $10,
          updated_at        = NOW()
        WHERE id = $9`,
       [
@@ -391,8 +537,12 @@ async function _processBillBackground(userId, walletId, transactionId, fileBuffe
         { nlu: aiResponse.nlu, ocr: aiResponse.ocr, image_url: imageUrl },
         storyItemId,
         transactionId,
+        occurredAt,
       ]
     );
+
+    // Invalidate wallet profile cache
+    walletProfileCache.delete(`${userId}:${walletId}`);
 
     try {
       const confidence = extracted.confidence != null ? Number(extracted.confidence) : null;
@@ -410,6 +560,38 @@ async function _processBillBackground(userId, walletId, transactionId, fileBuffe
         ]
       );
     } catch (_) {}
+
+    // Auto-enqueue bill vào hàng đợi retrain cho admin review
+    try {
+      const retrainStore = require('../../services/billRetrainStore');
+      const crypto = require('crypto');
+      const ext = path.extname(originalName || 'bill.jpg') || '.jpg';
+      const sampleId = crypto.randomUUID();
+      let finalImageUrl = imageUrl;
+      if (!imageUrl) {
+        finalImageUrl = retrainStore.saveImage(sampleId, fileBuffer, ext);
+      }
+      retrainStore.upsertSample({
+        id: sampleId,
+        status: 'pending',
+        source: 'user_upload',
+        userId,
+        transactionId,
+        imageUrl: finalImageUrl,
+        imageExt: ext,
+        autoLabels: aiResponse.ocr || {},
+        metadata: {
+          amount: extracted.amount,
+          category: extracted.category,
+          confidence: extracted.confidence,
+          originalName,
+          backend: aiResponse.ocr?.backend || 'unknown',
+        },
+      });
+      logger.info({ sampleId, transactionId, userId }, 'Auto-enqueued user bill for retrain');
+    } catch (enqueueErr) {
+      logger.warn({ err: enqueueErr.message, transactionId }, 'Failed to auto-enqueue bill for retrain');
+    }
 
     sendToUser(userId, {
       type: 'transaction_done',
@@ -465,9 +647,11 @@ async function expenseFromBill(userId, fileBuffer, originalName, contentType, wa
   );
   const transactionId = pendingTx.rows[0].id;
 
-  // Fire background job — do NOT await
+  // Fire background job — do NOT await, use semaphore to limit concurrency
   setImmediate(() =>
-    _processBillBackground(userId, walletId, transactionId, fileBuffer, originalName, contentType, imageUrl)
+    ocrSemaphore.run(() =>
+      _processBillBackground(userId, walletId, transactionId, fileBuffer, originalName, contentType, imageUrl)
+    )
   );
 
   return { transactionId, status: 'pending', imageUrl };
@@ -475,6 +659,12 @@ async function expenseFromBill(userId, fileBuffer, originalName, contentType, wa
 
 async function _fetchUserCorrections(userId) {
   if (!userId) return [];
+  const now = Date.now();
+  const cached = userCorrectionsCache.get(userId);
+  if (cached && cached.expiresAt > now) {
+    return cached.data;
+  }
+
   try {
     const [correctionsRes, overridesRes] = await Promise.all([
       query(
@@ -522,6 +712,7 @@ async function _fetchUserCorrections(userId) {
       }
     }
 
+    userCorrectionsCache.set(userId, { data: merged, expiresAt: now + 30000 });
     return merged;
   } catch (err) {
     logger.warn({ err: err.message, userId }, 'failed to fetch user corrections and overrides');
@@ -562,6 +753,7 @@ async function saveCorrection(userId, payload) {
     }
   }
 
+  userCorrectionsCache.delete(userId);
   return r.rows[0];
 }
 
@@ -666,13 +858,93 @@ async function aiChat(userId, sessionId, userMessage) {
       chat_summary: summary,
     });
     aiResponse = await _enrichNluWithAction(userId, { text: userMessage }, aiResponse);
-    const assistantContent =
+    const llmText =
       aiResponse.gemini_json?.response ||
       aiResponse.gemini_json?.story ||
       aiResponse.nlg_response ||
       aiResponse.response ||
-      aiResponse.content ||
-      'Xin lỗi, tôi không hiểu. Bạn có thể nói rõ hơn không?';
+      aiResponse.content;
+    const llmError = aiResponse.llm_error || null;
+
+    let fallbackText = null;
+    if (!llmText) {
+      const intent = aiResponse.intent || 'Chitchat';
+      if (intent === 'Record') {
+        const isIncome = aiResponse.record_type === 'Income';
+        const categoryCode = aiResponse.category || 'Others';
+        const amount = aiResponse.amount ?? aiResponse.amount_spent;
+
+        const vietCategoryMap = {
+          'Food': 'Ăn uống',
+          'Transport': 'Di chuyển',
+          'Housing': 'Nhà ở',
+          'Shopping': 'Mua sắm',
+          'Entertainment': 'Giải trí',
+          'Health': 'Sức khỏe',
+          'Education': 'Giáo dục',
+          'Others': 'Tiêu dùng khác',
+          'Other': 'Tiêu dùng khác',
+          'Essentials': 'Thiết yếu',
+          'Beauty': 'Làm đẹp',
+          'Social': 'Xã hội',
+          'Salary': 'Lương',
+          'Bonus': 'Thưởng',
+          'Business': 'Kinh doanh'
+        };
+        const vietCat = vietCategoryMap[categoryCode] || categoryCode;
+
+        if (amount && amount > 0) {
+          const amtStr = new Intl.NumberFormat('vi-VN').format(amount);
+          if (isIncome) {
+            fallbackText = `Tuyệt vời! Mimo đã ghi nhận khoản thu nhập ${amtStr}đ vào danh mục ${vietCat}. Tích tiểu thành đại, cố gắng phát huy nhé! 🎉`;
+          } else {
+            fallbackText = `Mimo đã ghi nhận khoản chi ${amtStr}đ cho ${vietCat} vào ví của bạn. Hãy cân đối chi tiêu hợp lý nhé!`;
+          }
+        } else {
+          if (isIncome) {
+            fallbackText = `Mimo đã chuẩn bị sẵn phiếu ghi nhận thu nhập cho danh mục ${vietCat}. Bạn hãy nhập số tiền và bấm lưu nhé!`;
+          } else {
+            fallbackText = `Mimo đã chuẩn bị sẵn phiếu ghi nhận chi tiêu cho danh mục ${vietCat}. Bạn hãy nhập số tiền và bấm lưu nhé!`;
+          }
+        }
+      } else if (intent === 'Action') {
+        const actionType = aiResponse.action_type || 'Thao tác';
+        const actionLabels = {
+          'LIMIT': 'Đặt hạn mức',
+          'DELETE': 'Xóa giao dịch gần nhất',
+          'GOAL': 'Tạo mục tiêu tiết kiệm',
+          'TONE': 'Đổi giọng nói Mimo',
+          'SEARCH': 'Tìm kiếm giao dịch',
+          'SETTING': 'Mở cài đặt ứng dụng'
+        };
+        let actionLabel = actionType;
+        for (const [key, val] of Object.entries(actionLabels)) {
+          if (actionType.toUpperCase().includes(key)) {
+            actionLabel = val;
+            break;
+          }
+        }
+        fallbackText = `Mimo đã chuẩn bị sẵn thao tác: ${actionLabel}. Bạn có muốn thực hiện không?`;
+      }
+    }
+
+    if (!llmText && fallbackText) {
+      if (!aiResponse.gemini_json) {
+        aiResponse.gemini_json = {};
+      }
+      aiResponse.gemini_json.response = fallbackText;
+      aiResponse.gemini_json.story = fallbackText;
+      if (!aiResponse.nlg_response) {
+        aiResponse.nlg_response = fallbackText;
+      }
+    }
+
+    const assistantContent = llmText || fallbackText || (llmError
+      ? 'Mimo tạm thời gặp sự cố kết nối AI 🤖 Bạn thử lại sau chút nhé!'
+      : 'Xin lỗi, tôi không hiểu. Bạn có thể nói rõ hơn không?');
+    if (!llmText) {
+      logger.warn({ userId, sessionId, llmError, backend: aiResponse.backend }, 'LLM response empty — using fallback text');
+    }
 
     // Parse and normalize the LLM/NLU emotion to PascalCase asset name
     const geminiJson = aiResponse.gemini_json;
@@ -688,6 +960,7 @@ async function aiChat(userId, sessionId, userMessage) {
       amount: amount,
       category: category,
       nlu: aiResponse,
+      ...(llmError ? { llmError } : {}),
     };
 
     if (aiResponse.multi_records && Array.isArray(aiResponse.multi_records) && aiResponse.multi_records.length >= 2) {
@@ -729,6 +1002,14 @@ async function executeAction(userId, payload) {
   return result;
 }
 
+function clearUserCorrectionsCache(userId) {
+  userCorrectionsCache.delete(userId);
+}
+
+function clearWalletProfileCache(userId, walletId) {
+  walletProfileCache.delete(`${userId}:${walletId}`);
+}
+
 module.exports = {
   nluInfer,
   expenseFromText,
@@ -739,4 +1020,6 @@ module.exports = {
   rejectAction,
   executeAction,
   aiChat,
+  clearUserCorrectionsCache,
+  clearWalletProfileCache,
 };

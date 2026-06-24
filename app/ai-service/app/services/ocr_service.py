@@ -34,7 +34,7 @@ class OCRService:
             return self._real_available
         self._tried_load = True
         if not get_settings().use_real_ocr:
-            logger.info("USE_REAL_OCR=false → mock OCR only.")
+            logger.info("USE_REAL_OCR=false -> mock OCR only.")
             return False
         self._real_available = adapter.load_real_ocr_safe()
         if not self._real_available:

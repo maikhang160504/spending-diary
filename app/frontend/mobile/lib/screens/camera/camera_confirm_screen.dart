@@ -20,6 +20,7 @@ import '../../theme/categories.dart';
 import '../../utils/formatters.dart';
 import '../../services/streak_celebration.dart';
 import '../../widgets/loading_indicator.dart';
+import '../../utils/budget_prompt.dart';
 
 class CameraConfirmScreen extends StatefulWidget {
   /// Extracted expense data passed from CameraInputScreen via GoRouter extra.
@@ -260,6 +261,9 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
       setState(() => _saving = false);
       notifyTransactionChanged();
       if (mounted) await StreakCelebration.instance.afterActivity(context);
+      if (mounted) {
+        checkCategoryLimitAndSuggest(context, _category);
+      }
       if (!mounted) return;
 
       if (isGroupWallet) {
