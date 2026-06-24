@@ -64,10 +64,13 @@ export async function getNluAggregations() {
   return request("/api/admin/nlu/aggregations");
 }
 
-export async function curateNluAggregations(corrections, autoRetrain = false) {
+export async function curateNluAggregations(corrections, autoRetrain = false, trainTarget = "local") {
   return request("/api/admin/nlu/curate", {
     method: "POST",
-    body: JSON.stringify({ corrections, autoRetrain })
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ corrections, autoRetrain, trainTarget })
   });
 }
 
@@ -82,11 +85,24 @@ export async function saveBotPrompts(prompts) {
   });
 }
 
-export async function triggerNluTrain() {
+export async function triggerNluTrain(target = "local") {
   return request("/api/admin/train", {
-    method: "POST"
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ target })
   });
 }
+
+export async function fetchNluKaggleJobs(limit = 20) {
+  return request(`/api/admin/train/kaggle/jobs?limit=${limit}`);
+}
+
+export async function fetchNluKaggleJob(jobId) {
+  return request(`/api/admin/train/kaggle/jobs/${jobId}`);
+}
+
 
 export async function getNluTrainStatus() {
   return request("/api/admin/train/status");
@@ -238,10 +254,11 @@ export function saveSystemSettings(settings) {
   });
 }
 
-export function importNluCsv(file, autoRetrain = false) {
+export function importNluCsv(file, autoRetrain = false, trainTarget = "local") {
   const form = new FormData();
   form.append("file", file);
   form.append("autoRetrain", autoRetrain.toString());
+  form.append("trainTarget", trainTarget);
   return fetch(`${API_BASE_URL}/api/admin/nlu/import-csv`, {
     method: "POST",
     body: form,

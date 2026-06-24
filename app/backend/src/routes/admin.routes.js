@@ -286,7 +286,7 @@ router.get('/nlu/aggregations', async (req, res, next) => {
 
 // 9. POST /api/admin/nlu/curate
 router.post('/nlu/curate', async (req, res, next) => {
-  const { corrections, autoRetrain } = req.body;
+  const { corrections, autoRetrain, trainTarget } = req.body;
   if (!Array.isArray(corrections) || corrections.length === 0) {
     return res.status(400).json({ message: 'Missing corrections list' });
   }
@@ -339,7 +339,7 @@ router.post('/nlu/curate', async (req, res, next) => {
     let trainMessage = '';
     if (autoRetrain && addedCount > 0) {
       try {
-        const r = await aiClient.triggerTrain();
+        const r = await aiClient.triggerTrain(trainTarget || 'local');
         trainMessage = r.message || ' Retraining started.';
       } catch (trainErr) {
         logger.warn({ err: trainErr.message }, '[Admin Curation] auto-retrain failed');
@@ -357,6 +357,7 @@ router.post('/nlu/curate', async (req, res, next) => {
     next(err);
   }
 });
+
 
 // 10. GET /api/admin/prompts
 router.get('/prompts', async (req, res, next) => {
@@ -381,12 +382,35 @@ router.post('/prompts', async (req, res, next) => {
 // 12. POST /api/admin/train
 router.post('/train', async (req, res, next) => {
   try {
-    const r = await aiClient.triggerTrain();
+    const { target } = req.body || {};
+    const r = await aiClient.triggerTrain(target || 'local');
     res.json(r);
   } catch (err) {
     next(err);
   }
 });
+
+// 12.1 GET /api/admin/train/kaggle/jobs
+router.get('/train/kaggle/jobs', async (req, res, next) => {
+  try {
+    const limit = parseInt(req.query.limit) || 20;
+    const r = await aiClient.getNluKaggleJobs(limit);
+    res.json(r);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// 12.2 GET /api/admin/train/kaggle/jobs/:jobId
+router.get('/train/kaggle/jobs/:jobId', async (req, res, next) => {
+  try {
+    const r = await aiClient.getNluKaggleJob(req.params.jobId);
+    res.json(r);
+  } catch (err) {
+    next(err);
+  }
+});
+
 
 // 13. GET /api/admin/train/status
 router.get('/train/status', async (req, res, next) => {
@@ -475,6 +499,7 @@ router.post('/nlu/import-csv', upload.single('file'), async (req, res, next) => 
     return res.status(400).json({ message: 'Vui lòng chọn file CSV để upload!' });
   }
   const autoRetrain = req.body.autoRetrain === 'true';
+  const trainTarget = req.body.trainTarget || 'local';
   try {
     const csvContentRaw = req.file.buffer.toString('utf8');
     const lines = csvContentRaw.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
@@ -643,7 +668,7 @@ router.post('/nlu/import-csv', upload.single('file'), async (req, res, next) => 
     let trainMessage = '';
     if (autoRetrain && addedCount > 0) {
       try {
-        const r = await aiClient.triggerTrain();
+        const r = await aiClient.triggerTrain(trainTarget);
         trainMessage = r.message || ' Retraining started.';
       } catch (trainErr) {
         logger.warn({ err: trainErr.message }, '[Admin CSV Import] auto-retrain failed');
@@ -1006,15 +1031,16 @@ router.post('/bill-retrain/kaggle/deploy', async (req, res, next) => {
 
 router.post('/bill-retrain/kaggle/webhook', async (req, res, next) => {
   try {
-    const { job_id: jobId, status, auto_reload: autoReload } = req.body || {};
+    const { job_id: jobId, status, auto_reload: autoReload, scope } = req.body || {};
     logger.info('Bill retrain webhook received: %j', req.body);
     let reload = null;
     if (status === 'completed' && (autoReload !== false)) {
+      const reloadScope = scope === 'nlu' ? 'nlu' : 'ocr';
       try {
-        reload = await aiClient.reloadModels('ocr');
-        logger.info('Auto-reloaded OCR after Kaggle job %s', jobId);
+        reload = await aiClient.reloadModels(reloadScope);
+        logger.info('Auto-reloaded %s after Kaggle job %s', reloadScope, jobId);
       } catch (reloadErr) {
-        logger.warn('Auto-reload OCR failed after Kaggle job: %s', reloadErr.message);
+        logger.warn('Auto-reload %s failed after Kaggle job: %s', reloadScope, reloadErr.message);
         reload = { ok: false, error: reloadErr.message };
       }
     }

@@ -10,7 +10,9 @@ import {
   getNluModelMeta,
   getNluTrainHistory,
   importNluCsv,
-  reloadAiModels
+  reloadAiModels,
+  fetchNluKaggleJobs,
+  fetchNluKaggleJob
 } from "../services/api";
 
 
@@ -28,10 +30,12 @@ function NluOpsPage() {
 
   // Layer 2 state
   const [aggregations, setAggregations] = useState([]);
-  const [autoRetrainAfterCurate, setAutoRetrainAfterCurate] = useState(true);
+  const [autoRetrainAfterCurate, setAutoRetrainAfterCurate] = useState("local");
 
   // Model status state
   const [isTraining, setIsTraining] = useState(false);
+  const [kaggleJobs, setKaggleJobs] = useState([]);
+  const [activeKaggleJob, setActiveKaggleJob] = useState(null);
   const [modelMeta, setModelMeta] = useState({
     version: "Loading...",
     trainedAt: "Loading...",
@@ -43,7 +47,7 @@ function NluOpsPage() {
 
   // CSV Import state
   const [csvFile, setCsvFile] = useState(null);
-  const [autoRetrainCsv, setAutoRetrainCsv] = useState(true);
+  const [autoRetrainCsv, setAutoRetrainCsv] = useState("local");
   const [importingCsv, setImportingCsv] = useState(false);
 
   const renderMetricCell = (modelKey, metricKey) => {
@@ -101,14 +105,18 @@ function NluOpsPage() {
       getNluAggregations().catch(() => []),
       getNluTrainStatus().catch(() => ({ training_active: false })),
       getNluModelMeta().catch(() => ({ version: "v1.2.0-fallback", trainedAt: "2026-06-21", f1Score: "91.2%" })),
-      getNluTrainHistory().catch(() => [])
+      getNluTrainHistory().catch(() => []),
+      fetchNluKaggleJobs().catch(() => [])
     ])
-      .then(([overridesData, aggregationsData, statusData, metaData, historyData]) => {
+      .then(([overridesData, aggregationsData, statusData, metaData, historyData, kaggleJobsData]) => {
         setLayer1Rules(overridesData);
         setAggregations(aggregationsData.map(item => ({ ...item, approved: false })));
         setIsTraining(statusData.training_active);
         setModelMeta(metaData);
         setTrainHistory(historyData);
+        setKaggleJobs(kaggleJobsData);
+        const active = kaggleJobsData.find(job => !["completed", "failed"].includes(job.status));
+        setActiveKaggleJob(active || null);
         setLoading(false);
       })
       .catch((err) => {
@@ -131,7 +139,6 @@ function NluOpsPage() {
             if (!data.training_active) {
               setIsTraining(false);
               showToast("Model retraining completed successfully!");
-              // Refresh metadata and history
               getNluModelMeta().then(meta => setModelMeta(meta)).catch(() => {});
               getNluTrainHistory().then(history => setTrainHistory(history)).catch(() => {});
             }
@@ -143,6 +150,35 @@ function NluOpsPage() {
       if (intervalId) clearInterval(intervalId);
     };
   }, [isTraining]);
+
+  // Poll NLU Kaggle jobs if there is an active job in progress
+  useEffect(() => {
+    let intervalId;
+    const hasActiveJob = kaggleJobs.some(job => 
+      !["completed", "failed"].includes(job.status)
+    );
+    
+    if (hasActiveJob || activeKaggleJob) {
+      intervalId = setInterval(() => {
+        fetchNluKaggleJobs()
+          .then((jobs) => {
+            setKaggleJobs(jobs);
+            const active = jobs.find(job => !["completed", "failed"].includes(job.status));
+            
+            if (activeKaggleJob && !active) {
+              showToast("Kaggle NLU retraining finished!");
+              getNluModelMeta().then(meta => setModelMeta(meta)).catch(() => {});
+              getNluTrainHistory().then(history => setTrainHistory(history)).catch(() => {});
+            }
+            setActiveKaggleJob(active || null);
+          })
+          .catch(() => {});
+      }, 5000);
+    }
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [kaggleJobs, activeKaggleJob]);
 
   // Tab switching loads specific data just in case
   const handleTabChange = (tab) => {
@@ -206,7 +242,8 @@ function NluOpsPage() {
       return;
     }
     setImportingCsv(true);
-    importNluCsv(csvFile, autoRetrainCsv)
+    const autoRetrain = autoRetrainCsv !== "none";
+    importNluCsv(csvFile, autoRetrain, autoRetrainCsv)
       .then((data) => {
         showToast(`Đã import thành công ${data.addedCount} dòng mới!`);
         setCsvFile(null);
@@ -236,14 +273,20 @@ function NluOpsPage() {
       return;
     }
     setLoading(true);
-    curateNluAggregations(selected, autoRetrainAfterCurate)
+    const autoRetrain = autoRetrainAfterCurate !== "none";
+    curateNluAggregations(selected, autoRetrain, autoRetrainAfterCurate)
       .then((res) => {
         getNluAggregations().then(data => {
           setAggregations(data.map(item => ({ ...item, approved: false })));
           setLoading(false);
         });
-        if (autoRetrainAfterCurate) {
-          setIsTraining(true);
+        if (autoRetrain) {
+          if (autoRetrainAfterCurate === "kaggle") {
+            showToast("Đã lưu curation và kích hoạt train trên Kaggle!");
+            fetchNluKaggleJobs().then(setKaggleJobs).catch(() => {});
+          } else {
+            setIsTraining(true);
+          }
         }
         showToast(res.message || `Appended ${selected.length} samples to global CSV!`);
       })
@@ -254,12 +297,21 @@ function NluOpsPage() {
   };
 
   // Trigger retraining in background
-  const handleRetrain = () => {
+  const handleRetrain = (target = "local") => {
     setLoading(true);
-    triggerNluTrain()
+    triggerNluTrain(target)
       .then((res) => {
-        setIsTraining(true);
-        showToast(res.message || "Model retraining started in the NLU background pipeline!");
+        if (target === "kaggle") {
+          showToast("NLU Kaggle retraining started!");
+          fetchNluKaggleJobs().then((jobs) => {
+            setKaggleJobs(jobs);
+            const active = jobs.find(job => !["completed", "failed"].includes(job.status));
+            setActiveKaggleJob(active || null);
+          }).catch(() => {});
+        } else {
+          setIsTraining(true);
+          showToast(res.message || "Model retraining started in the NLU background pipeline!");
+        }
         setLoading(false);
       })
       .catch((err) => {
@@ -590,15 +642,27 @@ function NluOpsPage() {
             
             <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "12px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-                <label className="bill-toggle" style={{ fontSize: "13px", display: "flex", alignItems: "center", gap: "8px", cursor: "pointer" }}>
-                  <input
-                    type="checkbox"
-                    checked={autoRetrainAfterCurate}
-                    onChange={(e) => setAutoRetrainAfterCurate(e.target.checked)}
-                    style={{ width: "16px", height: "16px", accentColor: "var(--accent-emerald)" }}
-                  />
-                  <span>Auto-retrain models on submit</span>
-                </label>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <span style={{ fontSize: "13px", color: "var(--text-secondary)" }}>Tự động huấn luyện:</span>
+                  <select
+                    value={autoRetrainAfterCurate}
+                    onChange={(e) => setAutoRetrainAfterCurate(e.target.value)}
+                    style={{
+                      background: "var(--bg-obsidian-950)",
+                      border: "1px solid var(--border-color)",
+                      color: "var(--text-primary)",
+                      borderRadius: "6px",
+                      padding: "6px 12px",
+                      fontSize: "13px",
+                      outline: "none",
+                      cursor: "pointer"
+                    }}
+                  >
+                    <option value="none">Không</option>
+                    <option value="local">Cục bộ (CPU)</option>
+                    <option value="kaggle">Kaggle (GPU)</option>
+                  </select>
+                </div>
                 <button
                   className="btn btn-primary"
                   onClick={handleExportCuration}
@@ -784,74 +848,134 @@ function NluOpsPage() {
             </div>
           </div>
 
-          <div className="panel" style={{
-            background: "var(--bg-obsidian-900)",
-            border: "1px solid var(--border-color)",
-            borderRadius: "16px",
-            padding: "24px",
-            boxShadow: "0 4px 20px rgba(0, 0, 0, 0.15)",
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "space-between"
-          }}>
-            <div>
-              <div className="panel-header" style={{ paddingBottom: "20px", borderBottom: "1px solid var(--border-color)", display: "flex", alignItems: "center", gap: "8px" }}>
-                <div className="brand-dot" style={{ background: "var(--accent-emerald)" }}></div>
-                <h2 className="panel-title" style={{ fontSize: "16px", fontWeight: "600", color: "var(--text-primary)" }}>Trigger Train Worker</h2>
-              </div>
-              <div
-                className="file-upload-zone"
-                onClick={isTraining ? undefined : handleRetrain}
-                style={{
-                  opacity: isTraining ? 0.5 : 1,
-                  cursor: isTraining ? "not-allowed" : "pointer",
-                  marginTop: "20px",
-                  border: `2px dashed ${isTraining ? "var(--border-color)" : "rgba(16, 185, 129, 0.25)"}`,
-                  background: isTraining ? "var(--bg-obsidian-950)" : "rgba(16, 185, 129, 0.01)",
-                  padding: "40px 24px",
-                  borderRadius: "12px",
-                  textAlign: "center",
-                  transition: "all 0.2s"
-                }}
-                onMouseEnter={(e) => {
-                  if (!isTraining) {
-                    e.currentTarget.style.borderColor = "var(--accent-emerald)";
-                    e.currentTarget.style.background = "rgba(16, 185, 129, 0.03)";
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!isTraining) {
-                    e.currentTarget.style.borderColor = "rgba(16, 185, 129, 0.25)";
-                    e.currentTarget.style.background = "rgba(16, 185, 129, 0.01)";
-                  }
-                }}
-              >
-                <div style={{ fontSize: "40px", marginBottom: "12px", filter: isTraining ? "grayscale(100%)" : "none" }}>🚀</div>
-                <h3 style={{ color: "var(--text-primary)", fontSize: "14px", fontWeight: "600", marginBottom: "6px" }}>
-                  {isTraining ? "Worker Active..." : "Trigger Model Retraining Job"}
-                </h3>
-                <p className="form-desc" style={{ fontSize: "12px", color: "var(--text-muted)", maxWidth: "340px", margin: "0 auto" }}>
-                  Executes `retrain_all.py` asynchronously. Recalibrates OCR/NLU SVM weight vectors and exports updated model files to local storage automatically.
-                </p>
+            {/* Trigger Train Worker Panel */}
+            <div className="panel" style={{
+              background: "var(--bg-obsidian-900)",
+              border: "1px solid var(--border-color)",
+              borderRadius: "16px",
+              padding: "24px",
+              display: "flex",
+              flexDirection: "column",
+              boxShadow: "0 4px 20px rgba(0, 0, 0, 0.15)"
+            }}>
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "16px" }}>
+                  <div style={{
+                    width: "8px",
+                    height: "8px",
+                    borderRadius: "50%",
+                    background: (isTraining || (activeKaggleJob && !["completed", "failed"].includes(activeKaggleJob.status))) ? "var(--accent-emerald)" : "var(--text-muted)",
+                    boxShadow: (isTraining || (activeKaggleJob && !["completed", "failed"].includes(activeKaggleJob.status))) ? "0 0 8px var(--accent-emerald)" : "none"
+                  }} />
+                  <h2 className="panel-title" style={{ fontSize: "16px", fontWeight: "600", color: "var(--text-primary)" }}>Trigger Train Worker</h2>
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "20px" }}>
+                  {/* Local CPU Retrain Card */}
+                  <div 
+                    onClick={() => { if (!isTraining && !activeKaggleJob) handleRetrain("local"); }}
+                    style={{
+                      border: `1px solid ${isTraining ? "var(--accent-emerald)" : "var(--border-color)"}`,
+                      background: isTraining ? "rgba(16, 185, 129, 0.05)" : "var(--bg-obsidian-950)",
+                      borderRadius: "12px",
+                      padding: "20px 16px",
+                      cursor: (isTraining || activeKaggleJob) ? "not-allowed" : "pointer",
+                      opacity: activeKaggleJob ? 0.5 : 1,
+                      textAlign: "center",
+                      transition: "all 0.2s"
+                    }}
+                  >
+                    <div style={{ fontSize: "28px", marginBottom: "8px" }}>💻</div>
+                    <h4 style={{ fontSize: "13px", fontWeight: "600", color: "var(--text-primary)", marginBottom: "4px" }}>Huấn luyện Cục bộ</h4>
+                    <span style={{ fontSize: "11px", color: "var(--text-secondary)", display: "block" }}>Chạy trên CPU local (1-2 phút)</span>
+                  </div>
+
+                  {/* Kaggle GPU Retrain Card */}
+                  <div 
+                    onClick={() => { if (!isTraining && !activeKaggleJob) handleRetrain("kaggle"); }}
+                    style={{
+                      border: `1px solid ${activeKaggleJob ? "var(--accent-blue-hover)" : "var(--border-color)"}`,
+                      background: activeKaggleJob ? "rgba(26, 115, 232, 0.05)" : "var(--bg-obsidian-950)",
+                      borderRadius: "12px",
+                      padding: "20px 16px",
+                      cursor: (isTraining || activeKaggleJob) ? "not-allowed" : "pointer",
+                      opacity: isTraining ? 0.5 : 1,
+                      textAlign: "center",
+                      transition: "all 0.2s"
+                    }}
+                  >
+                    <div style={{ fontSize: "28px", marginBottom: "8px" }}>☁️</div>
+                    <h4 style={{ fontSize: "13px", fontWeight: "600", color: "var(--text-primary)", marginBottom: "4px" }}>Huấn luyện Kaggle</h4>
+                    <span style={{ fontSize: "11px", color: "var(--text-secondary)", display: "block" }}>GPU Cloud (NER spaCy tối ưu)</span>
+                  </div>
+                </div>
+
+                {isTraining && (
+                  <div style={{ background: "rgba(16, 185, 129, 0.05)", border: "1px solid rgba(16, 185, 129, 0.2)", borderRadius: "8px", padding: "12px", fontSize: "12px", color: "var(--accent-emerald)" }}>
+                    ⚙️ Đang chạy huấn luyện cục bộ trên server CPU... Vui lòng không đóng trang.
+                  </div>
+                )}
+
+                {activeKaggleJob && (
+                  <div style={{ background: "rgba(26, 115, 232, 0.05)", border: "1px solid rgba(26, 115, 232, 0.2)", borderRadius: "8px", padding: "12px", fontSize: "12px", color: "var(--accent-blue-hover)", display: "flex", flexDirection: "column", gap: "6px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between" }}>
+                      <span><strong>Kaggle GPU Job:</strong> {activeKaggleJob.status.toUpperCase()}</span>
+                      <span style={{ fontFamily: "var(--font-mono)" }}>{activeKaggleJob.id?.slice(0, 8)}</span>
+                    </div>
+                    <div style={{ fontSize: "11px", color: "var(--text-secondary)", lineHeight: "1.4" }}>
+                      {activeKaggleJob.status === "queued" && "⏳ Đang xếp hàng chờ trên Kaggle..."}
+                      {activeKaggleJob.status === "versioning_dataset" && "📦 Bước 1/5: Đang đóng gói & đồng bộ Dataset lên Kaggle..."}
+                      {activeKaggleJob.status === "packaging_source" && "📦 Bước 2/5: Đang đóng gói mã nguồn text_nlu..."}
+                      {activeKaggleJob.status === "pushing_kernel" && "🚀 Bước 3/5: Đang đẩy Notebook và kích hoạt GPU Worker..."}
+                      {activeKaggleJob.status === "running_on_kaggle" && "⚙️ Bước 4/5: Đang chạy huấn luyện trên Kaggle GPU (Có thể mất 2-3 phút)..."}
+                      {activeKaggleJob.status === "downloading_outputs" && "📥 Bước 5/5: Huấn luyện xong! Đang tải trọng số model về server..."}
+                      {activeKaggleJob.status === "deploying" && "🔄 Đang giải nén & nạp nóng NLU Model vào bộ nhớ..."}
+                    </div>
+                  </div>
+                )}
+
+                {!isTraining && !activeKaggleJob && (
+                  <div style={{ fontSize: "12px", color: "var(--text-muted)", textAlign: "center", marginTop: "12px" }}>
+                    Chọn một trong hai phương thức trên để bắt đầu huấn luyện lại mô hình.
+                  </div>
+                )}
+
+                {kaggleJobs.length > 0 && (
+                  <div style={{ marginTop: "20px" }}>
+                    <h3 style={{ fontSize: "12px", fontWeight: "600", color: "var(--text-primary)", marginBottom: "8px" }}>Lịch sử Kaggle GPU Retrain</h3>
+                    <div style={{ maxHeight: "120px", overflowY: "auto", border: "1px solid var(--border-color)", borderRadius: "8px" }}>
+                      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "11px" }}>
+                        <thead>
+                          <tr style={{ background: "var(--bg-obsidian-950)", borderBottom: "1px solid var(--border-color)" }}>
+                            <th style={{ padding: "6px 10px", textAlign: "left", color: "var(--text-secondary)" }}>Job ID</th>
+                            <th style={{ padding: "6px 10px", textAlign: "left", color: "var(--text-secondary)" }}>Thời gian</th>
+                            <th style={{ padding: "6px 10px", textAlign: "left", color: "var(--text-secondary)" }}>F1</th>
+                            <th style={{ padding: "6px 10px", textAlign: "right", color: "var(--text-secondary)" }}>Trạng thái</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {kaggleJobs.slice(0, 10).map((job, i) => (
+                            <tr key={i} style={{ borderBottom: "1px solid var(--border-color)", background: "transparent" }}>
+                              <td style={{ padding: "6px 10px", fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>{job.id?.slice(0, 8)}</td>
+                              <td style={{ padding: "6px 10px", color: "var(--text-secondary)" }}>
+                                {job.created_at ? new Date(job.created_at).toLocaleString("vi-VN") : "N/A"}
+                              </td>
+                              <td style={{ padding: "6px 10px", fontWeight: "600", color: job.status === "completed" ? "var(--accent-emerald)" : "var(--text-secondary)" }}>
+                                {job.f1_score || "-"}
+                              </td>
+                              <td style={{ padding: "6px 10px", textAlign: "right", fontWeight: "600", color: job.status === "completed" ? "var(--accent-emerald)" : job.status === "failed" ? "var(--accent-red)" : "var(--accent-blue-hover)" }}>
+                                {job.status}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
-            
-            <button
-              className="btn btn-secondary"
-              style={{
-                width: "100%",
-                borderStyle: "dashed",
-                marginTop: "20px",
-                borderColor: isTraining ? "var(--border-color)" : "rgba(16, 185, 129, 0.3)",
-                color: isTraining ? "var(--text-muted)" : "var(--accent-emerald-hover)"
-              }}
-              onClick={isTraining ? undefined : handleRetrain}
-              disabled={isTraining}
-            >
-              {isTraining ? "Retraining Active..." : "Run Global NLU Train Suite"}
-            </button>
           </div>
-        </div>
 
         {/* Import CSV Panel */}
         <div className="panel" style={{
@@ -901,15 +1025,27 @@ function NluOpsPage() {
               </div>
 
               <div style={{ display: "flex", alignItems: "center", gap: "16px", marginTop: "16px" }}>
-                <label style={{ fontSize: "13px", display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", color: "var(--text-secondary)" }}>
-                  <input
-                    type="checkbox"
-                    checked={autoRetrainCsv}
-                    onChange={(e) => setAutoRetrainCsv(e.target.checked)}
-                    style={{ width: "16px", height: "16px", accentColor: "var(--accent-emerald)" }}
-                  />
-                  <span>Tự động huấn luyện lại sau khi import</span>
-                </label>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <span style={{ fontSize: "13px", color: "var(--text-secondary)" }}>Tự động huấn luyện:</span>
+                  <select
+                    value={autoRetrainCsv}
+                    onChange={(e) => setAutoRetrainCsv(e.target.value)}
+                    style={{
+                      background: "var(--bg-obsidian-950)",
+                      border: "1px solid var(--border-color)",
+                      color: "var(--text-primary)",
+                      borderRadius: "6px",
+                      padding: "6px 12px",
+                      fontSize: "13px",
+                      outline: "none",
+                      cursor: "pointer"
+                    }}
+                  >
+                    <option value="none">Không</option>
+                    <option value="local">Cục bộ (CPU)</option>
+                    <option value="kaggle">Kaggle (GPU)</option>
+                  </select>
+                </div>
               </div>
 
               <button

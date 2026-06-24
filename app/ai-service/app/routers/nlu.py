@@ -173,18 +173,73 @@ def save_prompts(payload: dict):
         raise HTTPException(status_code=500, detail=f"Failed to write prompts: {e}")
 
 
+from pydantic import BaseModel, Field
+
+class NluTrainRequest(BaseModel):
+    target: str = Field(default="local", description="Target of retraining: 'local' (CPU) or 'kaggle' (GPU)")
+
+
 @router.post("/train", summary="Huấn luyện lại toàn bộ mô hình (Chạy ngầm)")
-def train(background_tasks: BackgroundTasks):
+def train(payload: NluTrainRequest = NluTrainRequest(), background_tasks: BackgroundTasks = None):
     global TRAINING_ACTIVE
-    if TRAINING_ACTIVE:
-        return {"status": "error", "message": "Training is already in progress."}
-    
-    TRAINING_ACTIVE = True
     settings = get_settings()
     nlu_dir = Path(settings.expense_ocr_nlu_dir).resolve()
+
+    if payload.target == "kaggle":
+        from app.services import kaggle_nlu_service
+        from receipt_ocr import kaggle_runner
+        if not kaggle_runner.kaggle_available():
+            raise HTTPException(
+                status_code=400,
+                detail="Kaggle API or credentials (.kaggle/kaggle.json) not configured on the server."
+            )
+        
+        res = kaggle_nlu_service.trigger_kaggle_nlu_retrain(nlu_dir)
+        if "error" in res:
+            raise HTTPException(status_code=500, detail=res["error"])
+        
+        return {
+            "status": "started",
+            "target": "kaggle",
+            "job_id": res.get("job_id"),
+            "message": "NLU model retraining triggered on Kaggle in background."
+        }
+
+    # Local training flow
+    if TRAINING_ACTIVE:
+        return {"status": "error", "message": "Training is already in progress locally."}
     
-    background_tasks.add_task(run_retraining, nlu_dir)
-    return {"status": "started", "message": "NLU model retraining triggered in background."}
+    TRAINING_ACTIVE = True
+    if background_tasks:
+        background_tasks.add_task(run_retraining, nlu_dir)
+    else:
+        # Fallback if background_tasks is not injected
+        import threading
+        threading.Thread(target=run_retraining, args=(nlu_dir,), daemon=True).start()
+
+    return {"status": "started", "target": "local", "message": "NLU model retraining triggered locally in background."}
+
+
+@router.get("/train/kaggle/jobs", summary="Lấy danh sách các jobs train NLU trên Kaggle")
+def get_kaggle_nlu_jobs(limit: int = 20):
+    settings = get_settings()
+    nlu_root = Path(settings.expense_ocr_nlu_dir).resolve()
+    jobs_file = nlu_root / "text_nlu" / "models" / "nlu_kaggle_jobs.json"
+    from app.services import kaggle_nlu_service
+    return kaggle_nlu_service.list_jobs(jobs_file, limit)
+
+
+@router.get("/train/kaggle/jobs/{job_id}", summary="Lấy trạng thái chi tiết của job train NLU trên Kaggle")
+def get_kaggle_nlu_job(job_id: str):
+    settings = get_settings()
+    nlu_root = Path(settings.expense_ocr_nlu_dir).resolve()
+    jobs_file = nlu_root / "text_nlu" / "models" / "nlu_kaggle_jobs.json"
+    from app.services import kaggle_nlu_service
+    job = kaggle_nlu_service.get_job(jobs_file, job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return job
+
 
 
 @router.get("/train/status", summary="Lấy trạng thái huấn luyện")

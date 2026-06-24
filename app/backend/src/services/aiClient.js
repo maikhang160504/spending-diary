@@ -163,10 +163,11 @@ async function savePrompts(payload) {
   return r.data;
 }
 
-async function triggerTrain() {
-  const r = await client.post('/api/v1/nlu/train');
+async function triggerTrain(target = 'local') {
+  const r = await client.post('/api/v1/nlu/train', { target });
   return r.data;
 }
+
 
 async function getTrainStatus() {
   const r = await client.get('/api/v1/nlu/train/status');
@@ -249,6 +250,16 @@ async function getNluTrainHistory() {
   return r.data;
 }
 
+async function getNluKaggleJobs(limit = 20) {
+  const r = await client.get(`/api/v1/nlu/train/kaggle/jobs?limit=${limit}`);
+  return r.data;
+}
+
+async function getNluKaggleJob(jobId) {
+  const r = await client.get(`/api/v1/nlu/train/kaggle/jobs/${jobId}`);
+  return r.data;
+}
+
 module.exports = {
   health,
   inferText,
@@ -271,5 +282,8 @@ module.exports = {
   billGoldenEval,
   reloadModels,
   getNluTrainHistory,
+  getNluKaggleJobs,
+  getNluKaggleJob,
 };
+
 

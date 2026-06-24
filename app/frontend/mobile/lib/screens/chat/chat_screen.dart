@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-
 import '../../routes/app_routes.dart';
 import '../../services/api_client.dart';
 import '../../services/streak_celebration.dart';
@@ -18,13 +17,13 @@ import '../../theme/theme_controller.dart';
 import '../../utils/formatters.dart';
 import '../../utils/budget_prompt.dart';
 
-
 String _actionSignatureFromNlu(Map<String, dynamic> nlu) {
   final fromApi = nluString(nlu['action_signature']);
   if (fromApi != null && fromApi.isNotEmpty) return fromApi;
   final actionType = (nluString(nlu['action_type']) ?? 'UNKNOWN').toUpperCase();
   final tr = nluMap(nlu['time_range']);
-  if (tr != null) return '$actionType|${nluString(tr['granularity']) ?? 'default'}';
+  if (tr != null)
+    return '$actionType|${nluString(tr['granularity']) ?? 'default'}';
   final details = nluMap(nlu['action_details']);
   final amount = nlu['amount'] ?? nlu['action_param'] ?? details?['value'];
   final cat = _categoryFromNlu(nlu);
@@ -76,7 +75,8 @@ _ActionPreview _actionPreviewFromNlu(
 }) {
   final actionType = nlu['action_type'] as String? ?? 'Unknown';
   final amount = _amountFromNlu(nlu);
-  final isLimitOrSearch = actionType.toUpperCase().contains('LIMIT') ||
+  final isLimitOrSearch =
+      actionType.toUpperCase().contains('LIMIT') ||
       actionType.toUpperCase().contains('SEARCH');
   final categoryCode = isLimitOrSearch ? _categoryFromNlu(nlu) : null;
   return _ActionPreview(
@@ -193,16 +193,14 @@ class _ChatScreenState extends State<ChatScreen> {
     'Tổng chi tiêu tháng này',
     'Tháng trước chi hết bao nhiêu?',
     'Hôm nay tiêu gì rồi?',
-    'Mới ăn cơm tấm sườn 35k',
-    'Mua cốc trà sữa full topping 45k',
-    'Đổ xăng xe máy hq 50k',
+    'Ăn sáng 35k',
+    'Mua trà sữa 45k',
+    'Đổ xăng 50k',
     'Đặt hạn mức Ăn uống 3 triệu',
     'Xem hạn mức tháng này',
-    'Hủy hóa đơn mới nhất đi',
     'Tìm các giao dịch ăn uống',
     'Đặt mục tiêu tiết kiệm 10 triệu',
-    'Đổi giọng nói của Mimo sang dễ thương',
-    'Nói chuyện châm chọc chút đi',
+    'Đổi giọng nói của Mimo sang dui dẻ',
     'Chuyển sang giao diện tối',
     'Gợi ý hạn mức tháng mới',
     'Xem báo cáo chi tiêu hôm qua',
@@ -214,7 +212,6 @@ class _ChatScreenState extends State<ChatScreen> {
     'Bù 200k vào mục tiêu mua điện thoại',
     'Bật cảnh báo vượt hạn mức mua sắm',
     'Giảm giới hạn giải trí đi 100k',
-    'Tư vấn ngân sách tuần này',
   ];
 
   final List<String> _suggestions = [];
@@ -283,7 +280,9 @@ class _ChatScreenState extends State<ChatScreen> {
       final map = nluMap(m);
       if (map == null) continue;
       final role = nluString(map['role']) ?? 'user';
-      final metadata = nluMap(map['intent_action'] ?? map['intentAction'] ?? map['metadata']);
+      final metadata = nluMap(
+        map['intent_action'] ?? map['intentAction'] ?? map['metadata'],
+      );
 
       _TxPreview? txPreview;
       _ActionPreview? actionPreview;
@@ -308,7 +307,9 @@ class _ChatScreenState extends State<ChatScreen> {
               amount: nluInt(rMap['amount']) ?? 0,
               note: nluString(rMap['text']) ?? nluString(rMap['note']) ?? '',
               recordType: nluString(rMap['record_type']) ?? 'Expense',
-              transactionId: nluString(rMap['transaction_id'] ?? rMap['transactionId']),
+              transactionId: nluString(
+                rMap['transaction_id'] ?? rMap['transactionId'],
+              ),
             );
           }).toList();
         }
@@ -331,7 +332,9 @@ class _ChatScreenState extends State<ChatScreen> {
               emotionAsset: reply.emotionAsset,
               aiComment: llmText.isNotEmpty ? llmText : null,
               nlu: nlu,
-              transactionId: nluString(metadata['transaction_id'] ?? metadata['transactionId']),
+              transactionId: nluString(
+                metadata['transaction_id'] ?? metadata['transactionId'],
+              ),
             );
           } else if (intent == 'Action') {
             final report = _reportPreviewFromNlu(nlu);
@@ -361,8 +364,13 @@ class _ChatScreenState extends State<ChatScreen> {
 
       // Đọc trạng thái saved từ metadata thay vì mặc định true
       final nlu = metadata != null ? nluMap(metadata['nlu']) : null;
-      final intentConfidence = nluDouble(nlu?['intent_confidence']) ?? nluDouble(nlu?['confidence']) ?? 0.0;
-      final autoSaved = intentConfidence >= 0.9 && (txPreview != null || multiRecords != null);
+      final intentConfidence =
+          nluDouble(nlu?['intent_confidence']) ??
+          nluDouble(nlu?['confidence']) ??
+          0.0;
+      final autoSaved =
+          intentConfidence >= 0.9 &&
+          (txPreview != null || multiRecords != null);
       final savedFlag = (metadata?['saved'] == true) || autoSaved;
 
       final newMsg = _ChatMsg(
@@ -387,14 +395,23 @@ class _ChatScreenState extends State<ChatScreen> {
               prevMsg.isSaved = true;
               // Chuyển transactionId(s) sang parent preview
               if (prevMsg.txPreview != null) {
-                prevMsg.txPreview!.transactionId = nluString(metadata['transaction_id'] ?? metadata['transactionId']);
-              } else if (prevMsg.multiRecords != null && metadata['multi_records'] is List) {
+                prevMsg.txPreview!.transactionId = nluString(
+                  metadata['transaction_id'] ?? metadata['transactionId'],
+                );
+              } else if (prevMsg.multiRecords != null &&
+                  metadata['multi_records'] is List) {
                 final list = metadata['multi_records'] as List;
-                for (int j = 0; j < prevMsg.multiRecords!.length && j < list.length; j++) {
+                for (
+                  int j = 0;
+                  j < prevMsg.multiRecords!.length && j < list.length;
+                  j++
+                ) {
                   final item = list[j];
                   final itemMap = nluMap(item);
                   if (itemMap != null) {
-                    prevMsg.multiRecords![j].transactionId = nluString(itemMap['transaction_id'] ?? itemMap['transactionId']);
+                    prevMsg.multiRecords![j].transactionId = nluString(
+                      itemMap['transaction_id'] ?? itemMap['transactionId'],
+                    );
                   }
                 }
               }
@@ -584,7 +601,8 @@ class _ChatScreenState extends State<ChatScreen> {
           _messages.insert(
             0,
             _ChatMsg(
-              text: 'Mimo chưa kết nối được. Vui lòng kiểm tra mạng và thử lại nhé! 🌐',
+              text:
+                  'Mimo chưa kết nối được. Vui lòng kiểm tra mạng và thử lại nhé! 🌐',
               isUser: false,
               time: _now(),
             ),
@@ -837,7 +855,10 @@ class _ChatScreenState extends State<ChatScreen> {
             // Quick action chips
             if (_suggestions.isNotEmpty)
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 child: SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: Row(
@@ -847,8 +868,9 @@ class _ChatScreenState extends State<ChatScreen> {
                           label: _suggestions[i],
                           onTap: () => _sendMessage(_suggestions[i]),
                         ),
-                        if (i < _suggestions.length - 1) const SizedBox(width: 8),
-                      ]
+                        if (i < _suggestions.length - 1)
+                          const SizedBox(width: 8),
+                      ],
                     ],
                   ),
                 ),
@@ -1194,11 +1216,13 @@ class _ChatScreenState extends State<ChatScreen> {
             'intentAction': {
               'saved': true,
               'multi_records': records
-                  .map((r) => {
-                        'category': r.category,
-                        'amount': r.amount,
-                        'transactionId': r.transactionId,
-                      })
+                  .map(
+                    (r) => {
+                      'category': r.category,
+                      'amount': r.amount,
+                      'transactionId': r.transactionId,
+                    },
+                  )
                   .toList(),
             },
           });
@@ -1412,10 +1436,7 @@ class _ChatHeader extends StatelessWidget {
 class _ChatEmotionSticker extends StatelessWidget {
   final String emotionAsset;
   final double size;
-  const _ChatEmotionSticker({
-    required this.emotionAsset,
-    this.size = 80.0,
-  });
+  const _ChatEmotionSticker({required this.emotionAsset, this.size = 80.0});
 
   @override
   Widget build(BuildContext context) {
@@ -1895,10 +1916,7 @@ class _ActionConfirmCard extends StatelessWidget {
               spacing: 6,
               runSpacing: 6,
               children: [
-                _ActionChip(
-                  label: formatVnd(preview.amount!),
-                  accent: accent,
-                ),
+                _ActionChip(label: formatVnd(preview.amount!), accent: accent),
               ],
             ),
           ],
@@ -2080,20 +2098,14 @@ class _ChatBubble extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xFFF0FDFB),
         borderRadius: BorderRadius.circular(AppRadii.md),
-        border: Border.all(
-          color: AppColors.teal.withValues(alpha: 0.3),
-        ),
+        border: Border.all(color: AppColors.teal.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Icon(
-                Icons.receipt_long,
-                color: AppColors.teal,
-                size: 16,
-              ),
+              const Icon(Icons.receipt_long, color: AppColors.teal, size: 16),
               const SizedBox(width: 6),
               Text(
                 message.txPreview!.category,
@@ -2119,8 +2131,9 @@ class _ChatBubble extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               message.txPreview!.note,
-              style: Theme.of(context).textTheme.bodySmall
-                  ?.copyWith(color: AppColors.muted),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppColors.muted),
             ),
           ],
           const SizedBox(height: 8),
@@ -2130,9 +2143,7 @@ class _ChatBubble extends StatelessWidget {
                 child: OutlinedButton(
                   onPressed: () => onEditTxCategory?.call(message),
                   style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 8,
-                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 8),
                     side: const BorderSide(color: AppColors.teal),
                   ),
                   child: const Text(
@@ -2151,13 +2162,9 @@ class _ChatBubble extends StatelessWidget {
                     ? OutlinedButton(
                         onPressed: null,
                         style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                            vertical: 8,
-                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 8),
                           side: BorderSide(
-                            color: AppColors.muted.withValues(
-                              alpha: 0.3,
-                            ),
+                            color: AppColors.muted.withValues(alpha: 0.3),
                           ),
                         ),
                         child: const Text(
@@ -2174,9 +2181,7 @@ class _ChatBubble extends StatelessWidget {
                         style: FilledButton.styleFrom(
                           backgroundColor: AppColors.teal,
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(
-                            vertical: 8,
-                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 8),
                           textStyle: const TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
@@ -2198,9 +2203,7 @@ class _ChatBubble extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xFFF0FDFB),
         borderRadius: BorderRadius.circular(AppRadii.md),
-        border: Border.all(
-          color: AppColors.teal.withValues(alpha: 0.3),
-        ),
+        border: Border.all(color: AppColors.teal.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2228,10 +2231,7 @@ class _ChatBubble extends StatelessWidget {
             final style = CategoryTheme.of(record.category);
             return Container(
               margin: const EdgeInsets.only(bottom: 8),
-              padding: const EdgeInsets.symmetric(
-                horizontal: 10,
-                vertical: 8,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(AppRadii.sm),
@@ -2239,10 +2239,7 @@ class _ChatBubble extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  Text(
-                    style.emoji,
-                    style: const TextStyle(fontSize: 16),
-                  ),
+                  Text(style.emoji, style: const TextStyle(fontSize: 16)),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Column(
@@ -2280,8 +2277,7 @@ class _ChatBubble extends StatelessWidget {
                   ),
                   const SizedBox(width: 6),
                   GestureDetector(
-                    onTap: () =>
-                        onEditTxPreview?.call(message, record),
+                    onTap: () => onEditTxPreview?.call(message, record),
                     child: const Icon(
                       Icons.edit_outlined,
                       size: 16,
@@ -2300,13 +2296,9 @@ class _ChatBubble extends StatelessWidget {
                     ? OutlinedButton(
                         onPressed: null,
                         style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                            vertical: 8,
-                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 8),
                           side: BorderSide(
-                            color: AppColors.muted.withValues(
-                              alpha: 0.3,
-                            ),
+                            color: AppColors.muted.withValues(alpha: 0.3),
                           ),
                         ),
                         child: const Text(
@@ -2323,9 +2315,7 @@ class _ChatBubble extends StatelessWidget {
                         style: FilledButton.styleFrom(
                           backgroundColor: AppColors.teal,
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(
-                            vertical: 8,
-                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 8),
                           textStyle: const TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
@@ -2351,14 +2341,16 @@ class _ChatBubble extends StatelessWidget {
         ? CrossAxisAlignment.end
         : CrossAxisAlignment.start;
 
-    final hasTextOrEmotion = message.text.isNotEmpty || (!message.isUser && message.chatEmotion != null);
-    final hasSpecialCard = !message.isUser && (
-      message.reportPreview != null ||
-      message.actionPreview != null ||
-      message.searchPreview != null ||
-      message.txPreview != null ||
-      (message.multiRecords != null && message.multiRecords!.isNotEmpty)
-    );
+    final hasTextOrEmotion =
+        message.text.isNotEmpty ||
+        (!message.isUser && message.chatEmotion != null);
+    final hasSpecialCard =
+        !message.isUser &&
+        (message.reportPreview != null ||
+            message.actionPreview != null ||
+            message.searchPreview != null ||
+            message.txPreview != null ||
+            (message.multiRecords != null && message.multiRecords!.isNotEmpty));
 
     return Column(
       crossAxisAlignment: alignment,
@@ -2396,7 +2388,9 @@ class _ChatBubble extends StatelessWidget {
                 if (message.text.isNotEmpty)
                   Text(
                     message.text,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: textColor),
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodyMedium?.copyWith(color: textColor),
                   ),
                 if (!message.isUser && message.chatEmotion != null) ...[
                   if (message.text.isNotEmpty) const SizedBox(height: 8),
@@ -2438,9 +2432,9 @@ class _ChatBubble extends StatelessWidget {
                   ),
                 if (message.searchPreview != null)
                   _SearchResultCard(preview: message.searchPreview!),
-                if (message.txPreview != null)
-                  _buildSingleTxCard(context),
-                if (message.multiRecords != null && message.multiRecords!.isNotEmpty)
+                if (message.txPreview != null) _buildSingleTxCard(context),
+                if (message.multiRecords != null &&
+                    message.multiRecords!.isNotEmpty)
                   _buildMultiTxCard(context),
                 const SizedBox(height: 6),
                 Text(
@@ -2460,10 +2454,7 @@ class _ChatBubble extends StatelessWidget {
 class _ChatComposer extends StatelessWidget {
   final TextEditingController controller;
   final VoidCallback onSend;
-  const _ChatComposer({
-    required this.controller,
-    required this.onSend,
-  });
+  const _ChatComposer({required this.controller, required this.onSend});
 
   @override
   Widget build(BuildContext context) {
@@ -2483,27 +2474,27 @@ class _ChatComposer extends StatelessWidget {
         children: [
           Expanded(
             child: TextField(
-                    controller: controller,
-                    textInputAction: TextInputAction.send,
-                    onSubmitted: (_) => onSend(),
-                    decoration: InputDecoration(
-                      hintText: 'Nhắn tin cho Mimo...',
-                      filled: true,
-                      fillColor: context.palette.surfaceAlt,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(AppRadii.lg),
-                        borderSide: BorderSide.none,
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(AppRadii.lg),
-                        borderSide: BorderSide.none,
-                      ),
-                    ),
-                  ),
+              controller: controller,
+              textInputAction: TextInputAction.send,
+              onSubmitted: (_) => onSend(),
+              decoration: InputDecoration(
+                hintText: 'Nhắn tin cho Mimo...',
+                filled: true,
+                fillColor: context.palette.surfaceAlt,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppRadii.lg),
+                  borderSide: BorderSide.none,
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppRadii.lg),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
           ),
           const SizedBox(width: 8),
           Container(
