@@ -193,17 +193,28 @@ class _ChatScreenState extends State<ChatScreen> {
     'Tổng chi tiêu tháng này',
     'Tháng trước chi hết bao nhiêu?',
     'Hôm nay tiêu gì rồi?',
-    'Phở 50k',
-    'Cafe 35k',
-    'Đổ xăng 50k',
+    'Mới ăn cơm tấm sườn 35k',
+    'Mua cốc trà sữa full topping 45k',
+    'Đổ xăng xe máy hq 50k',
     'Đặt hạn mức Ăn uống 3 triệu',
     'Xem hạn mức tháng này',
-    'Xóa giao dịch gần nhất',
+    'Hủy hóa đơn mới nhất đi',
     'Tìm các giao dịch ăn uống',
     'Đặt mục tiêu tiết kiệm 10 triệu',
-    'Đổi giọng nói của Mimo',
+    'Đổi giọng nói của Mimo sang dễ thương',
+    'Nói chuyện châm chọc chút đi',
     'Chuyển sang giao diện tối',
     'Gợi ý hạn mức tháng mới',
+    'Xem báo cáo chi tiêu hôm qua',
+    'So sánh chi tiêu tuần này với tuần trước',
+    'Đã nhận lương tháng này 12 triệu',
+    'Tìm các giao dịch trên 1 triệu',
+    'Tăng hạn mức đi lại lên 2 triệu',
+    'Mẹ cho 500k ăn sáng',
+    'Bù 200k vào mục tiêu mua điện thoại',
+    'Bật cảnh báo vượt hạn mức mua sắm',
+    'Giảm giới hạn giải trí đi 100k',
+    'Tư vấn ngân sách tuần này',
   ];
 
   final List<String> _suggestions = [];
@@ -556,6 +567,7 @@ class _ChatScreenState extends State<ChatScreen> {
     setState(() {
       _messages.insert(0, _ChatMsg(text: userText, isUser: true, time: _now()));
       _aiThinking = true;
+      _generateRandomSuggestions();
     });
     _scrollToBottom();
 
@@ -1399,7 +1411,11 @@ class _ChatHeader extends StatelessWidget {
 /// Emoji phản hồi LLM trong bubble chat (không phải avatar story).
 class _ChatEmotionSticker extends StatelessWidget {
   final String emotionAsset;
-  const _ChatEmotionSticker({required this.emotionAsset});
+  final double size;
+  const _ChatEmotionSticker({
+    required this.emotionAsset,
+    this.size = 80.0,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1407,8 +1423,8 @@ class _ChatEmotionSticker extends StatelessWidget {
       alignment: Alignment.centerLeft,
       child: Image.asset(
         'assets/MiMo/emotions/$emotionAsset.png',
-        width: 56,
-        height: 56,
+        width: size,
+        height: size,
         errorBuilder: (_, _, _) => const SizedBox.shrink(),
       ),
     );
@@ -2058,6 +2074,273 @@ class _ChatBubble extends StatelessWidget {
     this.onEditTxPreview,
   });
 
+  Widget _buildSingleTxCard(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF0FDFB),
+        borderRadius: BorderRadius.circular(AppRadii.md),
+        border: Border.all(
+          color: AppColors.teal.withValues(alpha: 0.3),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.receipt_long,
+                color: AppColors.teal,
+                size: 16,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                message.txPreview!.category,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                '${message.txPreview!.recordType == 'Income' ? '+' : '-'}${formatVnd(message.txPreview!.amount)}',
+                style: TextStyle(
+                  color: message.txPreview!.recordType == 'Income'
+                      ? const Color(0xFF22C55E)
+                      : AppColors.danger,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ),
+          if (message.txPreview!.note.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              message.txPreview!.note,
+              style: Theme.of(context).textTheme.bodySmall
+                  ?.copyWith(color: AppColors.muted),
+            ),
+          ],
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => onEditTxCategory?.call(message),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 8,
+                    ),
+                    side: const BorderSide(color: AppColors.teal),
+                  ),
+                  child: const Text(
+                    '✏️ Chỉnh sửa',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.teal,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: message.isSaved
+                    ? OutlinedButton(
+                        onPressed: null,
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 8,
+                          ),
+                          side: BorderSide(
+                            color: AppColors.muted.withValues(
+                              alpha: 0.3,
+                            ),
+                          ),
+                        ),
+                        child: const Text(
+                          '✓ Đã lưu',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.muted,
+                          ),
+                        ),
+                      )
+                    : FilledButton(
+                        onPressed: () => onSaveTx?.call(message),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: AppColors.teal,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 8,
+                          ),
+                          textStyle: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        child: const Text('💾 Lưu'),
+                      ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMultiTxCard(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF0FDFB),
+        borderRadius: BorderRadius.circular(AppRadii.md),
+        border: Border.all(
+          color: AppColors.teal.withValues(alpha: 0.3),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.playlist_add_check_rounded,
+                color: AppColors.teal,
+                size: 18,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                '${message.multiRecords!.length} giao dịch được nhận dạng',
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
+                  color: AppColors.teal,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ...message.multiRecords!.map((record) {
+            final style = CategoryTheme.of(record.category);
+            return Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 10,
+                vertical: 8,
+              ),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(AppRadii.sm),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: Row(
+                children: [
+                  Text(
+                    style.emoji,
+                    style: const TextStyle(fontSize: 16),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          style.label,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12,
+                          ),
+                        ),
+                        if (record.note.isNotEmpty)
+                          Text(
+                            record.note,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                      ],
+                    ),
+                  ),
+                  Text(
+                    '${record.recordType == 'Income' ? '+' : '-'}${formatVnd(record.amount)}',
+                    style: TextStyle(
+                      color: record.recordType == 'Income'
+                          ? const Color(0xFF22C55E)
+                          : AppColors.danger,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 12,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  GestureDetector(
+                    onTap: () =>
+                        onEditTxPreview?.call(message, record),
+                    child: const Icon(
+                      Icons.edit_outlined,
+                      size: 16,
+                      color: AppColors.teal,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: message.isSaved
+                    ? OutlinedButton(
+                        onPressed: null,
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 8,
+                          ),
+                          side: BorderSide(
+                            color: AppColors.muted.withValues(
+                              alpha: 0.3,
+                            ),
+                          ),
+                        ),
+                        child: const Text(
+                          '✓ Đã lưu',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.muted,
+                          ),
+                        ),
+                      )
+                    : FilledButton(
+                        onPressed: () => onSaveMultiTx?.call(message),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: AppColors.teal,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 8,
+                          ),
+                          textStyle: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        child: const Text('💾 Lưu'),
+                      ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final bubbleColor = message.isUser ? AppColors.teal : context.palette.card;
@@ -2068,355 +2351,107 @@ class _ChatBubble extends StatelessWidget {
         ? CrossAxisAlignment.end
         : CrossAxisAlignment.start;
 
+    final hasTextOrEmotion = message.text.isNotEmpty || (!message.isUser && message.chatEmotion != null);
+    final hasSpecialCard = !message.isUser && (
+      message.reportPreview != null ||
+      message.actionPreview != null ||
+      message.searchPreview != null ||
+      message.txPreview != null ||
+      (message.multiRecords != null && message.multiRecords!.isNotEmpty)
+    );
+
     return Column(
       crossAxisAlignment: alignment,
       children: [
-        Container(
-          margin: EdgeInsets.only(
-            bottom: AppSpacing.md,
-            left: message.isUser ? 60 : 0,
-            right: message.isUser ? 0 : 60,
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          decoration: BoxDecoration(
-            color: bubbleColor,
-            borderRadius: BorderRadius.only(
-              topLeft: const Radius.circular(AppRadii.lg),
-              topRight: const Radius.circular(AppRadii.lg),
-              bottomLeft: Radius.circular(message.isUser ? AppRadii.lg : 4),
-              bottomRight: Radius.circular(message.isUser ? 4 : AppRadii.lg),
+        // 1. Text & Emotion Sticker bubble
+        if (hasTextOrEmotion)
+          Container(
+            margin: EdgeInsets.only(
+              bottom: hasSpecialCard ? AppSpacing.sm : AppSpacing.md,
+              left: message.isUser ? 60 : 0,
+              right: message.isUser ? 0 : 60,
             ),
-            boxShadow: message.isUser
-                ? null
-                : const [
-                    BoxShadow(
-                      color: Color(0x12000000),
-                      blurRadius: 6,
-                      offset: Offset(0, 4),
-                    ),
-                  ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (message.text.isNotEmpty) ...[
-                Text(
-                  message.text,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodyMedium?.copyWith(color: textColor),
-                ),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: bubbleColor,
+              borderRadius: BorderRadius.only(
+                topLeft: const Radius.circular(AppRadii.lg),
+                topRight: const Radius.circular(AppRadii.lg),
+                bottomLeft: Radius.circular(message.isUser ? AppRadii.lg : 4),
+                bottomRight: Radius.circular(message.isUser ? 4 : AppRadii.lg),
+              ),
+              boxShadow: message.isUser
+                  ? null
+                  : const [
+                      BoxShadow(
+                        color: Color(0x12000000),
+                        blurRadius: 6,
+                        offset: Offset(0, 4),
+                      ),
+                    ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (message.text.isNotEmpty)
+                  Text(
+                    message.text,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: textColor),
+                  ),
                 if (!message.isUser && message.chatEmotion != null) ...[
-                  const SizedBox(height: 6),
+                  if (message.text.isNotEmpty) const SizedBox(height: 8),
                   _ChatEmotionSticker(emotionAsset: message.chatEmotion!),
                 ],
-              ] else if (!message.isUser && message.chatEmotion != null) ...[
-                _ChatEmotionSticker(emotionAsset: message.chatEmotion!),
-              ],
-              // Report story card
-              if (message.reportPreview != null) ...[
-                if (message.text.isNotEmpty || message.chatEmotion != null)
-                  const SizedBox(height: 8),
-                _ReportStoryCard(preview: message.reportPreview!),
-              ],
-              // Action confirm/reject card
-              if (message.actionPreview != null) ...[
-                if (message.text.isNotEmpty || message.chatEmotion != null)
-                  const SizedBox(height: 8),
-                _ActionConfirmCard(
-                  preview: message.actionPreview!,
-                  isConfirmed: message.isConfirmed,
-                  isRejected: message.isRejected,
-                  onConfirm: () => onConfirmAction?.call(message),
-                  onReject: () => onRejectAction?.call(message),
-                ),
-              ],
-              if (message.searchPreview != null) ...[
-                _SearchResultCard(preview: message.searchPreview!),
-              ],
-              // Transaction preview card
-              if (message.txPreview != null) ...[
-                if (message.text.isNotEmpty || message.chatEmotion != null)
-                  const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF0FDFB),
-                    borderRadius: BorderRadius.circular(AppRadii.md),
-                    border: Border.all(
-                      color: AppColors.teal.withValues(alpha: 0.3),
+                if (!hasSpecialCard) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    message.time,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: textColor.withValues(alpha: 0.7),
                     ),
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.receipt_long,
-                            color: AppColors.teal,
-                            size: 16,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            message.txPreview!.category,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 12,
-                            ),
-                          ),
-                          const Spacer(),
-                          Text(
-                            '${message.txPreview!.recordType == 'Income' ? '+' : '-'}${formatVnd(message.txPreview!.amount)}',
-                            style: TextStyle(
-                              color: message.txPreview!.recordType == 'Income'
-                                  ? const Color(0xFF22C55E)
-                                  : AppColors.danger,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ],
-                      ),
-                      if (message.txPreview!.note.isNotEmpty) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          message.txPreview!.note,
-                          style: Theme.of(context).textTheme.bodySmall
-                              ?.copyWith(color: AppColors.muted),
-                        ),
-                      ],
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton(
-                              onPressed: () =>
-                                  onEditTxCategory?.call(message),
-                              style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 8,
-                                ),
-                                side: const BorderSide(color: AppColors.teal),
-                              ),
-                              child: const Text(
-                                '✏️ Chỉnh sửa',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.teal,
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: message.isSaved
-                                ? OutlinedButton(
-                                    onPressed: null,
-                                    style: OutlinedButton.styleFrom(
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 8,
-                                      ),
-                                      side: BorderSide(
-                                        color: AppColors.muted.withValues(
-                                          alpha: 0.3,
-                                        ),
-                                      ),
-                                    ),
-                                    child: const Text(
-                                      '✓ Đã lưu',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                        color: AppColors.muted,
-                                      ),
-                                    ),
-                                  )
-                                : FilledButton(
-                                    onPressed: () => onSaveTx?.call(message),
-                                    style: FilledButton.styleFrom(
-                                      backgroundColor: AppColors.teal,
-                                      foregroundColor: Colors.white,
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 8,
-                                      ),
-                                      textStyle: const TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                    child: const Text('💾 Lưu'),
-                                  ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
+                ],
               ],
-              // Multi-transaction preview card
-              if (message.multiRecords != null &&
-                  message.multiRecords!.isNotEmpty) ...[
-                if (message.text.isNotEmpty || message.chatEmotion != null)
-                  const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF0FDFB),
-                    borderRadius: BorderRadius.circular(AppRadii.md),
-                    border: Border.all(
-                      color: AppColors.teal.withValues(alpha: 0.3),
-                    ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.playlist_add_check_rounded,
-                            color: AppColors.teal,
-                            size: 18,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            '${message.multiRecords!.length} giao dịch được nhận dạng',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 13,
-                              color: AppColors.teal,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      ...message.multiRecords!.map((record) {
-                        final style = CategoryTheme.of(record.category);
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 8),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 8,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(AppRadii.sm),
-                            border: Border.all(color: Colors.grey.shade200),
-                          ),
-                          child: Row(
-                            children: [
-                              Text(
-                                style.emoji,
-                                style: const TextStyle(fontSize: 16),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      style.label,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                    if (record.note.isNotEmpty)
-                                      Text(
-                                        record.note,
-                                        style: const TextStyle(
-                                          fontSize: 11,
-                                          color: Colors.grey,
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                  ],
-                                ),
-                              ),
-                              Text(
-                                '${record.recordType == 'Income' ? '+' : '-'}${formatVnd(record.amount)}',
-                                style: TextStyle(
-                                  color: record.recordType == 'Income'
-                                      ? const Color(0xFF22C55E)
-                                      : AppColors.danger,
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 12,
-                                ),
-                              ),
-                              const SizedBox(width: 6),
-                              GestureDetector(
-                                onTap: () =>
-                                    onEditTxPreview?.call(message, record),
-                                child: const Icon(
-                                  Icons.edit_outlined,
-                                  size: 16,
-                                  color: AppColors.teal,
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      }),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: message.isSaved
-                                ? OutlinedButton(
-                                    onPressed: null,
-                                    style: OutlinedButton.styleFrom(
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 8,
-                                      ),
-                                      side: BorderSide(
-                                        color: AppColors.muted.withValues(
-                                          alpha: 0.3,
-                                        ),
-                                      ),
-                                    ),
-                                    child: const Text(
-                                      '✓ Đã lưu',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                        color: AppColors.muted,
-                                      ),
-                                    ),
-                                  )
-                                : FilledButton(
-                                    onPressed: () => onSaveMultiTx?.call(message),
-                                    style: FilledButton.styleFrom(
-                                      backgroundColor: AppColors.teal,
-                                      foregroundColor: Colors.white,
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 8,
-                                      ),
-                                      textStyle: const TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                    child: const Text('💾 Lưu'),
-                                  ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-              const SizedBox(height: 6),
-              Text(
-                message.time,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: textColor.withValues(alpha: 0.7),
-                ),
-              ),
-            ],
+            ),
           ),
-        ),
+
+        // 2. Special Component Card bubble
+        if (hasSpecialCard)
+          Container(
+            margin: const EdgeInsets.only(
+              bottom: AppSpacing.md,
+              left: 0,
+              right: 60,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (message.reportPreview != null)
+                  _ReportStoryCard(preview: message.reportPreview!),
+                if (message.actionPreview != null)
+                  _ActionConfirmCard(
+                    preview: message.actionPreview!,
+                    isConfirmed: message.isConfirmed,
+                    isRejected: message.isRejected,
+                    onConfirm: () => onConfirmAction?.call(message),
+                    onReject: () => onRejectAction?.call(message),
+                  ),
+                if (message.searchPreview != null)
+                  _SearchResultCard(preview: message.searchPreview!),
+                if (message.txPreview != null)
+                  _buildSingleTxCard(context),
+                if (message.multiRecords != null && message.multiRecords!.isNotEmpty)
+                  _buildMultiTxCard(context),
+                const SizedBox(height: 6),
+                Text(
+                  message.time,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: context.palette.textSecondary.withValues(alpha: 0.7),
+                  ),
+                ),
+              ],
+            ),
+          ),
       ],
     );
   }
