@@ -32,6 +32,8 @@ from app.services.bill_retrain_service import (
 
     run_golden_eval,
 
+    sync_kaggle_kernel,
+
     trigger_kaggle_retrain,
 
     kaggle_username,
@@ -111,6 +113,18 @@ class KaggleDeployRequest(BaseModel):
     job_type: str = Field(default="pick_retrain", pattern="^(pick_retrain|pick_train)$")
 
     batch_id: str | None = None
+
+
+
+
+
+class KaggleSyncRequest(BaseModel):
+
+    job_type: str = Field(default="pick_retrain", pattern="^(pick_retrain|pick_train)$")
+
+    skip_download: bool = False
+
+    download_dir: str | None = None
 
 
 
@@ -207,6 +221,26 @@ def bill_kaggle_job_status(job_id: str) -> dict[str, Any]:
 def bill_kaggle_deploy(body: KaggleDeployRequest) -> dict[str, Any]:
 
     return deploy_artifact(body.source, body.job_type, body.batch_id)
+
+
+
+
+
+@router.post("/kaggle/sync")
+
+def bill_kaggle_sync(body: KaggleSyncRequest | None = None) -> dict[str, Any]:
+
+    payload = body or KaggleSyncRequest()
+
+    return sync_kaggle_kernel(
+
+        payload.job_type,
+
+        skip_download=payload.skip_download,
+
+        download_dir=payload.download_dir,
+
+    )
 
 
 

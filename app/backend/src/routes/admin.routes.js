@@ -425,33 +425,19 @@ router.get('/train/status', async (req, res, next) => {
 // 14. GET /api/admin/train/model-meta
 router.get('/train/model-meta', async (req, res, next) => {
   try {
-    const healthRes = await aiClient.health().catch(() => null);
-    
-    const intentModelPath = path.join(env.rootDir, '..', '..', 'expense-ocr-nlu', 'text_nlu', 'models', 'intent_model.joblib');
-    const csvPath = path.join(env.rootDir, '..', '..', 'expense-ocr-nlu', 'text_nlu', 'datasets', 'intent_record.csv');
-    
-    let trainedAt = 'Never';
-    if (fs.existsSync(intentModelPath)) {
-      const stats = fs.statSync(intentModelPath);
-      trainedAt = stats.mtime.toISOString().replace(/T/, ' ').replace(/\..+/, '');
-    }
-    
-    let trainingRows = 0;
-    if (fs.existsSync(csvPath)) {
-      const csvContent = fs.readFileSync(csvPath, 'utf8');
-      trainingRows = csvContent.split('\n').filter(line => line.trim()).length;
-    }
-    
-    const isReal = healthRes ? !!healthRes.nlu_real : false;
-    const isLoaded = healthRes ? !!healthRes.nlu_loaded : false;
-    
-    res.json({
-      version: isReal ? 'v2.5-global' : 'v2.5-fallback-mock',
-      trainedAt: trainedAt,
-      f1Score: isReal ? '92.4%' : 'N/A (Mock)',
-      trainingRows: trainingRows,
-      loaded: isLoaded
-    });
+    const meta = await aiClient.getNluModelMeta();
+    res.json(meta);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// 14.0 POST /api/admin/train/kaggle/sync — manual sync from completed Kaggle kernel
+router.post('/train/kaggle/sync', async (req, res, next) => {
+  try {
+    const skipDownload = req.body?.skipDownload === true;
+    const result = await aiClient.syncNluKaggle({ skip_download: skipDownload });
+    res.json(result);
   } catch (err) {
     next(err);
   }
@@ -472,14 +458,14 @@ router.get('/system/status', async (req, res, next) => {
     if (!health) {
       return res.json({
         nluOnline: false,
-        nluVersion: 'v2.5-offline',
+        nluVersion: 'v1.1-offline',
         nluLoaded: false,
         ocrLoaded: false,
         trainedAt
       });
     }
 
-    const nluVersion = health.nlu_real ? 'v2.5-global' : 'v2.5-fallback-mock';
+    const nluVersion = health.nlu_version || (health.nlu_real ? 'v1.1-global' : 'v1.1-fallback-mock');
 
     res.json({
       nluOnline: true,
@@ -786,20 +772,18 @@ router.post('/bill-retrain/upload', upload.single('file'), async (req, res, next
     }
     const id = randomUUID();
     const ext = path.extname(req.file.originalname || '') || '.jpg';
-    let imageUrl = null;
+    const localUrl = billRetrainStore.saveImage(id, req.file.buffer, ext);
+    let imageUrl = localUrl;
     if (r2Client.isConfigured()) {
       try {
         const uploaded = await r2Client.uploadBuffer('admin', req.file.buffer, {
           filename: req.file.originalname || `${id}${ext}`,
           contentType: req.file.mimetype || 'image/jpeg',
         });
-        imageUrl = uploaded.publicUrl || null;
+        imageUrl = uploaded.publicUrl || localUrl;
       } catch (err) {
         logger.warn({ err: err.message }, 'R2 upload failed for admin sample upload');
       }
-    }
-    if (!imageUrl) {
-      imageUrl = billRetrainStore.saveImage(id, req.file.buffer, ext);
     }
     const sample = billRetrainStore.upsertSample({
       id,
@@ -828,20 +812,18 @@ router.post('/bill-retrain/prelabel', upload.single('file'), async (req, res, ne
     );
     const id = randomUUID();
     const ext = path.extname(req.file.originalname || '') || '.jpg';
-    let imageUrl = null;
+    const localUrl = billRetrainStore.saveImage(id, req.file.buffer, ext);
+    let imageUrl = localUrl;
     if (r2Client.isConfigured()) {
       try {
         const uploaded = await r2Client.uploadBuffer('admin', req.file.buffer, {
           filename: req.file.originalname || `${id}${ext}`,
           contentType: req.file.mimetype || 'image/jpeg',
         });
-        imageUrl = uploaded.publicUrl || null;
+        imageUrl = uploaded.publicUrl || localUrl;
       } catch (err) {
         logger.warn({ err: err.message }, 'R2 upload failed for admin sample prelabel');
       }
-    }
-    if (!imageUrl) {
-      imageUrl = billRetrainStore.saveImage(id, req.file.buffer, ext);
     }
     const sample = billRetrainStore.upsertSample({
       id,
@@ -877,13 +859,14 @@ router.post('/bill-retrain/samples/:id/prelabel', async (req, res, next) => {
   try {
     const existing = billRetrainStore.getSample(req.params.id);
     if (!existing) return res.status(404).json({ message: 'Sample not found' });
-    const image = billRetrainStore.readImage(req.params.id);
-    if (!image?.filePath) return res.status(400).json({ message: 'Sample has no image file' });
-    const buffer = fs.readFileSync(image.filePath);
+    const resolved = await billRetrainStore.resolveImageBuffer(req.params.id);
+    if (!resolved?.buffer) {
+      return res.status(400).json({ message: 'Sample has no image file' });
+    }
     const prelabel = await aiClient.billPrelabel(
-      buffer,
-      `${existing.id}${existing.imageExt || '.jpg'}`,
-      image.ext === '.png' ? 'image/png' : 'image/jpeg'
+      resolved.buffer,
+      `${existing.id}${resolved.ext || existing.imageExt || '.jpg'}`,
+      resolved.contentType
     );
     const updated = billRetrainStore.upsertSample({
       ...existing,
@@ -1023,6 +1006,20 @@ router.post('/bill-retrain/kaggle/deploy', async (req, res, next) => {
   try {
     const { source, jobType, batchId } = req.body;
     const result = await aiClient.billKaggleDeploy(source, jobType || 'pick_retrain', batchId);
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/bill-retrain/kaggle/sync', async (req, res, next) => {
+  try {
+    const skipDownload = req.body?.skipDownload === true;
+    const jobType = req.body?.jobType || 'pick_retrain';
+    const result = await aiClient.syncBillKaggle({
+      skip_download: skipDownload,
+      job_type: jobType,
+    });
     res.json(result);
   } catch (err) {
     next(err);

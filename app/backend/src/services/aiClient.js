@@ -122,34 +122,20 @@ async function expenseFromBill(fileBuffer, filename, userId, contentType) {
       filename: filename || 'bill.jpg',
       contentType: contentType || 'image/jpeg',
     });
-
-    const submitRes = await client.post('/api/v1/pipeline/process', form, {
-      headers: form.getHeaders(),
-    });
-    const jobId = submitRes.data.job_id;
-    logger.info({ jobId, filename }, 'Submitted bill to async pipeline');
-
-    const pollIntervalMs = 200;
-    const maxPolls = 150; // 30 seconds max timeout
-
-    for (let i = 0; i < maxPolls; i++) {
-      await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
-      
-      const statusRes = await client.get(`/api/v1/pipeline/jobs/${jobId}`);
-      const job = statusRes.data;
-
-      if (job.status === 'completed') {
-        logger.info({ jobId }, 'Async pipeline job completed');
-        return job.result;
-      }
-
-      if (job.status === 'failed') {
-        logger.error({ jobId, error: job.error }, 'Async pipeline job failed');
-        throw new Error(job.error || 'Async pipeline job failed');
-      }
+    if (userId) {
+      form.append('user_id', String(userId));
     }
 
-    throw new Error('Async pipeline job timeout');
+    const timeoutMs = env.ai.billOcrTimeoutMs;
+    const r = await client.post('/api/v1/expense/from-bill', form, {
+      headers: form.getHeaders(),
+      timeout: timeoutMs,
+    });
+    logger.info(
+      { filename, latency_ms: r.data?.latency_ms, backend: r.data?.ocr?.backend },
+      'Bill OCR completed (sync expense/from-bill)'
+    );
+    return r.data;
   });
 }
 
@@ -240,6 +226,11 @@ async function billGoldenEval() {
   return r.data;
 }
 
+async function syncBillKaggle(body = {}) {
+  const r = await client.post('/api/v1/bill-retrain/kaggle/sync', body, { timeout: 900000 });
+  return r.data;
+}
+
 async function reloadModels(scope = 'ocr') {
   const r = await client.post('/api/v1/internal/reload-models', { scope }, { timeout: 300000 });
   return r.data;
@@ -247,6 +238,16 @@ async function reloadModels(scope = 'ocr') {
 
 async function getNluTrainHistory() {
   const r = await client.get('/api/v1/nlu/train/history');
+  return r.data;
+}
+
+async function getNluModelMeta() {
+  const r = await client.get('/api/v1/nlu/model-meta');
+  return r.data;
+}
+
+async function syncNluKaggle(body = {}) {
+  const r = await client.post('/api/v1/nlu/train/kaggle/sync', body, { timeout: 900000 });
   return r.data;
 }
 
@@ -280,8 +281,11 @@ module.exports = {
   billKaggleJobs,
   billKaggleDeploy,
   billGoldenEval,
+  syncBillKaggle,
   reloadModels,
   getNluTrainHistory,
+  getNluModelMeta,
+  syncNluKaggle,
   getNluKaggleJobs,
   getNluKaggleJob,
 };

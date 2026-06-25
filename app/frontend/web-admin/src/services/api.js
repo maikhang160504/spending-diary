@@ -108,6 +108,14 @@ export async function getNluTrainStatus() {
   return request("/api/admin/train/status");
 }
 
+export async function syncNluKaggle(skipDownload = false) {
+  return request("/api/admin/train/kaggle/sync", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ skipDownload }),
+  });
+}
+
 export async function getNluModelMeta() {
   return request("/api/admin/train/model-meta");
 }
@@ -222,6 +230,13 @@ export function fetchBillKaggleJob(jobId) {
 
 export function fetchBillKaggleJobs(limit = 20) {
   return request(`/api/admin/bill-retrain/kaggle/jobs?limit=${limit}`);
+}
+
+export function syncBillKaggle(skipDownload = false, jobType = "pick_retrain") {
+  return request("/api/admin/bill-retrain/kaggle/sync", {
+    method: "POST",
+    body: JSON.stringify({ skipDownload, jobType }),
+  });
 }
 
 export function runBillGoldenEval() {

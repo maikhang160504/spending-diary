@@ -140,6 +140,21 @@ def deploy_artifact(source: str, job_type: str, batch_id: str | None = None) -> 
     return deploy_mod.deploy_from_source(source, job_type, batch_id)
 
 
+def sync_kaggle_kernel(
+    job_type: str = "pick_retrain",
+    *,
+    skip_download: bool = False,
+    download_dir: str | None = None,
+) -> dict[str, Any]:
+    _ocr_paths()
+    kaggle_mod = importlib.import_module("receipt_ocr.kaggle_runner")
+    return kaggle_mod.sync_completed_kaggle_kernel(
+        job_type,
+        download_dir=download_dir,
+        skip_download=skip_download,
+    )
+
+
 def kaggle_webhook(payload: dict[str, Any]) -> dict[str, Any]:
     """Record external webhook (e.g. manual Kaggle completion notify)."""
     _ocr_paths()

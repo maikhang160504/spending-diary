@@ -567,10 +567,9 @@ async function _processBillBackground(userId, walletId, transactionId, fileBuffe
       const crypto = require('crypto');
       const ext = path.extname(originalName || 'bill.jpg') || '.jpg';
       const sampleId = crypto.randomUUID();
-      let finalImageUrl = imageUrl;
-      if (!imageUrl) {
-        finalImageUrl = retrainStore.saveImage(sampleId, fileBuffer, ext);
-      }
+      const localUrl = retrainStore.saveImage(sampleId, fileBuffer, ext);
+      const finalImageUrl = imageUrl || localUrl;
+      const ocrPayload = aiResponse.ocr || {};
       retrainStore.upsertSample({
         id: sampleId,
         status: 'pending',
@@ -579,7 +578,13 @@ async function _processBillBackground(userId, walletId, transactionId, fileBuffe
         transactionId,
         imageUrl: finalImageUrl,
         imageExt: ext,
-        autoLabels: aiResponse.ocr || {},
+        autoLabels: {
+          boxes: ocrPayload.boxes || [],
+          kie_fields: ocrPayload.kie_fields || {},
+          kie_backend: ocrPayload.backend || ocrPayload.kie_backend || 'unknown',
+          amount: extracted.amount,
+          category: extracted.category,
+        },
         metadata: {
           amount: extracted.amount,
           category: extracted.category,

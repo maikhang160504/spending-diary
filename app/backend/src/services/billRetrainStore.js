@@ -3,6 +3,8 @@
 const fs = require('fs');
 const path = require('path');
 
+const axios = require('axios');
+
 const env = require('../config/env');
 const logger = require('../config/logger');
 
@@ -42,6 +44,48 @@ function readImage(id) {
   const filePath = imagePathFor(id, sample.imageExt);
   if (!fs.existsSync(filePath)) return null;
   return { filePath, ext: sample.imageExt };
+}
+
+function contentTypeForExt(ext = '.jpg') {
+  return String(ext).toLowerCase() === '.png' ? 'image/png' : 'image/jpeg';
+}
+
+/** Read sample image bytes: local disk first, then fetch R2/public URL. */
+async function resolveImageBuffer(id) {
+  const sample = getSample(id);
+  if (!sample) return null;
+
+  const ext = sample.imageExt || '.jpg';
+  const local = readImage(id);
+  if (local?.filePath) {
+    return {
+      buffer: fs.readFileSync(local.filePath),
+      ext: local.ext || ext,
+      contentType: contentTypeForExt(local.ext || ext),
+      source: 'local',
+    };
+  }
+
+  const url = sample.imageUrl;
+  if (url && /^https?:\/\//i.test(url)) {
+    try {
+      const resp = await axios.get(url, {
+        responseType: 'arraybuffer',
+        timeout: 60000,
+        maxContentLength: 12 * 1024 * 1024,
+      });
+      return {
+        buffer: Buffer.from(resp.data),
+        ext,
+        contentType: resp.headers['content-type'] || contentTypeForExt(ext),
+        source: 'remote',
+      };
+    } catch (err) {
+      logger.warn({ err: err.message, id, url }, 'Failed to fetch bill retrain image from URL');
+    }
+  }
+
+  return null;
 }
 
 function readIndex() {
@@ -182,4 +226,6 @@ module.exports = {
   sampleStats,
   saveImage,
   readImage,
+  resolveImageBuffer,
+  contentTypeForExt,
 };

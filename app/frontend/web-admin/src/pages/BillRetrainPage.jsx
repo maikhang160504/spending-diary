@@ -15,7 +15,8 @@ import {
   fetchBillKagglePlan,
   triggerBillKaggle,
   reloadAiModels,
-  uploadBillSample,
+  prelabelBill,
+  syncBillKaggle,
   saveBillSample,
 } from "../services/api";
 
@@ -24,8 +25,10 @@ const ENTITIES = ["OTHER", "SELLER", "ADDRESS", "TIMESTAMP", "TOTAL_COST"];
 const KAGGLE_STEPS = [
   { key: "queued", label: "Khởi tạo job" },
   { key: "versioning_dataset", label: "Upload dataset Kaggle" },
+  { key: "syncing_pick_code", label: "Sync pick-train-code" },
   { key: "pushing_kernel", label: "Push kernel retrain" },
   { key: "running_on_kaggle", label: "Train trên Kaggle (GPU)" },
+  { key: "syncing", label: "Đồng bộ output Kaggle" },
   { key: "deploying", label: "Tải output & deploy weights" },
   { key: "deploying_from_cloud", label: "Deploy từ cloud fallback" },
   { key: "completed", label: "Hoàn thành" },
@@ -50,10 +53,15 @@ function KaggleProgressPanel({ job }) {
   const isDone = status === "completed";
   const curIdx = STEP_ORDER.indexOf(status);
   const visibleSteps = KAGGLE_STEPS.filter(
-    (step) =>
-      step.key !== "deploying_from_cloud" ||
-      status === "deploying_from_cloud" ||
-      STEP_ORDER.indexOf(step.key) <= curIdx
+    (step) => {
+      if (step.key === "deploying_from_cloud") {
+        return status === "deploying_from_cloud" || STEP_ORDER.indexOf(step.key) <= curIdx;
+      }
+      if (step.key === "syncing") {
+        return status === "syncing" || status === "syncing_pick_code" || STEP_ORDER.indexOf(step.key) <= curIdx;
+      }
+      return true;
+    }
   );
   const activeStep = visibleSteps.find((s) => s.key === status) || visibleSteps[Math.max(0, curIdx)];
   const stepNum = Math.max(1, curIdx >= 0 ? curIdx + 1 : 1);
@@ -87,6 +95,9 @@ function KaggleProgressPanel({ job }) {
           if (step.key === "deploying_from_cloud" && status !== "deploying_from_cloud" && state === "pending") {
             return null;
           }
+          if (step.key === "syncing" && status !== "syncing" && state === "pending") {
+            return null;
+          }
           return (
             <div key={step.key} className={`kaggle-track-step kaggle-track-step-${state}`} title={step.label}>
               <span className="kaggle-track-dot" />
@@ -101,7 +112,10 @@ function KaggleProgressPanel({ job }) {
         </div>
       )}
       {isDone && (
-        <p className="bill-inline-toast success">Retrain hoàn thành — weights deploy, ai-service reload OCR.</p>
+        <p className="bill-inline-toast success">
+          Retrain hoàn thành — weights deploy, ai-service reload OCR.
+          {job.f1_score && job.f1_score !== "N/A" && <> · F1 {job.f1_score}</>}
+        </p>
       )}
       {isFailed && (
         <p className="bill-inline-toast error">
@@ -349,20 +363,16 @@ export default function BillRetrainPage() {
   const onUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setBusy(true, "Đang upload ảnh...");
+    setBusy(true, "Đang upload và gán nhãn auto (PaddleOCR + VietOCR + PICK)...");
     setMessage("");
     setMessageIsError(false);
     try {
-      const { sample } = await uploadBillSample(file);
-      setActive(sample);
-      setBoxes([]);
-      setSelectedIdx(null);
+      const { sample, prelabel } = await prelabelBill(file);
+      applyPrelabelResult(sample, prelabel);
       await loadSamples();
-      setMessageIsError(false);
-      setMessage("Đã upload — bấm Gán nhãn auto để chạy model.");
     } catch (err) {
       setMessageIsError(true);
-      setMessage(err.message || "Upload failed");
+      setMessage(err.message || "Upload / gán nhãn auto thất bại");
     } finally {
       setBusy(false);
       e.target.value = "";
@@ -578,6 +588,48 @@ export default function BillRetrainPage() {
     }
   };
 
+  const onSyncKaggle = async () => {
+    if (!window.confirm("Đồng bộ weights từ kernel Kaggle đã COMPLETE? (Dùng khi server tắt giữa chừng retrain)")) {
+      return;
+    }
+    setBusy(true, "Đang tải output Kaggle và deploy weights...");
+    setMessage("");
+    setMessageIsError(false);
+    try {
+      const res = await syncBillKaggle(false, exportJobType);
+      if (!res.ok) {
+        throw new Error(res.error || "Sync Kaggle thất bại");
+      }
+      if (res.job_id) {
+        const jobs = await fetchBillKaggleJobs();
+        setKaggleJobs(jobs);
+        const synced = jobs.find((j) => (j.id || j.job_id) === res.job_id) || {
+          id: res.job_id,
+          job_id: res.job_id,
+          status: "completed",
+          f1_score: res.f1_score,
+          source: "manual_sync",
+        };
+        setActiveJob(synced);
+      }
+      let reloadMsg = "";
+      try {
+        const r = await reloadAiModels("ocr");
+        reloadMsg = r.ok ? " OCR đã reload." : " (reload OCR thất bại — bấm Tải lại model OCR).";
+      } catch {
+        reloadMsg = " (reload OCR thất bại — bấm Tải lại model OCR).";
+      }
+      setMessageIsError(false);
+      setMessage(`${res.message || "Sync Kaggle OK"}${res.f1_score ? ` · F1 ${res.f1_score}` : ""}${reloadMsg}`);
+      refreshOcrStatus();
+    } catch (err) {
+      setMessageIsError(true);
+      setMessage(err.message || "Sync Kaggle thất bại");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const imageUrl =
     active?.imageUrl && !active?.imageArchived
       ? (active.imageUrl.startsWith("http") ? active.imageUrl : billSampleImageUrl(active.id))
@@ -759,6 +811,9 @@ export default function BillRetrainPage() {
             <button type="button" className="btn btn-ghost" onClick={onKagglePlan} disabled={loading}>
               Plan
             </button>
+            <button type="button" className="btn btn-ghost" onClick={onSyncKaggle} disabled={loading} title="Tải output kernel COMPLETE và deploy weights (khi server tắt giữa chừng)">
+              Sync Kaggle
+            </button>
           </div>
         </div>
       </div>
@@ -920,6 +975,7 @@ export default function BillRetrainPage() {
                   <code>{(j.id || j.job_id || "").slice(0, 8)}</code>
                   <span className={`job-status ${j.status}`}>{j.status}</span>
                   <span className="muted">{j.job_type}</span>
+                  {j.f1_score && j.f1_score !== "N/A" && <span className="muted">F1 {j.f1_score}</span>}
                 </button>
               </li>
             ))}
