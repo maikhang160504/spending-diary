@@ -33,6 +33,7 @@ function row(r) {
     userAvatar: r.avatar_url || null,
     isDraft: r.is_draft || false,
     originalText: r.original_text || null,
+    processingStatus: r.processing_status || 'done',
   };
 }
 

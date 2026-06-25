@@ -49,7 +49,13 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
   WebSocketChannel? _wsChannel;
   StreamSubscription? _wsSub;
   Timer? _wsTimeout;
+  Timer? _pollTimer;
+  int _pollAttempts = 0;
   Map<String, dynamic>? _wsData;
+
+  static const _wsWaitSeconds = 300;
+  static const _pollIntervalSeconds = 3;
+  static const _maxPollAttempts = 100;
 
   // Editable fields
   late int _amount;
@@ -137,6 +143,69 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
     return Container(color: Colors.black87);
   }
 
+  void _applyBillResult(Map<String, dynamic> d) {
+    final aiMeta = d['aiMeta'] as Map<String, dynamic>? ?? {};
+    final nlu = aiMeta['nlu'] as Map<String, dynamic>? ?? {};
+    final gemini = nlu['gemini_json'];
+    final geminiStory = gemini is Map
+        ? (gemini['response'] as String? ?? gemini['story'] as String?)
+        : null;
+    setState(() {
+      _processingDone = true;
+      _processingError = null;
+      _wsData = d;
+      _amount = ((d['amount'] ?? 0) is num) ? (d['amount'] as num).toInt() : 0;
+      _category = d['categoryCode'] as String? ?? 'Others';
+      _note = d['note'] as String? ?? '';
+      _confidence = d['aiConfidence'] is num ? (d['aiConfidence'] as num).toDouble() : 0.85;
+      _recordType = (d['type'] as String?) == 'income' ? 'Income' : 'Expense';
+    });
+    _wsTimeout?.cancel();
+    _pollTimer?.cancel();
+    _wsSub?.cancel();
+    _wsChannel?.sink.close();
+    final mood = d['mascotMood'] as String? ?? nlu['mascot_mood'] as String?;
+    final story = d['aiComment'] as String? ?? geminiStory;
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (!mounted) return;
+      mimoController.show(MiMoResponse(
+        emotionAsset: normalizeMimoAssetName(mood, fallback: 'Success'),
+        message: story?.substring(0, story.length.clamp(0, 80)) ?? '✅ Bill đã được xử lý xong!',
+      ));
+    });
+  }
+
+  void _startPollingFallback() {
+    if (_transactionId == null || _processingDone || _pollTimer != null) return;
+    if (mounted) setState(() {});
+    _pollAttempts = 0;
+    _pollTimer = Timer.periodic(const Duration(seconds: _pollIntervalSeconds), (_) async {
+      if (!mounted || _processingDone) {
+        _pollTimer?.cancel();
+        return;
+      }
+      _pollAttempts++;
+      if (_pollAttempts > _maxPollAttempts) {
+        _pollTimer?.cancel();
+        if (mounted && !_processingDone) {
+          setState(() => _processingError = 'Bill vẫn đang xử lý trên server — xem kết quả trong Story');
+        }
+        return;
+      }
+      try {
+        final tx = await _api.getTransaction(_transactionId!);
+        if (!mounted || _processingDone) return;
+        final status = tx['processingStatus'] as String? ?? 'done';
+        if (status == 'done') {
+          _applyBillResult(tx);
+        } else if (status == 'failed') {
+          _pollTimer?.cancel();
+          setState(() => _processingError = 'Xử lý thất bại');
+        }
+      } catch (_) {}
+    });
+  }
+
   Future<void> _connectWebSocket() async {
     final token = await _api.accessToken;
     if (token == null || !mounted) return;
@@ -144,10 +213,10 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
       '${_api.baseUrl.replaceFirst(RegExp(r'^http'), 'ws').replaceFirst('/api/v1', '')}/ws?token=$token',
     );
     _wsChannel = WebSocketChannel.connect(wsUrl);
-    // Phòng khi server không phản hồi: dừng trạng thái "đang xử lý" sau 45s.
-    _wsTimeout = Timer(const Duration(seconds: 45), () {
+    // OCR bill thường 60–180s; giữ WS lâu hơn, sau đó poll HTTP nếu mất kết nối.
+    _wsTimeout = Timer(const Duration(seconds: _wsWaitSeconds), () {
       if (mounted && !_processingDone && _processingError == null) {
-        setState(() => _processingError = 'Xử lý quá lâu, vui lòng thử lại');
+        _startPollingFallback();
       }
       _wsSub?.cancel();
       _wsChannel?.sink.close();
@@ -159,39 +228,28 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
           final json = jsonDecode(msg as String) as Map<String, dynamic>;
           if (json['type'] == 'transaction_done' && json['transactionId'] == _transactionId) {
             final d = json['data'] as Map<String, dynamic>? ?? {};
-            setState(() {
-              _processingDone = true;
-              _wsData = d;
-              _amount = ((d['amount'] ?? 0) is num) ? (d['amount'] as num).toInt() : 0;
-              _category = d['category'] as String? ?? 'Others';
-              _note = d['note'] as String? ?? '';
-              _confidence = 0.85;
-              _recordType = d['record_type'] as String? ?? 'Expense';
-            });
-            _wsTimeout?.cancel();
-            _wsSub?.cancel();
-            _wsChannel?.sink.close();
-            final mood = d['mascot_mood'] as String?;
-            final story = d['story'] as String?;
-            Future.delayed(const Duration(milliseconds: 300), () {
-              if (!mounted) return;
-              mimoController.show(MiMoResponse(
-                emotionAsset: normalizeMimoAssetName(mood, fallback: 'Success'),
-                message: story?.substring(0, story.length.clamp(0, 80)) ?? '✅ Bill đã được xử lý xong!',
-              ));
+            _applyBillResult({
+              'amount': d['amount'],
+              'categoryCode': d['category'],
+              'note': d['note'],
+              'type': d['record_type'] == 'Income' ? 'income' : 'expense',
+              'imageUrl': d['imageUrl'],
+              'mascotMood': d['mascot_mood'],
+              'aiComment': d['story'],
+              'aiConfidence': 0.85,
             });
           } else if (json['type'] == 'transaction_failed' && json['transactionId'] == _transactionId) {
             setState(() => _processingError = json['error']?.toString() ?? 'Xử lý thất bại');
+            _pollTimer?.cancel();
           }
         } catch (_) {}
       },
       onError: (_) {
-        if (mounted && !_processingDone) setState(() => _processingError = 'Mất kết nối WebSocket');
+        if (mounted && !_processingDone) _startPollingFallback();
       },
       onDone: () {
-        // Server đóng kết nối trước khi có kết quả → coi như thất bại.
         if (mounted && !_processingDone && _processingError == null) {
-          setState(() => _processingError = 'Mất kết nối khi đang xử lý, vui lòng thử lại');
+          _startPollingFallback();
         }
       },
     );
@@ -200,6 +258,7 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
   @override
   void dispose() {
     _wsTimeout?.cancel();
+    _pollTimer?.cancel();
     _wsSub?.cancel();
     _wsChannel?.sink.close();
     super.dispose();
@@ -425,7 +484,13 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
             const SizedBox(height: 16),
             Text('MiMo đang đọc bill...', style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.white)),
             const SizedBox(height: 8),
-            Text('AI đang phân tích hóa đơn, vui lòng chờ', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white54)),
+            Text(
+              _pollTimer != null
+                  ? 'Đang kiểm tra kết quả... (${_pollAttempts * _pollIntervalSeconds}s)'
+                  : 'AI đang phân tích hóa đơn, có thể mất 1–3 phút',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white54),
+              textAlign: TextAlign.center,
+            ),
             if (_wsData != null) ...[
               const SizedBox(height: 8),
               Text('Đã nhận: ${_wsData!['category'] ?? ''}', style: const TextStyle(color: Colors.white38, fontSize: 12)),
@@ -453,6 +518,14 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
                 style: FilledButton.styleFrom(backgroundColor: AppColors.teal),
                 child: const Text('Quay lại'),
               ),
+              if (_processingError!.contains('Story')) ...[
+                const SizedBox(height: 12),
+                OutlinedButton(
+                  onPressed: () => context.go(AppRoutes.home),
+                  style: OutlinedButton.styleFrom(foregroundColor: Colors.white, side: const BorderSide(color: Colors.white54)),
+                  child: const Text('Về trang chủ'),
+                ),
+              ],
             ]),
           ),
         ),

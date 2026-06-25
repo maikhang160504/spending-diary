@@ -344,6 +344,11 @@ class ApiClient {
     return result;
   }
 
+  Future<Map<String, dynamic>> getTransaction(String id) async {
+    final result = await _request('GET', '/transactions/$id');
+    return result['data'] as Map<String, dynamic>;
+  }
+
   Future<Map<String, dynamic>> createTransaction(
     Map<String, dynamic> body,
   ) async {
