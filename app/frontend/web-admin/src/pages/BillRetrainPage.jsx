@@ -15,7 +15,7 @@ import {
   fetchBillKagglePlan,
   triggerBillKaggle,
   reloadAiModels,
-  prelabelBill,
+  uploadBillSample,
   syncBillKaggle,
   saveBillSample,
 } from "../services/api";
@@ -166,6 +166,40 @@ function formatPrelabelMessage(prelabel) {
   return `Gán nhãn auto: ${n} boxes · entity: ${kieLabel} · ${engine}`;
 }
 
+function PrelabelQueuePanel({ jobs }) {
+  if (!jobs?.length) return null;
+  const activeCount = jobs.filter((j) => j.phase !== "done" && j.phase !== "failed").length;
+  return (
+    <div className="bill-ocr-queue-float" role="status" aria-live="polite">
+      <section className="bill-surface bill-activity-panel">
+        <div className="bill-surface-head">
+          <div>
+            <p className="bill-surface-eyebrow">Background</p>
+            <h2 className="bill-surface-title">Tiến trình OCR</h2>
+          </div>
+          {activeCount > 0 && <span className="bill-count-badge">{activeCount}</span>}
+        </div>
+        <ul className="bill-prelabel-queue">
+          {jobs.map((job) => (
+            <li key={job.id} className={`bill-prelabel-job ${job.phase}`}>
+              <div className="bill-prelabel-job-head">
+                <span className="bill-prelabel-job-label">{job.label}</span>
+                <span className={`bill-status-chip ${job.phase}`}>{job.phaseLabel || job.phase}</span>
+              </div>
+              {job.phase !== "done" && job.phase !== "failed" && (
+                <div className="bill-progress-bar" aria-hidden="true">
+                  <div className="bill-progress-fill" style={{ width: `${Math.min(100, job.progress || 0)}%` }} />
+                </div>
+              )}
+              {job.error && <p className="bill-kaggle-err">{job.error}</p>}
+            </li>
+          ))}
+        </ul>
+      </section>
+    </div>
+  );
+}
+
 function kaggleStepState(jobStatus, stepKey) {
   if (jobStatus === "failed") {
     const failedIdx = STEP_ORDER.indexOf(stepKey);
@@ -204,8 +238,58 @@ export default function BillRetrainPage() {
   const [helpOpen, setHelpOpen] = useState(false);
   const [toast, setToast] = useState(null);
   const [activeCategory, setActiveCategory] = useState("Others");
+  const [prelabelJobs, setPrelabelJobs] = useState([]);
   const handledJobsRef = useRef(new Set());
   const toastTimerRef = useRef(null);
+  const prelabelTimersRef = useRef({});
+
+  const upsertPrelabelJob = useCallback((id, patch) => {
+    setPrelabelJobs((prev) => prev.map((j) => (j.id === id ? { ...j, ...patch } : j)));
+  }, []);
+
+  const startPrelabelProgress = useCallback((jobId) => {
+    if (prelabelTimersRef.current[jobId]) clearInterval(prelabelTimersRef.current[jobId]);
+    prelabelTimersRef.current[jobId] = setInterval(() => {
+      setPrelabelJobs((prev) =>
+        prev.map((j) => {
+          if (j.id !== jobId || j.phase === "done" || j.phase === "failed") return j;
+          const cap = j.phase === "upload" ? 28 : 92;
+          const next = Math.min(cap, (j.progress || 0) + (j.phase === "upload" ? 4 : 1.5));
+          return { ...j, progress: next };
+        })
+      );
+    }, 800);
+  }, []);
+
+  const stopPrelabelProgress = useCallback((jobId) => {
+    if (prelabelTimersRef.current[jobId]) {
+      clearInterval(prelabelTimersRef.current[jobId]);
+      delete prelabelTimersRef.current[jobId];
+    }
+  }, []);
+
+  const enqueuePrelabelJob = useCallback((label) => {
+    const id = `pl-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    setPrelabelJobs((prev) => [
+      { id, label, phase: "upload", phaseLabel: "Upload", progress: 8 },
+      ...prev,
+    ]);
+    startPrelabelProgress(id);
+    return id;
+  }, [startPrelabelProgress]);
+
+  const finishPrelabelJob = useCallback((jobId, ok, error) => {
+    stopPrelabelProgress(jobId);
+    upsertPrelabelJob(jobId, {
+      phase: ok ? "done" : "failed",
+      phaseLabel: ok ? "Xong" : "Lỗi",
+      progress: ok ? 100 : undefined,
+      error: error || null,
+    });
+    setTimeout(() => {
+      setPrelabelJobs((prev) => prev.filter((j) => j.id !== jobId));
+    }, ok ? 2500 : 8000);
+  }, [stopPrelabelProgress, upsertPrelabelJob]);
 
   const showToast = useCallback((type, message, action) => {
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
@@ -269,7 +353,11 @@ export default function BillRetrainPage() {
       setMessageIsError(true);
       setMessage(e.message);
     });
-    refreshOcrStatus();
+    refreshOcrStatus().then((st) => {
+      if (st && !st.ocr_loaded) {
+        reloadAiModels("ocr").catch(() => {});
+      }
+    });
     
     const storedJobId = localStorage.getItem("active_kaggle_job_id");
     if (storedJobId) {
@@ -363,18 +451,24 @@ export default function BillRetrainPage() {
   const onUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setBusy(true, "Đang upload và gán nhãn auto (PaddleOCR + VietOCR + PICK)...");
+    const jobId = enqueuePrelabelJob(file.name);
     setMessage("");
     setMessageIsError(false);
     try {
-      const { sample, prelabel } = await prelabelBill(file);
-      applyPrelabelResult(sample, prelabel);
+      upsertPrelabelJob(jobId, { phase: "upload", phaseLabel: "Upload ảnh", progress: 12 });
+      const { sample } = await uploadBillSample(file);
+      upsertPrelabelJob(jobId, { phase: "ocr", phaseLabel: "OCR + KIE", progress: 35, sampleId: sample.id });
+      setActive(sample);
       await loadSamples();
+      const { sample: updated, prelabel } = await rePrelabelBillSample(sample.id);
+      applyPrelabelResult(updated, prelabel);
+      await loadSamples();
+      finishPrelabelJob(jobId, true);
     } catch (err) {
+      finishPrelabelJob(jobId, false, err.message || "Upload / gán nhãn auto thất bại");
       setMessageIsError(true);
       setMessage(err.message || "Upload / gán nhãn auto thất bại");
     } finally {
-      setBusy(false);
       e.target.value = "";
     }
   };
@@ -384,18 +478,19 @@ export default function BillRetrainPage() {
     if (boxes.length > 0 && !window.confirm(`Gán nhãn auto sẽ ghi đè ${boxes.length} box hiện tại. Tiếp tục?`)) {
       return;
     }
-    setBusy(true, "Đang gán nhãn auto (PaddleOCR + VietOCR + PICK)...");
+    const jobId = enqueuePrelabelJob(`${active.id.slice(0, 8)} · re-OCR`);
     setMessage("");
     setMessageIsError(false);
     try {
+      upsertPrelabelJob(jobId, { phase: "ocr", phaseLabel: "OCR + KIE", progress: 20 });
       const { sample, prelabel } = await rePrelabelBillSample(active.id);
       applyPrelabelResult(sample, prelabel);
       await loadSamples();
+      finishPrelabelJob(jobId, true);
     } catch (err) {
+      finishPrelabelJob(jobId, false, err.message || "Gán nhãn auto thất bại");
       setMessageIsError(true);
       setMessage(err.message || "Gán nhãn auto thất bại");
-    } finally {
-      setBusy(false);
     }
   };
 
@@ -650,6 +745,7 @@ export default function BillRetrainPage() {
     <div className="page bill-retrain-page">
       <BillHelpModal open={helpOpen} onClose={() => setHelpOpen(false)} />
       <BillToast toast={toast} onDismiss={dismissToast} />
+      <PrelabelQueuePanel jobs={prelabelJobs} />
 
       {loading && (
         <div className="bill-loading-overlay" role="status" aria-live="polite">
@@ -722,9 +818,9 @@ export default function BillRetrainPage() {
           <div className="bill-toolbar-actions">
             <label className="btn btn-primary">
               Upload ảnh
-              <input type="file" accept="image/*" hidden onChange={onUpload} disabled={loading} />
+              <input type="file" accept="image/*" hidden onChange={onUpload} />
             </label>
-            <button type="button" className="btn btn-primary" onClick={onAutoLabel} disabled={!active || loading || isArchivedSample}>
+            <button type="button" className="btn btn-primary" onClick={onAutoLabel} disabled={!active || isArchivedSample}>
               Gán nhãn auto
             </button>
             <button type="button" className="btn btn-secondary" onClick={onSaveDraft} disabled={!active || loading || isArchivedSample}>
@@ -876,7 +972,7 @@ export default function BillRetrainPage() {
             <>
               {isArchivedSample && (
                 <p className="bill-inline-toast warn bill-archived-notice">
-                  Đã export — ảnh gốc đã archive local. Nhãn vẫn xem được trong bảng bên dưới.
+                  Đã export — ảnh gốc đã archive local. Chọn nhãn bên dưới (hoặc trên ảnh nếu còn preview) để xem chi tiết.
                 </p>
               )}
               <BillLabelCanvas
@@ -899,44 +995,70 @@ export default function BillRetrainPage() {
                 <p className="muted bill-empty-boxes">Chưa có bbox — bấm Gán nhãn auto hoặc thêm sau khi có nhãn.</p>
               )}
               {boxes.length > 0 && (
-                <table className="data-table bill-label-table">
-                  <thead>
-                    <tr>
-                      <th>Text</th>
-                      <th>Entity</th>
-                      <th>Bbox</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {boxes.map((b, idx) => (
-                      <tr
-                        key={idx}
-                        className={selectedIdx === idx ? "row-active" : ""}
-                        onClick={() => setSelectedIdx(idx)}
+                <div className="bill-box-detail-panel">
+                  {!imageUrl && (
+                    <div className="bill-box-picker">
+                      <label htmlFor="bill-box-select">Chọn nhãn</label>
+                      <select
+                        id="bill-box-select"
+                        className="bill-select"
+                        value={selectedIdx ?? ""}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setSelectedIdx(v === "" ? null : Number(v));
+                        }}
                       >
-                        <td>
+                        <option value="">— Chọn —</option>
+                        {boxes.map((b, idx) => (
+                          <option key={idx} value={idx}>
+                            #{idx + 1} — {(b.text || "").slice(0, 48) || b.entity || "OTHER"}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                  {selectedIdx != null && boxes[selectedIdx] ? (
+                    <div className="bill-box-detail">
+                      <div className="bill-box-detail-head">
+                        <span className="bill-box-detail-title">
+                          Nhãn #{selectedIdx + 1} / {boxes.length}
+                        </span>
+                        <span className="bill-box-detail-entity">{boxes[selectedIdx].entity || "OTHER"}</span>
+                      </div>
+                      <div className="bill-box-detail-fields">
+                        <label className="bill-box-field">
+                          <span>Text</span>
                           <input
-                            value={b.text || ""}
-                            onChange={(e) => updateBox(idx, "text", e.target.value)}
-                            onClick={(e) => e.stopPropagation()}
+                            value={boxes[selectedIdx].text || ""}
+                            onChange={(e) => updateBox(selectedIdx, "text", e.target.value)}
+                            placeholder="Nội dung OCR / nhãn"
                           />
-                        </td>
-                        <td>
+                        </label>
+                        <label className="bill-box-field">
+                          <span>Entity</span>
                           <select
-                            value={b.entity || "OTHER"}
-                            onChange={(e) => updateBox(idx, "entity", e.target.value)}
-                            onClick={(e) => e.stopPropagation()}
+                            value={boxes[selectedIdx].entity || "OTHER"}
+                            onChange={(e) => updateBox(selectedIdx, "entity", e.target.value)}
                           >
                             {ENTITIES.map((ent) => (
                               <option key={ent} value={ent}>{ent}</option>
                             ))}
                           </select>
-                        </td>
-                        <td className="mono">{b.x1},{b.y1},{b.x2},{b.y2}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                        </label>
+                        <div className="bill-box-field bill-box-field-bbox">
+                          <span>Bbox</span>
+                          <code className="mono">
+                            {boxes[selectedIdx].x1},{boxes[selectedIdx].y1},{boxes[selectedIdx].x2},{boxes[selectedIdx].y2}
+                          </code>
+                        </div>
+                      </div>
+                    </div>
+                  ) : imageUrl ? (
+                    <p className="muted canvas-hint bill-box-detail-hint">
+                      Chọn một bbox trên ảnh để xem và chỉnh sửa nhãn ({boxes.length} nhãn).
+                    </p>
+                  ) : null}
+                </div>
               )}
             </>
           )}

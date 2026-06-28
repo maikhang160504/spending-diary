@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../routes/app_routes.dart';
 import '../../services/api_client.dart';
+import '../../services/chat_llm_notifier.dart';
 import '../../services/streak_celebration.dart';
 import '../../services/transaction_notifier.dart';
 import '../../utils/mimo_emotion.dart';
@@ -39,7 +40,31 @@ String? _categoryFromNlu(Map<String, dynamic> nlu) {
   final details = nluMap(nlu['action_details']);
   final target = nluString(details?['target']) ?? nluString(nlu['category']);
   if (target == null) return null;
-  if (CategoryTheme.styles.containsKey(target)) return target;
+  final canonical = CategoryTheme.canonicalCodeOf(target);
+  if (CategoryTheme.styles.containsKey(canonical)) return canonical;
+  final norm = target
+      .toLowerCase()
+      .replaceAll('ă', 'a')
+      .replaceAll('â', 'a')
+      .replaceAll('đ', 'd')
+      .replaceAll('ê', 'e')
+      .replaceAll('ô', 'o')
+      .replaceAll('ơ', 'o')
+      .replaceAll('ư', 'u');
+  const viMap = {
+    'an uong': 'Food',
+    'di chuyen': 'Transport',
+    'di lai': 'Transport',
+    'mua sam': 'Shopping',
+    'giai tri': 'Entertainment',
+    'suc khoe': 'Health',
+    'giao duc': 'Education',
+    'lam dep': 'Beauty',
+    'nha o': 'Housing',
+  };
+  for (final entry in viMap.entries) {
+    if (norm.contains(entry.key)) return entry.value;
+  }
   return null;
 }
 
@@ -49,23 +74,42 @@ int? _amountFromNlu(Map<String, dynamic> nlu) {
   return nluInt(raw);
 }
 
-String _actionSummary(String actionType, {int? amount, String? categoryCode}) {
+String _actionSummary(String actionType, {int? amount, String? categoryCode, String? verb}) {
   final t = actionType.toUpperCase();
+  final v = (verb ?? '').toUpperCase();
   final amt = amount != null ? formatVnd(amount) : null;
   final catLabel = categoryCode != null
       ? CategoryTheme.of(categoryCode).label
       : null;
-  if (t.contains('LIMIT')) {
-    return 'Đặt hạn mức${catLabel != null ? ' $catLabel' : ''}${amt != null ? ': $amt' : ''}';
+  String verbLabel(String base) {
+    if (v == 'ADD') return 'Tăng $base';
+    if (v == 'SUB') return 'Giảm $base';
+    if (v == 'SET') return 'Đặt $base';
+    return base;
+  }
+  if (t.contains('LIMIT') || t == 'SET_LIMIT') {
+    return '${verbLabel('hạn mức')}${catLabel != null ? ' $catLabel' : ''}${amt != null ? ': $amt' : ''}';
   }
   if (t.contains('DELETE')) return 'Xóa giao dịch gần nhất';
-  if (t.contains('GOAL')) {
-    return 'Tạo mục tiêu tiết kiệm${amt != null ? ' $amt' : ''}';
+  if (t.contains('GOAL') || t == 'SET_GOAL' || t == 'ADD_GOAL') {
+    return '${verbLabel('mục tiêu')}${amt != null ? ' $amt' : ''}';
   }
   if (t.contains('TONE')) return 'Đổi giọng nói Mimo';
   if (t.contains('SEARCH')) return 'Tìm kiếm giao dịch';
   if (t.contains('SETTING')) return 'Mở cài đặt ứng dụng';
-  return actionType;
+  if (t.contains('SUGGEST')) return 'Gợi ý hạn mức thông minh';
+  if (t == 'SET_USERNAME') return 'Đổi tên Mimo gọi bạn';
+  if (t == 'SET_INCOME') {
+    return 'Cài thu nhập hàng tháng${amt != null ? ': $amt' : ''}';
+  }
+  if (t == 'UPDATE_RECORD' || t == 'EDIT') {
+    return 'Sửa giao dịch gần nhất${catLabel != null ? ' ($catLabel)' : ''}${amt != null ? ': $amt' : ''}';
+  }
+  if (t == 'SET_ALERT') {
+    return 'Cài cảnh báo chi tiêu${catLabel != null ? ' $catLabel' : ''}';
+  }
+  if (t == 'EXPORT_DATA') return 'Xuất dữ liệu chi tiêu';
+  return '$actionType${v.isNotEmpty ? ' ($v)' : ''}';
 }
 
 _ActionPreview _actionPreviewFromNlu(
@@ -75,10 +119,16 @@ _ActionPreview _actionPreviewFromNlu(
 }) {
   final actionType = nlu['action_type'] as String? ?? 'Unknown';
   final amount = _amountFromNlu(nlu);
-  final isLimitOrSearch =
-      actionType.toUpperCase().contains('LIMIT') ||
-      actionType.toUpperCase().contains('SEARCH');
-  final categoryCode = isLimitOrSearch ? _categoryFromNlu(nlu) : null;
+  final t = actionType.toUpperCase();
+  final needsCategory =
+      t.contains('LIMIT') ||
+      t.contains('SEARCH') ||
+      t == 'UPDATE_RECORD' ||
+      t == 'EDIT' ||
+      t == 'SET_ALERT';
+  final categoryCode = needsCategory ? _categoryFromNlu(nlu) : null;
+  final details = nluMap(nlu['action_details']);
+  final verb = nluString(details?['verb']);
   return _ActionPreview(
     actionType: actionType,
     signature: _actionSignatureFromNlu(nlu),
@@ -89,6 +139,7 @@ _ActionPreview _actionPreviewFromNlu(
       actionType,
       amount: amount,
       categoryCode: categoryCode,
+      verb: verb,
     ),
     actionDetails: nlu['action_details'] as Map<String, dynamic>?,
     aiLine: aiLine,
@@ -96,12 +147,20 @@ _ActionPreview _actionPreviewFromNlu(
 }
 
 Map<String, dynamic> _executeBodyFromPreview(_ActionPreview preview) {
+  final details = preview.actionDetails;
+  final goalName = nluString(details?['goal_name']) ?? nluString(details?['goalName']);
+  final timeLabel = nluString(details?['time']) ?? nluString(details?['time_range']);
+  final query = nluString(details?['query']);
   return {
     'actionType': preview.actionType,
     if (preview.amount != null) 'amount': preview.amount,
     if (preview.categoryCode != null) 'categoryCode': preview.categoryCode,
+    if (goalName != null && goalName.isNotEmpty) 'goalName': goalName,
+    if (query != null && query.isNotEmpty) 'query': query,
     'text': preview.originalText,
     if (preview.actionDetails != null) 'actionDetails': preview.actionDetails,
+    if (timeLabel != null && timeLabel.isNotEmpty)
+      'timeRange': {'period_label': timeLabel},
   };
 }
 
@@ -119,15 +178,50 @@ _SearchResultPreview? _searchPreviewFromResult(Map<String, dynamic> result) {
   return _SearchResultPreview(items: items);
 }
 
+_BudgetSuggestionPreview? _budgetSuggestionFromResult(
+  Map<String, dynamic> result,
+) {
+  if (result['kind'] != 'budget_suggestion') return null;
+  final targetMonth = nluString(result['targetMonth']) ?? '';
+  if (targetMonth.isEmpty) return null;
+  final items = (result['suggestions'] as List<dynamic>? ?? []).map((e) {
+    final m = nluMap(e) ?? {};
+    return _BudgetSuggestionItem(
+      categoryCode: nluString(m['categoryCode']) ?? 'Other',
+      suggestedAmount: nluInt(m['suggestedAmount']) ?? 0,
+      baseSpending: nluInt(m['baseSpending']) ?? 0,
+      reason: nluString(m['reason']) ?? '',
+    );
+  }).toList();
+  if (items.isEmpty) return null;
+  return _BudgetSuggestionPreview(
+    targetMonth: targetMonth,
+    items: items,
+    totalSuggested: nluInt(result['totalSuggested']) ??
+        items.fold<int>(0, (s, i) => s + i.suggestedAmount),
+  );
+}
+
+String _formatTargetMonthLabel(String targetMonth) {
+  final parts = targetMonth.split('-');
+  if (parts.length != 2) return targetMonth;
+  final month = int.tryParse(parts[1]);
+  if (month == null) return targetMonth;
+  return 'tháng $month/${parts[0]}';
+}
+
 bool _actionNeedsConfirm(String actionType) {
   final t = actionType.toUpperCase();
   if (t.contains('REPORT')) return false;
+  if (t.contains('SUGGEST')) return false;
   if (t == 'SETTING' || t == 'SYSTEM_SETTING') return false;
+  if (t == 'EXPORT_DATA') return false;
   return t.contains('LIMIT') ||
-      t.contains('DELETE') ||
       t.contains('GOAL') ||
       t.contains('TONE') ||
-      t.contains('SEARCH');
+      t.contains('SEARCH') ||
+      t == 'SET_USERNAME' ||
+      t == 'SET_ALERT';
 }
 
 _ReportStoryPreview? _reportPreviewFromNlu(Map<String, dynamic> nlu) {
@@ -205,6 +299,7 @@ class _ChatScreenState extends State<ChatScreen> {
     'Gợi ý hạn mức tháng mới',
     'Xem báo cáo chi tiêu hôm qua',
     'So sánh chi tiêu tuần này với tuần trước',
+    'Gợi ý chi tiêu tháng sau',
     'Đã nhận lương tháng này 12 triệu',
     'Tìm các giao dịch trên 1 triệu',
     'Tăng hạn mức đi lại lên 2 triệu',
@@ -229,8 +324,36 @@ class _ChatScreenState extends State<ChatScreen> {
     super.initState();
     _generateRandomSuggestions();
     _scrollCtrl.addListener(_onScrollLoadOlder);
+    chatLlmUpdateNotifier.addListener(_onChatLlmUpdateNotifier);
     _initSession();
     _loadAiPersonality();
+  }
+
+  void _onChatLlmUpdateNotifier() {
+    final update = chatLlmUpdateNotifier.value;
+    if (update == null || !mounted) return;
+    if (update.sessionId != _sessionId) return;
+    setState(() {
+      for (final msg in _messages) {
+        if (msg.backendMessageId != update.messageId) continue;
+        msg.llmPending = false;
+        if (update.failed || update.content == null) return;
+        msg.text = update.content!;
+        if (update.mood != null && update.mood!.isNotEmpty) {
+          msg.chatEmotion = update.mood;
+        }
+        if (msg.txPreview != null) {
+          msg.txPreview!.aiComment = update.content;
+          if (update.mood != null) {
+            msg.txPreview!.emotionAsset = update.mood;
+          }
+        }
+        if (msg.actionPreview != null) {
+          msg.actionPreview = msg.actionPreview!.copyWith(aiLine: update.content);
+        }
+        break;
+      }
+    });
   }
 
   Future<void> _loadAiPersonality() async {
@@ -253,6 +376,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   void dispose() {
+    chatLlmUpdateNotifier.removeListener(_onChatLlmUpdateNotifier);
     _scrollCtrl.removeListener(_onScrollLoadOlder);
     _inputCtrl.dispose();
     _scrollCtrl.dispose();
@@ -287,11 +411,38 @@ class _ChatScreenState extends State<ChatScreen> {
       _TxPreview? txPreview;
       _ActionPreview? actionPreview;
       _ReportStoryPreview? reportPreview;
+      _SearchResultPreview? searchPreview;
+      _BudgetSuggestionPreview? budgetSuggestionPreview;
       List<_TxPreview>? multiRecords;
       String? chatEmotion;
       var displayText = nluString(map['content']) ?? '';
 
       if (metadata != null && role != 'user') {
+        final statusEvent = nluMap(metadata['budget_status_event']);
+        if (statusEvent != null) {
+          final targetMonth = nluString(statusEvent['targetMonth']);
+          final status = nluString(statusEvent['status']);
+          for (int i = out.length - 1; i >= 0; i--) {
+            final prevMsg = out[i];
+            if (prevMsg.budgetSuggestionPreview?.targetMonth == targetMonth) {
+              if (status == 'applied') prevMsg.isBudgetApplied = true;
+              if (status == 'dismissed') prevMsg.isBudgetDismissed = true;
+              break;
+            }
+          }
+          continue;
+        }
+
+        final actionResult = nluMap(metadata['action_result']);
+        if (metadata['action_executed'] == true && actionResult != null) {
+          budgetSuggestionPreview = _budgetSuggestionFromResult(actionResult);
+          searchPreview = _searchPreviewFromResult(actionResult);
+          final resultText = nluString(actionResult['message']);
+          if (resultText != null && resultText.isNotEmpty) {
+            displayText = resultText;
+          }
+        }
+
         final llmMeta = llmReplyFromChatMetadata(
           metadata,
           fallbackText: displayText,
@@ -336,7 +487,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 metadata['transaction_id'] ?? metadata['transactionId'],
               ),
             );
-          } else if (intent == 'Action') {
+          } else if (intent == 'Action' && metadata['action_executed'] != true) {
             final report = _reportPreviewFromNlu(nlu);
             if (report != null) {
               reportPreview = report;
@@ -378,9 +529,12 @@ class _ChatScreenState extends State<ChatScreen> {
         isUser: role == 'user',
         time: _formatMsgTime(nluString(map['created_at'])),
         chatEmotion: chatEmotion,
+        backendMessageId: nluString(map['id']),
         txPreview: txPreview,
         actionPreview: actionPreview,
         reportPreview: reportPreview,
+        searchPreview: searchPreview,
+        budgetSuggestionPreview: budgetSuggestionPreview,
         multiRecords: multiRecords,
         isSaved: (txPreview != null || multiRecords != null) && savedFlag,
       );
@@ -628,12 +782,19 @@ class _ChatScreenState extends State<ChatScreen> {
         'role': 'assistant',
         'content': chatRes['response'] as String? ?? '',
         'intent_action': intentAction,
+        'id': chatRes['messageId'],
         'created_at': DateTime.now().toIso8601String(),
       };
 
       final parsed = _parseMessagesFromApi([assistantMsgMap]);
       if (parsed.isNotEmpty) {
         final confirmMsg = parsed.first;
+        if (chatRes['llmPending'] == true) {
+          confirmMsg.llmPending = true;
+        }
+        if (chatRes['messageId'] != null) {
+          confirmMsg.backendMessageId = chatRes['messageId'] as String?;
+        }
 
         // Handle confirm status for actions if already confirmed
         if (confirmMsg.actionPreview != null) {
@@ -713,6 +874,43 @@ class _ChatScreenState extends State<ChatScreen> {
 
   String _now() => VnTime.formatHmNow();
 
+  Future<void> _persistActionResultMessage(
+    String content,
+    Map<String, dynamic> result,
+  ) async {
+    if (_sessionId == null) return;
+    try {
+      await _api.sendChatMessageRaw(_sessionId!, {
+        'content': content,
+        'role': 'assistant',
+        'intentAction': {
+          'intent': 'Action',
+          'action_executed': true,
+          'action_result': result,
+        },
+      });
+    } catch (_) {}
+  }
+
+  Future<void> _persistBudgetStatusEvent(
+    String targetMonth,
+    String status,
+  ) async {
+    if (_sessionId == null) return;
+    try {
+      await _api.sendChatMessageRaw(_sessionId!, {
+        'content': '.',
+        'role': 'assistant',
+        'intentAction': {
+          'budget_status_event': {
+            'targetMonth': targetMonth,
+            'status': status,
+          },
+        },
+      });
+    } catch (_) {}
+  }
+
   Future<void> _runConfirmedAction(_ActionPreview action) async {
     try {
       if (action.navOnly) {
@@ -737,6 +935,7 @@ class _ChatScreenState extends State<ChatScreen> {
       final message =
           result['message'] as String? ?? '✅ Đã thực hiện hành động!';
       final searchPreview = _searchPreviewFromResult(result);
+      final budgetPreview = _budgetSuggestionFromResult(result);
       final kind = result['kind'] as String?;
 
       if (kind == 'delete') notifyTransactionChanged();
@@ -757,10 +956,15 @@ class _ChatScreenState extends State<ChatScreen> {
             isUser: false,
             time: _now(),
             searchPreview: searchPreview,
+            budgetSuggestionPreview: budgetPreview,
           ),
         );
       });
       _scrollToBottom();
+
+      if (searchPreview != null || budgetPreview != null) {
+        await _persistActionResultMessage(message, result);
+      }
 
       final navigate = result['navigate'] as String?;
       if (navigate == 'settings') context.go(AppRoutes.settings);
@@ -777,6 +981,66 @@ class _ChatScreenState extends State<ChatScreen> {
         );
       });
       _scrollToBottom();
+    }
+  }
+
+  Future<void> _handleBudgetApply(_ChatMsg msg) async {
+    if (msg.isBudgetApplied || msg.budgetSuggestionPreview == null) return;
+    final preview = msg.budgetSuggestionPreview!;
+    setState(() => msg.isBudgetApplied = true);
+    try {
+      final res = await _api.applyBudgetSuggestions(month: preview.targetMonth);
+      if (!mounted) return;
+      setState(() {
+        _messages.insert(
+          0,
+          _ChatMsg(
+            text:
+                res['message'] as String? ??
+                '✅ Đã áp dụng hạn mức thông minh!',
+            isUser: false,
+            time: _now(),
+          ),
+        );
+      });
+      _scrollToBottom();
+      await _persistBudgetStatusEvent(preview.targetMonth, 'applied');
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => msg.isBudgetApplied = false);
+      setState(() {
+        _messages.insert(
+          0,
+          _ChatMsg(
+            text: '❌ Không áp dụng được gợi ý. Thử lại sau nhé!',
+            isUser: false,
+            time: _now(),
+          ),
+        );
+      });
+      _scrollToBottom();
+    }
+  }
+
+  Future<void> _handleBudgetDismiss(_ChatMsg msg) async {
+    if (msg.isBudgetDismissed || msg.budgetSuggestionPreview == null) return;
+    final preview = msg.budgetSuggestionPreview!;
+    setState(() => msg.isBudgetDismissed = true);
+    try {
+      final message =
+          await _api.dismissBudgetSuggestions(month: preview.targetMonth);
+      if (!mounted) return;
+      setState(() {
+        _messages.insert(
+          0,
+          _ChatMsg(text: message, isUser: false, time: _now()),
+        );
+      });
+      _scrollToBottom();
+      await _persistBudgetStatusEvent(preview.targetMonth, 'dismissed');
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => msg.isBudgetDismissed = false);
     }
   }
 
@@ -846,6 +1110,8 @@ class _ChatScreenState extends State<ChatScreen> {
                     onSaveMultiTx: _saveMultiTransactions,
                     onConfirmAction: _handleActionConfirm,
                     onRejectAction: _handleActionReject,
+                    onApplyBudgetSuggestion: _handleBudgetApply,
+                    onDismissBudgetSuggestion: _handleBudgetDismiss,
                     onEditTxCategory: _showEditTxSheet,
                     onEditTxPreview: _showEditTxPreviewSheet,
                   );
@@ -897,7 +1163,13 @@ class _ChatScreenState extends State<ChatScreen> {
       msg.isRejected = true;
     });
     try {
-      await _api.aiRejectAction(text: action.originalText);
+      await _api.aiRejectAction(
+        text: action.originalText,
+        predicted: {
+          'action_type': action.actionType,
+          'intent': 'Action',
+        },
+      );
       if (!mounted) return;
       setState(() {
         _messages.insert(
@@ -1300,29 +1572,37 @@ class _TxPreview {
 }
 
 class _ChatMsg {
-  final String text;
+  String text;
   final bool isUser;
   final String time;
+  String? backendMessageId;
+  bool llmPending;
   final _TxPreview? txPreview;
-  final _ActionPreview? actionPreview;
+  _ActionPreview? actionPreview;
   final _ReportStoryPreview? reportPreview;
   final _SearchResultPreview? searchPreview;
+  final _BudgetSuggestionPreview? budgetSuggestionPreview;
   final List<_TxPreview>? multiRecords;
 
   /// Emoji chat (cùng emotion LLM, khác tên với avatar story).
-  final String? chatEmotion;
+  String? chatEmotion;
   bool isSaved;
   bool isConfirmed = false;
   bool isRejected = false;
+  bool isBudgetApplied = false;
+  bool isBudgetDismissed = false;
 
   _ChatMsg({
     required this.text,
     required this.isUser,
     required this.time,
+    this.backendMessageId,
+    this.llmPending = false,
     this.txPreview,
     this.actionPreview,
     this.reportPreview,
     this.searchPreview,
+    this.budgetSuggestionPreview,
     this.multiRecords,
     this.chatEmotion,
     this.isSaved = false,
@@ -1610,12 +1890,12 @@ class _ActionPreview {
     this.navOnly = false,
   });
 
-  _ActionPreview copyWith({bool? navOnly}) => _ActionPreview(
+  _ActionPreview copyWith({bool? navOnly, String? aiLine}) => _ActionPreview(
     actionType: actionType,
     signature: signature,
     originalText: originalText,
     summary: summary,
-    aiLine: aiLine,
+    aiLine: aiLine ?? this.aiLine,
     amount: amount,
     categoryCode: categoryCode,
     actionDetails: actionDetails,
@@ -1637,6 +1917,30 @@ class _SearchResultItem {
 class _SearchResultPreview {
   final List<_SearchResultItem> items;
   const _SearchResultPreview({required this.items});
+}
+
+class _BudgetSuggestionItem {
+  final String categoryCode;
+  final int suggestedAmount;
+  final int baseSpending;
+  final String reason;
+  const _BudgetSuggestionItem({
+    required this.categoryCode,
+    required this.suggestedAmount,
+    required this.baseSpending,
+    required this.reason,
+  });
+}
+
+class _BudgetSuggestionPreview {
+  final String targetMonth;
+  final List<_BudgetSuggestionItem> items;
+  final int totalSuggested;
+  const _BudgetSuggestionPreview({
+    required this.targetMonth,
+    required this.items,
+    required this.totalSuggested,
+  });
 }
 
 class _ReportStoryCard extends StatelessWidget {
@@ -1844,6 +2148,171 @@ class _ReportStoryCard extends StatelessWidget {
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BudgetSuggestionCard extends StatelessWidget {
+  final _BudgetSuggestionPreview preview;
+  final bool isApplied;
+  final bool isDismissed;
+  final VoidCallback? onApply;
+  final VoidCallback? onDismiss;
+
+  const _BudgetSuggestionCard({
+    required this.preview,
+    this.isApplied = false,
+    this.isDismissed = false,
+    this.onApply,
+    this.onDismiss,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    const accent = AppColors.teal;
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(AppRadii.lg),
+        border: Border.all(color: accent.withValues(alpha: 0.35)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.auto_awesome, color: accent, size: 18),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Hạn mức ${_formatTargetMonthLabel(preview.targetMonth)}',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                    color: accent,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Tổng gợi ý: ${formatVnd(preview.totalSuggested)}',
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
+          ...preview.items.take(5).map((item) {
+            final style = CategoryTheme.of(item.categoryCode);
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(style.emoji, style: const TextStyle(fontSize: 14)),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          style.label,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        if (item.reason.isNotEmpty)
+                          Text(
+                            item.reason,
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: context.palette.textSecondary,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  Text(
+                    formatVnd(item.suggestedAmount),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: accent,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
+          const SizedBox(height: 10),
+          if (isApplied)
+            const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.check_circle, color: accent, size: 16),
+                SizedBox(width: 6),
+                Text(
+                  'Đã áp dụng hạn mức',
+                  style: TextStyle(
+                    color: accent,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            )
+          else if (isDismissed)
+            const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.cancel, color: Colors.grey, size: 16),
+                SizedBox(width: 6),
+                Text(
+                  'Đã bỏ qua gợi ý',
+                  style: TextStyle(
+                    color: Colors.grey,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            )
+          else
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: onDismiss,
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      side: BorderSide(color: accent.withValues(alpha: 0.5)),
+                    ),
+                    child: const Text(
+                      'Bỏ qua',
+                      style: TextStyle(fontSize: 12, color: accent),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: FilledButton(
+                    onPressed: onApply,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: accent,
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                    ),
+                    child: const Text(
+                      'Áp dụng ngay',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                  ),
+                ),
+              ],
+            ),
         ],
       ),
     );
@@ -2079,6 +2548,8 @@ class _ChatBubble extends StatelessWidget {
   final Future<void> Function(_ChatMsg)? onSaveMultiTx;
   final Future<void> Function(_ChatMsg)? onConfirmAction;
   final Future<void> Function(_ChatMsg)? onRejectAction;
+  final Future<void> Function(_ChatMsg)? onApplyBudgetSuggestion;
+  final Future<void> Function(_ChatMsg)? onDismissBudgetSuggestion;
   final void Function(_ChatMsg)? onEditTxCategory;
   final void Function(_ChatMsg, _TxPreview)? onEditTxPreview;
 
@@ -2088,6 +2559,8 @@ class _ChatBubble extends StatelessWidget {
     this.onSaveMultiTx,
     this.onConfirmAction,
     this.onRejectAction,
+    this.onApplyBudgetSuggestion,
+    this.onDismissBudgetSuggestion,
     this.onEditTxCategory,
     this.onEditTxPreview,
   });
@@ -2347,8 +2820,10 @@ class _ChatBubble extends StatelessWidget {
     final hasSpecialCard =
         !message.isUser &&
         (message.reportPreview != null ||
-            message.actionPreview != null ||
+            (message.actionPreview != null &&
+                _actionNeedsConfirm(message.actionPreview!.actionType)) ||
             message.searchPreview != null ||
+            message.budgetSuggestionPreview != null ||
             message.txPreview != null ||
             (message.multiRecords != null && message.multiRecords!.isNotEmpty));
 
@@ -2392,6 +2867,16 @@ class _ChatBubble extends StatelessWidget {
                       context,
                     ).textTheme.bodyMedium?.copyWith(color: textColor),
                   ),
+                if (!message.isUser && message.llmPending) ...[
+                  if (message.text.isNotEmpty) const SizedBox(height: 6),
+                  Text(
+                    'Mimo đang soạn thêm…',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: textColor.withValues(alpha: 0.65),
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ],
                 if (!message.isUser && message.chatEmotion != null) ...[
                   if (message.text.isNotEmpty) const SizedBox(height: 8),
                   _ChatEmotionSticker(emotionAsset: message.chatEmotion!),
@@ -2422,13 +2907,22 @@ class _ChatBubble extends StatelessWidget {
               children: [
                 if (message.reportPreview != null)
                   _ReportStoryCard(preview: message.reportPreview!),
-                if (message.actionPreview != null)
+                if (message.actionPreview != null &&
+                    _actionNeedsConfirm(message.actionPreview!.actionType))
                   _ActionConfirmCard(
                     preview: message.actionPreview!,
                     isConfirmed: message.isConfirmed,
                     isRejected: message.isRejected,
                     onConfirm: () => onConfirmAction?.call(message),
                     onReject: () => onRejectAction?.call(message),
+                  ),
+                if (message.budgetSuggestionPreview != null)
+                  _BudgetSuggestionCard(
+                    preview: message.budgetSuggestionPreview!,
+                    isApplied: message.isBudgetApplied,
+                    isDismissed: message.isBudgetDismissed,
+                    onApply: () => onApplyBudgetSuggestion?.call(message),
+                    onDismiss: () => onDismissBudgetSuggestion?.call(message),
                   ),
                 if (message.searchPreview != null)
                   _SearchResultCard(preview: message.searchPreview!),

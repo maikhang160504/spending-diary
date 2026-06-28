@@ -6,7 +6,7 @@ const navItems = [
   { path: "/", label: "Fusion & AI Quality" },
   { path: "/bill-retrain", label: "Bill OCR Retrain" },
   { path: "/nlu-ops", label: "NLU & Retraining" },
-  { path: "/user-inspector", label: "User Cache Inspector" },
+  { path: "/users", label: "User Management" },
   { path: "/bot-prompts", label: "Bot Prompt Scenarios" },
 ];
 
@@ -78,7 +78,7 @@ function useSystemStatus() {
         if (!cancelled) {
           setStatus({
             nluOnline: false,
-            nluVersion: "v2.5-offline",
+            nluVersion: "v1.1-offline",
             nluLoaded: false,
             ocrLoaded: false,
           });
@@ -155,9 +155,9 @@ function Layout() {
           </div>
         </div>
       </header>
-      <div className="content-wrap">
-        <aside className="sidebar">
-          <div className="sidebar-title">Operations</div>
+      <nav className="app-nav" aria-label="Operations">
+        <span className="app-nav-label">Operations</span>
+        <div className="app-nav-track">
           {navItems.map((item) => (
             <NavLink key={item.path} to={item.path} end className="nav-item">
               <span className="nav-item-label">{item.label}</span>
@@ -168,11 +168,11 @@ function Layout() {
               )}
             </NavLink>
           ))}
-        </aside>
-        <main className="main-content">
-          <Outlet />
-        </main>
-      </div>
+        </div>
+      </nav>
+      <main className="main-content">
+        <Outlet />
+      </main>
     </div>
   );
 }

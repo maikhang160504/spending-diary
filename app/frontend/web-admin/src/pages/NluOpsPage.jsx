@@ -3,6 +3,7 @@ import {
   getNluOverrides,
   addNluOverride,
   deleteNluOverride,
+  cleanupInvalidNluOverrides,
   getNluAggregations,
   curateNluAggregations,
   triggerNluTrain,
@@ -12,8 +13,81 @@ import {
   importNluCsv,
   reloadAiModels,
   fetchNluKaggleJobs,
-  fetchNluKaggleJob
+  fetchNluKaggleJob,
+  syncNluKaggle,
+  syncNluEncoderKaggle,
+  resumeNluKaggle,
+  trainEncoderKaggle,
+  getNluInferenceBackend,
+  setNluInferenceBackend,
 } from "../services/api";
+
+const NLU_METRIC_SOURCES = {
+  nlu_record: { key: "category" },
+  nlu_chitchat: { key: "intent" },
+  fusion: { key: "record_type" },
+  nlu_action: { key: "action_type" },
+  nlu_action_slots: { key: "action_slots", slots: true },
+  ner: { key: "ner", ner: true },
+};
+
+function normalizePct(val) {
+  if (val === undefined || val === null) return null;
+  const n = Number(val);
+  if (Number.isNaN(n)) return null;
+  return n <= 1 ? n * 100 : n;
+}
+
+function getMetricValue(modelKey, metricKey, metricsObj) {
+  const src = NLU_METRIC_SOURCES[modelKey];
+  if (!src || !metricsObj) return null;
+  const block = metricsObj[src.key];
+  if (!block) return null;
+  if (src.slots) {
+    const block = metricsObj[src.key];
+    const summary = block?.summary;
+    if (!summary) return null;
+    if (metricKey === "accuracy") return normalizePct(summary.avg_accuracy);
+    if (metricKey === "f1_score") return normalizePct(summary.avg_weighted_f1);
+    return null;
+  }
+  if (src.ner) {
+    const map = { accuracy: "score", precision: "ents_p", recall: "ents_r", f1_score: "ents_f" };
+    return normalizePct(block[map[metricKey]]);
+  }
+  const map = {
+    accuracy: "accuracy",
+    precision: "weighted_precision",
+    recall: "weighted_recall",
+    f1_score: "weighted_f1",
+  };
+  return normalizePct(block[map[metricKey]]);
+}
+
+const COMPARISON_ROWS = {
+  tfidf: [
+    { key: "nlu_record", label: "Category Model (category)", desc: "Phân loại danh mục chi tiêu tự động — TF-IDF" },
+    { key: "nlu_chitchat", label: "Intent Model (intent-model)", desc: "Nhận diện ý định giao dịch / Trò chuyện — TF-IDF" },
+    { key: "fusion", label: "Record Type Model (recordtype)", desc: "Phân loại Thu nhập / Chi tiêu — TF-IDF" },
+    { key: "nlu_action", label: "Action Model (actiontype)", desc: "Nhận diện hành động thao tác ví — TF-IDF" },
+    { key: "nlu_action_slots", label: "Action Slots (verb, category, time…)", desc: "Dự đoán slot chi tiết theo action_type (TF-IDF per field)" },
+    { key: "ner", label: "Named Entity Recognition (spaCy NER)", desc: "Nhận diện thực thể tên riêng, số tiền, ngày tháng" },
+  ],
+  encoder: [
+    { key: "nlu_record", label: "Category (PhoBERT encoder)", desc: "Phân loại danh mục chi tiêu — embedding PhoBERT" },
+    { key: "nlu_chitchat", label: "Intent (PhoBERT encoder)", desc: "Record / Action / Chitchat — embedding PhoBERT" },
+    { key: "fusion", label: "Record Type (PhoBERT encoder)", desc: "Thu nhập / Chi tiêu — embedding PhoBERT" },
+    { key: "nlu_action", label: "Action Type (PhoBERT encoder)", desc: "SET_LIMIT, ADD_GOAL, … — embedding PhoBERT" },
+  ],
+};
+
+function historyTrainType(entry) {
+  return entry?.train_type || "tfidf";
+}
+
+function filterHistoryByType(history, type) {
+  return (history || []).filter((r) => historyTrainType(r) === type && r.status === "success");
+}
 
 
 function NluOpsPage() {
@@ -44,19 +118,26 @@ function NluOpsPage() {
   });
   const [trainHistory, setTrainHistory] = useState([]);
   const [reloadingNlu, setReloadingNlu] = useState(false);
+  const [syncingKaggle, setSyncingKaggle] = useState(false);
+  const [syncingEncoderKaggle, setSyncingEncoderKaggle] = useState(false);
+  const [resumingKaggle, setResumingKaggle] = useState(false);
+  const [trainingEncoder, setTrainingEncoder] = useState(false);
+  const [inferenceBackend, setInferenceBackend] = useState("tfidf");
+  const [savingBackend, setSavingBackend] = useState(false);
+  const [compareTrainType, setCompareTrainType] = useState("tfidf");
 
   // CSV Import state
   const [csvFile, setCsvFile] = useState(null);
   const [autoRetrainCsv, setAutoRetrainCsv] = useState("local");
   const [importingCsv, setImportingCsv] = useState(false);
 
-  const renderMetricCell = (modelKey, metricKey) => {
-    const trainHistoryList = trainHistory || [];
-    const newModel = trainHistoryList.length > 0 ? trainHistoryList[trainHistoryList.length - 1] : null;
-    const oldModel = trainHistoryList.length > 1 ? trainHistoryList[trainHistoryList.length - 2] : null;
+  const renderMetricCell = (modelKey, metricKey, trainType = compareTrainType) => {
+    const filtered = filterHistoryByType(trainHistory, trainType);
+    const newModel = filtered.length > 0 ? filtered[filtered.length - 1] : null;
+    const oldModel = filtered.length > 1 ? filtered[filtered.length - 2] : null;
 
-    const newVal = newModel?.metrics?.[modelKey]?.[metricKey];
-    const oldVal = oldModel?.metrics?.[modelKey]?.[metricKey];
+    const newVal = getMetricValue(modelKey, metricKey, newModel?.metrics);
+    const oldVal = getMetricValue(modelKey, metricKey, oldModel?.metrics);
     
     if (newVal === undefined || newVal === null) {
       return <span style={{ color: "var(--text-muted)", fontSize: "13px" }}>-</span>;
@@ -106,9 +187,10 @@ function NluOpsPage() {
       getNluTrainStatus().catch(() => ({ training_active: false })),
       getNluModelMeta().catch(() => ({ version: "v1.2.0-fallback", trainedAt: "2026-06-21", f1Score: "91.2%" })),
       getNluTrainHistory().catch(() => []),
-      fetchNluKaggleJobs().catch(() => [])
+      fetchNluKaggleJobs().catch(() => []),
+      getNluInferenceBackend().catch(() => ({ backend: "tfidf" })),
     ])
-      .then(([overridesData, aggregationsData, statusData, metaData, historyData, kaggleJobsData]) => {
+      .then(([overridesData, aggregationsData, statusData, metaData, historyData, kaggleJobsData, backendData]) => {
         setLayer1Rules(overridesData);
         setAggregations(aggregationsData.map(item => ({ ...item, approved: false })));
         setIsTraining(statusData.training_active);
@@ -117,6 +199,9 @@ function NluOpsPage() {
         setKaggleJobs(kaggleJobsData);
         const active = kaggleJobsData.find(job => !["completed", "failed"].includes(job.status));
         setActiveKaggleJob(active || null);
+        setInferenceBackend(backendData?.backend || metaData?.inferenceBackend || "tfidf");
+        const backend = backendData?.backend || metaData?.inferenceBackend || "tfidf";
+        setCompareTrainType(backend === "encoder" ? "encoder" : "tfidf");
         setLoading(false);
       })
       .catch((err) => {
@@ -235,6 +320,38 @@ function NluOpsPage() {
       });
   };
 
+  const handleCleanupInvalidRules = async () => {
+    setLoading(true);
+    try {
+      const preview = await cleanupInvalidNluOverrides(false);
+      if (!preview.invalidCount) {
+        showToast("Không có rule Layer 1 sai cần dọn.");
+        setLoading(false);
+        return;
+      }
+      const sample = (preview.invalid || [])
+        .slice(0, 3)
+        .map((r) => `"${r.keyword}"`)
+        .join(", ");
+      const ok = window.confirm(
+        `Tìm thấy ${preview.invalidCount} rule sai (tên category, OCR dài, v.v.).\n` +
+          `Ví dụ: ${sample}\n\nXóa tất cả?`
+      );
+      if (!ok) {
+        setLoading(false);
+        return;
+      }
+      const result = await cleanupInvalidNluOverrides(true);
+      const data = await getNluOverrides();
+      setLayer1Rules(data);
+      showToast(`Đã xóa ${result.removed} rule Layer 1 không hợp lệ.`);
+    } catch (err) {
+      showToast("Dọn rule thất bại: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleImportCsv = (e) => {
     e.preventDefault();
     if (!csvFile) {
@@ -325,7 +442,8 @@ function NluOpsPage() {
     reloadAiModels("nlu")
       .then((res) => {
         setReloadingNlu(false);
-        showToast(res.message || "Model NLU đã được nạp nóng thành công!");
+        const ver = res.nlu_version ? ` (${res.nlu_version})` : "";
+        showToast((res.message || "Model NLU đã được nạp nóng thành công!") + ver);
         fetchAllData();
       })
       .catch((err) => {
@@ -333,6 +451,110 @@ function NluOpsPage() {
         showToast("Tải lại model thất bại: " + err.message);
       });
   };
+
+  const handleSyncKaggle = (trainType = "tfidf") => {
+    const isEncoder = trainType === "encoder";
+    if (isEncoder) setSyncingEncoderKaggle(true);
+    else setSyncingKaggle(true);
+
+    const syncFn = isEncoder ? syncNluEncoderKaggle : syncNluKaggle;
+    syncFn(false)
+      .then(async (res) => {
+        if (isEncoder) setSyncingEncoderKaggle(false);
+        else setSyncingKaggle(false);
+        showToast(res.message || `Sync ${isEncoder ? "Encoder" : "TF-IDF"} OK — F1 ${res.f1_score || ""}`);
+        fetchAllData();
+        try {
+          const reloadRes = await reloadAiModels("nlu");
+          if (reloadRes?.ok) {
+            showToast(`NLU đã nạp nóng sau sync (${reloadRes.nlu_version || inferenceBackend})`);
+            fetchAllData();
+          }
+        } catch (reloadErr) {
+          showToast(`Sync OK — bấm Tải lại model NLU: ${reloadErr.message}`);
+        }
+      })
+      .catch((err) => {
+        if (isEncoder) setSyncingEncoderKaggle(false);
+        else setSyncingKaggle(false);
+        showToast(`Sync ${isEncoder ? "Encoder" : "TF-IDF"} thất bại: ${err.message}`);
+      });
+  };
+
+  const handleResumeKaggle = () => {
+    setResumingKaggle(true);
+    resumeNluKaggle()
+      .then((res) => {
+        setResumingKaggle(false);
+        showToast(res.message || `Resume OK — job ${res.job_id?.slice(0, 8)}`);
+        fetchNluKaggleJobs().then((jobs) => {
+          setKaggleJobs(jobs);
+          const active = jobs.find(job => !["completed", "failed"].includes(job.status));
+          setActiveKaggleJob(active || null);
+        }).catch(() => {});
+      })
+      .catch((err) => {
+        setResumingKaggle(false);
+        showToast("Resume thất bại: " + err.message);
+      });
+  };
+
+  const handleTrainEncoder = () => {
+    setTrainingEncoder(true);
+    trainEncoderKaggle()
+      .then((res) => {
+        setTrainingEncoder(false);
+        showToast(res.message || `Encoder Kaggle job ${res.job_id?.slice(0, 8)}`);
+        fetchNluKaggleJobs().then((jobs) => {
+          setKaggleJobs(jobs);
+          const active = jobs.find(job => !["completed", "failed"].includes(job.status));
+          setActiveKaggleJob(active || null);
+        }).catch(() => {});
+      })
+      .catch((err) => {
+        setTrainingEncoder(false);
+        showToast("Encoder Kaggle failed: " + err.message);
+      });
+  };
+
+  const handleInferenceBackendChange = (backend) => {
+    if (backend === inferenceBackend) return;
+    setSavingBackend(true);
+    setNluInferenceBackend(backend)
+      .then((res) => {
+        setSavingBackend(false);
+        setInferenceBackend(res.backend || backend);
+        setCompareTrainType((res.backend || backend) === "encoder" ? "encoder" : "tfidf");
+        showToast(res.message || `NLU backend → ${backend}`);
+        getNluModelMeta().then(setModelMeta).catch(() => {});
+      })
+      .catch((err) => {
+        setSavingBackend(false);
+        showToast("Đổi backend thất bại: " + err.message);
+      });
+  };
+
+  const isEncoderJob = (job) => {
+    if (!job) return false;
+    const scope = String(job.scope || "").toLowerCase();
+    if (scope === "encoder" || scope === "nlu_encoder") return true;
+    return String(job.kernel || "").toLowerCase().includes("encoder");
+  };
+
+  const jobScopeLabel = (job) => {
+    if (isEncoderJob(job)) return "PhoBERT Encoder";
+    return "TF-IDF + NER";
+  };
+
+  const activeEncoderJob =
+    activeKaggleJob && isEncoderJob(activeKaggleJob) ? activeKaggleJob : null;
+  const activeTfidfKaggleJob =
+    activeKaggleJob && !isEncoderJob(activeKaggleJob) ? activeKaggleJob : null;
+  const anyKaggleJobActive = Boolean(activeKaggleJob);
+
+  const hasStuckJob = kaggleJobs.some(job =>
+    !["completed", "failed"].includes(job.status)
+  );
 
   const filteredRules = layer1Rules.filter((r) =>
     (r.keyword || '').toLowerCase().includes(searchExact.toLowerCase()) ||
@@ -444,14 +666,25 @@ function NluOpsPage() {
                   Active mapping overrides forcing specific phrases directly to categories.
                 </span>
               </div>
-              <input
-                type="text"
-                className="form-input"
-                placeholder="Search overrides by term or user..."
-                style={{ width: "260px", padding: "8px 14px", fontSize: "13px", background: "var(--bg-obsidian-950)", borderRadius: "8px", border: "1px solid var(--border-color)" }}
-                value={searchExact}
-                onChange={(e) => setSearchExact(e.target.value)}
-              />
+              <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  style={{ whiteSpace: "nowrap", fontSize: "13px" }}
+                  disabled={loading}
+                  onClick={handleCleanupInvalidRules}
+                >
+                  Dọn rule sai
+                </button>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="Search overrides by term or user..."
+                  style={{ width: "260px", padding: "8px 14px", fontSize: "13px", background: "var(--bg-obsidian-950)", borderRadius: "8px", border: "1px solid var(--border-color)" }}
+                  value={searchExact}
+                  onChange={(e) => setSearchExact(e.target.value)}
+                />
+              </div>
             </div>
 
             <div className="table-container" style={{ borderRadius: "12px", border: "1px solid var(--border-color)", overflow: "hidden", marginTop: "10px" }}>
@@ -801,6 +1034,24 @@ function NluOpsPage() {
               <h2 className="panel-title" style={{ fontSize: "16px", fontWeight: "600", color: "var(--text-primary)", marginRight: "auto" }}>Model Core Registry</h2>
               <button
                 className="btn btn-secondary"
+                style={{ padding: "6px 12px", fontSize: "12px", borderRadius: "6px" }}
+                onClick={() => handleSyncKaggle("tfidf")}
+                disabled={syncingKaggle || syncingEncoderKaggle || isTraining}
+                title="Tải output kernel TF-IDF + NER COMPLETE về server"
+              >
+                {syncingKaggle ? "Đang sync TF-IDF..." : "Sync TF-IDF Kaggle"}
+              </button>
+              <button
+                className="btn btn-secondary"
+                style={{ padding: "6px 12px", fontSize: "12px", borderRadius: "6px", border: "1px solid rgba(139, 92, 246, 0.35)" }}
+                onClick={() => handleSyncKaggle("encoder")}
+                disabled={syncingKaggle || syncingEncoderKaggle || isTraining}
+                title="Tải output kernel PhoBERT encoder COMPLETE về server"
+              >
+                {syncingEncoderKaggle ? "Đang sync Encoder..." : "Sync Encoder Kaggle"}
+              </button>
+              <button
+                className="btn btn-secondary"
                 style={{ padding: "6px 12px", fontSize: "12px", borderRadius: "6px", border: "1px solid var(--border-color)" }}
                 onClick={handleReloadNlu}
                 disabled={reloadingNlu || isTraining}
@@ -826,9 +1077,35 @@ function NluOpsPage() {
                 <strong className="monospaced" style={{ fontSize: "13px" }}>{modelMeta.trainedAt}</strong>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--border-color)", paddingBottom: "12px" }}>
+                <span style={{ fontSize: "13px", color: "var(--text-secondary)" }}>NLU Inference Backend</span>
+                <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                  <select
+                    value={inferenceBackend}
+                    disabled={savingBackend || isTraining}
+                    onChange={(e) => handleInferenceBackendChange(e.target.value)}
+                    style={{
+                      background: "var(--bg-obsidian-950)",
+                      border: "1px solid var(--border-color)",
+                      color: "var(--text-primary)",
+                      borderRadius: "6px",
+                      padding: "6px 10px",
+                      fontSize: "12px",
+                    }}
+                  >
+                    <option value="tfidf">TF-IDF (mặc định)</option>
+                    <option value="encoder">PhoBERT Encoder</option>
+                  </select>
+                </div>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--border-color)", paddingBottom: "12px" }}>
                 <span style={{ fontSize: "13px", color: "var(--text-secondary)" }}>Global Validation F1-Score</span>
                 <strong className="monospaced" style={{ color: "var(--accent-emerald-hover)", fontSize: "13px" }}>{modelMeta.f1Score}</strong>
               </div>
+              {modelMeta.pendingNote && (
+                <div style={{ fontSize: "12px", color: "var(--accent-amber-hover)", padding: "8px 12px", background: "rgba(245, 158, 11, 0.08)", borderRadius: "8px", border: "1px solid rgba(245, 158, 11, 0.2)" }}>
+                  {modelMeta.pendingNote}
+                </div>
+              )}
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingBottom: "12px" }}>
                 <span style={{ fontSize: "13px", color: "var(--text-secondary)" }}>Active Background Worker</span>
                 <strong className="monospaced" style={{ fontSize: "13px" }}>
@@ -864,49 +1141,74 @@ function NluOpsPage() {
                     width: "8px",
                     height: "8px",
                     borderRadius: "50%",
-                    background: (isTraining || (activeKaggleJob && !["completed", "failed"].includes(activeKaggleJob.status))) ? "var(--accent-emerald)" : "var(--text-muted)",
-                    boxShadow: (isTraining || (activeKaggleJob && !["completed", "failed"].includes(activeKaggleJob.status))) ? "0 0 8px var(--accent-emerald)" : "none"
+                    background: (isTraining || anyKaggleJobActive) ? "var(--accent-emerald)" : "var(--text-muted)",
+                    boxShadow: (isTraining || anyKaggleJobActive) ? "0 0 8px var(--accent-emerald)" : "none"
                   }} />
                   <h2 className="panel-title" style={{ fontSize: "16px", fontWeight: "600", color: "var(--text-primary)" }}>Trigger Train Worker</h2>
                 </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "20px" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "16px", marginBottom: "20px" }}>
                   {/* Local CPU Retrain Card */}
                   <div 
-                    onClick={() => { if (!isTraining && !activeKaggleJob) handleRetrain("local"); }}
+                    onClick={() => { if (!isTraining && !anyKaggleJobActive) handleRetrain("local"); }}
                     style={{
                       border: `1px solid ${isTraining ? "var(--accent-emerald)" : "var(--border-color)"}`,
                       background: isTraining ? "rgba(16, 185, 129, 0.05)" : "var(--bg-obsidian-950)",
                       borderRadius: "12px",
                       padding: "20px 16px",
-                      cursor: (isTraining || activeKaggleJob) ? "not-allowed" : "pointer",
-                      opacity: activeKaggleJob ? 0.5 : 1,
+                      cursor: (isTraining || anyKaggleJobActive) ? "not-allowed" : "pointer",
+                      opacity: anyKaggleJobActive ? 0.5 : 1,
                       textAlign: "center",
                       transition: "all 0.2s"
                     }}
                   >
                     <div style={{ fontSize: "28px", marginBottom: "8px" }}>💻</div>
-                    <h4 style={{ fontSize: "13px", fontWeight: "600", color: "var(--text-primary)", marginBottom: "4px" }}>Huấn luyện Cục bộ</h4>
-                    <span style={{ fontSize: "11px", color: "var(--text-secondary)", display: "block" }}>Chạy trên CPU local (1-2 phút)</span>
+                    <h4 style={{ fontSize: "13px", fontWeight: "600", color: "var(--text-primary)", marginBottom: "4px" }}>TF-IDF Cục bộ</h4>
+                    <span style={{ fontSize: "11px", color: "var(--text-secondary)", display: "block" }}>CPU local (1-2 phút)</span>
+                    <span style={{ fontSize: "10px", color: "var(--text-muted)", display: "block", marginTop: "6px", lineHeight: 1.4 }}>
+                      Train TF-IDF + NER spaCy
+                    </span>
                   </div>
 
                   {/* Kaggle GPU Retrain Card */}
                   <div 
-                    onClick={() => { if (!isTraining && !activeKaggleJob) handleRetrain("kaggle"); }}
+                    onClick={() => { if (!isTraining && !anyKaggleJobActive) handleRetrain("kaggle"); }}
                     style={{
-                      border: `1px solid ${activeKaggleJob ? "var(--accent-blue-hover)" : "var(--border-color)"}`,
-                      background: activeKaggleJob ? "rgba(26, 115, 232, 0.05)" : "var(--bg-obsidian-950)",
+                      border: `1px solid ${activeTfidfKaggleJob ? "var(--accent-blue-hover)" : "var(--border-color)"}`,
+                      background: activeTfidfKaggleJob ? "rgba(26, 115, 232, 0.05)" : "var(--bg-obsidian-950)",
                       borderRadius: "12px",
                       padding: "20px 16px",
-                      cursor: (isTraining || activeKaggleJob) ? "not-allowed" : "pointer",
+                      cursor: (isTraining || anyKaggleJobActive) ? "not-allowed" : "pointer",
                       opacity: isTraining ? 0.5 : 1,
                       textAlign: "center",
                       transition: "all 0.2s"
                     }}
                   >
                     <div style={{ fontSize: "28px", marginBottom: "8px" }}>☁️</div>
-                    <h4 style={{ fontSize: "13px", fontWeight: "600", color: "var(--text-primary)", marginBottom: "4px" }}>Huấn luyện Kaggle</h4>
-                    <span style={{ fontSize: "11px", color: "var(--text-secondary)", display: "block" }}>GPU Cloud (NER spaCy tối ưu)</span>
+                    <h4 style={{ fontSize: "13px", fontWeight: "600", color: "var(--text-primary)", marginBottom: "4px" }}>TF-IDF Kaggle</h4>
+                    <span style={{ fontSize: "11px", color: "var(--text-secondary)", display: "block" }}>GPU Cloud (NER spaCy)</span>
+                  </div>
+
+                  {/* PhoBERT Encoder Kaggle Card */}
+                  <div 
+                    onClick={() => { if (!isTraining && !anyKaggleJobActive && !trainingEncoder) handleTrainEncoder(); }}
+                    style={{
+                      border: `1px solid ${(activeEncoderJob || trainingEncoder) ? "var(--accent-violet)" : "var(--border-color)"}`,
+                      background: (activeEncoderJob || trainingEncoder) ? "rgba(139, 92, 246, 0.05)" : "var(--bg-obsidian-950)",
+                      borderRadius: "12px",
+                      padding: "20px 16px",
+                      cursor: (isTraining || anyKaggleJobActive || trainingEncoder) ? "not-allowed" : "pointer",
+                      opacity: (isTraining || activeTfidfKaggleJob) ? 0.5 : 1,
+                      textAlign: "center",
+                      transition: "all 0.2s"
+                    }}
+                  >
+                    <div style={{ fontSize: "28px", marginBottom: "8px" }}>🧠</div>
+                    <h4 style={{ fontSize: "13px", fontWeight: "600", color: "var(--text-primary)", marginBottom: "4px" }}>PhoBERT Encoder</h4>
+                    <span style={{ fontSize: "11px", color: "var(--text-secondary)", display: "block" }}>Kaggle GPU (thay TF-IDF)</span>
+                    <span style={{ fontSize: "10px", color: "var(--text-muted)", display: "block", marginTop: "6px", lineHeight: 1.4 }}>
+                      Semantic embeddings, tránh overfitting
+                    </span>
                   </div>
                 </div>
 
@@ -917,9 +1219,9 @@ function NluOpsPage() {
                 )}
 
                 {activeKaggleJob && (
-                  <div style={{ background: "rgba(26, 115, 232, 0.05)", border: "1px solid rgba(26, 115, 232, 0.2)", borderRadius: "8px", padding: "12px", fontSize: "12px", color: "var(--accent-blue-hover)", display: "flex", flexDirection: "column", gap: "6px" }}>
+                  <div style={{ background: isEncoderJob(activeKaggleJob) ? "rgba(139, 92, 246, 0.05)" : "rgba(26, 115, 232, 0.05)", border: isEncoderJob(activeKaggleJob) ? "1px solid rgba(139, 92, 246, 0.2)" : "1px solid rgba(26, 115, 232, 0.2)", borderRadius: "8px", padding: "12px", fontSize: "12px", color: isEncoderJob(activeKaggleJob) ? "#c4b5fd" : "var(--accent-blue-hover)", display: "flex", flexDirection: "column", gap: "6px" }}>
                     <div style={{ display: "flex", justifyContent: "space-between" }}>
-                      <span><strong>Kaggle GPU Job:</strong> {activeKaggleJob.status.toUpperCase()}</span>
+                      <span><strong>{jobScopeLabel(activeKaggleJob)}:</strong> {activeKaggleJob.status.toUpperCase()}</span>
                       <span style={{ fontFamily: "var(--font-mono)" }}>{activeKaggleJob.id?.slice(0, 8)}</span>
                     </div>
                     <div style={{ fontSize: "11px", color: "var(--text-secondary)", lineHeight: "1.4" }}>
@@ -934,9 +1236,50 @@ function NluOpsPage() {
                   </div>
                 )}
 
-                {!isTraining && !activeKaggleJob && (
+                {!isTraining && !activeKaggleJob && hasStuckJob && (
+                  <div style={{
+                    background: "rgba(245, 158, 11, 0.05)",
+                    border: "1px solid rgba(245, 158, 11, 0.25)",
+                    borderRadius: "8px",
+                    padding: "12px",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    gap: "12px",
+                  }}>
+                    <div>
+                      <div style={{ fontSize: "12px", color: "var(--accent-amber-hover)", fontWeight: "600" }}>
+                        Phát hiện job Kaggle bị treo
+                      </div>
+                      <div style={{ fontSize: "11px", color: "var(--text-secondary)", marginTop: "2px" }}>
+                        Server đã tắt giữa chừng. Bấm Resume để tiếp tục polling và tải kết quả.
+                      </div>
+                    </div>
+                    <button
+                      className="btn"
+                      onClick={handleResumeKaggle}
+                      disabled={resumingKaggle}
+                      style={{
+                        padding: "8px 16px",
+                        fontSize: "12px",
+                        fontWeight: "600",
+                        color: "var(--bg-obsidian-950)",
+                        background: "var(--accent-amber)",
+                        border: "none",
+                        borderRadius: "6px",
+                        cursor: resumingKaggle ? "not-allowed" : "pointer",
+                        opacity: resumingKaggle ? 0.6 : 1,
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {resumingKaggle ? "Đang resume..." : "Resume Job"}
+                    </button>
+                  </div>
+                )}
+
+                {!isTraining && !activeKaggleJob && !hasStuckJob && (
                   <div style={{ fontSize: "12px", color: "var(--text-muted)", textAlign: "center", marginTop: "12px" }}>
-                    Chọn một trong hai phương thức trên để bắt đầu huấn luyện lại mô hình.
+                    Chọn một trong ba phương thức trên để bắt đầu huấn luyện lại mô hình.
                   </div>
                 )}
 
@@ -947,6 +1290,7 @@ function NluOpsPage() {
                       <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "11px" }}>
                         <thead>
                           <tr style={{ background: "var(--bg-obsidian-950)", borderBottom: "1px solid var(--border-color)" }}>
+                            <th style={{ padding: "6px 10px", textAlign: "left", color: "var(--text-secondary)" }}>Loại</th>
                             <th style={{ padding: "6px 10px", textAlign: "left", color: "var(--text-secondary)" }}>Job ID</th>
                             <th style={{ padding: "6px 10px", textAlign: "left", color: "var(--text-secondary)" }}>Thời gian</th>
                             <th style={{ padding: "6px 10px", textAlign: "left", color: "var(--text-secondary)" }}>F1</th>
@@ -956,6 +1300,7 @@ function NluOpsPage() {
                         <tbody>
                           {kaggleJobs.slice(0, 10).map((job, i) => (
                             <tr key={i} style={{ borderBottom: "1px solid var(--border-color)", background: "transparent" }}>
+                              <td style={{ padding: "6px 10px", color: "var(--text-secondary)" }}>{jobScopeLabel(job)}</td>
                               <td style={{ padding: "6px 10px", fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>{job.id?.slice(0, 8)}</td>
                               <td style={{ padding: "6px 10px", color: "var(--text-secondary)" }}>
                                 {job.created_at ? new Date(job.created_at).toLocaleString("vi-VN") : "N/A"}
@@ -1083,18 +1428,64 @@ function NluOpsPage() {
             <div>
               <h2 className="panel-title" style={{ fontSize: "16px", fontWeight: "600", color: "var(--text-primary)" }}>So Sánh Hiệu Năng Mô Hình (Diagnostics & Comparison)</h2>
               <span className="form-desc" style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "2px", display: "block" }}>
-                So sánh độ chính xác của các mô hình NLU trước và sau khi retrain.
+                So sánh metrics trước/sau retrain — tách riêng TF-IDF và PhoBERT encoder (cùng schema accuracy / precision / recall / F1).
               </span>
             </div>
-            {trainHistory && trainHistory.length > 0 && (
-              <div style={{ fontSize: "12px", color: "var(--text-secondary)", display: "flex", gap: "16px" }}>
-                <span>Phiên bản mới nhất: <strong style={{ color: "var(--accent-blue-hover)" }}>Run #{trainHistory[trainHistory.length - 1].run_index}</strong> ({new Date(trainHistory[trainHistory.length - 1].trained_at).toLocaleDateString("vi-VN")})</span>
-                {trainHistory.length > 1 && (
-                  <span>Phiên bản trước: <strong style={{ color: "var(--text-muted)" }}>Run #{trainHistory[trainHistory.length - 2].run_index}</strong></span>
-                )}
-              </div>
-            )}
+            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
+              {["tfidf", "encoder"].map((type) => (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => setCompareTrainType(type)}
+                  style={{
+                    padding: "6px 14px",
+                    borderRadius: "8px",
+                    fontSize: "12px",
+                    fontWeight: "600",
+                    cursor: "pointer",
+                    border: compareTrainType === type
+                      ? (type === "encoder" ? "1px solid var(--accent-violet)" : "1px solid var(--accent-blue-hover)")
+                      : "1px solid var(--border-color)",
+                    background: compareTrainType === type
+                      ? (type === "encoder" ? "rgba(139, 92, 246, 0.1)" : "rgba(26, 115, 232, 0.08)")
+                      : "var(--bg-obsidian-950)",
+                    color: compareTrainType === type ? "var(--text-primary)" : "var(--text-secondary)",
+                  }}
+                >
+                  {type === "tfidf" ? "TF-IDF" : "PhoBERT Encoder"}
+                </button>
+              ))}
+            </div>
+            {(() => {
+              const filtered = filterHistoryByType(trainHistory, compareTrainType);
+              if (!filtered.length) return null;
+              const latest = filtered[filtered.length - 1];
+              const prev = filtered.length > 1 ? filtered[filtered.length - 2] : null;
+              const typeLabel = compareTrainType === "encoder" ? "Encoder" : "TF-IDF";
+              return (
+                <div style={{ fontSize: "12px", color: "var(--text-secondary)", display: "flex", gap: "16px", flexWrap: "wrap", width: "100%" }}>
+                  <span>
+                    {typeLabel} mới nhất: <strong style={{ color: compareTrainType === "encoder" ? "#c4b5fd" : "var(--accent-blue-hover)" }}>Run #{latest.run_index}</strong>
+                    {" "}({new Date(latest.trained_at).toLocaleDateString("vi-VN")})
+                    {latest.source ? ` · ${latest.source}` : ""}
+                    {latest.encoder_model ? ` · ${latest.encoder_model}` : ""}
+                  </span>
+                  {prev && (
+                    <span>
+                      Trước đó: <strong style={{ color: "var(--text-muted)" }}>Run #{prev.run_index}</strong>
+                      {prev.source ? ` · ${prev.source}` : ""}
+                    </span>
+                  )}
+                </div>
+              );
+            })()}
           </div>
+
+          {filterHistoryByType(trainHistory, compareTrainType).length === 0 && (
+            <div style={{ marginTop: "16px", padding: "14px", borderRadius: "8px", background: "var(--bg-obsidian-950)", border: "1px solid var(--border-color)", fontSize: "12px", color: "var(--text-muted)" }}>
+              Chưa có lịch sử retrain {compareTrainType === "encoder" ? "PhoBERT encoder" : "TF-IDF"} thành công. Chạy train worker tương ứng để ghi metrics.
+            </div>
+          )}
 
           <div className="table-container" style={{ borderRadius: "12px", border: "1px solid var(--border-color)", overflow: "hidden", marginTop: "16px" }}>
             <table className="custom-table">
@@ -1108,15 +1499,7 @@ function NluOpsPage() {
                 </tr>
               </thead>
               <tbody>
-                {[
-                  { key: "nlu_record", label: "Category Model (category)", desc: "Phân loại danh mục chi tiêu tự động" },
-                  { key: "nlu_chitchat", label: "Intent Model (intent-model)", desc: "Nhận diện ý định giao dịch / Trò chuyện tự do" },
-                  { key: "fusion", label: "Record Type Model (recordtype)", desc: "Phân loại giao dịch Thu nhập / Chi tiêu" },
-                  { key: "nlu_action", label: "Action Model (actiontype)", desc: "Nhận diện hành động thao tác ví, hạn mức, mục tiêu" },
-                  { key: "ner", label: "Named Entity Recognition (spaCy NER)", desc: "Nhận diện thực thể tên riêng, số tiền, ngày tháng, sản phẩm" },
-                  { key: "sentiment", label: "Sentiment Classifier (PhoBERT)", desc: "Phân tích sắc thái/cảm xúc câu trò chuyện" },
-                  { key: "ocr", label: "OCR Engine (ocr)", desc: "Nhận dạng chữ viết từ hình ảnh hóa đơn" }
-                ].map((sub) => (
+                {(COMPARISON_ROWS[compareTrainType] || COMPARISON_ROWS.tfidf).map((sub) => (
                   <tr key={sub.key}>
                     <td style={{ padding: "14px 18px" }}>
                       <div style={{ color: "var(--text-primary)", fontWeight: "600", fontSize: "13px" }}>{sub.label}</div>
@@ -1131,6 +1514,55 @@ function NluOpsPage() {
               </tbody>
             </table>
           </div>
+
+          {compareTrainType === "tfidf" && (() => {
+            const filtered = filterHistoryByType(trainHistory, "tfidf");
+            const latest = filtered.length ? filtered[filtered.length - 1] : null;
+            const slots = latest?.metrics?.action_slots || modelMeta?.actionSlots;
+            const fields = slots?.fields;
+            if (!fields || typeof fields !== "object") return null;
+            const summary = slots.summary || {};
+            return (
+              <div style={{ marginTop: "20px", padding: "16px", background: "var(--bg-obsidian-950)", borderRadius: "12px", border: "1px solid var(--border-color)" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px", flexWrap: "wrap", gap: "8px" }}>
+                  <h3 style={{ margin: 0, fontSize: "14px", fontWeight: "600", color: "var(--text-primary)" }}>Action Slots — chi tiết từng field</h3>
+                  <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>
+                    {summary.trained_fields ?? Object.keys(fields).length} fields
+                    {summary.dataset_rows != null ? ` · ${summary.dataset_rows.toLocaleString()} rows CSV` : ""}
+                    {summary.avg_weighted_f1 != null ? ` · avg F1 ${(summary.avg_weighted_f1 * 100).toFixed(1)}%` : ""}
+                  </span>
+                </div>
+                <div className="table-container" style={{ borderRadius: "8px", border: "1px solid var(--border-color)", overflow: "hidden" }}>
+                  <table className="custom-table">
+                    <thead>
+                      <tr style={{ background: "var(--bg-obsidian-900)" }}>
+                        <th style={{ padding: "10px 14px", fontSize: "10px" }}>Slot field</th>
+                        <th style={{ padding: "10px 14px", fontSize: "10px" }}>Loại</th>
+                        <th style={{ padding: "10px 14px", fontSize: "10px" }}>Train samples</th>
+                        <th style={{ padding: "10px 14px", fontSize: "10px" }}>Accuracy</th>
+                        <th style={{ padding: "10px 14px", fontSize: "10px" }}>Weighted F1</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {Object.entries(fields).map(([name, m]) => (
+                        <tr key={name}>
+                          <td style={{ padding: "10px 14px", fontFamily: "var(--font-mono)", fontSize: "12px" }}>{name}</td>
+                          <td style={{ padding: "10px 14px", fontSize: "12px" }}>{m.type || "—"}</td>
+                          <td style={{ padding: "10px 14px", fontSize: "12px" }}>{m.train_samples ?? "—"}</td>
+                          <td style={{ padding: "10px 14px", fontSize: "12px" }}>
+                            {m.accuracy != null ? `${(m.accuracy * 100).toFixed(1)}%` : "—"}
+                          </td>
+                          <td style={{ padding: "10px 14px", fontSize: "12px" }}>
+                            {m.weighted_f1 != null ? `${(m.weighted_f1 * 100).toFixed(1)}%` : "—"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            );
+          })()}
         </div>
       </>
       )}

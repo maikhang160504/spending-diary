@@ -1,16 +1,13 @@
-import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
-import 'dart:math';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:web_socket_channel/web_socket_channel.dart';
 
 import '../../utils/mimo_emotion.dart';
 import '../../widgets/mimo_overlay.dart';
 import '../../routes/app_routes.dart';
 import '../../services/api_client.dart';
+import '../../services/bill_processing_service.dart';
 import '../../services/transaction_notifier.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_palette.dart';
@@ -19,7 +16,6 @@ import '../../theme/app_spacing.dart';
 import '../../theme/categories.dart';
 import '../../utils/formatters.dart';
 import '../../services/streak_celebration.dart';
-import '../../widgets/loading_indicator.dart';
 import '../../utils/budget_prompt.dart';
 
 class CameraConfirmScreen extends StatefulWidget {
@@ -41,22 +37,6 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
   String? _targetWalletId;
   String? _targetWalletName;
 
-  // Async bill flow state
-  bool _isPending = false;
-  bool _processingDone = false;
-  String? _processingError;
-  String? _transactionId;
-  WebSocketChannel? _wsChannel;
-  StreamSubscription? _wsSub;
-  Timer? _wsTimeout;
-  Timer? _pollTimer;
-  int _pollAttempts = 0;
-  Map<String, dynamic>? _wsData;
-
-  static const _wsWaitSeconds = 300;
-  static const _pollIntervalSeconds = 3;
-  static const _maxPollAttempts = 100;
-
   // Editable fields
   late int _amount;
   late String _category;
@@ -70,24 +50,29 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
     _loadWallets();
     final data = widget.extractedData;
     if (data?['status'] == 'pending') {
-      _isPending = true;
-      _transactionId = data!['transactionId'] as String?;
-      _amount = 0;
-      _category = 'Others';
-      _note = '';
-      _confidence = 0.0;
-      _recordType = 'Expense';
-      _connectWebSocket();
-    } else {
-      final extracted = data?['extracted'] as Map<String, dynamic>?;
-      _amount = extracted != null && extracted['amount'] is num ? (extracted['amount'] as num).toInt() : 0;
-      _category = extracted?['category'] as String? ?? 'Others';
-      _note = extracted?['note'] as String? ?? '';
-      _confidence = extracted != null && extracted['confidence'] is num ? (extracted['confidence'] as num).toDouble() : 0.0;
-      _recordType = extracted?['record_type'] as String? ?? 'Expense';
-      if (!_isPending && _confidence >= 0.9 && _amount > 0) {
-        WidgetsBinding.instance.addPostFrameCallback((_) => _onConfirm());
+      final txId = data!['transactionId'] as String?;
+      final walletId = data['walletId'] as String? ?? ApiClient.lastSelectedWalletId ?? '';
+      if (txId != null && walletId.isNotEmpty) {
+        BillProcessingService.instance.trackExistingJob(
+          transactionId: txId,
+          walletId: walletId,
+          localImagePath: data['imagePath'] as String? ?? data['localImagePath'] as String?,
+        );
       }
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        context.go(AppRoutes.home);
+      });
+      return;
+    }
+    final extracted = data?['extracted'] as Map<String, dynamic>?;
+    _amount = extracted != null && extracted['amount'] is num ? (extracted['amount'] as num).toInt() : 0;
+    _category = extracted?['category'] as String? ?? 'Others';
+    _note = extracted?['note'] as String? ?? '';
+    _confidence = extracted != null && extracted['confidence'] is num ? (extracted['confidence'] as num).toDouble() : 0.0;
+    _recordType = extracted?['record_type'] as String? ?? 'Expense';
+    if (_confidence >= 0.9 && _amount > 0 && data?['reviewBill'] != true) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _onConfirm());
     }
   }
 
@@ -122,9 +107,7 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
       widget.extractedData?['imagePath'] as String? ?? widget.extractedData?['localImagePath'] as String?;
 
   String? get _remoteImageUrl =>
-      widget.extractedData?['imageUrl'] as String? ??
-      _wsData?['imageUrl'] as String? ??
-      _wsData?['image_url'] as String?;
+      widget.extractedData?['imageUrl'] as String?;
 
   Widget _buildBackground() {
     final path = _localImagePath;
@@ -143,179 +126,54 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
     return Container(color: Colors.black87);
   }
 
-  void _applyBillResult(Map<String, dynamic> d) {
-    final aiMeta = d['aiMeta'] as Map<String, dynamic>? ?? {};
-    final nlu = aiMeta['nlu'] as Map<String, dynamic>? ?? {};
-    final gemini = nlu['gemini_json'];
-    final geminiStory = gemini is Map
-        ? (gemini['response'] as String? ?? gemini['story'] as String?)
-        : null;
-    setState(() {
-      _processingDone = true;
-      _processingError = null;
-      _wsData = d;
-      _amount = ((d['amount'] ?? 0) is num) ? (d['amount'] as num).toInt() : 0;
-      _category = d['categoryCode'] as String? ?? 'Others';
-      _note = d['note'] as String? ?? '';
-      _confidence = d['aiConfidence'] is num ? (d['aiConfidence'] as num).toDouble() : 0.85;
-      _recordType = (d['type'] as String?) == 'income' ? 'Income' : 'Expense';
-    });
-    _wsTimeout?.cancel();
-    _pollTimer?.cancel();
-    _wsSub?.cancel();
-    _wsChannel?.sink.close();
-    final mood = d['mascotMood'] as String? ?? nlu['mascot_mood'] as String?;
-    final story = d['aiComment'] as String? ?? geminiStory;
-    Future.delayed(const Duration(milliseconds: 300), () {
-      if (!mounted) return;
-      mimoController.show(MiMoResponse(
-        emotionAsset: normalizeMimoAssetName(mood, fallback: 'Success'),
-        message: story?.substring(0, story.length.clamp(0, 80)) ?? '✅ Bill đã được xử lý xong!',
-      ));
-    });
-  }
-
-  void _startPollingFallback() {
-    if (_transactionId == null || _processingDone || _pollTimer != null) return;
-    if (mounted) setState(() {});
-    _pollAttempts = 0;
-    _pollTimer = Timer.periodic(const Duration(seconds: _pollIntervalSeconds), (_) async {
-      if (!mounted || _processingDone) {
-        _pollTimer?.cancel();
-        return;
-      }
-      _pollAttempts++;
-      if (_pollAttempts > _maxPollAttempts) {
-        _pollTimer?.cancel();
-        if (mounted && !_processingDone) {
-          setState(() => _processingError = 'Bill vẫn đang xử lý trên server — xem kết quả trong Story');
-        }
-        return;
-      }
-      try {
-        final tx = await _api.getTransaction(_transactionId!);
-        if (!mounted || _processingDone) return;
-        final status = tx['processingStatus'] as String? ?? 'done';
-        if (status == 'done') {
-          _applyBillResult(tx);
-        } else if (status == 'failed') {
-          _pollTimer?.cancel();
-          setState(() => _processingError = 'Xử lý thất bại');
-        }
-      } catch (_) {}
-    });
-  }
-
-  Future<void> _connectWebSocket() async {
-    final token = await _api.accessToken;
-    if (token == null || !mounted) return;
-    final wsUrl = Uri.parse(
-      '${_api.baseUrl.replaceFirst(RegExp(r'^http'), 'ws').replaceFirst('/api/v1', '')}/ws?token=$token',
-    );
-    _wsChannel = WebSocketChannel.connect(wsUrl);
-    // OCR bill thường 60–180s; giữ WS lâu hơn, sau đó poll HTTP nếu mất kết nối.
-    _wsTimeout = Timer(const Duration(seconds: _wsWaitSeconds), () {
-      if (mounted && !_processingDone && _processingError == null) {
-        _startPollingFallback();
-      }
-      _wsSub?.cancel();
-      _wsChannel?.sink.close();
-    });
-    _wsSub = _wsChannel!.stream.listen(
-      (msg) {
-        if (!mounted) return;
-        try {
-          final json = jsonDecode(msg as String) as Map<String, dynamic>;
-          if (json['type'] == 'transaction_done' && json['transactionId'] == _transactionId) {
-            final d = json['data'] as Map<String, dynamic>? ?? {};
-            _applyBillResult({
-              'amount': d['amount'],
-              'categoryCode': d['category'],
-              'note': d['note'],
-              'type': d['record_type'] == 'Income' ? 'income' : 'expense',
-              'imageUrl': d['imageUrl'],
-              'mascotMood': d['mascot_mood'],
-              'aiComment': d['story'],
-              'aiConfidence': 0.85,
-            });
-          } else if (json['type'] == 'transaction_failed' && json['transactionId'] == _transactionId) {
-            setState(() => _processingError = json['error']?.toString() ?? 'Xử lý thất bại');
-            _pollTimer?.cancel();
-          }
-        } catch (_) {}
-      },
-      onError: (_) {
-        if (mounted && !_processingDone) _startPollingFallback();
-      },
-      onDone: () {
-        if (mounted && !_processingDone && _processingError == null) {
-          _startPollingFallback();
-        }
-      },
-    );
-  }
-
-  @override
-  void dispose() {
-    _wsTimeout?.cancel();
-    _pollTimer?.cancel();
-    _wsSub?.cancel();
-    _wsChannel?.sink.close();
-    super.dispose();
-  }
-
   Future<void> _onConfirm() async {
     final wallets = _wallets.isNotEmpty ? _wallets : await _api.getWallets();
     if (!mounted) return;
     final targetWalletId = _targetWalletId ?? widget.extractedData?['walletId'] as String? ?? ApiClient.lastSelectedWalletId ?? (wallets.isNotEmpty ? wallets[0]['id'] as String : '');
     final targetWallet = wallets.firstWhere((w) => w['id'] == targetWalletId, orElse: () => null);
     final isGroupWallet = targetWallet != null && targetWallet['type'] == 'group';
+    final reviewTxId = widget.extractedData?['transactionId'] as String?;
 
-    if (_isPending && _processingDone) {
-      if (isGroupWallet) {
-        context.go(AppRoutes.shareWallet, extra: {'walletId': targetWalletId});
-      } else {
-        context.go(AppRoutes.home);
-      }
-      Future.delayed(const Duration(milliseconds: 400), () {
-        final moodAsset = normalizeMimoAssetName(_wsData?['mascot_mood'] as String?, fallback: 'Success');
-        final llmStory = _wsData?['story'] as String?;
-        const msgs = ['✅ Bill đã lưu!', '🎉 MiMo ghi nhận rồi nhé!'];
-        final fallbackMsg = msgs[Random().nextInt(msgs.length)];
-        mimoController.show(MiMoResponse(emotionAsset: moodAsset, message: llmStory ?? fallbackMsg));
-      });
-      return;
-    }
     setState(() { _saving = true; _saveError = null; });
     try {
       if (wallets.isEmpty) throw Exception('Không có ví nào');
-      
-      String? imageUrl;
-      final imagePath = widget.extractedData?['imagePath'] as String?;
-      if (imagePath != null) {
-        try {
-          final uploadRes = await _api.uploadFile(imagePath);
-          imageUrl = uploadRes['publicUrl'] as String?;
-        } catch (_) {}
-      }
 
-      final nluMeta = widget.extractedData?['nlu'] as Map<String, dynamic>?;
-      final llm = nluMeta != null
-          ? LlmMimoReply.fromNlu(nluMeta, intent: 'Record')
-          : const LlmMimoReply(text: '', emotionAsset: 'Success');
-      await _api.createTransaction({
-        'walletId': targetWalletId,
-        'amount': _amount,
-        'type': _recordType == 'Income' ? 'income' : 'expense',
-        'categoryCode': _category,
-        'note': _note,
-        'source': imageUrl != null ? 'story' : 'text',
-        'imageUrl': imageUrl,
-        'aiConfidence': _confidence,
-        'aiExtracted': true,
-        ...llm.toStoryPersistFields(),
-        if (nluMeta != null) 'aiMeta': {'nlu': nluMeta},
-      });
+      if (reviewTxId != null) {
+        await _api.updateTransaction(reviewTxId, {
+          'amount': _amount,
+          'type': _recordType == 'Income' ? 'income' : 'expense',
+          'categoryCode': _category,
+          'note': _note,
+          'aiConfidence': _confidence,
+        });
+      } else {
+        String? imageUrl;
+        final imagePath = widget.extractedData?['imagePath'] as String?;
+        if (imagePath != null) {
+          try {
+            final uploadRes = await _api.uploadFile(imagePath);
+            imageUrl = uploadRes['publicUrl'] as String?;
+          } catch (_) {}
+        }
+
+        final nluMeta = widget.extractedData?['nlu'] as Map<String, dynamic>?;
+        final llm = nluMeta != null
+            ? LlmMimoReply.fromNlu(nluMeta, intent: 'Record')
+            : const LlmMimoReply(text: '', emotionAsset: 'Success');
+        await _api.createTransaction({
+          'walletId': targetWalletId,
+          'amount': _amount,
+          'type': _recordType == 'Income' ? 'income' : 'expense',
+          'categoryCode': _category,
+          'note': _note,
+          'source': imageUrl != null ? 'story' : 'text',
+          'imageUrl': imageUrl,
+          'aiConfidence': _confidence,
+          'aiExtracted': true,
+          ...llm.toStoryPersistFields(),
+          if (nluMeta != null) 'aiMeta': {'nlu': nluMeta},
+        });
+      }
       if (!mounted) return;
       setState(() => _saving = false);
       notifyTransactionChanged();
@@ -331,7 +189,14 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
         context.go(AppRoutes.home);
       }
 
-      final mimoMsg = llm.text.isNotEmpty ? llm.text : '✅ Đã lưu! Mimo ghi nhận rồi nhé 😊';
+      final reviewMsg = reviewTxId != null
+          ? 'Đã cập nhật bill sau khi kiểm tra'
+          : null;
+      final nluMeta = widget.extractedData?['nlu'] as Map<String, dynamic>?;
+      final llm = nluMeta != null
+          ? LlmMimoReply.fromNlu(nluMeta, intent: 'Record')
+          : const LlmMimoReply(text: '', emotionAsset: 'Success');
+      final mimoMsg = reviewMsg ?? (llm.text.isNotEmpty ? llm.text : 'Đã lưu! Mimo ghi nhận rồi nhé');
       Future.delayed(const Duration(milliseconds: 400), () {
         mimoController.show(MiMoResponse(
           emotionAsset: llm.emotionAsset,
@@ -475,66 +340,17 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isPending && !_processingDone && _processingError == null) {
-      return Scaffold(
+    if (widget.extractedData?['status'] == 'pending') {
+      return const Scaffold(
         backgroundColor: Colors.black,
-        body: Center(
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            const LoadingIndicator(size: 120),
-            const SizedBox(height: 16),
-            Text('MiMo đang đọc bill...', style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.white)),
-            const SizedBox(height: 8),
-            Text(
-              _pollTimer != null
-                  ? 'Đang kiểm tra kết quả... (${_pollAttempts * _pollIntervalSeconds}s)'
-                  : 'AI đang phân tích hóa đơn, có thể mất 1–3 phút',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white54),
-              textAlign: TextAlign.center,
-            ),
-            if (_wsData != null) ...[
-              const SizedBox(height: 8),
-              Text('Đã nhận: ${_wsData!['category'] ?? ''}', style: const TextStyle(color: Colors.white38, fontSize: 12)),
-            ],
-          ]),
-        ),
-      );
-    }
-
-    if (_processingError != null) {
-      return Scaffold(
-        backgroundColor: Colors.black,
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(32),
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              const Icon(Icons.error_outline, color: AppColors.danger, size: 56),
-              const SizedBox(height: 16),
-              Text('Xử lý bill thất bại', style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.white)),
-              const SizedBox(height: 8),
-              Text(_processingError!, style: const TextStyle(color: Colors.white54, fontSize: 13), textAlign: TextAlign.center),
-              const SizedBox(height: 24),
-              FilledButton(
-                onPressed: () => context.pop(),
-                style: FilledButton.styleFrom(backgroundColor: AppColors.teal),
-                child: const Text('Quay lại'),
-              ),
-              if (_processingError!.contains('Story')) ...[
-                const SizedBox(height: 12),
-                OutlinedButton(
-                  onPressed: () => context.go(AppRoutes.home),
-                  style: OutlinedButton.styleFrom(foregroundColor: Colors.white, side: const BorderSide(color: Colors.white54)),
-                  child: const Text('Về trang chủ'),
-                ),
-              ],
-            ]),
-          ),
-        ),
+        body: Center(child: CircularProgressIndicator(color: AppColors.teal)),
       );
     }
 
     final confidencePct = (_confidence * 100).toStringAsFixed(0);
-    final needsUserConfirm = _confidence < 0.9;
+    final needsUserConfirm = _confidence < 0.9 || widget.extractedData?['reviewBill'] == true;
     final isLowConfidence = _confidence < 0.9;
+    final isReviewBill = widget.extractedData?['reviewBill'] == true;
 
     return Scaffold(
       body: Stack(
@@ -564,7 +380,10 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
                         onPressed: () => context.pop(),
                         icon: const Icon(Icons.close, color: Colors.white),
                       ),
-                      Text('AI xác nhận', style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: Colors.white, fontWeight: FontWeight.w600)),
+                      Text(
+                        isReviewBill ? 'Kiểm tra bill' : 'AI xác nhận',
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: Colors.white, fontWeight: FontWeight.w600),
+                      ),
                       const SizedBox(width: 40),
                     ],
                   ),

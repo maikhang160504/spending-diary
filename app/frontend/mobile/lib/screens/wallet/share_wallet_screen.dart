@@ -592,8 +592,6 @@ class _TransactionStoryCard extends StatelessWidget {
 
   Future<void> _onLongPress(BuildContext context) async {
     final api = ApiClient();
-    final note = tx['note'] as String? ?? '';
-    final text = note.isNotEmpty ? note : (tx['category_name'] as String? ?? '');
     final picked = await showModalBottomSheet<String>(
       context: context,
       builder: (ctx) => SafeArea(
@@ -621,7 +619,6 @@ class _TransactionStoryCard extends StatelessWidget {
     );
     if (picked == null) return;
     try {
-      await api.aiCorrection({'text': text, 'categoryCode': picked, 'recordType': tx['type'] == 'income' ? 'Income' : 'Expense'});
       await api.updateTransaction(tx['id'] ?? '', {'categoryCode': picked});
       notifyTransactionChanged();
       if (context.mounted) {

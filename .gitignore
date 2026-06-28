@@ -25,4 +25,5 @@ Thumbs.db
 **/.env
 
 
-
+mcocr_private/
+mcocr_val_data/

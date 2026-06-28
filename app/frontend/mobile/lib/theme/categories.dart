@@ -73,6 +73,48 @@ class CategoryTheme {
   static Color colorOf(String category) => of(category).color;
   static String emojiOf(String category) => of(category).emoji;
 
+  static Color chipBackground(String category, {bool onDark = false}) {
+    final c = of(canonicalCodeOf(category)).color;
+    return c.withValues(alpha: onDark ? 0.28 : 0.11);
+  }
+
+  static Color chipBorder(String category, {bool onDark = false}) {
+    final c = of(canonicalCodeOf(category)).color;
+    return c.withValues(alpha: onDark ? 0.62 : 0.22);
+  }
+
+  static Color chipForeground(String category, {bool onDark = false}) {
+    final c = of(canonicalCodeOf(category)).color;
+    if (onDark) {
+      final hsl = HSLColor.fromColor(c);
+      return hsl
+          .withSaturation((hsl.saturation * 0.85).clamp(0.35, 1.0))
+          .withLightness(0.82)
+          .toColor();
+    }
+    final hsl = HSLColor.fromColor(c);
+    return hsl
+        .withSaturation((hsl.saturation * 0.72).clamp(0.28, 0.85))
+        .withLightness((hsl.lightness * 0.72 + 0.18).clamp(0.42, 0.58))
+        .toColor();
+  }
+
+  static Color chipIconBackground(String category, {bool onDark = false}) {
+    final c = of(canonicalCodeOf(category)).color;
+    return c.withValues(alpha: onDark ? 0.38 : 0.14);
+  }
+
+  static List<BoxShadow> chipShadow(String category) {
+    final c = of(canonicalCodeOf(category)).color;
+    return [
+      BoxShadow(
+        color: c.withValues(alpha: 0.06),
+        blurRadius: 6,
+        offset: const Offset(0, 1),
+      ),
+    ];
+  }
+
   /// Returns an [Image.asset] widget for the category icon, falling back to emoji text.
   static Widget iconOf(String category, {double size = 24}) {
     final style = of(category);

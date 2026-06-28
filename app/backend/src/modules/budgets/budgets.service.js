@@ -45,13 +45,13 @@ async function create(userId, payload) {
 
   if (existing.rows.length > 0) {
     const budgetId = existing.rows[0].id;
-    // Update the amount of the existing budget
+    // Update limit only — preserve start_date so spent calculation stays correct
     const r = await query(
       `UPDATE budgets
-       SET amount_limit = $1, start_date = $2::date, end_date = $3::date, updated_at = NOW()
-       WHERE id = $4
+       SET amount_limit = $1, updated_at = NOW()
+       WHERE id = $2
        RETURNING *`,
-      [payload.amountLimit, payload.startDate, payload.endDate || null, budgetId]
+      [payload.amountLimit, budgetId]
     );
     return row(r.rows[0]);
   }

@@ -10,6 +10,7 @@ import '../../utils/mimo_emotion.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/categories.dart';
 import '../../utils/formatters.dart';
+import '../../widgets/category_chip.dart';
 import '../../widgets/skeleton.dart';
 
 /// Detail Story Screen — hỗ trợ lướt (swipe) qua nhiều story + chỉnh sửa/xóa.
@@ -85,18 +86,6 @@ class _StoryPageState extends State<_StoryPage> {
   String? _error;
   bool _correcting = false;
   String? _primaryTxId;
-
-  static const _catColors = {
-    'Food': Color(0xFFEC4899),
-    'Shopping': Color(0xFF8B5CF6),
-    'Transport': Color(0xFF3B82F6),
-    'Entertainment': Color(0xFFF59E0B),
-    'Housing': Color(0xFF10B981),
-    'Health': Color(0xFFEF4444),
-    'Education': Color(0xFF6366F1),
-    'Travel': Color(0xFF14B8A6),
-    'Income': Color(0xFF22C55E),
-  };
 
   @override
   void initState() {
@@ -425,22 +414,38 @@ class _StoryPageState extends State<_StoryPage> {
     );
   }
 
-  Color _categoryColor(String? code) => _catColors[code ?? ''] ?? AppColors.teal;
-
   String _formatDate(String? iso) {
-    if (iso == null) return '';
-    try {
-      final dt = DateTime.parse(iso).toLocal();
-      return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')} • ${dt.day}/${dt.month}/${dt.year}';
-    } catch (_) {
-      return '';
-    }
+    final dt = parseToLocalDateTime(iso);
+    if (dt == null) return '';
+    return formatDateTimeFull(dt);
+  }
+
+  Widget _glassActionButton({
+    required IconData icon,
+    required VoidCallback onPressed,
+    String? tooltip,
+  }) {
+    return Tooltip(
+      message: tooltip ?? '',
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.42),
+          shape: BoxShape.circle,
+          border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
+        ),
+        child: IconButton(
+          icon: Icon(icon, color: Colors.white, size: 20),
+          onPressed: onPressed,
+          visualDensity: VisualDensity.compact,
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final categoryCode = _story?['categoryCode'] as String? ?? _story?['category_code'] as String? ?? _story?['category'] as String?;
     final items = _story?['items'] as List<dynamic>?;
+    final categoryCode = _resolveStoryCategoryCode(items);
     
     String title = _story?['title'] as String? ?? _story?['note'] as String? ?? '';
     final isGeneric = title.isEmpty || 
@@ -460,7 +465,7 @@ class _StoryPageState extends State<_StoryPage> {
     }
 
     final aiMessage = _story?['aiMessage'] as String? ?? _story?['ai_message'] as String? ?? _story?['aiComment'] as String? ?? _story?['ai_comment'] as String? ?? _story?['story'] as String? ?? 'Mimo đã ghi nhận giao dịch này!';
-    final occurredAt = _story?['occurredAt'] as String? ?? _story?['occurred_on'] as String?;
+    final occurredAt = _story != null ? resolveStoryDisplayIso(_story!) : null;
     final aiEmotionRaw = _story?['mascotMood'] as String? ?? _story?['mascot_mood'] as String? ?? _story?['aiEmotion'] as String? ?? _story?['ai_emotion'] as String?;
     final mascotMood = normalizeMimoAssetName(aiEmotionRaw, fallback: 'Success');
 
@@ -498,8 +503,6 @@ class _StoryPageState extends State<_StoryPage> {
       }
     }
 
-    final catColor = _categoryColor(categoryCode);
-
     return Stack(
       children: [
         Positioned.fill(
@@ -513,25 +516,34 @@ class _StoryPageState extends State<_StoryPage> {
               : Container(color: const Color(0xFF0D1117)),
         ),
         Positioned.fill(
-          child: Container(
-            decoration: const BoxDecoration(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [Color(0x33000000), Color(0xCC000000)],
+                stops: const [0.0, 0.35, 0.7, 1.0],
+                colors: [
+                  Colors.black.withValues(alpha: 0.08),
+                  Colors.black.withValues(alpha: 0.28),
+                  Colors.black.withValues(alpha: 0.55),
+                  const Color(0xE6121218),
+                ],
               ),
             ),
           ),
         ),
         SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.lg),
-            child: _loading
-                ? _buildLoading()
-                : _error != null
-                    ? _buildError()
-                    : _buildContent(catColor, title, amount, aiMessage, occurredAt, categoryCode, mascotMood, items),
-          ),
+          child: _loading
+              ? Padding(
+                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  child: _buildLoading(),
+                )
+              : _error != null
+                  ? Padding(
+                      padding: const EdgeInsets.all(AppSpacing.lg),
+                      child: _buildError(),
+                    )
+                  : _buildContent(title, amount, aiMessage, occurredAt, categoryCode, mascotMood, items),
         ),
       ],
     );
@@ -565,7 +577,38 @@ class _StoryPageState extends State<_StoryPage> {
     ]);
   }
 
-  Widget _buildContent(Color catColor, String title, int amount, String aiMessage, String? occurredAt, String? categoryCode, String mascotMood, List<dynamic>? items) {
+  String? _resolveStoryCategoryCode(List<dynamic>? items) {
+    final fromStory = _story?['categoryCode'] as String? ??
+        _story?['category_code'] as String? ??
+        _story?['category'] as String?;
+    if (fromStory != null && fromStory.isNotEmpty) {
+      final canonical = CategoryTheme.canonicalCodeOf(fromStory);
+      if (canonical != 'Other' || fromStory.toLowerCase() == 'other') {
+        return canonical;
+      }
+    }
+    if (items != null) {
+      for (final item in items) {
+        final txs = item['transactions'] as List<dynamic>?;
+        if (txs == null) continue;
+        for (final tx in txs) {
+          final raw = tx['category_code'] as String? ??
+              tx['categoryCode'] as String? ??
+              tx['category_name'] as String? ??
+              tx['category'] as String?;
+          if (raw != null && raw.isNotEmpty) {
+            return CategoryTheme.canonicalCodeOf(raw);
+          }
+        }
+      }
+    }
+    return fromStory != null && fromStory.isNotEmpty
+        ? CategoryTheme.canonicalCodeOf(fromStory)
+        : 'Other';
+  }
+
+  Widget _buildContent(String title, int amount, String aiMessage, String? occurredAt, String? categoryCode, String mascotMood, List<dynamic>? items) {
+    final category = CategoryTheme.canonicalCodeOf(categoryCode ?? 'Other');
     final txList = <dynamic>[];
     if (items != null) {
       for (final item in items) {
@@ -588,283 +631,411 @@ class _StoryPageState extends State<_StoryPage> {
       }
     }
 
+    final amountColor = isExpense ? Colors.white : const Color(0xFF5EEAD4);
+    final catColor = CategoryTheme.colorOf(category);
+
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Top bar
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(color: catColor, borderRadius: BorderRadius.circular(999)),
-              child: Text(
-                categoryCode ?? 'Khác',
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-              ),
-            ),
-            Row(children: [
-              CircleAvatar(
-                backgroundColor: Colors.black54,
-                child: IconButton(
-                  icon: const Icon(Icons.delete_outline, color: Colors.white),
-                  tooltip: 'Xóa',
-                  onPressed: _confirmDelete,
-                ),
-              ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, 0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              _glassActionButton(icon: Icons.delete_outline, tooltip: 'Xóa', onPressed: _confirmDelete),
               const SizedBox(width: 8),
-              CircleAvatar(
-                backgroundColor: Colors.black54,
-                child: IconButton(
-                  icon: const Icon(Icons.close, color: Colors.white),
-                  onPressed: () => context.pop(),
-                ),
-              ),
-            ]),
-          ],
+              _glassActionButton(icon: Icons.close, tooltip: 'Đóng', onPressed: () => context.pop()),
+            ],
+          ),
         ),
-        const SizedBox(height: 16),
-        Expanded(
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 24),
-                Center(
-                  child: Column(
-                    children: [
-                      Text(
-                        '${isExpense ? '-' : '+'}${formatVnd(amount)}',
-                        style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 32,
-                            ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        title,
-                        style: Theme.of(context).textTheme.titleSmall?.copyWith(color: Colors.white, fontSize: 16),
-                        textAlign: TextAlign.center,
-                      ),
-                      if (occurredAt != null) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          _formatDate(occurredAt),
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white70),
-                        ),
-                      ],
+        const Spacer(flex: 1),
+        Flexible(
+          flex: 3,
+          child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Positioned(
+              top: -48,
+              left: 24,
+              child: Container(
+                width: 120,
+                height: 120,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      catColor.withValues(alpha: 0.28),
+                      catColor.withValues(alpha: 0.0),
                     ],
                   ),
                 ),
-                const SizedBox(height: 24),
-
-                // AI feedback + Correction button
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.4),
-                    borderRadius: BorderRadius.circular(AppRadii.md),
-                    border: Border.all(color: Colors.white24),
+              ),
+            ),
+            Container(
+              decoration: BoxDecoration(
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Color.lerp(const Color(0xCC121218), catColor, 0.14)!,
+                    const Color(0xF0121218),
+                  ],
+                ),
+                border: Border(top: BorderSide(color: catColor.withValues(alpha: 0.35))),
+                boxShadow: [
+                  BoxShadow(
+                    color: catColor.withValues(alpha: 0.12),
+                    blurRadius: 32,
+                    offset: const Offset(0, -12),
                   ),
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.35),
+                    blurRadius: 28,
+                    offset: const Offset(0, -10),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      Center(
+                        child: Container(
+                          width: 40,
+                          height: 4,
+                          margin: const EdgeInsets.only(bottom: 16),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                catColor.withValues(alpha: 0.35),
+                                catColor,
+                                catColor.withValues(alpha: 0.35),
+                              ],
+                            ),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                        ),
+                      ),
+                      CategoryChip(category: category, size: CategoryChipSize.regular, onDark: true),
+                      const SizedBox(height: 16),
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Container(
-                            width: 36,
-                            height: 36,
-                            decoration: const BoxDecoration(color: AppColors.teal, shape: BoxShape.circle),
-                            child: ClipOval(
-                              child: Image.asset(
-                                'assets/MiMo/emotions/$mascotMood.png',
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, _, _) => const Center(
-                                  child: Text('😎', style: TextStyle(fontSize: 18)),
-                                ),
+                            width: 4,
+                            height: 56,
+                            margin: const EdgeInsets.only(top: 4),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [
+                                  catColor,
+                                  catColor.withValues(alpha: 0.35),
+                                ],
                               ),
+                              borderRadius: BorderRadius.circular(999),
                             ),
                           ),
-                          const SizedBox(width: 12),
+                          const SizedBox(width: 14),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text(
-                                  'Mimo AI',
-                                  style: TextStyle(color: AppColors.teal, fontSize: 11, fontWeight: FontWeight.w700),
-                                ),
-                                const SizedBox(height: 4),
                                 Text(
-                                  aiMessage,
-                                  style: const TextStyle(color: Colors.white, fontSize: 12, height: 1.4),
+                                  '${isExpense ? '-' : '+'}${formatVnd(amount)}',
+                                  style: TextStyle(
+                                    color: amountColor,
+                                    fontSize: 36,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: -0.8,
+                                    height: 1.05,
+                                    shadows: [
+                                      Shadow(
+                                        color: catColor.withValues(alpha: isExpense ? 0.35 : 0.5),
+                                        blurRadius: 18,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  title,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.w600,
+                                    height: 1.35,
+                                  ),
                                 ),
                               ],
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 12),
-                      GestureDetector(
-                        onTap: _correcting ? null : _reportCorrection,
-                        child: Container(
+                      if (occurredAt != null && occurredAt.isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                           decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(AppRadii.md),
+                            color: catColor.withValues(alpha: 0.14),
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(color: catColor.withValues(alpha: 0.28)),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              _correcting
-                                  ? const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                                  : const Icon(Icons.thumb_down_alt_outlined, color: Colors.white70, size: 13),
+                              Icon(Icons.schedule_rounded, size: 14, color: catColor.withValues(alpha: 0.85)),
                               const SizedBox(width: 6),
-                              const Text('AI nhận nhầm?', style: TextStyle(color: Colors.white70, fontSize: 11)),
+                              Text(
+                                _formatDate(occurredAt),
+                                style: TextStyle(color: Colors.white.withValues(alpha: 0.88), fontSize: 12),
+                              ),
                             ],
                           ),
+                        ),
+                      ],
+                  const SizedBox(height: 18),
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.07),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: 3,
+                          height: 52,
+                          margin: const EdgeInsets.only(right: 12, top: 2),
+                          decoration: BoxDecoration(
+                            color: AppColors.teal,
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                        ),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Container(
+                                    width: 34,
+                                    height: 34,
+                                    decoration: BoxDecoration(
+                                      color: AppColors.teal,
+                                      shape: BoxShape.circle,
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: AppColors.teal.withValues(alpha: 0.35),
+                                          blurRadius: 10,
+                                          offset: const Offset(0, 3),
+                                        ),
+                                      ],
+                                    ),
+                                    child: ClipOval(
+                                      child: Image.asset(
+                                        'assets/MiMo/emotions/$mascotMood.png',
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (_, _, _) => const Center(
+                                          child: Text('😎', style: TextStyle(fontSize: 16)),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  const Text(
+                                    'Mimo AI',
+                                    style: TextStyle(
+                                      color: AppColors.teal,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: 0.2,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              Text(
+                                aiMessage,
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.92),
+                                  fontSize: 13,
+                                  height: 1.45,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              GestureDetector(
+                                onTap: _correcting ? null : _reportCorrection,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(AppRadii.md),
+                                    border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      _correcting
+                                          ? const SizedBox(
+                                              width: 12,
+                                              height: 12,
+                                              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                            )
+                                          : Icon(Icons.thumb_down_alt_outlined, color: Colors.white.withValues(alpha: 0.75), size: 13),
+                                      const SizedBox(width: 6),
+                                      Text('AI nhận nhầm?', style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 11)),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (txList.isNotEmpty) ...[
+                    const SizedBox(height: 22),
+                    Text(
+                      'DANH SÁCH CHI TIÊU',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.55),
+                        fontWeight: FontWeight.w700,
+                        fontSize: 11,
+                        letterSpacing: 1.3,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    ...txList.map((tx) {
+                      final txAmount = parseToInt(tx['amount']);
+                      final txNote = tx['note'] as String? ?? '';
+                      final txCat = tx['category_name'] as String? ?? tx['category_code'] as String? ?? 'Other';
+                      final txTime = txTimestampIso(Map<String, dynamic>.from(tx as Map)) ?? '';
+                      final txImg = tx['image_url'] as String? ?? tx['imageUrl'] as String?;
+                      final txIsExpense = (tx['type'] as String? ?? 'expense').toLowerCase() == 'expense';
+                      final catStyle = CategoryTheme.of(txCat);
+
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 10),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.05),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        txNote.isNotEmpty ? txNote : catStyle.label,
+                                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 14),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      CategoryChip(category: txCat, size: CategoryChipSize.compact, onDark: true),
+                                    ],
+                                  ),
+                                ),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Text(
+                                      txIsExpense ? '-${formatVnd(txAmount)}' : '+${formatVnd(txAmount)}',
+                                      style: TextStyle(
+                                        color: txIsExpense ? const Color(0xFFFF9B9B) : const Color(0xFF5EEAD4),
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                    if (txTime.isNotEmpty) ...[
+                                      const SizedBox(height: 4),
+                                      Text(_formatTxTime(txTime), style: TextStyle(color: Colors.white.withValues(alpha: 0.38), fontSize: 10)),
+                                    ],
+                                  ],
+                                ),
+                              ],
+                            ),
+                            if (txImg != null && txImg.isNotEmpty) ...[
+                              const SizedBox(height: 10),
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(10),
+                                child: AspectRatio(
+                                  aspectRatio: 16 / 9,
+                                  child: CachedNetworkImage(
+                                    imageUrl: txImg,
+                                    width: double.infinity,
+                                    fit: BoxFit.cover,
+                                    memCacheWidth: 1080,
+                                    errorWidget: (_, _, _) => const SizedBox.shrink(),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      );
+                    }),
+                  ],
+                  const SizedBox(height: 18),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.white,
+                            side: BorderSide(color: Colors.white.withValues(alpha: 0.35)),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadii.lg)),
+                          ),
+                          onPressed: () => context.pop(),
+                          child: const Text('Đóng'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: FilledButton(
+                          onPressed: _showEditSheet,
+                          style: FilledButton.styleFrom(
+                            backgroundColor: AppColors.teal,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadii.lg)),
+                            elevation: 0,
+                          ),
+                          child: const Text('Chỉnh sửa', style: TextStyle(fontWeight: FontWeight.w700)),
                         ),
                       ),
                     ],
                   ),
-                ),
-
-                if (txList.isNotEmpty) ...[
-                  const SizedBox(height: 24),
-                  const Text(
-                    'DANH SÁCH CHI TIÊU',
-                    style: TextStyle(color: Colors.white70, fontWeight: FontWeight.bold, fontSize: 11, letterSpacing: 1.2),
-                  ),
-                  const SizedBox(height: 8),
-                  ...txList.map((tx) {
-                    final txAmount = parseToInt(tx['amount']);
-                    final txNote = tx['note'] as String? ?? '';
-                    final txCat = tx['category_name'] as String? ?? tx['category_code'] as String? ?? 'Other';
-                    final txTime = tx['occurred_at'] as String? ?? tx['occurredAt'] as String? ?? '';
-                    final txImg = tx['image_url'] as String? ?? tx['imageUrl'] as String?;
-                    final isExpense = (tx['type'] as String? ?? 'expense').toLowerCase() == 'expense';
-                    final catStyle = CategoryTheme.of(txCat);
-
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 10),
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.3),
-                        borderRadius: BorderRadius.circular(AppRadii.md),
-                        border: Border.all(color: Colors.white12),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Container(
-                                width: 36,
-                                height: 36,
-                                decoration: BoxDecoration(color: catStyle.color.withValues(alpha: 0.2), shape: BoxShape.circle),
-                                child: Center(child: CategoryTheme.iconOf(txCat, size: 20)),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      txNote.isNotEmpty ? txNote : catStyle.label,
-                                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 14),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(catStyle.label, style: const TextStyle(color: Colors.white70, fontSize: 11)),
-                                  ],
-                                ),
-                              ),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  Text(
-                                    isExpense ? '-${formatVnd(txAmount)}' : '+${formatVnd(txAmount)}',
-                                    style: TextStyle(
-                                      color: isExpense ? AppColors.danger : AppColors.teal,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                  if (txTime.isNotEmpty) ...[
-                                    const SizedBox(height: 2),
-                                    Text(_formatTxTime(txTime), style: const TextStyle(color: Colors.white38, fontSize: 10)),
-                                  ],
-                                ],
-                              ),
-                            ],
-                          ),
-                          if (txImg != null && txImg.isNotEmpty) ...[
-                            const SizedBox(height: 10),
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child: AspectRatio(
-                                aspectRatio: 1,
-                                child: CachedNetworkImage(
-                                  imageUrl: txImg,
-                                  width: double.infinity,
-                                  fit: BoxFit.cover,
-                                  memCacheWidth: 1080,
-                                  errorWidget: (_, _, _) => const SizedBox.shrink(),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    );
-                  }),
+                  SizedBox(height: MediaQuery.paddingOf(context).bottom + 16),
                 ],
-                const SizedBox(height: 32),
-              ],
+              ),
             ),
           ),
         ),
-        const SizedBox(height: 16),
-        // Bottom buttons
-        Row(
-          children: [
-            Expanded(
-              child: OutlinedButton(
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.white,
-                  side: const BorderSide(color: Colors.white54),
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadii.lg)),
-                ),
-                onPressed: () => context.pop(),
-                child: const Text('Đóng'),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: FilledButton(
-                onPressed: _showEditSheet,
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.teal,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadii.lg)),
-                ),
-                child: const Text('Chỉnh sửa', style: TextStyle(fontWeight: FontWeight.w600)),
-              ),
-            ),
           ],
         ),
+      ),
       ],
     );
   }
 
   String _formatTxTime(String iso) {
-    try {
-      final dt = DateTime.parse(iso).toLocal();
-      return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
-    } catch (_) {
-      return '';
-    }
+    final dt = parseToLocalDateTime(iso);
+    if (dt == null) return '';
+    return formatTimeOnly(dt);
   }
 }

@@ -15,6 +15,7 @@ import '../../theme/categories.dart';
 import '../../services/streak_celebration.dart';
 import '../../services/transaction_notifier.dart';
 import '../../utils/formatters.dart';
+import '../../widgets/category_chip.dart';
 import '../../widgets/error_banner.dart';
 import '../../widgets/skeleton.dart';
 import '../wallet/create_wallet_screen.dart';
@@ -141,7 +142,15 @@ class _HomeScreenState extends State<HomeScreen> {
         } else {
           _transactions = [];
         }
+        _transactions.sort((a, b) => compareByTimestampDesc(
+          Map<String, dynamic>.from(a as Map),
+          Map<String, dynamic>.from(b as Map),
+        ));
         _stories = story.data ?? [];
+        _stories.sort((a, b) => compareStoryByTimestampDesc(
+          Map<String, dynamic>.from(a as Map),
+          Map<String, dynamic>.from(b as Map),
+        ));
       });
     } catch (_) {}
   }
@@ -591,7 +600,11 @@ class _HomeScreenState extends State<HomeScreen> {
                         '')
                     .isNotEmpty,
           )
-          .toList();
+          .toList()
+        ..sort((a, b) => compareStoryByTimestampDesc(
+          Map<String, dynamic>.from(a as Map),
+          Map<String, dynamic>.from(b as Map),
+        ));
       if (galleryStories.isEmpty) {
         return [
           SliverToBoxAdapter(
@@ -1201,10 +1214,6 @@ class _TransactionStoryCard extends StatelessWidget {
 
   Future<void> _onLongPress(BuildContext context) async {
     final api = ApiClient();
-    final note = tx['note'] as String? ?? '';
-    final text = note.isNotEmpty
-        ? note
-        : (tx['category_name'] as String? ?? '');
     final picked = await showModalBottomSheet<String>(
       context: context,
       builder: (ctx) => SafeArea(
@@ -1239,11 +1248,6 @@ class _TransactionStoryCard extends StatelessWidget {
     );
     if (picked == null) return;
     try {
-      await api.aiCorrection({
-        'text': text,
-        'categoryCode': picked,
-        'recordType': tx['type'] == 'income' ? 'Income' : 'Expense',
-      });
       await api.updateTransaction(tx['id'] ?? '', {'categoryCode': picked});
       notifyTransactionChanged();
       if (context.mounted) {
@@ -1434,8 +1438,7 @@ class _TransactionStoryCard extends StatelessWidget {
           tx['category_code'] as String? ??
           'Others';
       final note = tx['note'] as String? ?? '';
-      final createdAt =
-          tx['createdAt'] as String? ?? tx['created_at'] as String? ?? '';
+      final displayTime = txTimestampIso(tx) ?? '';
       final source = tx['source'] as String? ?? '';
       final catStyle = CategoryTheme.of(category);
       final label = note.isNotEmpty ? note : catStyle.label;
@@ -1523,10 +1526,10 @@ class _TransactionStoryCard extends StatelessWidget {
                   height: 1.4,
                 ),
               ),
-              if (createdAt.isNotEmpty) ...[
+              if (displayTime.isNotEmpty) ...[
                 const SizedBox(height: 8),
                 Text(
-                  _formatTime(createdAt),
+                  _formatTime(displayTime),
                   style: const TextStyle(color: Color(0xFFD97706), fontSize: 9),
                 ),
               ],
@@ -1546,8 +1549,7 @@ class _TransactionStoryCard extends StatelessWidget {
     final note = tx['note'] as String? ?? '';
     final originalText = tx['originalText'] as String? ?? tx['original_text'] as String? ?? '';
     final caption = originalText.isNotEmpty ? originalText : note;
-    final createdAt =
-        tx['createdAt'] as String? ?? tx['created_at'] as String? ?? '';
+    final displayTime = txTimestampIso(tx) ?? '';
     final isExpense = type.toLowerCase() == 'expense';
     final catStyle = CategoryTheme.of(category);
 
@@ -1661,28 +1663,11 @@ class _TransactionStoryCard extends StatelessWidget {
                         ),
                         Row(
                           children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: catStyle.color.withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(999),
-                              ),
-                              child: Text(
-                                catStyle.label,
-                                style: TextStyle(
-                                  color: catStyle.color,
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
+                            CategoryChip(category: category),
                             const SizedBox(width: 6),
-                            if (createdAt.isNotEmpty)
+                            if (displayTime.isNotEmpty)
                               Text(
-                                _formatTime(createdAt),
+                                _formatTime(displayTime),
                                 style: Theme.of(context).textTheme.bodySmall
                                     ?.copyWith(
                                       color: AppColors.muted,
@@ -1848,12 +1833,9 @@ class _TransactionStoryCard extends StatelessWidget {
   }
 
   String _formatTime(String isoDate) {
-    try {
-      final dt = DateTime.parse(isoDate).toLocal();
-      return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')} ${dt.day}/${dt.month}';
-    } catch (_) {
-      return '';
-    }
+    final dt = parseToLocalDateTime(isoDate);
+    if (dt == null) return '';
+    return formatDateTimeShort(dt);
   }
 }
 
@@ -2037,14 +2019,22 @@ class _StoryGalleryCard extends StatelessWidget {
         story['coverImageUrl'] as String? ??
         '';
     final occurredOn =
-        story['occurred_on'] as String? ?? story['occurredOn'] as String? ?? '';
+        story['latest_occurred_at'] as String? ??
+        story['latestOccurredAt'] as String? ??
+        story['occurred_on'] as String? ??
+        story['occurredOn'] as String? ??
+        story['created_at'] as String? ??
+        story['createdAt'] as String? ??
+        '';
     String dateStr = '';
     if (occurredOn.isNotEmpty) {
-      try {
-        final dt = DateTime.parse(occurredOn).toLocal();
-        dateStr =
-            '${dt.day.toString().padLeft(2, '0')}-${dt.month.toString().padLeft(2, '0')}';
-      } catch (_) {}
+      final dt = parseStoryDisplayDateTime(
+        occurredOn,
+        timeSourceIso: story['created_at'] ?? story['createdAt'],
+      );
+      if (dt != null) {
+        dateStr = formatDateTimeShort(dt);
+      }
     }
     return GestureDetector(
       onTap: id.isNotEmpty
@@ -2823,18 +2813,15 @@ class _DraftListSheet extends StatelessWidget {
                     tx['category_code'] as String? ??
                     'Others';
                 final note = tx['note'] as String? ?? '';
-                final createdAt =
-                    tx['createdAt'] as String? ??
-                    tx['created_at'] as String? ??
-                    '';
+                final displayTime = txTimestampIso(tx) ?? '';
                 final catStyle = CategoryTheme.of(category);
                 final label = note.isNotEmpty ? note : catStyle.label;
                 final txId = tx['id'] as String? ?? '';
 
                 String timeAgo = '';
-                if (createdAt.isNotEmpty) {
-                  try {
-                    final dt = DateTime.parse(createdAt).toLocal();
+                if (displayTime.isNotEmpty) {
+                  final dt = parseToLocalDateTime(displayTime);
+                  if (dt != null) {
                     final diff = DateTime.now().difference(dt);
                     if (diff.inDays > 0) {
                       timeAgo = '${diff.inDays} ngày trước';
@@ -2843,7 +2830,7 @@ class _DraftListSheet extends StatelessWidget {
                     } else {
                       timeAgo = '${diff.inMinutes} phút trước';
                     }
-                  } catch (_) {}
+                  }
                 }
 
                 return GestureDetector(

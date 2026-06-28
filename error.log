@@ -1,0 +1,76 @@
+Using 2 GPU(s) for distributed training (T4 x2 when available)
+WARNING:__main__:
+*****************************************
+Setting OMP_NUM_THREADS environment variable for each process to be 1 in default, to avoid your system being overloaded, please further tune the variable for optimal performance in your application as needed. 
+*****************************************
+Traceback (most recent call last):
+  File "/usr/lib/python3.12/pathlib.py", line 1311, in mkdir
+    os.mkdir(self, mode)
+FileNotFoundError: [Errno 2] No such file or directory: 'saved/models/PICK_Default/kaggle_train_0627_124653'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/kaggle/working/PICK/train.py", line 156, in <module>
+    config = ConfigParser.from_args(args, options)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/kaggle/working/PICK/parse_config.py", line 90, in from_args
+    return cls(config, resume, modification, config['run_id'])
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/kaggle/working/PICK/parse_config.py", line 48, in __init__
+    self.save_dir.mkdir(parents=True, exist_ok=exist_ok)
+  File "/usr/lib/python3.12/pathlib.py", line 1316, in mkdir
+    self.mkdir(mode, parents=False, exist_ok=exist_ok)
+  File "/usr/lib/python3.12/pathlib.py", line 1311, in mkdir
+    os.mkdir(self, mode)
+FileExistsError: [Errno 17] File exists: 'saved/models/PICK_Default/kaggle_train_0627_124653'
+/usr/local/lib/python3.12/dist-packages/torch/nn/modules/transformer.py:307: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.self_attn.batch_first was not True(use batch_first for better inference performance)
+  warnings.warn(f"enable_nested_tensor is True, but self.use_nested_tensor is False because {why_not_sparsity_fast_path}")
+[2026-06-27 12:46:53,481 - train - INFO] - Distributed training start...
+[2026-06-27 12:46:53,481 - train - INFO] - [Process 83] Initializing process group with: {'MASTER_ADDR': '127.0.0.1', 'MASTER_PORT': '12355', 'RANK': '0', 'WORLD_SIZE': '2'}
+[2026-06-27 12:46:53,483 - train - INFO] - [Process 83] world_size = 2, rank = 0, backend=nccl
+[2026-06-27 12:46:53,490 - train - INFO] - Dataloader instances created. Train datasets: 1058 samples Validation datasets: 93 samples.
+W0627 12:46:54.349000 136178175558784 torch/distributed/elastic/multiprocessing/api.py:858] Sending process 83 closing signal SIGTERM
+E0627 12:46:54.464000 136178175558784 torch/distributed/elastic/multiprocessing/api.py:833] failed (exitcode: 1) local_rank: 1 (pid: 84) of binary: /usr/bin/python3
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/usr/local/lib/python3.12/dist-packages/torch/distributed/run.py", line 905, in <module>
+    main()
+  File "/usr/local/lib/python3.12/dist-packages/torch/distributed/elastic/multiprocessing/errors/__init__.py", line 348, in wrapper
+    return f(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/torch/distributed/run.py", line 901, in main
+    run(args)
+  File "/usr/local/lib/python3.12/dist-packages/torch/distributed/run.py", line 892, in run
+    elastic_launch(
+  File "/usr/local/lib/python3.12/dist-packages/torch/distributed/launcher/api.py", line 133, in __call__
+    return launch_agent(self._config, self._entrypoint, list(args))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/torch/distributed/launcher/api.py", line 264, in launch_agent
+    raise ChildFailedError(
+torch.distributed.elastic.multiprocessing.errors.ChildFailedError: 
+============================================================
+/kaggle/working/PICK/train.py FAILED
+------------------------------------------------------------
+Failures:
+  <NO_OTHER_FAILURES>
+------------------------------------------------------------
+Root Cause (first observed failure):
+[0]:
+  time      : 2026-06-27_12:46:54
+  host      : a0e0f7725dbc
+  rank      : 1 (local_rank: 1)
+  exitcode  : 1 (pid: 84)
+  error_file: <N/A>
+  traceback : To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html
+============================================================
+Training finished with return code: 1
+---------------------------------------------------------------------------
+AssertionError                            Traceback (most recent call last)
+/tmp/ipykernel_23/1417956905.py in <cell line: 0>()
+    201 
+    202 print(f'Training finished with return code: {result.returncode}')
+--> 203 assert result.returncode == 0, 'PICK training failed!'
+
+AssertionError: PICK training failed!

@@ -8,6 +8,12 @@ const actionService = require('./action.service');
 const ApiError = require('../../utils/ApiError');
 const logger = require('../../config/logger');
 const { normalizeMascotMood, pickMimoEmotionFromNlu } = require('../../utils/mascotMood');
+const {
+  resolveCategoryCorrectionKeyword,
+  resolveKeywordFromOcrPayload,
+  isInvalidPersonalizationKeyword,
+} = require('../../utils/billPersonalization');
+const env = require('../../config/env');
 const path = require('path');
 
 class Semaphore {
@@ -46,7 +52,7 @@ class Semaphore {
   }
 }
 
-const ocrSemaphore = new Semaphore(3);
+const ocrSemaphore = new Semaphore(env.ai.billOcrConcurrency);
 const walletProfileCache = new Map();
 const userCorrectionsCache = new Map();
 
@@ -145,9 +151,14 @@ async function _enrichNluWithAction(userId, payload, response) {
     const reportKind = actionService.detectReportKind(payload.text || response.text || '', actionType);
     const actionResult = await actionService.executeReport(userId, {
       timeRange,
-      categoryCode: response.category || null,
+      categoryCode: actionService.resolveCategoryCode(
+        response.category,
+        response.action_details,
+        payload.text || response.text || ''
+      ),
       reportKind,
       text: payload.text || response.text || '',
+      actionDetails: response.action_details,
     });
     let story = actionService.buildReportStory(actionResult);
 
@@ -469,6 +480,10 @@ async function _processBillBackground(userId, walletId, transactionId, fileBuffe
     }
 
     const extracted = aiResponse.extracted || {};
+    const personalizationKeyword = resolveKeywordFromOcrPayload(
+      aiResponse.ocr || {},
+      extracted.note || null
+    );
     const categoryId = extracted.category
       ? (await query(
           `SELECT id FROM categories WHERE code = $1 LIMIT 1`,
@@ -487,6 +502,7 @@ async function _processBillBackground(userId, walletId, transactionId, fileBuffe
     const billIntent = nlu.intent || 'Record';
     const mascotMood = pickMimoEmotionFromNlu(nlu, billIntent);
 
+    let storyId = null;
     let storyItemId = null;
     try {
       const storyRes = await query(
@@ -494,7 +510,7 @@ async function _processBillBackground(userId, walletId, transactionId, fileBuffe
          VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
         [userId, walletId, extracted.note || extracted.category || 'Hóa đơn', extracted.amount || 0, imageUrl, occurredAt]
       );
-      const storyId = storyRes.rows[0].id;
+      storyId = storyRes.rows[0].id;
       const itemRes = await query(
         `INSERT INTO story_items (story_id, raw_text, media_url, media_type)
          VALUES ($1, $2, $3, $4) RETURNING id`,
@@ -534,7 +550,7 @@ async function _processBillBackground(userId, walletId, transactionId, fileBuffe
         extracted.record_type === 'Income' ? 'income' : extracted.amount ? 'expense' : null,
         extracted.note || null,
         extracted.confidence != null ? Number(extracted.confidence) : null,
-        { nlu: aiResponse.nlu, ocr: aiResponse.ocr, image_url: imageUrl },
+        { nlu: aiResponse.nlu, ocr: aiResponse.ocr, image_url: imageUrl, personalizationKeyword },
         storyItemId,
         transactionId,
         occurredAt,
@@ -561,43 +577,7 @@ async function _processBillBackground(userId, walletId, transactionId, fileBuffe
       );
     } catch (_) {}
 
-    // Auto-enqueue bill vào hàng đợi retrain cho admin review
-    try {
-      const retrainStore = require('../../services/billRetrainStore');
-      const crypto = require('crypto');
-      const ext = path.extname(originalName || 'bill.jpg') || '.jpg';
-      const sampleId = crypto.randomUUID();
-      const localUrl = retrainStore.saveImage(sampleId, fileBuffer, ext);
-      const finalImageUrl = imageUrl || localUrl;
-      const ocrPayload = aiResponse.ocr || {};
-      retrainStore.upsertSample({
-        id: sampleId,
-        status: 'pending',
-        source: 'user_upload',
-        userId,
-        transactionId,
-        imageUrl: finalImageUrl,
-        imageExt: ext,
-        autoLabels: {
-          boxes: ocrPayload.boxes || [],
-          kie_fields: ocrPayload.kie_fields || {},
-          kie_backend: ocrPayload.backend || ocrPayload.kie_backend || 'unknown',
-          amount: extracted.amount,
-          category: extracted.category,
-        },
-        metadata: {
-          amount: extracted.amount,
-          category: extracted.category,
-          confidence: extracted.confidence,
-          originalName,
-          backend: aiResponse.ocr?.backend || 'unknown',
-        },
-      });
-      logger.info({ sampleId, transactionId, userId }, 'Auto-enqueued user bill for retrain');
-    } catch (enqueueErr) {
-      logger.warn({ err: enqueueErr.message, transactionId }, 'Failed to auto-enqueue bill for retrain');
-    }
-
+    // Auto-enqueue bill vào hàng đợi retrain cho admin review (sau WS — không chặn user)
     sendToUser(userId, {
       type: 'transaction_done',
       transactionId,
@@ -607,12 +587,51 @@ async function _processBillBackground(userId, walletId, transactionId, fileBuffe
         record_type: extracted.record_type,
         note: extracted.note,
         imageUrl,
+        storyId,
         mascot_mood: aiResponse.nlu?.mascot_mood || null,
         story:
           aiResponse.nlu?.gemini_json?.response ||
           aiResponse.nlu?.gemini_json?.story ||
           null,
       },
+    });
+
+    setImmediate(() => {
+      try {
+        const retrainStore = require('../../services/billRetrainStore');
+        const crypto = require('crypto');
+        const ext = path.extname(originalName || 'bill.jpg') || '.jpg';
+        const sampleId = crypto.randomUUID();
+        const localUrl = retrainStore.saveImage(sampleId, fileBuffer, ext);
+        const finalImageUrl = imageUrl || localUrl;
+        const ocrPayload = aiResponse.ocr || {};
+        retrainStore.upsertSample({
+          id: sampleId,
+          status: 'pending',
+          source: 'user_upload',
+          userId,
+          transactionId,
+          imageUrl: finalImageUrl,
+          imageExt: ext,
+          autoLabels: {
+            boxes: ocrPayload.boxes || [],
+            kie_fields: ocrPayload.kie_fields || {},
+            kie_backend: ocrPayload.backend || ocrPayload.kie_backend || 'unknown',
+            amount: extracted.amount,
+            category: extracted.category,
+          },
+          metadata: {
+            amount: extracted.amount,
+            category: extracted.category,
+            confidence: extracted.confidence,
+            originalName,
+            backend: aiResponse.ocr?.backend || 'unknown',
+          },
+        });
+        logger.info({ sampleId, transactionId, userId }, 'Auto-enqueued user bill for retrain');
+      } catch (enqueueErr) {
+        logger.warn({ err: enqueueErr.message, transactionId }, 'Failed to auto-enqueue bill for retrain');
+      }
     });
   } catch (err) {
     logger.error({ err: err.message, transactionId }, 'bill background job failed');
@@ -726,6 +745,25 @@ async function _fetchUserCorrections(userId) {
 }
 
 async function saveCorrection(userId, payload) {
+  let keywordText = payload.text;
+
+  if (payload.transactionId) {
+    try {
+      const txRes = await query(
+        `SELECT source, note, ai_meta FROM transactions WHERE id = $1 AND creator_id = $2 AND is_deleted = FALSE`,
+        [payload.transactionId, userId]
+      );
+      if (txRes.rowCount > 0) {
+        const resolved = resolveCategoryCorrectionKeyword(txRes.rows[0]);
+        if (resolved) keywordText = resolved;
+      }
+    } catch (err) {
+      logger.warn({ err: err.message, userId }, 'failed to resolve correction keyword from transaction');
+    }
+  } else if (isInvalidPersonalizationKeyword(keywordText)) {
+    keywordText = null;
+  }
+
   const r = await query(
     `INSERT INTO user_corrections
        (user_id, text, intent, category_code, record_type, action_type, predicted, source)
@@ -733,7 +771,7 @@ async function saveCorrection(userId, payload) {
      RETURNING id, created_at`,
     [
       userId,
-      payload.text,
+      keywordText || payload.text || '',
       payload.intent || null,
       payload.categoryCode || null,
       payload.recordType || null,
@@ -743,9 +781,9 @@ async function saveCorrection(userId, payload) {
   );
 
   // If a category was corrected, update user_category_mappings (Layer 1 exact override)
-  if (payload.categoryCode && payload.text && (payload.intent === 'Record' || !payload.intent)) {
-    const cleanedText = payload.text.trim().toLowerCase();
-    if (cleanedText) {
+  if (payload.categoryCode && keywordText && (payload.intent === 'Record' || !payload.intent)) {
+    const cleanedText = keywordText.trim().toLowerCase();
+    if (cleanedText && !isInvalidPersonalizationKeyword(cleanedText)) {
       await query(
         `INSERT INTO user_category_mappings (user_id, keyword, category_code, updated_at)
          VALUES ($1, $2, $3, NOW())
@@ -780,11 +818,35 @@ async function confirmAction(userId, payload) {
 }
 
 async function rejectAction(userId, payload) {
+  const predicted = payload.predicted || null;
   await query(
     `INSERT INTO action_rejected_log (user_id, text, predicted)
      VALUES ($1, $2, $3)`,
-    [userId, payload.text || null, payload.predicted || null]
+    [userId, payload.text || null, predicted ? JSON.stringify(predicted) : null]
   );
+
+  // Append misclassified action samples for future NLU retraining
+  if (payload.text && predicted?.action_type) {
+    try {
+      const fs = require('fs');
+      const path = require('path');
+      const env = require('../../config/env');
+      const nluRoot = path.resolve(__dirname, '../../../../../expense-ocr-nlu');
+      const outDir = path.join(nluRoot, 'text_nlu', 'datasets');
+      fs.mkdirSync(outDir, { recursive: true });
+      const outFile = path.join(outDir, 'action_rejected_samples.jsonl');
+      const row = JSON.stringify({
+        text: payload.text,
+        predicted_action_type: predicted.action_type,
+        predicted_intent: predicted.intent || 'Action',
+        user_id: userId,
+        rejected_at: new Date().toISOString(),
+      });
+      fs.appendFileSync(outFile, `${row}\n`, 'utf8');
+    } catch (err) {
+      logger.warn({ err: err.message, userId }, 'failed to append action_rejected sample');
+    }
+  }
 }
 
 function summarizeOlderMessages(olderMessages) {
@@ -801,6 +863,99 @@ function summarizeOlderMessages(olderMessages) {
     return `Người dùng đã thực hiện các thao tác trước đó: ${uniqActions.join(', ')}.`;
   }
   return 'Người dùng đang trò chuyện tự do.';
+}
+
+function extractLlmTextFromResponse(res) {
+  if (!res) return null;
+  return (
+    res.gemini_json?.response ||
+    res.gemini_json?.story ||
+    res.nlg_response ||
+    res.response ||
+    res.content ||
+    null
+  );
+}
+
+async function _runChatLlmFollowUp(userId, sessionId, messageId, context) {
+  const { sendToUser } = require('../../services/wsHub');
+  const chatService = require('../chat/chat.service');
+
+  try {
+    const {
+      userMessage,
+      aiResponse,
+      emotion,
+      profile,
+      userCorrections,
+      summary,
+      slidingWindow,
+    } = context;
+
+    const intent = aiResponse.intent || 'Chitchat';
+    const actionType = aiResponse.action_type;
+    let llmRes;
+
+    if (intent === 'Action' && actionService.isReportAction(actionType) && aiResponse.action_result) {
+      llmRes = await aiClient.inferText({
+        text: userMessage,
+        profile: {
+          ...(profile || {}),
+          action_facts: aiResponse.action_result,
+        },
+        run_llm: true,
+        nlg_persona: emotion || null,
+        emotion: emotion || null,
+        user_id: userId,
+        user_corrections: userCorrections || null,
+      });
+    } else {
+      llmRes = await aiClient.inferText({
+        text: userMessage,
+        profile: profile || null,
+        run_llm: true,
+        nlg_persona: emotion || null,
+        emotion: emotion || null,
+        user_id: userId,
+        user_corrections: userCorrections || null,
+        chat_history: slidingWindow || null,
+        chat_summary: summary || null,
+      });
+    }
+
+    const llmText = extractLlmTextFromResponse(llmRes);
+    if (!llmText || !String(llmText).trim()) {
+      sendToUser(userId, { type: 'chat_llm_update', sessionId, messageId, failed: true });
+      return;
+    }
+
+    const mergedNlu = {
+      ...(aiResponse || {}),
+      ...(llmRes || {}),
+      gemini_json: llmRes.gemini_json || aiResponse.gemini_json,
+      llama_json: llmRes.llama_json || aiResponse.llama_json,
+      nlg_response: llmText,
+    };
+    const mood = pickMimoEmotionFromNlu(mergedNlu, intent);
+    const intentActionPatch = {
+      mood,
+      llmUpdated: true,
+      nlu: mergedNlu,
+    };
+
+    await chatService.updateMessageContent(userId, sessionId, messageId, llmText, intentActionPatch);
+
+    sendToUser(userId, {
+      type: 'chat_llm_update',
+      sessionId,
+      messageId,
+      content: llmText,
+      mood,
+    });
+  } catch (err) {
+    logger.warn({ err: err.message, userId, sessionId, messageId }, 'chat LLM follow-up failed');
+    sendToUser(userId, { type: 'chat_llm_update', sessionId, messageId, failed: true });
+  }
 }
 
 async function aiChat(userId, sessionId, userMessage) {
@@ -861,7 +1016,14 @@ async function aiChat(userId, sessionId, userMessage) {
       user_corrections: userCorrections,
       chat_history: slidingWindow,
       chat_summary: summary,
+      run_llm: false,
     });
+    if (aiResponse.intent === 'Action' && aiResponse.action_type) {
+      aiResponse.action_type = actionService.disambiguateActionType(
+        userMessage,
+        aiResponse.action_type
+      );
+    }
     aiResponse = await _enrichNluWithAction(userId, { text: userMessage }, aiResponse);
     const llmText =
       aiResponse.gemini_json?.response ||
@@ -978,10 +1140,24 @@ async function aiChat(userId, sessionId, userMessage) {
     }
 
     // Save AI response to chat session
-    await chatService.addMessage(userId, sessionId, {
+    const savedMsg = await chatService.addMessage(userId, sessionId, {
       content: assistantContent,
       role: 'assistant',
       intentAction: intentAction,
+    });
+
+    setImmediate(() => {
+      _runChatLlmFollowUp(userId, sessionId, savedMsg.id, {
+        userMessage,
+        aiResponse,
+        emotion,
+        profile,
+        userCorrections,
+        summary,
+        slidingWindow,
+      }).catch((err) => {
+        logger.warn({ err: err.message, userId, sessionId }, 'chat LLM follow-up scheduling failed');
+      });
     });
 
     await logAi(userId, 'chat', { sessionId, userMessage }, aiResponse, {
@@ -992,6 +1168,8 @@ async function aiChat(userId, sessionId, userMessage) {
     return {
       response: assistantContent,
       intentAction: intentAction,
+      messageId: savedMsg.id,
+      llmPending: true,
     };
   } catch (err) {
     await logAi(userId, 'chat', { sessionId, userMessage }, null, { error: err.message });

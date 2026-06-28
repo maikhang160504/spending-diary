@@ -29,14 +29,16 @@ Hệ thống quản lý chi tiêu cá nhân + AI nhận dạng (NLU text tiếng
 ## Cấu trúc thư mục
 
 ```
-app/
-├── ai-service/          FastAPI — NLU + hybrid OCR + bill-retrain API
-├── backend/             Node.js REST + admin routes + R2 + bill queue
-├── database/            schema.sql, migrations
-├── frontend/
-│   ├── mobile/          Flutter
-│   └── web-admin/       React + Vite (Dashboard, Bill Retrain, NLU Ops)
-└── docker-compose.yml
+Project/ (root)
+├── app/
+│   ├── backend/             Node.js REST + admin routes + R2 + bill queue
+│   ├── database/            schema.sql, migrations
+│   └── frontend/
+│       ├── mobile/          Flutter
+│       └── web-admin/       React + Vite (Dashboard, Bill Retrain, NLU Ops)
+│
+├── expense-ocr-nlu/         Mô hình & FastAPI Service hợp nhất (NLU + OCR + Retrain)
+└── docker-compose.yml       (Bao gồm các dịch vụ backend, DB và AI hợp nhất)
 ```
 
 ## Cách chạy nhanh
@@ -67,12 +69,12 @@ Dùng **venv của `expense-ocr-nlu`** cho AI service (PaddleOCR/VietOCR/transfo
 
 ```powershell
 # Tóm tắt — xem setup.md để biết env đầy đủ
-cd app\ai-service
-# ... Activate expense-ocr-nlu\.venv, USE_REAL_NLU=true, USE_REAL_OCR=true
-uvicorn app.main:app --host 0.0.0.0 --port 8000
+cd expense-ocr-nlu
+# ... Kích hoạt .venv, USE_REAL_NLU=true, USE_REAL_OCR=true
+uvicorn src.api.app:app --host 0.0.0.0 --port 8000
 
-cd app\backend && npm run dev
-cd app\frontend\web-admin && npm run dev
+cd ..\app\backend && npm run dev
+cd ..\frontend\web-admin && npm run dev
 ```
 
 ## WebAdmin
@@ -118,37 +120,36 @@ cd app\frontend\web-admin && npm run dev
 ## Pipeline OCR (production)
 
 1. **PaddleOCR** — detect bbox  
-2. **VietOCR** — nhận dạng chữ (`OCR/models/vietocr/vgg_transformer.pth`)  
-3. **LayoutLMv3 KIE** — SELLER, TOTAL_COST, … (`OCR/models/layoutlmv3_kie/model-best/`)  
+2. **VietOCR** — nhận dạng chữ (`bill_ocr/models/vietocr/vgg_transformer.pth`)  
+3. **PICK KIE** — trích xuất SELLER, TOTAL_COST, … (`bill_ocr/models/pick_kie/model_best.pth`)  
 4. **NLU** — weighted voting category (`split_mode=false`)
 
 Thiếu weights hoặc `USE_REAL_OCR=false` → fallback mock, service không crash.
 
 ## Bật AI thật
 
-Trong `app/ai-service/.env`:
+Trong `expense-ocr-nlu/.env`:
 
 ```ini
 USE_REAL_NLU=true
 USE_REAL_OCR=true
-OCR_WEIGHTS_PATH=../../expense-ocr-nlu/OCR/models/vietocr/vgg_transformer.pth
-LAYOUTLMV3_MODEL_DIR=../../expense-ocr-nlu/OCR/models/layoutlmv3_kie/model-best
+OCR_WEIGHTS_PATH=bill_ocr/models/vietocr/vgg_transformer.pth
+PICK_KIE_MODEL_PATH=bill_ocr/models/pick_kie/model_best.pth
+ROTATION_MODEL_PATH=bill_ocr/models/rotation_corrector/mobilenetv3-Epoch-487-Loss-0.03-Acc-0.99.pth
 ```
 
-Test E2E bill:
+Test E2E bill (CLI):
 
 ```powershell
-$env:USE_REAL_OCR='true'
-d:\Luan-Van\Project\expense-ocr-nlu\.venv\Scripts\python.exe -m pytest `
-  expense-ocr-nlu\OCR\tests\test_e2e_bill_demo.py -q
+d:\Luan-Van\Project\expense-ocr-nlu\.venv\Scripts\python.exe expense-ocr-nlu\bill_ocr\labeling\manual_labeler.py
 ```
 
 ## Kaggle retrain (tuỳ chọn)
 
 - Credentials: `app/backend/kaggle.json` → copy `%USERPROFILE%\.kaggle\kaggle.json`  
 - Dataset gốc: [vietnamese-receipts-mc-ocr-2021](https://www.kaggle.com/datasets/domixi1989/vietnamese-receipts-mc-ocr-2021)  
-- Incremental: WebAdmin export → `OCR/verified_ocr_labels/kaggle_upload/`  
-- Kernel: `OCR/kaggle/kernels/retrain-layoutlmv3`  
+- Incremental: WebAdmin export → `bill_ocr/exported/`  
+- Kaggle runner script: `bill_ocr/receipt_ocr/kaggle_runner.py`  
 
 Xem [`setup.md` §11](../setup.md) và [`RETRAIN.md`](../RETRAIN.md).
 
@@ -170,6 +171,6 @@ Invoke-RestMethod http://localhost:4000/api/v1/wallets -Headers @{ Authorization
 |------|----------|
 | [`setup.md`](../setup.md) | Chạy thử đầy đủ (env, 4 terminal, FCM, troubleshooting) |
 | [`RETRAIN.md`](../RETRAIN.md) | Chiến lược retrain, WebAdmin flow, Kaggle |
-| `app/ai-service/README.md` | Schemas, env AI service |
+| `expense-ocr-nlu/README.md` | Tài liệu hệ thống NLU & OCR hợp nhất |
 | `app/backend/README.md` | Modules backend |
-| `expense-ocr-nlu/` | Models NLU/OCR, tests, Kaggle kernels |
+| `expense-ocr-nlu/bill_ocr/` | Thư mục OCR, training, labeling, model weights |

@@ -19,6 +19,7 @@ const expenseFromTextSchema = z.object({
 
 const correctionSchema = z.object({
   text: z.string().min(1).max(1000),
+  transactionId: z.string().uuid().optional(),
   intent: z.enum(['Record', 'Action', 'Chitchat']).optional(),
   categoryCode: z.string().max(40).optional(),
   recordType: z.enum(['Expense', 'Income']).optional(),

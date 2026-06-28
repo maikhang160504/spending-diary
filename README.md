@@ -7,13 +7,12 @@ Hệ thống quản lý chi tiêu cá nhân thông minh tích hợp AI hỗ tr�
 ```text
 root/
 ├── app/
-│   ├── ai-service/          FastAPI microservice nhận dạng (NLU + OCR + Merchant Extraction)
 │   ├── backend/             Node.js/Express REST API (Quản lý User, Ví, Giao dịch, Định kỳ)
 │   ├── database/            CSDL PostgreSQL/CockroachDB schema & migrations
 │   └── frontend/
 │       ├── mobile/          Flutter Mobile App (Android/iOS)
 │       └── web-admin/       React + Vite Admin Dashboard
-├── expense-ocr-nlu/         Mô hình & weights của NLU & OCR gốc (PaddleOCR + VietOCR + PhoBERT)
+├── expense-ocr-nlu/         Mô hình, weights và FastAPI Service hợp nhất (NLU + OCR + Retrain)
 └── README.md
 ```
 
@@ -47,14 +46,14 @@ npm run dev          # Chạy dev server tại http://localhost:4000
 ```
 *Tài liệu Swagger API có tại `http://localhost:4000/docs`.*
 
-### 2. AI Service (Python FastAPI)
+### 2. AI Service (Python FastAPI Hợp Nhất)
 ```bash
-cd app/ai-service
+cd expense-ocr-nlu
 python -m venv .venv
 # Kích hoạt venv (Windows: .venv\Scripts\activate)
 pip install -r requirements.txt
-# Copy file .env.example -> .env và chỉnh sửa
-uvicorn app.main:app --host 127.0.0.1 --port 8000
+# Tải/copy weights và cấu hình các biến tại file .env
+uvicorn src.api.app:app --host 127.0.0.1 --port 8000
 ```
 
 ### 3. Mobile App (Flutter)

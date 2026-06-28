@@ -50,6 +50,8 @@ const env = {
     timeoutMs: int(process.env.AI_SERVICE_TIMEOUT_MS, 15000),
     /** Bill OCR (Paddle+VietOCR+PICK) — often 60–180s on CPU/GPU */
     billOcrTimeoutMs: int(process.env.BILL_OCR_TIMEOUT_MS, 300000),
+    /** Max concurrent bill OCR jobs on backend (CPU: 2 thường nhanh hơn 5) */
+    billOcrConcurrency: int(process.env.BILL_OCR_CONCURRENCY, 2),
   },
 
   r2: {

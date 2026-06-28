@@ -1,4 +1,53 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
+const BILL_OCR_TIMEOUT_MS = 300000;
+
+async function fetchMultipart(path, form, timeoutMs = BILL_OCR_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(`${API_BASE_URL}${path}`, {
+      method: "POST",
+      body: form,
+      signal: controller.signal,
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.message || "Request failed");
+    }
+    return response.json();
+  } catch (err) {
+    if (err.name === "AbortError") {
+      throw new Error("OCR timeout — thử lại hoặc bấm Tải lại model OCR trước.");
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function fetchJson(path, options = {}, timeoutMs = 60000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(`${API_BASE_URL}${path}`, {
+      headers: { "Content-Type": "application/json", ...(options.headers || {}) },
+      ...options,
+      signal: controller.signal,
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.message || "API request failed");
+    }
+    return response.json();
+  } catch (err) {
+    if (err.name === "AbortError") {
+      throw new Error("Request timeout — thử lại.");
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 async function request(path, options = {}) {
   const response = await fetch(`${API_BASE_URL}${path}`, {
@@ -60,6 +109,14 @@ export async function deleteNluOverride(userId, keyword) {
   });
 }
 
+/** Preview (confirm=false) or delete invalid Layer 1 rules (confirm=true). */
+export async function cleanupInvalidNluOverrides(confirm = false) {
+  return request("/api/admin/nlu/overrides/cleanup-invalid", {
+    method: "POST",
+    body: JSON.stringify({ confirm }),
+  });
+}
+
 export async function getNluAggregations() {
   return request("/api/admin/nlu/aggregations");
 }
@@ -108,8 +165,42 @@ export async function getNluTrainStatus() {
   return request("/api/admin/train/status");
 }
 
+export async function resumeNluKaggle() {
+  return request("/api/admin/train/kaggle/resume", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+export async function trainEncoderKaggle() {
+  return request("/api/admin/train/kaggle/encoder", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+export async function getNluInferenceBackend() {
+  return request("/api/admin/train/inference-backend");
+}
+
+export async function setNluInferenceBackend(backend) {
+  return request("/api/admin/train/inference-backend", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ backend }),
+  });
+}
+
 export async function syncNluKaggle(skipDownload = false) {
   return request("/api/admin/train/kaggle/sync", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ skipDownload }),
+  });
+}
+
+export async function syncNluEncoderKaggle(skipDownload = false) {
+  return request("/api/admin/train/kaggle/encoder/sync", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ skipDownload }),
@@ -133,7 +224,7 @@ export function deleteBillSample(id) {
 }
 
 export function rePrelabelBillSample(id) {
-  return request(`/api/admin/bill-retrain/samples/${id}/prelabel`, { method: "POST" });
+  return fetchJson(`/api/admin/bill-retrain/samples/${id}/prelabel`, { method: "POST" }, BILL_OCR_TIMEOUT_MS);
 }
 
 export function fetchBillSamples(status) {
@@ -144,31 +235,13 @@ export function fetchBillSamples(status) {
 export function uploadBillSample(file) {
   const form = new FormData();
   form.append("file", file);
-  return fetch(`${API_BASE_URL}/api/admin/bill-retrain/upload`, {
-    method: "POST",
-    body: form,
-  }).then(async (res) => {
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.message || "Upload failed");
-    }
-    return res.json();
-  });
+  return fetchMultipart("/api/admin/bill-retrain/upload", form, 120000);
 }
 
 export function prelabelBill(file) {
   const form = new FormData();
   form.append("file", file);
-  return fetch(`${API_BASE_URL}/api/admin/bill-retrain/prelabel`, {
-    method: "POST",
-    body: form,
-  }).then(async (res) => {
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.message || "Prelabel failed");
-    }
-    return res.json();
-  });
+  return fetchMultipart("/api/admin/bill-retrain/prelabel", form, BILL_OCR_TIMEOUT_MS);
 }
 
 export function saveBillSample(id, adminLabels, status = "pending", category = null) {

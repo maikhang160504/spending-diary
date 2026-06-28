@@ -14,6 +14,9 @@ const REPORT_TYPES = new Set(['REPORT', 'REPORT_GENERAL', 'REPORT_COMPARE', 'REP
 const VI_CATEGORY_MAP = {
   'an uong': 'Food',
   'ca phe': 'Food',
+  'cafe': 'Food',
+  'tra sua': 'Food',
+  'di chuyen': 'Transport',
   'di lai': 'Transport',
   'mua sam': 'Shopping',
   'giai tri': 'Entertainment',
@@ -21,17 +24,19 @@ const VI_CATEGORY_MAP = {
   'hoc phi': 'Education',
   'y te': 'Health',
   'nha cua': 'Housing',
+  'lam dep': 'Beauty',
+  'tiet kiem': 'Saving',
+  'luong': 'Salary',
+  'thuong': 'Bonus',
 };
 
 const TONE_MAP = {
   'hai huoc': 'funny',
   'vui ve': 'funny',
-  'de thuong': 'gentle',
-  'dong cam': 'gentle',
-  'nghiem tuc': 'serious',
-  'cham choc': 'sarcastic',
+  'funny': 'funny',
   'dan doi': 'strict',
   'strict': 'strict',
+  'nghiem': 'strict',
 };
 
 function isReportAction(actionType) {
@@ -48,14 +53,55 @@ function _norm(s) {
     .trim();
 }
 
-function resolveCategoryCode(categoryCode, actionDetails) {
-  if (categoryCode) return categoryCode;
+function resolveCategoryCode(categoryCode, actionDetails, text) {
+  if (categoryCode && /^[A-Z][a-zA-Z]*$/.test(String(categoryCode))) {
+    return categoryCode;
+  }
   const target = actionDetails?.target;
-  if (!target) return null;
-  const key = _norm(String(target));
-  if (VI_CATEGORY_MAP[key]) return VI_CATEGORY_MAP[key];
-  if (/^[A-Z][a-zA-Z]+$/.test(String(target))) return String(target);
+  if (target) {
+    const key = _norm(String(target));
+    if (VI_CATEGORY_MAP[key]) return VI_CATEGORY_MAP[key];
+    for (const [code, label] of Object.entries(VI_CATEGORY_LABELS)) {
+      const normLabel = _norm(label);
+      if (key === normLabel || key.includes(normLabel) || normLabel.includes(key)) {
+        return code;
+      }
+    }
+    if (/^[A-Z][a-zA-Z]+$/.test(String(target))) return String(target);
+  }
+  if (text) {
+    const t = _norm(text);
+    for (const [alias, code] of Object.entries(VI_CATEGORY_MAP)) {
+      if (t.includes(alias)) return code;
+    }
+    for (const [code, label] of Object.entries(VI_CATEGORY_LABELS)) {
+      const normLabel = _norm(label);
+      if (t.includes(normLabel)) return code;
+    }
+  }
+  if (categoryCode && String(categoryCode).trim()) {
+    return String(categoryCode).trim();
+  }
   return null;
+}
+
+/** Rule-based fixes for common NLU action_type confusions. */
+function disambiguateActionType(text, actionType) {
+  const t = _norm(text || '');
+  const upper = String(actionType || '').toUpperCase();
+  const hasLimit = /\b(han muc|gioi han|limit|tang han muc|giam han muc)\b/.test(t);
+  const hasGoal = /\b(muc tieu|tiet kiem|goal)\b/.test(t);
+  const hasContribute = /\b(bu them|bo sung|cat them|gop them|contribute)\b/.test(t) || /\bbu\s+\d/.test(t);
+
+  if (hasContribute && hasGoal) return 'ADD_GOAL';
+  if (hasLimit && (upper.includes('GOAL') || upper === 'RECORD')) return 'SET_LIMIT';
+  if (hasGoal && !hasLimit && upper.includes('LIMIT')) return 'SET_GOAL';
+  if (hasLimit && upper.includes('SET_GOAL')) return 'SET_LIMIT';
+  return actionType;
+}
+
+function monthStartDate(now = new Date()) {
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
 }
 
 function resolveAmount(payload, actionDetails) {
@@ -110,6 +156,58 @@ function inferTimeRangeFromText(text) {
   }
   const from = new Date(now.getFullYear(), now.getMonth(), 1);
   return { period_label: label('Tháng này', from, now), from: fmt(from), to: fmt(endOfDay(now)), granularity: 'month' };
+}
+
+function formatMonthYear(y, m) {
+  return `${y}-${String(m).padStart(2, '0')}`;
+}
+
+function getCurrentMonthRef(now = new Date()) {
+  return formatMonthYear(now.getFullYear(), now.getMonth() + 1);
+}
+
+function getNextMonthRef(now = new Date()) {
+  const m = now.getMonth() + 2;
+  if (m > 12) return formatMonthYear(now.getFullYear() + 1, 1);
+  return formatMonthYear(now.getFullYear(), m);
+}
+
+/** Map NLU time_range / user text → YYYY-MM target for budget suggestions. */
+function resolveTargetMonthFromPayload(payload = {}) {
+  if (payload.targetMonth && /^\d{4}-\d{2}$/.test(String(payload.targetMonth))) {
+    return payload.targetMonth;
+  }
+
+  const details = payload.actionDetails || {};
+  const timeHint = [
+    details.time,
+    details.time_range,
+    payload.timeRange?.period_label,
+  ].find((v) => v != null && String(v).trim() !== '');
+
+  const combined = _norm([timeHint, payload.text].filter(Boolean).join(' '));
+
+  if (/\bthang sau\b/.test(combined)) return getNextMonthRef();
+  if (/\bthang truoc\b/.test(combined)) {
+    const now = new Date();
+    const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    return getCurrentMonthRef(prev);
+  }
+  if (/\bthang nay\b/.test(combined)) return getCurrentMonthRef();
+  if (/\b(tuan nay|7 ngay|30 ngay|quy nay|hom nay)\b/.test(combined)) {
+    return getCurrentMonthRef();
+  }
+
+  if (payload.text) {
+    const inferred = inferTimeRangeFromText(payload.text);
+    if (inferred?.granularity === 'month') {
+      const t = _norm(payload.text);
+      if (/\bthang sau\b/.test(t)) return getNextMonthRef();
+      return getCurrentMonthRef();
+    }
+  }
+
+  return getNextMonthRef();
 }
 
 function getVietnameseDayOfWeek(dateStr) {
@@ -231,14 +329,15 @@ async function getHighestTransactionOnDay(userId, dayStr) {
   return null;
 }
 
-async function executeReport(userId, { timeRange, categoryCode, reportKind, text } = {}) {
+async function executeReport(userId, { timeRange, categoryCode, reportKind, text, actionDetails } = {}) {
   const range = timeRange || inferTimeRangeFromText(text || '');
   const dash = await statsService.dashboard(userId, { from: range.from, to: range.to });
   const kind = reportKind || detectReportKind(text, null);
+  const resolvedCategory = resolveCategoryCode(categoryCode, actionDetails, text);
 
   let byCategory = dash.byCategory || [];
-  if (categoryCode) {
-    byCategory = byCategory.filter((c) => c.categoryCode === categoryCode);
+  if (resolvedCategory) {
+    byCategory = byCategory.filter((c) => c.categoryCode === resolvedCategory);
   }
 
   const totalExpense = dash.totals?.expense ?? 0;
@@ -285,7 +384,7 @@ async function executeReport(userId, { timeRange, categoryCode, reportKind, text
     const budget = budgets.find(
       (b) =>
         b.period === 'month' &&
-        (b.categoryCode || null) === (categoryCode || null)
+        (b.categoryCode || null) === (resolvedCategory || null)
     );
     if (budget) {
       limitAmount = Number(budget.amountLimit);
@@ -335,7 +434,7 @@ async function executeReport(userId, { timeRange, categoryCode, reportKind, text
 
   // 5. Fetch peer spending benchmark comparison
   let peerBenchmark = null;
-  const targetCategory = categoryCode || (enriched[0]?.categoryCode) || 'Food';
+  const targetCategory = resolvedCategory || (enriched[0]?.categoryCode) || 'Food';
   try {
     const settingsRes = await query(
       'SELECT age_group, job_type FROM user_settings WHERE user_id = $1',
@@ -395,16 +494,16 @@ async function executeSetLimit(userId, payload) {
   const amount = resolveAmount(payload, actionDetails);
   if (!amount) throw ApiError.badRequest('Thiếu số tiền hạn mức.');
 
-  const categoryCode = resolveCategoryCode(payload.categoryCode, actionDetails);
+  const categoryCode = resolveCategoryCode(payload.categoryCode, actionDetails, payload.text);
   const walletId = payload.walletId || null;
-  const today = new Date().toISOString().slice(0, 10);
+  const periodStart = monthStartDate();
 
   const budgets = await budgetsService.list(userId);
   const existing = budgets.find(
     (b) =>
       b.period === 'month' &&
       (b.categoryCode || null) === (categoryCode || null) &&
-      (!walletId || b.walletId === walletId)
+      (b.walletId || null) === (walletId || null)
   );
 
   const verb = (actionDetails.verb || 'SET').toUpperCase();
@@ -433,7 +532,7 @@ async function executeSetLimit(userId, payload) {
       categoryCode: categoryCode || undefined,
       period: 'month',
       amountLimit: newLimit,
-      startDate: today,
+      startDate: periodStart,
     });
   }
 
@@ -453,9 +552,30 @@ async function executeSetGoal(userId, payload) {
   const amount = resolveAmount(payload, actionDetails);
   if (!amount) throw ApiError.badRequest('Thiếu số tiền mục tiêu.');
 
+  const actionType = String(payload.actionType || '').toUpperCase();
+  const goalName = payload.goalName || actionDetails.goal_name || actionDetails.goalName || 'Mục tiêu tiết kiệm';
+  const verb = (actionDetails.verb || 'SET').toUpperCase();
+
+  if (actionType === 'ADD_GOAL' || verb === 'ADD') {
+    const goals = await goalsService.list(userId);
+    const normName = _norm(goalName);
+    const existing = goals.find((g) => {
+      const gn = _norm(g.name || '');
+      return gn === normName || gn.includes(normName) || normName.includes(gn);
+    });
+    if (existing) {
+      const updated = await goalsService.contribute(userId, existing.id, amount);
+      return {
+        kind: 'goal_contribute',
+        goal: updated,
+        message: `✅ Đã bù ${formatVnd(amount)}đ vào mục tiêu "${existing.name}".`,
+      };
+    }
+  }
+
   const goal = await goalsService.create(userId, {
     walletId: payload.walletId || undefined,
-    name: payload.goalName || 'Mục tiêu tiết kiệm',
+    name: goalName,
     targetAmount: amount,
     emoji: '🎯',
   });
@@ -463,7 +583,7 @@ async function executeSetGoal(userId, payload) {
   return {
     kind: 'goal',
     goal,
-    message: `✅ Đã tạo mục tiêu "${goal.name || payload.goalName || 'Mục tiêu'}" — ${formatVnd(amount)}đ.`,
+    message: `✅ Đã tạo mục tiêu "${goal.name || goalName}" — ${formatVnd(amount)}đ.`,
   };
 }
 
@@ -485,7 +605,8 @@ async function executeDeleteLastRecord(userId) {
 }
 
 async function executeSetTone(userId, payload) {
-  let style = payload.verbalStyle;
+  const details = payload.actionDetails || {};
+  let style = payload.verbalStyle || details.verbal_style || details.style;
   if (!style && payload.text) {
     const t = _norm(payload.text);
     for (const [key, val] of Object.entries(TONE_MAP)) {
@@ -494,15 +615,18 @@ async function executeSetTone(userId, payload) {
         break;
       }
     }
-    const details = payload.actionDetails || {};
-    if (!style && details.style) {
-      style = TONE_MAP[_norm(details.style)] || 'funny';
-    }
+  }
+  if (style) {
+    const mapped = TONE_MAP[_norm(String(style))];
+    style = mapped || String(style).toLowerCase();
   }
   style = style || 'funny';
+  if (style !== 'funny' && style !== 'strict') {
+    style = 'funny';
+  }
   await settingsService.update(userId, { verbalStyle: style });
 
-  const labels = { funny: 'hài hước', gentle: 'dễ thương', serious: 'nghiêm túc', sarcastic: 'châm chọc', strict: 'dạn dòi' };
+  const labels = { funny: 'hài hước', strict: 'dạn dòi' };
   return {
     kind: 'tone',
     verbalStyle: style,
@@ -511,9 +635,16 @@ async function executeSetTone(userId, payload) {
 }
 
 async function executeSearch(userId, payload) {
-  const q = (payload.query || payload.text || '').trim();
-  const minAmount = payload.minAmount ? Number(payload.minAmount) : null;
-  const categoryCode = resolveCategoryCode(payload.categoryCode, payload.actionDetails);
+  const details = payload.actionDetails || {};
+  let q = (payload.query || details.query || '').trim();
+  if (!q && payload.text) {
+    q = payload.text
+      .replace(/^(tim|tìm|kiem|kiểm)\s*(các\s*)?(giao\s*dich|giao\s*dịch|khoan|khoản)\s*/i, '')
+      .replace(/\b(tren|trên|duoi|dưới)\s+\d[\d.,kkmtr]*\s*(dong|đ|đồng)?\b/gi, '')
+      .trim();
+  }
+  const minAmount = payload.minAmount ? Number(payload.minAmount) : resolveAmount(payload, details);
+  const categoryCode = resolveCategoryCode(payload.categoryCode, details, payload.text);
   const limit = Math.min(Number(payload.limit) || 5, 10);
 
   const values = [userId];
@@ -575,9 +706,6 @@ async function executeAction(userId, payload) {
   if (type.includes('GOAL')) {
     return executeSetGoal(userId, payload);
   }
-  if (type.includes('DELETE')) {
-    return executeDeleteLastRecord(userId);
-  }
   if (type.includes('TONE')) {
     return executeSetTone(userId, payload);
   }
@@ -601,11 +729,8 @@ async function executeAction(userId, payload) {
   if (type === 'SET_USERNAME') {
     return executeSetUsername(userId, payload);
   }
-  if (type === 'SET_INCOME') {
-    return executeSetIncome(userId, payload);
-  }
-  if (type === 'EDIT' || type === 'UPDATE_RECORD') {
-    return executeEditRecord(userId, payload);
+  if (type === 'SET_INCOME' || type === 'EDIT' || type === 'UPDATE_RECORD' || type.includes('DELETE')) {
+    throw ApiError.badRequest(`Action "${type}" không còn được hỗ trợ.`);
   }
   if (type === 'EXPORT_DATA') {
     return executeExportData(userId, payload);
@@ -712,8 +837,14 @@ async function executeExportData(userId, payload) {
 }
 
 async function executeSetAlert(userId, payload) {
-  const isEnable = !payload.text?.includes('tắt') && !payload.text?.includes('tat');
   const actionDetails = payload.actionDetails || {};
+  let isEnable = true;
+  if (actionDetails.enabled != null && String(actionDetails.enabled).trim() !== '') {
+    const en = _norm(String(actionDetails.enabled));
+    isEnable = !['false', '0', 'off', 'tat', 'disable', 'disabled', 'no'].includes(en);
+  } else {
+    isEnable = !payload.text?.includes('tắt') && !payload.text?.includes('tat');
+  }
   const categoryCode = resolveCategoryCode(payload.categoryCode, actionDetails);
 
   if (categoryCode) {
@@ -739,11 +870,7 @@ async function executeSetAlert(userId, payload) {
 }
 
 async function executeSuggestBudget(userId, payload) {
-  // Determine target month (default: next month)
-  const now = new Date();
-  const nextM = now.getMonth() + 2;
-  const nextY = nextM > 12 ? now.getFullYear() + 1 : now.getFullYear();
-  const targetMonth = payload.targetMonth || `${nextY}-${String(nextM > 12 ? 1 : nextM).padStart(2, '0')}`;
+  const targetMonth = resolveTargetMonthFromPayload(payload);
 
   // Try to get existing suggestions, generate on-demand if none
   let suggestions = await suggestionService.getSuggestions(userId, targetMonth);
@@ -886,16 +1013,15 @@ function needsConfirm(actionType) {
   if (t.includes('SUGGEST')) return false;
   if (t === 'SETTING' || t === 'SYSTEM_SETTING') return false;
   if (t === 'EXPORT_DATA') return false;
+  if (t === 'SET_INCOME' || t === 'EDIT' || t === 'UPDATE_RECORD' || t.includes('DELETE')) {
+    return false;
+  }
   return (
     t.includes('LIMIT') ||
-    t.includes('DELETE') ||
     t.includes('GOAL') ||
     t.includes('TONE') ||
     t.includes('SEARCH') ||
     t === 'SET_USERNAME' ||
-    t === 'SET_INCOME' ||
-    t === 'EDIT' ||
-    t === 'UPDATE_RECORD' ||
     t === 'SET_ALERT'
   );
 }
@@ -922,6 +1048,11 @@ function actionPreviewLabel(actionType, { amount, categoryCode } = {}) {
 module.exports = {
   isReportAction,
   inferTimeRangeFromText,
+  resolveTargetMonthFromPayload,
+  getCurrentMonthRef,
+  getNextMonthRef,
+  resolveCategoryCode,
+  disambiguateActionType,
   executeReport,
   executeSetLimit,
   executeSetGoal,

@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import 'lottie_transition_page.dart';
 import '../services/api_client.dart';
+import '../services/bill_processing_service.dart';
 import '../screens/auth/login_screen.dart';
 import '../screens/auth/register_screen.dart';
 import '../screens/auth/splash_screen.dart';
@@ -196,9 +197,11 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: AppRoutes.cameraConfirm,
-      builder: (context, state) => CameraConfirmScreen(
-        extractedData: state.extra as Map<String, dynamic>?,
-      ),
+      builder: (context, state) {
+        final extra = state.extra as Map<String, dynamic>?
+            ?? BillProcessingService.instance.takePendingReviewExtra();
+        return CameraConfirmScreen(extractedData: extra);
+      },
     ),
 
     // ── Chat ────────────────────────────────────────────────

@@ -545,6 +545,30 @@ class ApiClient {
     return result['data'] as Map<String, dynamic>;
   }
 
+  Future<Map<String, dynamic>> applyBudgetSuggestions({
+    required String month,
+    Map<String, num>? overrides,
+  }) async {
+    final result = await _request(
+      'POST',
+      '/budgets/suggestions/apply',
+      body: {'month': month, if (overrides != null) 'overrides': overrides},
+    );
+    return {
+      'data': result['data'],
+      'message': result['message'] as String? ?? '',
+    };
+  }
+
+  Future<String> dismissBudgetSuggestions({required String month}) async {
+    final result = await _request(
+      'POST',
+      '/budgets/suggestions/dismiss',
+      body: {'month': month},
+    );
+    return result['message'] as String? ?? 'Đã bỏ qua gợi ý.';
+  }
+
   Future<bool> aiIsActionConfirmed(String actionSignature) async {
     final result = await _request(
       'GET',

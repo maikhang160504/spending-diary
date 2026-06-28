@@ -111,6 +111,37 @@ async function addMessage(userId, sessionId, payload) {
   return r.rows[0];
 }
 
+async function updateMessageContent(userId, sessionId, messageId, content, intentActionPatch = {}) {
+  const session = await query(
+    'SELECT id FROM chat_sessions WHERE id = $1 AND user_id = $2',
+    [sessionId, userId]
+  );
+  if (session.rowCount === 0) throw ApiError.notFound('Session not found.');
+
+  const existing = await query(
+    'SELECT intent_action FROM chat_messages WHERE id = $1 AND session_id = $2',
+    [messageId, sessionId]
+  );
+  if (existing.rowCount === 0) throw ApiError.notFound('Message not found.');
+
+  const prev = existing.rows[0].intent_action || {};
+  const merged = {
+    ...prev,
+    ...intentActionPatch,
+    nlu: {
+      ...(prev.nlu || {}),
+      ...(intentActionPatch.nlu || {}),
+    },
+  };
+
+  await query(
+    `UPDATE chat_messages SET content = $1, intent_action = $2 WHERE id = $3 AND session_id = $4`,
+    [content, merged, messageId, sessionId]
+  );
+
+  return { id: messageId, content, intent_action: merged };
+}
+
 async function archiveSession(userId, sessionId) {
   const r = await query(
     `UPDATE chat_sessions SET is_archived = true, updated_at = NOW()
@@ -128,4 +159,4 @@ async function deleteSession(userId, sessionId) {
   if (r.rowCount === 0) throw ApiError.notFound('Session not found.');
 }
 
-module.exports = { listSessions, createSession, getMessages, addMessage, archiveSession, deleteSession };
+module.exports = { listSessions, createSession, getMessages, addMessage, updateMessageContent, archiveSession, deleteSession };

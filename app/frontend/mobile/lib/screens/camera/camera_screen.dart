@@ -6,6 +6,7 @@ import 'package:permission_handler/permission_handler.dart';
 
 import '../../routes/app_routes.dart';
 import '../../services/api_client.dart';
+import '../../services/bill_processing_service.dart';
 import '../../theme/app_colors.dart';
 
 class CameraScreen extends StatefulWidget {
@@ -137,14 +138,18 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
           return 0;
         });
         final targetId = widget.walletId ?? ApiClient.lastSelectedWalletId ?? (wallets.isNotEmpty ? wallets[0]['id'] as String : '');
-        final result = await _api.aiExpenseFromBill(walletId: targetId, filePath: imagePath);
+        await BillProcessingService.instance.submitBill(
+          walletId: targetId,
+          imagePath: imagePath,
+        );
         if (!mounted) return;
-        context.push(AppRoutes.cameraConfirm, extra: {
-          ...result,
-          'imagePath': imagePath,
-          'localImagePath': imagePath,
-          'walletId': targetId,
-        });
+        context.pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Bill đang được xử lý ngầm — bạn có thể tiếp tục dùng app'),
+            duration: Duration(seconds: 3),
+          ),
+        );
       } on ApiException catch (e) {
         if (mounted) setState(() => _billError = e.localizedMessage);
       } catch (_) {

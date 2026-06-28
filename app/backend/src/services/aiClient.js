@@ -100,11 +100,12 @@ async function expenseFromText(payload) {
 
 async function aiChat(messages, userId, options = {}) {
   const lastUserMsg = [...messages].reverse().find((m) => m.role === 'user');
+  const runLlm = options.run_llm ?? options.runLlm ?? false;
   return withRetry(async () => {
     const r = await client.post('/api/v1/nlu/infer', {
       text: lastUserMsg?.content || '',
       user_id: userId,
-      run_llm: true,
+      run_llm: runLlm,
       ...options,
     });
     return r.data;
@@ -251,6 +252,31 @@ async function syncNluKaggle(body = {}) {
   return r.data;
 }
 
+async function syncNluEncoderKaggle(body = {}) {
+  const r = await client.post('/api/v1/nlu/train/kaggle/encoder/sync', body, { timeout: 900000 });
+  return r.data;
+}
+
+async function resumeNluKaggle() {
+  const r = await client.post('/api/v1/nlu/train/kaggle/resume', {}, { timeout: 30000 });
+  return r.data;
+}
+
+async function trainEncoderKaggle() {
+  const r = await client.post('/api/v1/nlu/train/kaggle/encoder', {}, { timeout: 30000 });
+  return r.data;
+}
+
+async function getNluInferenceBackend() {
+  const r = await client.get('/api/v1/nlu/inference-backend');
+  return r.data;
+}
+
+async function setNluInferenceBackend(backend) {
+  const r = await client.post('/api/v1/nlu/inference-backend', { backend }, { timeout: 30000 });
+  return r.data;
+}
+
 async function getNluKaggleJobs(limit = 20) {
   const r = await client.get(`/api/v1/nlu/train/kaggle/jobs?limit=${limit}`);
   return r.data;
@@ -286,6 +312,11 @@ module.exports = {
   getNluTrainHistory,
   getNluModelMeta,
   syncNluKaggle,
+  syncNluEncoderKaggle,
+  resumeNluKaggle,
+  trainEncoderKaggle,
+  getNluInferenceBackend,
+  setNluInferenceBackend,
   getNluKaggleJobs,
   getNluKaggleJob,
 };

@@ -41,9 +41,9 @@ FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY----
 
 ---
 
-## 2. Cấu hình `.env` AI Service
+## 2. Cấu hình `.env` AI Service (Hợp Nhất)
 
-File: `app/ai-service/.env` (copy từ `app/ai-service/.env.example`)
+File: `expense-ocr-nlu/.env` (copy từ `expense-ocr-nlu/.env.example` hoặc chỉnh sửa trực tiếp)
 
 ```ini
 HOST=0.0.0.0
@@ -53,17 +53,14 @@ DEVICE=cpu
 USE_REAL_NLU=true
 
 # OCR hybrid thật — PaddleOCR + VietOCR + PICK KIE
-# Cần weights tại OCR/models/ (xem mục 11). Nếu thiếu weights → fallback mock, không crash.
+# Cần weights tại bill_ocr/models/ (xem mục 11). Nếu thiếu weights → fallback mock, không crash.
 USE_REAL_OCR=true
 
-EXPENSE_OCR_NLU_DIR=../../expense-ocr-nlu
-OCR_WEIGHTS_PATH=../../expense-ocr-nlu/OCR/models/vietocr/vgg_transformer.pth
-PICK_KIE_MODEL_PATH=../../expense-ocr-nlu/OCR/models/pick_kie/model_best.pth
-VERIFIED_OCR_LABELS_DIR=../../expense-ocr-nlu/OCR/verified_ocr_labels
-
-# Tuỳ chọn — sau Kaggle retrain
-# BILL_RETRAIN_WEBHOOK_URL=http://localhost:4000/api/admin/bill-retrain/kaggle/webhook
-# BILL_RETRAIN_ARTIFACT_URL=https://<cloud>/pick_kie_artifacts.zip
+EXPENSE_OCR_NLU_DIR=.
+OCR_WEIGHTS_PATH=bill_ocr/models/vietocr/vgg_transformer.pth
+PICK_KIE_MODEL_PATH=bill_ocr/models/pick_kie/model_best.pth
+ROTATION_MODEL_PATH=bill_ocr/models/rotation_corrector/mobilenetv3-Epoch-487-Loss-0.03-Acc-0.99.pth
+VERIFIED_OCR_LABELS_DIR=bill_ocr/exported
 ```
 
 ---
@@ -73,12 +70,12 @@ VERIFIED_OCR_LABELS_DIR=../../expense-ocr-nlu/OCR/verified_ocr_labels
 Dùng `.venv` của `expense-ocr-nlu` (torch, paddleocr, vietocr, transformers).
 
 ```powershell
-# Bước 1 (1 lần): cài deps ai-service vào venv
+# Bước 1 (1 lần): cài deps vào venv
 d:\Luan-Van\Project\expense-ocr-nlu\.venv\Scripts\Activate.ps1
-pip install -r d:\Luan-Van\Project\app\ai-service\requirements.txt
+pip install -r d:\Luan-Van\Project\expense-ocr-nlu\requirements.txt
 
 # Bước 2: chạy service
-cd d:\Luan-Van\Project\app\ai-service
+cd d:\Luan-Van\Project\expense-ocr-nlu
 d:\Luan-Van\Project\expense-ocr-nlu\.venv\Scripts\Activate.ps1
 $env:RUN_LLM='1'
 $env:RUN_LLM_CHITCHAT='1'
@@ -86,7 +83,7 @@ $env:LOG_MIMO_EMOTION='1'
 $env:USE_REAL_NLU='true'
 $env:USE_REAL_OCR='true'
 $env:LAZY_LOAD_MODELS='true'
-uvicorn app.main:app --host 0.0.0.0 --port 8000
+uvicorn src.api.app:app --host 0.0.0.0 --port 8000
 ```
 
 **Kiểm tra:** http://localhost:8000/health

@@ -114,7 +114,25 @@ router.get('/analytics/history', async (req, res, next) => {
 // 2. GET /api/admin/users
 router.get('/users', async (req, res, next) => {
   try {
-    const users = await query('SELECT id, username, email, role, is_active AS "isActive", created_at AS "createdAt" FROM users ORDER BY created_at DESC');
+    const users = await query(`
+      SELECT
+        u.id,
+        u.username,
+        u.email,
+        u.role,
+        u.is_active AS "isActive",
+        u.created_at AS "createdAt",
+        s.age_group AS "ageGroup",
+        s.job_type AS "jobType",
+        CASE
+          WHEN u.google_id IS NOT NULL THEN 'Google'
+          WHEN u.password_hash IS NOT NULL THEN 'Email'
+          ELSE 'Unknown'
+        END AS "authProvider"
+      FROM users u
+      LEFT JOIN user_settings s ON s.user_id = u.id
+      ORDER BY u.created_at DESC
+    `);
     res.json(users.rows);
   } catch (err) {
     next(err);
@@ -125,19 +143,43 @@ router.get('/users', async (req, res, next) => {
 router.get('/user-inspector/:userId', async (req, res, next) => {
   const { userId } = req.params;
   try {
-    const user = await query('SELECT id, username, email, role, is_active AS "isActive" FROM users WHERE id = $1', [userId]);
+    const user = await query(`
+      SELECT
+        u.id,
+        u.username,
+        u.email,
+        u.role,
+        u.is_active AS "isActive",
+        u.created_at AS "createdAt",
+        s.age_group AS "ageGroup",
+        s.job_type AS "jobType",
+        CASE
+          WHEN u.google_id IS NOT NULL THEN 'Google'
+          WHEN u.password_hash IS NOT NULL THEN 'Email'
+          ELSE 'Unknown'
+        END AS "authProvider"
+      FROM users u
+      LEFT JOIN user_settings s ON s.user_id = u.id
+      WHERE u.id = $1
+    `, [userId]);
     if (user.rowCount === 0) {
       return res.status(404).json({ message: 'User not found' });
     }
 
+    const row = user.rows[0];
     const overrides = await query('SELECT keyword, category_code AS "categoryCode", updated_at AS "updatedAt" FROM user_category_mappings WHERE user_id = $1 ORDER BY updated_at DESC', [userId]);
     const corrections = await query('SELECT text, intent, category_code AS "categoryCode", record_type AS "recordType", created_at AS "createdAt", predicted FROM user_corrections WHERE user_id = $1 ORDER BY created_at DESC LIMIT 50', [userId]);
 
     res.json({
-      id: user.rows[0].id,
-      name: user.rows[0].username,
-      email: user.rows[0].email,
-      activeStatus: user.rows[0].isActive ? 'Active' : 'Inactive',
+      id: row.id,
+      name: row.username,
+      email: row.email,
+      role: row.role,
+      createdAt: row.createdAt,
+      ageGroup: row.ageGroup,
+      jobType: row.jobType,
+      authProvider: row.authProvider,
+      activeStatus: row.isActive ? 'Active' : 'Inactive',
       cacheKeys: [`user_exact:${userId}`],
       cacheSize: `${(overrides.rowCount * 0.4).toFixed(1)} KB`,
       ttl: '28,800s (8h)',
@@ -211,6 +253,34 @@ router.post('/nlu/overrides', async (req, res, next) => {
       aiService.clearUserCorrectionsCache(userId);
     } catch (_) {}
     res.json({ success: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// 7b. POST /api/admin/nlu/overrides/cleanup-invalid
+router.post('/nlu/overrides/cleanup-invalid', async (req, res, next) => {
+  try {
+    const { cleanupInvalidLayer1Rules } = require('../utils/billPersonalization');
+    const dryRun = req.body?.confirm !== true;
+    const result = await cleanupInvalidLayer1Rules(query, { dryRun });
+    if (!dryRun) {
+      const userIds = [...new Set(result.invalid.map((r) => r.userId))];
+      try {
+        const aiService = require('../modules/ai/ai.service');
+        for (const uid of userIds) {
+          aiService.clearUserCorrectionsCache(uid);
+        }
+      } catch (_) {}
+    }
+    res.json({
+      success: true,
+      dryRun: result.dryRun,
+      removed: result.removed,
+      totalScanned: result.totalScanned,
+      invalidCount: result.invalid.length,
+      invalid: result.invalid,
+    });
   } catch (err) {
     next(err);
   }
@@ -432,11 +502,61 @@ router.get('/train/model-meta', async (req, res, next) => {
   }
 });
 
+// 13.5 POST /api/admin/train/kaggle/resume — resume stuck job after server restart
+router.post('/train/kaggle/resume', async (req, res, next) => {
+  try {
+    const result = await aiClient.resumeNluKaggle();
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
 // 14.0 POST /api/admin/train/kaggle/sync — manual sync from completed Kaggle kernel
 router.post('/train/kaggle/sync', async (req, res, next) => {
   try {
     const skipDownload = req.body?.skipDownload === true;
     const result = await aiClient.syncNluKaggle({ skip_download: skipDownload });
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/train/kaggle/encoder/sync', async (req, res, next) => {
+  try {
+    const skipDownload = req.body?.skipDownload === true;
+    const result = await aiClient.syncNluEncoderKaggle({ skip_download: skipDownload });
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// 14.05 POST /api/admin/train/kaggle/encoder — train PhoBERT encoder on Kaggle GPU
+router.post('/train/kaggle/encoder', async (req, res, next) => {
+  try {
+    const result = await aiClient.trainEncoderKaggle();
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// 14.06 NLU inference backend toggle
+router.get('/train/inference-backend', async (req, res, next) => {
+  try {
+    const result = await aiClient.getNluInferenceBackend();
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/train/inference-backend', async (req, res, next) => {
+  try {
+    const backend = req.body?.backend;
+    const result = await aiClient.setNluInferenceBackend(backend);
     res.json(result);
   } catch (err) {
     next(err);
@@ -773,28 +893,31 @@ router.post('/bill-retrain/upload', upload.single('file'), async (req, res, next
     const id = randomUUID();
     const ext = path.extname(req.file.originalname || '') || '.jpg';
     const localUrl = billRetrainStore.saveImage(id, req.file.buffer, ext);
-    let imageUrl = localUrl;
-    if (r2Client.isConfigured()) {
-      try {
-        const uploaded = await r2Client.uploadBuffer('admin', req.file.buffer, {
-          filename: req.file.originalname || `${id}${ext}`,
-          contentType: req.file.mimetype || 'image/jpeg',
-        });
-        imageUrl = uploaded.publicUrl || localUrl;
-      } catch (err) {
-        logger.warn({ err: err.message }, 'R2 upload failed for admin sample upload');
-      }
-    }
     const sample = billRetrainStore.upsertSample({
       id,
       status: 'pending',
-      imageUrl,
+      imageUrl: localUrl,
       imageExt: ext,
       autoLabels: null,
       adminLabels: [],
       metadata: {},
     });
     res.json({ sample });
+    if (r2Client.isConfigured()) {
+      setImmediate(async () => {
+        try {
+          const uploaded = await r2Client.uploadBuffer('admin', req.file.buffer, {
+            filename: req.file.originalname || `${id}${ext}`,
+            contentType: req.file.mimetype || 'image/jpeg',
+          });
+          if (uploaded.publicUrl) {
+            billRetrainStore.upsertSample({ ...sample, imageUrl: uploaded.publicUrl });
+          }
+        } catch (err) {
+          logger.warn({ err: err.message }, 'R2 upload failed for admin sample upload (async)');
+        }
+      });
+    }
   } catch (err) {
     next(err);
   }
@@ -813,22 +936,10 @@ router.post('/bill-retrain/prelabel', upload.single('file'), async (req, res, ne
     const id = randomUUID();
     const ext = path.extname(req.file.originalname || '') || '.jpg';
     const localUrl = billRetrainStore.saveImage(id, req.file.buffer, ext);
-    let imageUrl = localUrl;
-    if (r2Client.isConfigured()) {
-      try {
-        const uploaded = await r2Client.uploadBuffer('admin', req.file.buffer, {
-          filename: req.file.originalname || `${id}${ext}`,
-          contentType: req.file.mimetype || 'image/jpeg',
-        });
-        imageUrl = uploaded.publicUrl || localUrl;
-      } catch (err) {
-        logger.warn({ err: err.message }, 'R2 upload failed for admin sample prelabel');
-      }
-    }
     const sample = billRetrainStore.upsertSample({
       id,
       status: 'pending',
-      imageUrl,
+      imageUrl: localUrl,
       imageExt: ext,
       autoLabels: prelabel,
       adminLabels: prelabel.boxes || [],
@@ -840,6 +951,21 @@ router.post('/bill-retrain/prelabel', upload.single('file'), async (req, res, ne
       },
     });
     res.json({ sample, prelabel });
+    if (r2Client.isConfigured()) {
+      setImmediate(async () => {
+        try {
+          const uploaded = await r2Client.uploadBuffer('admin', req.file.buffer, {
+            filename: req.file.originalname || `${id}${ext}`,
+            contentType: req.file.mimetype || 'image/jpeg',
+          });
+          if (uploaded.publicUrl) {
+            billRetrainStore.upsertSample({ ...sample, imageUrl: uploaded.publicUrl });
+          }
+        } catch (err) {
+          logger.warn({ err: err.message }, 'R2 upload failed for admin sample prelabel (async)');
+        }
+      });
+    }
   } catch (err) {
     next(err);
   }
@@ -1032,7 +1158,7 @@ router.post('/bill-retrain/kaggle/webhook', async (req, res, next) => {
     logger.info('Bill retrain webhook received: %j', req.body);
     let reload = null;
     if (status === 'completed' && (autoReload !== false)) {
-      const reloadScope = scope === 'nlu' ? 'nlu' : 'ocr';
+      const reloadScope = (scope === 'nlu' || scope === 'nlu_encoder') ? 'nlu' : 'ocr';
       try {
         reload = await aiClient.reloadModels(reloadScope);
         logger.info('Auto-reloaded %s after Kaggle job %s', reloadScope, jobId);

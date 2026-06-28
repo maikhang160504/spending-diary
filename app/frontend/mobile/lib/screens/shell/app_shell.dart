@@ -9,6 +9,8 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 
 import '../../routes/app_routes.dart';
 import '../../services/api_client.dart';
+import '../../services/bill_processing_service.dart';
+import '../../services/chat_llm_notifier.dart';
 import '../../services/transaction_notifier.dart';
 import '../../services/push_notification_service.dart';
 import '../../services/fcm_service.dart';
@@ -16,6 +18,7 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_palette.dart';
 import '../../widgets/mimo_overlay.dart';
 import '../../widgets/notification_overlay.dart';
+import '../../widgets/bill_processing_banner.dart';
 
 /// AppShell wraps the 4 ShellRoute tabs + persistent bottom nav + MiMo overlay + Notification banner
 class AppShell extends StatefulWidget {
@@ -38,6 +41,19 @@ class _AppShellState extends State<AppShell> {
     super.initState();
     mimoController.addListener(_onMiMoChanged);
     inAppNotificationController.addListener(_onNotificationChanged);
+    BillProcessingService.instance.addListener(_onBillJobsChanged);
+    BillProcessingService.instance.onNavigate = (route, [extra]) {
+      if (!mounted) return;
+      try {
+        if (extra != null) {
+          context.push(route, extra: extra);
+        } else {
+          context.push(route);
+        }
+      } catch (e) {
+        debugPrint('[BillProcessing] Navigation failed: $e');
+      }
+    };
     _connectWebSocket();
     _requestPermissions();
     PushNotificationService.instance.initialize(
@@ -75,6 +91,8 @@ class _AppShellState extends State<AppShell> {
   void dispose() {
     mimoController.removeListener(_onMiMoChanged);
     inAppNotificationController.removeListener(_onNotificationChanged);
+    BillProcessingService.instance.removeListener(_onBillJobsChanged);
+    BillProcessingService.instance.onNavigate = null;
     _wsSub?.cancel();
     _reconnectTimer?.cancel();
     _wsChannel?.sink.close();
@@ -83,6 +101,7 @@ class _AppShellState extends State<AppShell> {
 
   void _onMiMoChanged() => setState(() {});
   void _onNotificationChanged() => setState(() {});
+  void _onBillJobsChanged() => setState(() {});
 
   bool _isAndroid13OrHigher() {
     if (!Platform.isAndroid) return false;
@@ -169,6 +188,32 @@ class _AppShellState extends State<AppShell> {
                 body: message,
                 payload: deepLink,
               );
+            } else if (json['type'] == 'transaction_done') {
+              final txId = json['transactionId'] as String?;
+              final data = json['data'] as Map<String, dynamic>? ?? {};
+              if (txId != null) {
+                BillProcessingService.instance.handleWsTransactionDone(txId, data);
+              }
+            } else if (json['type'] == 'transaction_failed') {
+              final txId = json['transactionId'] as String?;
+              final error = json['error']?.toString();
+              if (txId != null) {
+                BillProcessingService.instance.handleWsTransactionFailed(txId, error);
+              }
+            } else if (json['type'] == 'chat_llm_update') {
+              final sessionId = json['sessionId'] as String?;
+              final messageId = json['messageId'] as String?;
+              if (sessionId != null && messageId != null) {
+                notifyChatLlmUpdate(
+                  ChatLlmUpdate(
+                    sessionId: sessionId,
+                    messageId: messageId,
+                    content: json['content'] as String?,
+                    mood: json['mood'] as String?,
+                    failed: json['failed'] == true,
+                  ),
+                );
+              }
             } else if (json['type'] == 'RECURRING_ALERT') {
               final payload = json['payload'] as Map<String, dynamic>? ?? {};
               final title = payload['title'] as String? ?? 'Giao dịch định kỳ';
@@ -247,11 +292,35 @@ class _AppShellState extends State<AppShell> {
   @override
   Widget build(BuildContext context) {
     final currentIndex = _tabIndex(context);
+    final billJobs = BillProcessingService.instance.activeJobs;
+    final topInset = MediaQuery.of(context).padding.top;
+    final hasInAppNotification = inAppNotificationController.current != null;
+    final billBannerTop = topInset + 12 + (hasInAppNotification ? 92 : 0);
 
     return Scaffold(
       body: Stack(
         children: [
           widget.child,
+          if (billJobs.isNotEmpty)
+            Positioned(
+              left: 16,
+              right: 16,
+              top: billBannerTop,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: billJobs.map((job) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: BillProcessingBanner(
+                      job: job,
+                      onDismiss: job.phase == BillJobPhase.failed
+                          ? () => BillProcessingService.instance.dismissJob(job.transactionId)
+                          : null,
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
           // MiMo overlay — góc phải dưới, ngay trên nav bar
           if (mimoController.current != null)
             Positioned(
@@ -265,7 +334,7 @@ class _AppShellState extends State<AppShell> {
           // In-App Floating Notification Banner — Top center of the screen
           if (inAppNotificationController.current != null)
             Positioned(
-              top: MediaQuery.of(context).padding.top + 12,
+              top: topInset + 12,
               left: 16,
               right: 16,
               child: InAppNotificationBanner(

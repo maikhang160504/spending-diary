@@ -185,10 +185,41 @@ describe('SUGGEST_BUDGET action integration', () => {
     expect(actionService.actionPreviewLabel('SUGGEST')).toBe('Gợi ý hạn mức thông minh');
   });
 
-  test('needsConfirm still returns true for LIMIT/DELETE/GOAL', () => {
+  test('needsConfirm still returns true for LIMIT/GOAL', () => {
     expect(actionService.needsConfirm('SET_LIMIT')).toBe(true);
-    expect(actionService.needsConfirm('DELETE')).toBe(true);
+    expect(actionService.needsConfirm('DELETE')).toBe(false);
     expect(actionService.needsConfirm('GOAL')).toBe(true);
+  });
+
+  test('resolveTargetMonthFromPayload maps Vietnamese time phrases', () => {
+    const next = actionService.getNextMonthRef();
+    const current = actionService.getCurrentMonthRef();
+    expect(actionService.resolveTargetMonthFromPayload({ text: 'gợi ý chi tiêu tháng sau' })).toBe(next);
+    expect(actionService.resolveTargetMonthFromPayload({ text: 'gợi ý ngân sách tháng này' })).toBe(current);
+    expect(actionService.resolveTargetMonthFromPayload({
+      actionDetails: { time: 'tuần này' },
+      text: 'gợi ý chi tiêu tuần này',
+    })).toBe(current);
+    expect(actionService.resolveTargetMonthFromPayload({ targetMonth: '2026-08' })).toBe('2026-08');
+  });
+
+  test('needsConfirm matches sensitive profile actions', () => {
+    expect(actionService.needsConfirm('SET_USERNAME')).toBe(true);
+    expect(actionService.needsConfirm('SET_INCOME')).toBe(false);
+    expect(actionService.needsConfirm('UPDATE_RECORD')).toBe(false);
+    expect(actionService.needsConfirm('DELETE')).toBe(false);
+    expect(actionService.needsConfirm('SET_ALERT')).toBe(true);
+    expect(actionService.needsConfirm('EXPORT_DATA')).toBe(false);
+  });
+
+  test('resolveCategoryCode maps Vietnamese category phrases', () => {
+    expect(actionService.resolveCategoryCode(null, { target: 'ăn uống' }, 'thống kê ăn uống tháng này')).toBe('Food');
+    expect(actionService.resolveCategoryCode(null, null, 'tìm giao dịch đi lại')).toBe('Transport');
+  });
+
+  test('disambiguateActionType fixes limit vs goal confusion', () => {
+    expect(actionService.disambiguateActionType('đặt hạn mức ăn uống 3 triệu', 'SET_GOAL')).toBe('SET_LIMIT');
+    expect(actionService.disambiguateActionType('bù 200k vào mục tiêu mua điện thoại', 'SET_GOAL')).toBe('ADD_GOAL');
   });
 });
 

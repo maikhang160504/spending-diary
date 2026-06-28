@@ -9,7 +9,10 @@ async function list(userId, walletId) {
     (SELECT COUNT(*) FROM transactions t WHERE t.story_item_id IN (SELECT si2.id FROM story_items si2 WHERE si2.story_id = s.id) AND NOT t.is_deleted) AS tx_count,
     (SELECT content_text FROM ai_comments ac WHERE ac.story_id = s.id ORDER BY ac.created_at DESC LIMIT 1) AS ai_message,
     (SELECT emotion FROM ai_comments ac WHERE ac.story_id = s.id ORDER BY ac.created_at DESC LIMIT 1) AS ai_emotion,
-    (SELECT raw_text FROM story_items si WHERE si.story_id = s.id ORDER BY si.created_at ASC LIMIT 1) AS description
+    (SELECT raw_text FROM story_items si WHERE si.story_id = s.id ORDER BY si.created_at ASC LIMIT 1) AS description,
+    (SELECT MAX(t.occurred_at) FROM story_items si3
+      JOIN transactions t ON t.story_item_id = si3.id AND NOT t.is_deleted
+      WHERE si3.story_id = s.id) AS latest_occurred_at
     FROM stories s WHERE `;
   const params = [];
   if (walletId) {
@@ -21,14 +24,23 @@ async function list(userId, walletId) {
     sql += 's.user_id = $1';
     params.push(userId);
   }
-  sql += ' ORDER BY s.occurred_on DESC, s.created_at DESC';
+  sql += ` ORDER BY COALESCE(
+    (SELECT MAX(t.occurred_at) FROM story_items si4
+      JOIN transactions t ON t.story_item_id = si4.id AND NOT t.is_deleted
+      WHERE si4.story_id = s.id),
+    s.created_at
+  ) DESC, s.created_at DESC`;
   const r = await query(sql, params);
   return r.rows;
 }
 
 async function getById(userId, storyId) {
   const r = await query(
-    `SELECT s.* FROM stories s 
+    `SELECT s.*,
+      (SELECT MAX(t.occurred_at) FROM story_items si2
+        JOIN transactions t ON t.story_item_id = si2.id AND NOT t.is_deleted
+        WHERE si2.story_id = s.id) AS latest_occurred_at
+     FROM stories s 
      WHERE s.id = $1 AND (
        s.user_id = $2 OR (
          s.wallet_id IS NOT NULL AND EXISTS (

@@ -35,12 +35,6 @@ Dưới đây là danh sách tất cả các hành động hệ thống (`INTENT
   - *"Mình muốn tiết kiệm 5 triệu để đi du lịch"*
   - *"Tăng mục tiêu tiết kiệm đi lại thêm 500k"*
 
-## 4. Xóa Giao dịch Gần nhất (DELETE_RECORD)
-* **Loại lệnh:** `DELETE_RECORD`
-* **Tham số:** Không có
-* **Ví dụ câu lệnh:**
-  - *"Xóa giao dịch vừa nhập"*
-  - *"Hủy hóa đơn cuối cùng giúp mình"*
 
 ## 5. Thay đổi Giọng nói Mascot (SET_TONE)
 * **Loại lệnh:** `SET_TONE`
@@ -86,23 +80,7 @@ Dưới đây là danh sách tất cả các hành động hệ thống (`INTENT
   - *"Gọi mình là Khang nhé"*
   - *"Đổi tên của tớ thành Mimo Master"*
 
-## 10. Thiết lập Thu nhập hàng tháng (SET_INCOME)
-* **Loại lệnh:** `SET_INCOME`
-* **Tham số:**
-  - `value`: Số tiền thu nhập
-* **Ví dụ câu lệnh:**
-  - *"Thu nhập hàng tháng của mình là 10 triệu"*
-  - *"Cài đặt lương tháng này 15 củ"*
 
-## 11. Chỉnh sửa Giao dịch Gần nhất (UPDATE_RECORD)
-* **Loại lệnh:** `UPDATE_RECORD`
-* **Tham số:**
-  - `value`: Số tiền mới
-  - `categoryCode`: Danh mục mới
-  - `note`: Ghi chú mới
-* **Ví dụ câu lệnh:**
-  - *"Sửa số tiền giao dịch vừa rồi thành 50k"*
-  - *"Đổi danh mục giao dịch cuối sang Ăn uống"*
 
 ## 12. Cài đặt Cảnh báo Hạn mức (SET_ALERT)
 * **Loại lệnh:** `SET_ALERT`

@@ -5,6 +5,10 @@ const ApiError = require('../../utils/ApiError');
 const walletService = require('../wallets/wallets.service');
 const { paginate } = require('../../utils/paginate');
 const { normalizeMascotMood } = require('../../utils/mascotMood');
+const {
+  resolveCategoryCorrectionKeyword,
+  isInvalidPersonalizationKeyword,
+} = require('../../utils/billPersonalization');
 
 function row(r) {
   return {
@@ -226,8 +230,13 @@ async function listForUser(userId, filters) {
 
 async function getById(userId, id) {
   const r = await query(
-    `SELECT t.* FROM transactions t
+    `SELECT t.*, si.story_id,
+            ac.content_text AS ai_message,
+            ac.emotion AS ai_emotion
+     FROM transactions t
      JOIN wallet_members wm ON wm.wallet_id = t.wallet_id AND wm.user_id = $1
+     LEFT JOIN story_items si ON t.story_item_id = si.id
+     LEFT JOIN ai_comments ac ON ac.story_id = si.story_id
      WHERE t.id = $2 AND t.is_deleted = FALSE`,
     [userId, id]
   );
@@ -238,7 +247,7 @@ async function getById(userId, id) {
 async function update(userId, id, payload) {
   // Make sure user can access tx (also returns wallet to assert role).
   const current = await query(
-    `SELECT t.wallet_id, t.type, t.category_code, t.note, t.ai_extracted, t.ai_meta FROM transactions t
+    `SELECT t.wallet_id, t.type, t.category_code, t.note, t.source, t.ai_extracted, t.ai_meta FROM transactions t
      JOIN wallet_members wm ON wm.wallet_id = t.wallet_id AND wm.user_id = $1
      WHERE t.id = $2 AND t.is_deleted = FALSE`,
     [userId, id]
@@ -285,8 +294,8 @@ async function update(userId, id, payload) {
   const oldTx = current.rows[0];
   if (payload.categoryCode !== undefined && payload.categoryCode !== oldTx.category_code) {
     if (oldTx.ai_extracted) {
-      const text = oldTx.ai_meta?.nlu?.text || oldTx.note || '';
-      if (text.trim()) {
+      const text = resolveCategoryCorrectionKeyword(oldTx);
+      if (text) {
         try {
           const recordType = (payload.type || oldTx.type || 'expense').toLowerCase() === 'income' ? 'Income' : 'Expense';
           // Log into user_corrections
