@@ -67,7 +67,7 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
     }
     final extracted = data?['extracted'] as Map<String, dynamic>?;
     _amount = extracted != null && extracted['amount'] is num ? (extracted['amount'] as num).toInt() : 0;
-    _category = extracted?['category'] as String? ?? 'Others';
+    _category = CategoryTheme.canonicalCodeOf(extracted?['category'] as String? ?? 'Other');
     _note = extracted?['note'] as String? ?? '';
     _confidence = extracted != null && extracted['confidence'] is num ? (extracted['confidence'] as num).toDouble() : 0.0;
     _recordType = extracted?['record_type'] as String? ?? 'Expense';
@@ -215,7 +215,10 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
   void _showEditSheet() {
     final amountCtrl = TextEditingController(text: _amount.toString());
     final noteCtrl = TextEditingController(text: _note);
-    String editCategory = _category;
+    String editCategory = CategoryTheme.canonicalCodeOf(_category);
+    if (!CategoryTheme.primaryCodes.contains(editCategory)) {
+      editCategory = 'Other';
+    }
     String? editWalletId = _targetWalletId;
 
     showModalBottomSheet(
@@ -247,7 +250,7 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
               Text('Danh mục', style: Theme.of(ctx).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
-                initialValue: CategoryTheme.styles.containsKey(editCategory) ? editCategory : 'Other',
+                value: editCategory,
                 decoration: InputDecoration(
                   contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadii.md)),

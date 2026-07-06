@@ -65,10 +65,10 @@ class _ReportScreenState extends State<ReportScreen> {
   void _onTransactionChanged() {
     if (!mounted) return;
     AppQueries.invalidateWalletData();
-    _loadStats();
+    _loadStats(forceRefetch: true);
   }
 
-  Future<void> _loadStats() async {
+  Future<void> _loadStats({bool forceRefetch = false}) async {
     final rangeParam = _selectedRange == '7 ngày' ? 'week'
         : _selectedRange == '30 ngày' ? 'month'
         : null;
@@ -91,12 +91,20 @@ class _ReportScreenState extends State<ReportScreen> {
     final hasCache = AppQueries.statsByCategory(rangeParam, _selectedWalletId, from: fromStr, to: toStr).state.data != null;
     setState(() => _loading = !hasCache);
     try {
-      final walletsResult = await AppQueries.wallets().result;
+      final walletsResult = forceRefetch
+          ? await AppQueries.wallets().refetch()
+          : await AppQueries.wallets().result;
       final wallets = walletsResult.data ?? [];
 
-      final dashF = AppQueries.dashboard(_selectedWalletId, from: fromStr, to: toStr).result;
-      final catsF = AppQueries.statsByCategory(rangeParam, _selectedWalletId, from: fromStr, to: toStr).result;
-      final monthlyF = AppQueries.statsByMonth(now.year, _selectedWalletId).result;
+      final dashF = forceRefetch
+          ? AppQueries.dashboard(_selectedWalletId, from: fromStr, to: toStr).refetch()
+          : AppQueries.dashboard(_selectedWalletId, from: fromStr, to: toStr).result;
+      final catsF = forceRefetch
+          ? AppQueries.statsByCategory(rangeParam, _selectedWalletId, from: fromStr, to: toStr).refetch()
+          : AppQueries.statsByCategory(rangeParam, _selectedWalletId, from: fromStr, to: toStr).result;
+      final monthlyF = forceRefetch
+          ? AppQueries.statsByMonth(now.year, _selectedWalletId).refetch()
+          : AppQueries.statsByMonth(now.year, _selectedWalletId).result;
 
       final dashboard = (await dashF).data ?? <String, dynamic>{};
       final cats = (await catsF).data ?? <dynamic>[];
@@ -105,8 +113,12 @@ class _ReportScreenState extends State<ReportScreen> {
       List<dynamic>? momData;
       Map<String, dynamic>? cumulativeData;
       if (_selectedRange == 'Theo tháng') {
-        final momRes = await AppQueries.statsMoM(_selectedWalletId).result;
-        final cumRes = await AppQueries.statsCumulativeVsBudget(_selectedWalletId).result;
+        final momRes = forceRefetch
+            ? await AppQueries.statsMoM(_selectedWalletId).refetch()
+            : await AppQueries.statsMoM(_selectedWalletId).result;
+        final cumRes = forceRefetch
+            ? await AppQueries.statsCumulativeVsBudget(_selectedWalletId).refetch()
+            : await AppQueries.statsCumulativeVsBudget(_selectedWalletId).result;
         momData = momRes.data;
         cumulativeData = cumRes.data;
       }

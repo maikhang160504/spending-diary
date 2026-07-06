@@ -54,7 +54,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (!mounted) return;
     // Đánh dấu cache liên quan là stale rồi tải lại để đồng bộ.
     AppQueries.invalidateWalletData();
-    _loadWalletData();
+    _loadWalletData(forceRefetch: true);
   }
 
   @override
@@ -122,12 +122,18 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<void> _loadWalletData() async {
+  Future<void> _loadWalletData({bool forceRefetch = false}) async {
     try {
       // Chạy song song nhưng vẫn lấy kết quả có kiểu rõ ràng.
-      final dashF = AppQueries.dashboard(_selectedWalletId).result;
-      final txF = AppQueries.transactions(_selectedWalletId).result;
-      final storyF = AppQueries.stories(_selectedWalletId).result;
+      final dashF = forceRefetch
+          ? AppQueries.dashboard(_selectedWalletId).refetch()
+          : AppQueries.dashboard(_selectedWalletId).result;
+      final txF = forceRefetch
+          ? AppQueries.transactions(_selectedWalletId).refetch()
+          : AppQueries.transactions(_selectedWalletId).result;
+      final storyF = forceRefetch
+          ? AppQueries.stories(_selectedWalletId).refetch()
+          : AppQueries.stories(_selectedWalletId).result;
       final dash = await dashF;
       final tx = await txF;
       final story = await storyF;

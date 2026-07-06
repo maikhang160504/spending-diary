@@ -211,6 +211,7 @@ class _AppShellState extends State<AppShell> {
                     content: json['content'] as String?,
                     mood: json['mood'] as String?,
                     failed: json['failed'] == true,
+                    intentAction: json['intentAction'] as Map<String, dynamic>?,
                   ),
                 );
               }

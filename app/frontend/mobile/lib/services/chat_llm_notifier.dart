@@ -6,6 +6,7 @@ class ChatLlmUpdate {
   final String? content;
   final String? mood;
   final bool failed;
+  final Map<String, dynamic>? intentAction;
 
   const ChatLlmUpdate({
     required this.sessionId,
@@ -13,6 +14,7 @@ class ChatLlmUpdate {
     this.content,
     this.mood,
     this.failed = false,
+    this.intentAction,
   });
 }
 

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:dio/dio.dart';
+import 'package:path_provider/path_provider.dart';
 
 import '../../routes/app_routes.dart';
 import '../../services/api_client.dart';
@@ -236,6 +238,12 @@ _ReportStoryPreview? _reportPreviewFromNlu(Map<String, dynamic> nlu) {
     );
   }).toList();
   final kind = nluString(ar['report_kind']) ?? nluString(nlu['action_type']);
+  final comparePercent = nluInt(ar['compare_percent']) ?? 0;
+  final compareCategoriesRaw = ar['compareCategories'] as List<dynamic>?;
+  final compareCategories = compareCategoriesRaw != null
+      ? compareCategoriesRaw.map((e) => e.toString()).toList()
+      : null;
+
   return _ReportStoryPreview(
     periodLabel:
         nluString(ar['period_label']) ??
@@ -246,6 +254,8 @@ _ReportStoryPreview? _reportPreviewFromNlu(Map<String, dynamic> nlu) {
     reportKind: kind,
     transactionCount: nluInt(ar['transaction_count']) ?? 0,
     categories: cats,
+    comparePercent: comparePercent,
+    compareCategories: compareCategories,
   );
 }
 
@@ -274,6 +284,8 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _aiThinking = false;
   bool _loadingOlder = false;
   bool _hasMoreHistory = false;
+  bool _waitingForLlm = false;
+  String? _llmPendingMessageId;
 
   /// Tránh gọi load-more khi ListView reverse vừa layout (chưa ổn scroll).
   bool _readyForOlderLoad = false;
@@ -334,26 +346,108 @@ class _ChatScreenState extends State<ChatScreen> {
     if (update == null || !mounted) return;
     if (update.sessionId != _sessionId) return;
     setState(() {
-      for (final msg in _messages) {
-        if (msg.backendMessageId != update.messageId) continue;
-        msg.llmPending = false;
-        if (update.failed || update.content == null) return;
-        msg.text = update.content!;
-        if (update.mood != null && update.mood!.isNotEmpty) {
-          msg.chatEmotion = update.mood;
-        }
-        if (msg.txPreview != null) {
-          msg.txPreview!.aiComment = update.content;
-          if (update.mood != null) {
-            msg.txPreview!.emotionAsset = update.mood;
+      if (_llmPendingMessageId == update.messageId) {
+        _waitingForLlm = false;
+        _llmPendingMessageId = null;
+
+        if (update.content != null && update.content!.isNotEmpty) {
+          bool found = false;
+          for (final msg in _messages) {
+            if (msg.backendMessageId == update.messageId) {
+              msg.text = update.content!;
+              if (update.mood != null && update.mood!.isNotEmpty) {
+                msg.chatEmotion = update.mood!;
+              }
+              if (update.intentAction != null) {
+                _updateMessagePreviews(msg, update.intentAction!);
+              }
+              found = true;
+              break;
+            }
+          }
+          if (!found) {
+            final confirmMsg = _ChatMsg(
+              text: update.content!,
+              isUser: false,
+              time: _now(),
+              chatEmotion: (update.mood != null && update.mood!.isNotEmpty) ? update.mood : 'Happy',
+              backendMessageId: update.messageId,
+            );
+            if (update.intentAction != null) {
+              _updateMessagePreviews(confirmMsg, update.intentAction!);
+            }
+            _messages.insert(0, confirmMsg);
           }
         }
-        if (msg.actionPreview != null) {
-          msg.actionPreview = msg.actionPreview!.copyWith(aiLine: update.content);
+      }
+
+      for (final msg in _messages) {
+        if (msg.backendMessageId == update.messageId) {
+          msg.llmPending = false;
+          if (update.intentAction != null) {
+            _updateMessagePreviews(msg, update.intentAction!);
+          }
         }
-        break;
       }
     });
+    _scrollToBottom();
+  }
+
+  void _updateMessagePreviews(_ChatMsg msg, Map<String, dynamic> metadata) {
+    final nlu = nluMap(metadata['nlu']);
+    if (nlu == null) return;
+    final intent = nluString(metadata['intent']);
+
+    List<_TxPreview>? multiRecords;
+    final rawMulti = metadata['multi_records'] ?? metadata['multiRecords'];
+    if (rawMulti is List) {
+      multiRecords = rawMulti.map((r) {
+        final rMap = nluMap(r) ?? {};
+        return _TxPreview(
+          category: nluString(rMap['category']) ?? 'Other',
+          amount: nluInt(rMap['amount']) ?? 0,
+          note: nluString(rMap['text']) ?? '',
+          recordType: nluString(rMap['record_type']) ?? 'Expense',
+          transactionId: nluString(rMap['transaction_id'] ?? rMap['transactionId']),
+        );
+      }).toList();
+    }
+
+    if (intent == 'Record' && multiRecords == null) {
+      final amount = metadata['amount'] ?? nlu['amount_spent'] ?? nlu['amount'];
+      final amountInt = nluInt(amount) ?? 0;
+      msg.txPreview = _TxPreview(
+        category: nluString(metadata['category']) ?? 'Other',
+        amount: amountInt,
+        note: nluString(nlu['clean_content']) ?? '',
+        recordType: nluString(nlu['record_type']) ?? 'Expense',
+        emotionAsset: msg.chatEmotion ?? 'Happy',
+        aiComment: msg.text,
+        nlu: nlu,
+        transactionId: nluString(metadata['transaction_id'] ?? metadata['transactionId']),
+      );
+    } else if (intent == 'Action' && metadata['action_executed'] != true) {
+      final report = _reportPreviewFromNlu(nlu);
+      if (report != null) {
+        msg.reportPreview = report;
+      } else {
+        final originalUser = nluString(nlu['text']) ?? nluString(nlu['clean_content']) ?? '';
+        msg.actionPreview = _actionPreviewFromNlu(
+          nlu,
+          originalUser,
+          aiLine: msg.text,
+        );
+      }
+    }
+
+    if (multiRecords != null) {
+      msg.multiRecords = multiRecords;
+    }
+
+    final intentConfidence = nluDouble(nlu['intent_confidence']) ?? nluDouble(nlu['confidence']) ?? 0.0;
+    final autoSaved = intentConfidence >= 0.9 && (msg.txPreview != null || msg.multiRecords != null);
+    final savedFlag = (metadata['saved'] == true) || autoSaved;
+    msg.isSaved = (msg.txPreview != null || msg.multiRecords != null) && savedFlag;
   }
 
   Future<void> _loadAiPersonality() async {
@@ -433,21 +527,24 @@ class _ChatScreenState extends State<ChatScreen> {
           continue;
         }
 
-        final actionResult = nluMap(metadata['action_result']);
-        if (metadata['action_executed'] == true && actionResult != null) {
-          budgetSuggestionPreview = _budgetSuggestionFromResult(actionResult);
-          searchPreview = _searchPreviewFromResult(actionResult);
-          final resultText = nluString(actionResult['message']);
-          if (resultText != null && resultText.isNotEmpty) {
-            displayText = resultText;
-          }
-        }
-
         final llmMeta = llmReplyFromChatMetadata(
           metadata,
           fallbackText: displayText,
         );
         chatEmotion = llmMeta?.emotionAsset;
+
+        final actionResult = nluMap(metadata['action_result']);
+        if (metadata['action_executed'] == true && actionResult != null) {
+          budgetSuggestionPreview = _budgetSuggestionFromResult(actionResult);
+          searchPreview = _searchPreviewFromResult(actionResult);
+          final resultText = nluString(actionResult['message']);
+          final llmText = llmMeta?.text ?? '';
+          if (llmText.isNotEmpty) {
+            displayText = llmText;
+          } else if (resultText != null && resultText.isNotEmpty) {
+            displayText = resultText;
+          }
+        }
 
         final rawMulti = metadata['multi_records'] ?? metadata['multiRecords'];
         if (rawMulti is List && rawMulti.length >= 2) {
@@ -537,6 +634,7 @@ class _ChatScreenState extends State<ChatScreen> {
         budgetSuggestionPreview: budgetSuggestionPreview,
         multiRecords: multiRecords,
         isSaved: (txPreview != null || multiRecords != null) && savedFlag,
+        downloadUrl: metadata != null ? nluString(metadata['downloadUrl']) : null,
       );
 
       // Nếu tin nhắn hiện tại là tin xác nhận đã lưu ("saved": true)
@@ -790,7 +888,9 @@ class _ChatScreenState extends State<ChatScreen> {
       if (parsed.isNotEmpty) {
         final confirmMsg = parsed.first;
         if (chatRes['llmPending'] == true) {
-          confirmMsg.llmPending = true;
+          confirmMsg.llmPending = false; // Do not show inline "Mimo đang soạn thêm..."
+          _waitingForLlm = true;
+          _llmPendingMessageId = chatRes['messageId'] as String?;
         }
         if (chatRes['messageId'] != null) {
           confirmMsg.backendMessageId = chatRes['messageId'] as String?;
@@ -848,6 +948,7 @@ class _ChatScreenState extends State<ChatScreen> {
       if (!mounted) return;
       setState(() {
         _aiThinking = false;
+        _waitingForLlm = false;
         _messages.insert(
           0,
           _ChatMsg(text: e.localizedMessage, isUser: false, time: _now()),
@@ -859,6 +960,7 @@ class _ChatScreenState extends State<ChatScreen> {
       if (!mounted) return;
       setState(() {
         _aiThinking = false;
+        _waitingForLlm = false;
         _messages.insert(
           0,
           _ChatMsg(
@@ -1114,10 +1216,37 @@ class _ChatScreenState extends State<ChatScreen> {
                     onDismissBudgetSuggestion: _handleBudgetDismiss,
                     onEditTxCategory: _showEditTxSheet,
                     onEditTxPreview: _showEditTxPreviewSheet,
+                    onDownloadUrl: _handleDownloadFile,
                   );
                 },
               ),
             ),
+            if (_waitingForLlm)
+              Padding(
+                padding: const EdgeInsets.only(left: 20, top: 8, bottom: 4),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  children: [
+                    Image.asset(
+                      'assets/MiMo/emotions/Thinking.png',
+                      width: 18,
+                      height: 18,
+                      errorBuilder: (_, _, _) =>
+                          const Text('🤔', style: TextStyle(fontSize: 12)),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'MiMo đang soạn tin nhắn',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.muted,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    const _DotsAnimation(),
+                  ],
+                ),
+              ),
             // Quick action chips
             if (_suggestions.isNotEmpty)
               Padding(
@@ -1153,6 +1282,44 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _handleDownloadFile(String downloadPath) async {
+    try {
+      final dir = await getTemporaryDirectory();
+      final uri = Uri.parse(downloadPath);
+      final filename = uri.pathSegments.isNotEmpty ? uri.pathSegments.last : 'transactions_export.csv';
+      final savePath = '${dir.path}/$filename';
+
+      final token = await _api.accessToken;
+      final fullUrl = '${_api.baseUrl}$downloadPath${downloadPath.contains('?') ? '&' : '?'}token=$token';
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('⏳ Đang tải xuống báo cáo Excel/CSV...')),
+      );
+
+      final dio = Dio();
+      await dio.download(fullUrl, savePath);
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('✅ Đã tải xuống báo cáo chi tiêu: $filename'),
+          backgroundColor: AppColors.teal,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    } catch (e) {
+      debugPrint('Download file error: $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('❌ Lỗi tải tệp: ${e.toString()}'),
+          backgroundColor: AppColors.danger,
+        ),
+      );
+    }
   }
 
   Future<void> _handleActionReject(_ChatMsg msg) async {
@@ -1538,6 +1705,9 @@ class _ReportStoryPreview {
   final String? reportKind;
   final int transactionCount;
   final List<_ReportCategoryRow> categories;
+  final int comparePercent;
+  final List<String>? compareCategories;
+
   const _ReportStoryPreview({
     required this.periodLabel,
     required this.totalExpense,
@@ -1545,6 +1715,8 @@ class _ReportStoryPreview {
     this.reportKind,
     required this.transactionCount,
     required this.categories,
+    this.comparePercent = 0,
+    this.compareCategories,
   });
 }
 
@@ -1577,12 +1749,13 @@ class _ChatMsg {
   final String time;
   String? backendMessageId;
   bool llmPending;
-  final _TxPreview? txPreview;
+  _TxPreview? txPreview;
   _ActionPreview? actionPreview;
-  final _ReportStoryPreview? reportPreview;
-  final _SearchResultPreview? searchPreview;
-  final _BudgetSuggestionPreview? budgetSuggestionPreview;
-  final List<_TxPreview>? multiRecords;
+  _ReportStoryPreview? reportPreview;
+  _SearchResultPreview? searchPreview;
+  _BudgetSuggestionPreview? budgetSuggestionPreview;
+  List<_TxPreview>? multiRecords;
+  final String? downloadUrl;
 
   /// Emoji chat (cùng emotion LLM, khác tên với avatar story).
   String? chatEmotion;
@@ -1606,6 +1779,7 @@ class _ChatMsg {
     this.multiRecords,
     this.chatEmotion,
     this.isSaved = false,
+    this.downloadUrl,
   });
 }
 
@@ -2045,6 +2219,86 @@ class _ReportStoryCard extends StatelessWidget {
                     context,
                   ).textTheme.bodySmall?.copyWith(color: AppColors.muted),
                 ),
+                if (preview.comparePercent != 0) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: (preview.comparePercent > 0
+                              ? AppColors.danger
+                              : AppColors.success)
+                          .withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(AppRadii.md),
+                      border: Border.all(
+                        color: (preview.comparePercent > 0
+                                ? AppColors.danger
+                                : AppColors.success)
+                            .withValues(alpha: 0.2),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          preview.comparePercent > 0
+                              ? Icons.trending_up_rounded
+                              : Icons.trending_down_rounded,
+                          color: preview.comparePercent > 0
+                              ? AppColors.danger
+                              : AppColors.success,
+                          size: 16,
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            preview.comparePercent > 0
+                                ? 'Tăng ${preview.comparePercent.abs()}% so với kỳ trước'
+                                : 'Giảm ${preview.comparePercent.abs()}% so với kỳ trước',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: preview.comparePercent > 0
+                                  ? AppColors.danger
+                                  : AppColors.success,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+                if (preview.compareCategories != null && preview.compareCategories!.length >= 2) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: AppColors.teal.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(AppRadii.md),
+                      border: Border.all(
+                        color: AppColors.teal.withValues(alpha: 0.2),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.compare_arrows_rounded,
+                          color: AppColors.teal,
+                          size: 16,
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            'So sánh: ${CategoryTheme.of(preview.compareCategories![0]).label} vs ${CategoryTheme.of(preview.compareCategories![1]).label}',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.teal,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 if (topCats.isNotEmpty) ...[
                   const SizedBox(height: 14),
                   Text(
@@ -2552,6 +2806,7 @@ class _ChatBubble extends StatelessWidget {
   final Future<void> Function(_ChatMsg)? onDismissBudgetSuggestion;
   final void Function(_ChatMsg)? onEditTxCategory;
   final void Function(_ChatMsg, _TxPreview)? onEditTxPreview;
+  final Future<void> Function(String)? onDownloadUrl;
 
   const _ChatBubble({
     required this.message,
@@ -2563,6 +2818,7 @@ class _ChatBubble extends StatelessWidget {
     this.onDismissBudgetSuggestion,
     this.onEditTxCategory,
     this.onEditTxPreview,
+    this.onDownloadUrl,
   });
 
   Widget _buildSingleTxCard(BuildContext context) {
@@ -2804,6 +3060,65 @@ class _ChatBubble extends StatelessWidget {
     );
   }
 
+  Widget _buildDownloadExcelCard(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEFF6FF), // light blue background
+        borderRadius: BorderRadius.circular(AppRadii.md),
+        border: Border.all(color: Colors.blue.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.file_download_outlined, color: Colors.blue, size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Tải Báo Cáo Excel/CSV',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    color: Colors.blue.shade800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Tệp dữ liệu chi tiêu đã được tạo thành công. Vui lòng bấm vào nút bên dưới để lưu về thiết bị.',
+            style: TextStyle(fontSize: 11, color: Colors.black87),
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: () {
+                if (message.downloadUrl != null) {
+                  onDownloadUrl?.call(message.downloadUrl!);
+                }
+              },
+              icon: const Icon(Icons.download, size: 16),
+              label: const Text('Bấm tải xuống'),
+              style: FilledButton.styleFrom(
+                backgroundColor: Colors.blue.shade600,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                textStyle: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final bubbleColor = message.isUser ? AppColors.teal : context.palette.card;
@@ -2825,6 +3140,7 @@ class _ChatBubble extends StatelessWidget {
             message.searchPreview != null ||
             message.budgetSuggestionPreview != null ||
             message.txPreview != null ||
+            message.downloadUrl != null ||
             (message.multiRecords != null && message.multiRecords!.isNotEmpty));
 
     return Column(
@@ -2907,6 +3223,8 @@ class _ChatBubble extends StatelessWidget {
               children: [
                 if (message.reportPreview != null)
                   _ReportStoryCard(preview: message.reportPreview!),
+                if (message.downloadUrl != null)
+                  _buildDownloadExcelCard(context),
                 if (message.actionPreview != null &&
                     _actionNeedsConfirm(message.actionPreview!.actionType))
                   _ActionConfirmCard(
