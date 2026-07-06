@@ -304,29 +304,34 @@ Deploy weights vào text_nlu/models/
 
 #### 4.2.5. Inference NLU (khi chạy thật)
 
-Pipeline `run_nlu()` thực hiện tuần tự:
+Động cơ NLU hỗ trợ hai chế độ hoạt động chính tùy thuộc vào cấu hình trong registry `nlu_model_registry.json` (mặc định cấu hình hoạt động là `"llm"` - sử dụng mô hình ngôn ngữ lớn tinh chỉnh Qwen2.5-14B-Instruct):
 
-1. **Tiền xử lý text** — chuẩn hóa tiếng Việt (PyVi tokenizer), bỏ dấu thừa.
-2. **Kiểm tra lớp cá nhân hóa (Personalization Hybrid Layer)** — quét qua quy tắc ghi đè tĩnh (Layer 1) và đối chiếu độ tương đồng (Layer 2).
-3. **Phân intent toàn cục** (nếu không có nhãn cá nhân hóa) — encoder PhoBERT hoặc TF-IDF fallback.
-4. **Guard rules** — nếu có pattern tiền (`45k`, `12tr`) mà intent = Chitchat → ép về Record.
-5. **Nếu Record:**
-   - NER spaCy trích AMOUNT, PRODUCT, TIME, CATEGORY.
-   - Phân loại category + record_type (nếu không có nhãn cá nhân hóa).
-   - Hỗ trợ **multi-record** (một câu nhiều khoản).
-   - Detect tag đặc biệt: CHA_ME, NGUOI_YEU (ảnh hưởng tone LLM).
-6. **Nếu Action:**
-   - Phân action_type (REPORT_GENERAL, SET_LIMIT, DELETE_RECORD…).
-   - Parse time_range ("tuần này", "tháng 5"…).
-   - Parse action_details (verb SET/INCREASE/DECREASE, target category, value).
-7. **Nếu Chitchat:**
-   - Không train sentiment — gọi **Gemini** viết câu trả lời.
-8. **NLG (Natural Language Generation):**
-   - Build prompt từ `prompts.json` + profile user (budget_remain, spent_week…).
-   - Gemini trả JSON: `{ story, emotion, status }`.
-   - Emotion = tên file PNG mascot (Success, Thinking, Hello…).
+##### Chế độ 1: Mô hình Ngôn ngữ lớn Thống nhất (LLM Unified Pipeline - Mặc định)
+Khi active backend là `"llm"`, hệ thống chạy luồng xử lý NLU và NLG gộp trong **một lượt suy luận duy nhất (Single-pass inference)**:
+1. **Tiền xử lý & Cá nhân hóa**: Chuẩn hóa tiếng Việt (PyVi) và đối chiếu với Layer 1 (Exact Overrides) và Layer 2 (Semantic Cosine Similarity). Nếu khớp, lấy nhãn cá nhân hóa và gọi tiếp luồng chitchat.
+2. **Qwen Single-Pass**: Gửi câu chat kèm ngữ cảnh `CONTEXT_META` (thời gian, thời tiết, ví, hạn mức) tới API đám mây Modal GPU (`QwenModel` class container) chạy trên GPU Nvidia A10G/H100 với lượng tử hóa 4-bit Nf4.
+3. **Trích xuất thông tin trực tiếp**: Qwen trả về cấu trúc JSON chứa đầy đủ:
+   - `intent`: Ý định của câu (`Record` | `Action` | `Chitchat`).
+   - `record_type`: Loại giao dịch (`Income` | `Expense` | `null`).
+   - `action_type`: Tác vụ hệ thống (`SET_LIMIT`, `SET_GOAL`...).
+   - `slots`: Các giá trị trích xuất, đặc biệt là trường **`item`** chứa tên giao dịch bằng tiếng Việt ngắn gọn (ví dụ: "Cà phê sữa", "Tiền đổ xăng"), được trích xuất trực tiếp thay vì map từ ghi chú `note`.
+   - `emotion`: Cảm xúc mascot MiMo (`Chill`, `Happy`...).
+   - `response`: Câu phản hồi tự nhiên phong cách Gen Z.
+4. **Hậu xử lý làm sạch (NLG Sanitizer)**:
+   Để loại bỏ triệt để các lỗi phản hồi do model bị quá khớp (hallucination) trong quá trình fine-tune (như rò rỉ ký tự Hán/Trung Quốc, lặp từ hoặc in ra code JavaScript `.addAction()`), hệ thống chạy qua bộ lọc regex `_sanitize_nlg_text()` để:
+   - Xóa bỏ toàn bộ các ký tự CJK (U+3000 đến U+9FFF).
+   - Xóa các mẫu mã lệnh kỹ thuật dạng `.addAction(...)` hoặc `{...}`.
+   - Triệt tiêu lỗi lặp từ mascot (ví dụ: `"mascot mascot"` -> `"mascot"`).
+5. **Duy nhất một lần gọi**: Trả kết quả về Backend Node.js với `backend: "llm_unified"`. Backend nhận diện được nhãn này sẽ bỏ qua hoàn toàn bước gọi Gemini NLG phụ, giúp giảm 50% số lần gọi mô hình và giảm thiểu chi phí token.
 
-**LLM backends:** Gemini (chính), Groq (fallback tùy cấu hình). Có retry tự động khi Gemini 503/429 và đổi model dự phòng.
+##### Chế độ 2: Mô hình Phân tán (Hybrid Dual-Pass Pipeline - Fallback)
+Khi active backend là `"encoder"` hoặc `"tfidf"`, hệ thống thực thi hai lượt suy luận riêng biệt:
+1. **Phân loại Intent**: Sử dụng PhoBERT encoder kết hợp Logistic Regression.
+2. **Trích xuất thực thể (NER)**: Chạy spaCy NER cục bộ trích xuất các slot `AMOUNT`, `TIME`, `PRODUCT`.
+3. **Sinh câu thoại NLG**: Chạy ngầm một Background Task gọi sang Gemini API kết hợp kịch bản persona từ `prompts.json` để viết câu thoại phản hồi, rồi đồng bộ lại kết quả qua WebSocket.
+
+**LLM backends:** Qwen2.5-14B-Instruct trên Modal GPU (suy luận chính), Google Gemini API (fallback và phục vụ NLG cho chế độ PhoBERT).
+
 
 #### 4.2.6. Lớp cá nhân hóa Hybrid (Personalization Hybrid Layer) [TASK-08]
 
@@ -779,17 +784,26 @@ Hệ thống đã triển khai hoàn thiện cơ chế tự động hóa quy tr�
 3. **Ghi nhận lịch sử tăng trưởng**:
    - Hệ thống tự động ghi nhật ký huấn luyện vào tệp `nlu_training_history.json` bao gồm các thông số: thời điểm huấn luyện (`trained_at`), số dòng dữ liệu (`training_rows`), thời gian huấn luyện (`duration_sec`), trạng thái (`status`), và F1-score để WebAdmin hiển thị biểu đồ theo dõi hiệu năng.
 
-### 13.2. Quy trình huấn luyện lại OCR-KIE (Kaggle PICK KIE Retraining)
-1. **Đóng gói nhãn và đồng bộ hóa lưu trữ**:
-   - Khi Admin duyệt nhãn trên Canvas (`BillRetrainPage.jsx`), nhãn được xuất thành định dạng TSV chuẩn của mô hình PICK.
-   - Đối với ảnh hóa đơn trên môi trường Cloud (Cloudflare R2), AI-service tự động tải ảnh qua internet về local temporary directory trước khi nén zip đóng gói dataset `webadmin-verified-receipts` để đẩy lên Kaggle.
-2. **Gọi Kaggle API tự động**:
-   - AI-service tích hợp Kaggle API Client để cập nhật phiên bản Dataset trên Kaggle và tự động kích hoạt đẩy kernel `retrain-pick-kie` lên Kaggle GPU.
-   - Tiến hành polling bất đồng bộ để theo dõi tiến độ huấn luyện qua 7 bước: `queued` -> `versioning_dataset` -> `pushing_kernel` -> `running_on_kaggle` -> `deploying` -> `deploying_from_cloud` -> `completed`.
-3. **Thu hồi, Deploy & Đo lường độ chính xác**:
-   - Khi job trên Kaggle hoàn tất, AI-service tự động tải model output `model_best.pth` và trích xuất độ chính xác `f1_score` từ tệp cấu hình `meta.json` của checkpoint.
-   - Tự động thay thế weight cũ, cập nhật manifest, reload OCR service và hiển thị thông số so sánh độ chính xác cũ/mới lên màn hình quản trị của Admin.
+### 13.2. Quy trình huấn luyện lại OCR-KIE & LLM trên hạ tầng đám mây (Modal.com Serverless GPU)
 
-*Cập nhật: 20/06/2026*
+Hệ thống hỗ trợ huấn luyện lại ba dòng mô hình khác nhau trực tiếp trên nền tảng đám mây serverless GPU của Modal.com:
+
+1. **Huấn luyện lại PICK KIE (Nvidia L4 GPU)**:
+   * **Tiền xử lý**: Sử dụng các tác vụ phân đoạn gồm PaddleOCR (`run_step_detector`), MobileNetV3 (`run_step_rotator`), VietOCR (`run_step_classifier`) và PICK Graph Builder (`run_step_create_train_data`). Kết quả được ghi trên volume lưu trữ bền vững `/storage/output`.
+   * **Thực thi**: Gọi task `modal run modal_app.py::train_kie_model` để kích hoạt huấn luyện 100 epochs trên GPU Nvidia L4.
+   * **Deploy**: Tệp trọng số `model_best.pth` được lưu về `/storage` và tự động sao chép nạp đè vào API phục vụ suy luận thô.
+
+2. **Huấn luyện lại LayoutLMv3 Token Classification (Nvidia A10G GPU)**:
+   * **Dữ liệu**: Nhãn xuất ra từ giao diện Web-Admin Canvas (`verified_ocr_labels/incremental/`) được trộn với tập MC-OCR 2021 gốc.
+   * **Thực thi**: Gọi task `modal run modal_app.py::train_layoutlmv3_model` với GPU Nvidia A10G (thời lượng tối đa 4 giờ). Tiến trình chạy huấn luyện LayoutLMv3 Token Classification (chuyên định vị thực thể SELLER, TOTAL_COST, TIMESTAMP trực tiếp từ bounding boxes).
+   * **Deploy**: Tải checkpoint tốt nhất về `/storage/layoutlmv3/model_best.pth`, tự động nạp chồng (hot-reload) vào pipeline OCR mới khi client chọn active backend là `layoutlmv3`.
+
+3. **Tinh chỉnh mô hình ngôn ngữ lớn Qwen2.5-14B-Instruct bằng LoRA (Nvidia H100 GPU)**:
+   * **Dữ liệu**: NLU corrections từ bảng `user_corrections` được Admin duyệt (Curated) và tự động export định dạng JSONL hội thoại (`vistral_finetune_incremental.jsonl`), nạp lên volume `/storage/exported`.
+   * **Thực thi**: Gọi task `modal run modal_app.py::train_qwen_model` để khởi chạy một container NVIDIA H100 siêu hiệu năng trên Modal.
+   * **Tham số**: Fine-tune mô hình `Qwen/Qwen2.5-14B-Instruct` ở định dạng BFloat16 thông qua kịch bản Hugging Face `Trainer` và PEFT LoRA (targeting các module trọng số chú ý `q_proj`, `v_proj`, `gate_proj`, `up_proj`... với rank $r=16$ và hệ số scale $\alpha=32$).
+   * **Deploy**: Weights tinh chỉnh lưu về `/storage/qwen_training_outputs`, cho phép mô hình ngôn ngữ lớn học sâu sắc từ ngữ Gen Z tiếng Việt và phong cách viết chi tiêu của người dùng thực tế.
+
+*Cập nhật: 04/07/2026*
 
 

@@ -37,61 +37,87 @@ FIREBASE_CLIENT_EMAIL=<service_account_email>
 FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
 ```
 
-**Kaggle API (Bill OCR retrain):** đặt `kaggle.json` tại `app/backend/kaggle.json` (đã gitignore). Lần đầu copy sang `%USERPROFILE%\.kaggle\kaggle.json` để CLI hoạt động.
-
 ---
 
 ## 2. Cấu hình `.env` AI Service (Hợp Nhất)
 
-File: `expense-ocr-nlu/.env` (copy từ `expense-ocr-nlu/.env.example` hoặc chỉnh sửa trực tiếp)
+File: `expense-ocr-nlu/.env` (Tạo hoặc chỉnh sửa trực tiếp)
 
 ```ini
 HOST=0.0.0.0
 PORT=8000
-DEVICE=cpu
-# NLU thật — models tại expense-ocr-nlu/text_nlu/models/
-USE_REAL_NLU=true
+DEVICE=cpu              # Thiết bị chạy OCR/NLU: 'cpu' hoặc 'cuda'
 
-# OCR hybrid thật — PaddleOCR + VietOCR + PICK KIE
-# Cần weights tại bill_ocr/models/ (xem mục 11). Nếu thiếu weights → fallback mock, không crash.
-USE_REAL_OCR=true
+# --- Trạng thái Bật/Tắt Service Thật ---
+USE_REAL_NLU=true       # true: Dùng spaCy + TF-IDF (hoặc PhoBERT Encoder). false: Mock NLU
+USE_REAL_OCR=true       # true: Dùng pipeline PaddleOCR + VietOCR + LayoutLMv3. false: Mock OCR
 
+# --- Cấu hình Mô hình Sinh câu thoại (NLG / LLM) ---
+RUN_LLM='1'             # Bật LLM hỗ trợ NLU fallback và phản hồi chitchat
+RUN_LLM_CHITCHAT='1'    # Bật LLM riêng cho các yêu cầu Chitchat phiếm
+LOG_MIMO_EMOTION='1'    # Ghi nhận log trạng thái cảm xúc của Mimo
+LAZY_LOAD_MODELS=true   # Tải chậm các model nặng để khởi động nhanh hơn
+
+# --- Chế độ chạy LLM/PhoGPT (Chọn 1 trong 3 cách sau) ---
+# Cách 1 (Mặc định - Khuyên dùng khi phát triển): Dùng API Gemini/ChatGPT qua internet
+gemini_API_v1=<api_key_1>   # Cung cấp khóa API Gemini (hỗ trợ nhiều key xoay vòng)
+gemini_API_v2=<api_key_2>
+# Cách 2 (Chạy local PhoGPT): Cần GPU CUDA >= 16GB VRAM và tải sẵn weights phogpt_vismimo
+# USE_LOCAL_PHOGPT=1
+# Cách 3 (Chạy PhoGPT qua Modal Serverless): Gọi model chạy trên GPU Cloud của Modal
+# USE_MODAL_PHOGPT=1
+
+# --- Đường dẫn Trọng số / Weights OCR KIE ---
 EXPENSE_OCR_NLU_DIR=.
 OCR_WEIGHTS_PATH=bill_ocr/models/vietocr/vgg_transformer.pth
-PICK_KIE_MODEL_PATH=bill_ocr/models/pick_kie/model_best.pth
+LAYOUTLMV3_MODEL_PATH=bill_ocr/models/layoutlmv3/model_best.pth
 ROTATION_MODEL_PATH=bill_ocr/models/rotation_corrector/mobilenetv3-Epoch-487-Loss-0.03-Acc-0.99.pth
 VERIFIED_OCR_LABELS_DIR=bill_ocr/exported
 ```
 
 ---
 
-## 3. Chạy AI Service (Terminal 1)
+## 3. Chạy AI Service
 
-Dùng `.venv` của `expense-ocr-nlu` (torch, paddleocr, vietocr, transformers).
+### 3.1 Chạy local
+
+Dùng `.venv` của `expense-ocr-nlu` (Đã cài đặt PyTorch, PaddleOCR, VietOCR, Transformers).
 
 ```powershell
-# Bước 1 (1 lần): cài deps vào venv
+# Bước 1 (1 lần duy nhất): Kích hoạt venv và cài đặt dependencies
 d:\Luan-Van\Project\expense-ocr-nlu\.venv\Scripts\Activate.ps1
 pip install -r d:\Luan-Van\Project\expense-ocr-nlu\requirements.txt
 
-# Bước 2: chạy service
+# Bước 2: Chạy service FastAPI
 cd d:\Luan-Van\Project\expense-ocr-nlu
 d:\Luan-Van\Project\expense-ocr-nlu\.venv\Scripts\Activate.ps1
-$env:RUN_LLM='1'
-$env:RUN_LLM_CHITCHAT='1'
-$env:LOG_MIMO_EMOTION='1'
-$env:USE_REAL_NLU='true'
-$env:USE_REAL_OCR='true'
-$env:LAZY_LOAD_MODELS='true'
 uvicorn src.api.app:app --host 0.0.0.0 --port 8000
 ```
 
-**Kiểm tra:** http://localhost:8000/health
+> [!NOTE]
+> * **Nếu không có GPU:** Chạy OCR trên `DEVICE=cpu` và dùng **Cách 1** (API Gemini/ChatGPT) cho LLM để không bị quá tải máy tính.
+> * **Nếu có GPU CUDA:** Có thể bật `DEVICE=cuda` cho OCR chạy nhanh hơn và tùy chọn bật `USE_LOCAL_PHOGPT=1` để tự sinh phản hồi Gen Z offline.
 
-- `nlu_loaded: true` — NLU joblib + NER
-- `ocr_loaded: true` — hybrid pipeline (Paddle + VietOCR + LayoutLMv3 nếu có weights)
+**Kiểm tra trạng thái tải mô hình:** `GET http://localhost:8000/health`
+* `nlu_loaded: true` — Đã nạp thành công mô hình NLU (TF-IDF/PhoBERT) & Spacy NER.
+* `ocr_loaded: true` — Đã nạp thành công Pipeline OCR (Paddle + VietOCR + LayoutLMv3 KIE).
 
-**Swagger:** http://localhost:8000/docs
+**Swagger API Docs:** http://localhost:8000/docs
+
+### 3.2 Chạy trên Cloud (Modal Serverless)
+
+Modal cho phép triển khai AI Service lên GPU Cloud cực nhanh và hỗ trợ auto-scale / tắt khi không dùng để tiết kiệm chi phí.
+
+```bash
+# 1. Chạy thử nghiệm tạm thời (Hot-reload, tự tắt khi tắt terminal)
+modal serve modal_app.py
+
+# 2. Triển khai vĩnh viễn (Production Deployment - Luôn chạy 24/7)
+modal deploy modal_app.py
+
+# 3. Kích hoạt train / fine-tune PhoGPT LoRA trên GPU H100 Cloud
+modal run modal_app.py::train_phogpt_model --num-epochs=3 --learning-rate=2e-4 --batch-size=4
+```
 
 ---
 
@@ -140,7 +166,7 @@ flutter pub get      # lần đầu
 flutter run --dart-define=API_BASE_URL=http://10.0.2.2:4000 --dart-define=AI_BASE_URL=http://10.0.2.2:8000
 
 # Real device (cùng WiFi — thay IP máy dev)
-flutter run --dart-define=API_BASE_URL=http://10.171.6.24:4000 --dart-define=AI_BASE_URL=http://10.171.6.24:8000
+flutter run --dart-define=API_BASE_URL=http://10.191.165.24:4000 --dart-define=AI_BASE_URL=http://10.191.165.24:8000
 ```
 
 ---
@@ -208,49 +234,23 @@ d:\Luan-Van\Project\expense-ocr-nlu\.venv\Scripts\python.exe -m pytest `
 ## 10. Cấu trúc weights OCR
 
 ```
-expense-ocr-nlu/OCR/
+expense-ocr-nlu/bill_ocr/
 ├── models/
 │   ├── vietocr/
-│   │   ├── vgg_transformer.pth    ← bắt buộc cho USE_REAL_OCR
+│   │   ├── vgg_transformer.pth        ← Bắt buộc cho USE_REAL_OCR
 │   │   ├── config.yml
 │   │   └── meta.json
-│   └── layoutlmv3_kie/
-│       └── model-best/            ← LayoutLMv3 KIE (model.safetensors, config, tokenizer)
-├── artifacts/                     ← log train, zip backup (không dùng inference)
-├── verified_ocr_labels/           ← export WebAdmin (incremental + kaggle_upload)
-├── manifests/ocr_models.json
-└── kaggle/kernels/
-    ├── train-pick-kie/        ← Train mới model PICK KIE từ dataset gốc
-    └── retrain-pick-kie/      ← Retrain model PICK KIE bằng cách merge data WebAdmin
+│   ├── layoutlmv3/
+│   │   └── model_best.pth             ← Model LayoutLMv3 KIE (SELLER, TOTAL_COST, ...)
+├── exported/                          ← Nơi lưu dữ liệu đã gán nhãn từ WebAdmin
+└── receipt_ocr/                       ← Logic KIE và pipeline nhận diện hóa đơn
 ```
 
 Train ban đầu / retrain: dataset gốc [vietnamese-receipts-mc-ocr-2021](https://www.kaggle.com/datasets/domixi1989/vietnamese-receipts-mc-ocr-2021) + incremental WebAdmin.
 
----
 
-## 11. Kaggle (Bill OCR retrain — Tự động qua WebAdmin)
 
-Hệ thống hỗ trợ kích hoạt pipeline retrain OCR-KIE (model PICK) trực tiếp từ **React WebAdmin Dashboard** hoặc trigger thủ công bằng CLI:
-
-```powershell
-# 1. Cấu hình Credentials
-copy app\backend\kaggle.json %USERPROFILE%\.kaggle\kaggle.json
-
-# 2. Sinh Notebook mới nhất cho Kaggle
-python expense-ocr-nlu/OCR/kaggle/kernels/build_pick_kaggle_notebooks.py
-
-# 3. Trigger retrain trên Kaggle tự động từ WebAdmin:
-# - Vào http://localhost:5173/bill-retrain
-# - Bấm "Export approved" -> Bật "Auto Kaggle" để hệ thống tự đóng gói zip, tải ảnh tự động từ Cloudflare R2 (nếu ở cloud), upload dataset và push kernel lên Kaggle.
-# - Theo dõi tiến độ trực quan ngay trên WebAdmin Dashboard.
-```
-
-Kernel: https://www.kaggle.com/code/mainhatkhangb2205881/retrain-pick-kie  
-Dataset incremental: `mainhatkhangb2205881/webadmin-verified-receipts`
-
----
-
-## 12. Firebase Cloud Messaging (FCM)
+## 11. Firebase Cloud Messaging (FCM)
 
 Push remote khi app **background/killed**. In-app dùng WebSocket + local notification.
 
@@ -273,7 +273,7 @@ Cần `GoogleService-Info.plist` + cấu hình Firebase iOS.
 
 ---
 
-## 13. Troubleshooting Google Sign-In
+## 12. Troubleshooting Google Sign-In
 
 ### 1. Thiếu SHA-1 (Android)
 
@@ -294,14 +294,13 @@ Thêm SHA-1 từ Play Console → App integrity → App signing key vào Firebas
 
 ---
 
-## 14. Troubleshooting OCR / Retrain
+## 13. Troubleshooting OCR / Retrain
 
 | Triệu chứng | Cách xử lý |
 | --- | --- |
-| `ocr_loaded: false` | Kiểm tra `OCR/models/vietocr/vgg_transformer.pth`, `USE_REAL_OCR=true` |
-| LayoutLMv3 heuristic thay vì model | Kiểm tra `OCR/models/layoutlmv3_kie/model-best/model.safetensors` |
+| `ocr_loaded: false` | Kiểm tra `bill_ocr/models/vietocr/vgg_transformer.pth`, `USE_REAL_OCR=true` |
+| LayoutLMv3 KIE không hoạt động | Kiểm tra `bill_ocr/models/layoutlmv3/model_best.pth` |
 | Backend crash `billRetrainStore` | `npm run dev` — nodemon tự restart sau sửa |
-| Kaggle `kaggle_configured: false` | Copy `kaggle.json` → `%USERPROFILE%\.kaggle\`, `pip install kaggle` trong venv |
 | Retrain readiness 0% | Duyệt bill trên `/bill-retrain`; category trên `/nlu-ops` |
 
 Tài liệu chiến lược retrain: **`RETRAIN.md`** · Brainstorm OCR: **`solutions_brainstorm.md`**
