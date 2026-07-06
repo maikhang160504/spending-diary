@@ -12,14 +12,9 @@ import {
   getNluTrainHistory,
   importNluCsv,
   reloadAiModels,
-  fetchNluKaggleJobs,
-  fetchNluKaggleJob,
-  syncNluKaggle,
-  syncNluEncoderKaggle,
-  resumeNluKaggle,
-  trainEncoderKaggle,
   getNluInferenceBackend,
   setNluInferenceBackend,
+  triggerLlmFinetune,
 } from "../services/api";
 
 const NLU_METRIC_SOURCES = {
@@ -108,8 +103,12 @@ function NluOpsPage() {
 
   // Model status state
   const [isTraining, setIsTraining] = useState(false);
-  const [kaggleJobs, setKaggleJobs] = useState([]);
-  const [activeKaggleJob, setActiveKaggleJob] = useState(null);
+  const [isLlmTraining, setIsLlmTraining] = useState(false);
+  const [llmTrainParams, setLlmTrainParams] = useState({
+    epochs: 3,
+    lr: 0.0002,
+    batchSize: 4
+  });
   const [modelMeta, setModelMeta] = useState({
     version: "Loading...",
     trainedAt: "Loading...",
@@ -118,10 +117,6 @@ function NluOpsPage() {
   });
   const [trainHistory, setTrainHistory] = useState([]);
   const [reloadingNlu, setReloadingNlu] = useState(false);
-  const [syncingKaggle, setSyncingKaggle] = useState(false);
-  const [syncingEncoderKaggle, setSyncingEncoderKaggle] = useState(false);
-  const [resumingKaggle, setResumingKaggle] = useState(false);
-  const [trainingEncoder, setTrainingEncoder] = useState(false);
   const [inferenceBackend, setInferenceBackend] = useState("tfidf");
   const [savingBackend, setSavingBackend] = useState(false);
   const [compareTrainType, setCompareTrainType] = useState("tfidf");
@@ -187,18 +182,14 @@ function NluOpsPage() {
       getNluTrainStatus().catch(() => ({ training_active: false })),
       getNluModelMeta().catch(() => ({ version: "v1.2.0-fallback", trainedAt: "2026-06-21", f1Score: "91.2%" })),
       getNluTrainHistory().catch(() => []),
-      fetchNluKaggleJobs().catch(() => []),
       getNluInferenceBackend().catch(() => ({ backend: "tfidf" })),
     ])
-      .then(([overridesData, aggregationsData, statusData, metaData, historyData, kaggleJobsData, backendData]) => {
+      .then(([overridesData, aggregationsData, statusData, metaData, historyData, backendData]) => {
         setLayer1Rules(overridesData);
         setAggregations(aggregationsData.map(item => ({ ...item, approved: false })));
         setIsTraining(statusData.training_active);
         setModelMeta(metaData);
         setTrainHistory(historyData);
-        setKaggleJobs(kaggleJobsData);
-        const active = kaggleJobsData.find(job => !["completed", "failed"].includes(job.status));
-        setActiveKaggleJob(active || null);
         setInferenceBackend(backendData?.backend || metaData?.inferenceBackend || "tfidf");
         const backend = backendData?.backend || metaData?.inferenceBackend || "tfidf";
         setCompareTrainType(backend === "encoder" ? "encoder" : "tfidf");
@@ -229,41 +220,12 @@ function NluOpsPage() {
             }
           })
           .catch(() => {});
-      }, 5000);
+      }, 10000);
     }
     return () => {
       if (intervalId) clearInterval(intervalId);
     };
   }, [isTraining]);
-
-  // Poll NLU Kaggle jobs if there is an active job in progress
-  useEffect(() => {
-    let intervalId;
-    const hasActiveJob = kaggleJobs.some(job => 
-      !["completed", "failed"].includes(job.status)
-    );
-    
-    if (hasActiveJob || activeKaggleJob) {
-      intervalId = setInterval(() => {
-        fetchNluKaggleJobs()
-          .then((jobs) => {
-            setKaggleJobs(jobs);
-            const active = jobs.find(job => !["completed", "failed"].includes(job.status));
-            
-            if (activeKaggleJob && !active) {
-              showToast("Kaggle NLU retraining finished!");
-              getNluModelMeta().then(meta => setModelMeta(meta)).catch(() => {});
-              getNluTrainHistory().then(history => setTrainHistory(history)).catch(() => {});
-            }
-            setActiveKaggleJob(active || null);
-          })
-          .catch(() => {});
-      }, 5000);
-    }
-    return () => {
-      if (intervalId) clearInterval(intervalId);
-    };
-  }, [kaggleJobs, activeKaggleJob]);
 
   // Tab switching loads specific data just in case
   const handleTabChange = (tab) => {
@@ -386,9 +348,10 @@ function NluOpsPage() {
   const handleExportCuration = () => {
     const selected = aggregations.filter((a) => a.approved);
     if (selected.length === 0) {
-      showToast("Please check at least one aggregation row to curate.");
+      showToast("Vui lòng tích chọn ít nhất một cụm câu để duyệt xuất.");
       return;
     }
+    if (!window.confirm(`Duyệt và xuất ${selected.length} cụm câu đã sửa sang dataset huấn luyện chính?\n\nHành động này không thể hoàn tác.`)) return;
     setLoading(true);
     const autoRetrain = autoRetrainAfterCurate !== "none";
     curateNluAggregations(selected, autoRetrain, autoRetrainAfterCurate)
@@ -398,46 +361,35 @@ function NluOpsPage() {
           setLoading(false);
         });
         if (autoRetrain) {
-          if (autoRetrainAfterCurate === "kaggle") {
-            showToast("Đã lưu curation và kích hoạt train trên Kaggle!");
-            fetchNluKaggleJobs().then(setKaggleJobs).catch(() => {});
-          } else {
-            setIsTraining(true);
-          }
+          setIsTraining(true);
         }
-        showToast(res.message || `Appended ${selected.length} samples to global CSV!`);
+        showToast(res.message || `Đã thêm ${selected.length} mẫu vào dataset huấn luyện chính!`);
       })
       .catch((err) => {
-        showToast("Failed to export: " + err.message);
+        showToast("Xuất dữ liệu thất bại: " + err.message);
         setLoading(false);
       });
   };
 
   // Trigger retraining in background
   const handleRetrain = (target = "local") => {
+    const label = target === "encoder" ? "PhoBERT Encoder" : "TF-IDF & NLU";
+    if (!window.confirm(`Bạn có chắc chắn muốn bắt đầu huấn luyện lại mô hình ${label} không?\n\nQuá trình này sẽ diễn ra chạy nền.`)) return;
     setLoading(true);
     triggerNluTrain(target)
       .then((res) => {
-        if (target === "kaggle") {
-          showToast("NLU Kaggle retraining started!");
-          fetchNluKaggleJobs().then((jobs) => {
-            setKaggleJobs(jobs);
-            const active = jobs.find(job => !["completed", "failed"].includes(job.status));
-            setActiveKaggleJob(active || null);
-          }).catch(() => {});
-        } else {
-          setIsTraining(true);
-          showToast(res.message || "Model retraining started in the NLU background pipeline!");
-        }
+        setIsTraining(true);
+        showToast(res.message || `Đã bắt đầu retrain mô hình ${label} chạy nền!`);
         setLoading(false);
       })
       .catch((err) => {
-        showToast("Failed to start training: " + err.message);
+        showToast("Huấn luyện thất bại: " + err.message);
         setLoading(false);
       });
   };
 
   const handleReloadNlu = () => {
+    if (!window.confirm("Bạn có chắc chắn muốn nạp nóng lại mô hình NLU mới nhất từ đĩa không?")) return;
     setReloadingNlu(true);
     reloadAiModels("nlu")
       .then((res) => {
@@ -452,80 +404,40 @@ function NluOpsPage() {
       });
   };
 
-  const handleSyncKaggle = (trainType = "tfidf") => {
-    const isEncoder = trainType === "encoder";
-    if (isEncoder) setSyncingEncoderKaggle(true);
-    else setSyncingKaggle(true);
-
-    const syncFn = isEncoder ? syncNluEncoderKaggle : syncNluKaggle;
-    syncFn(false)
-      .then(async (res) => {
-        if (isEncoder) setSyncingEncoderKaggle(false);
-        else setSyncingKaggle(false);
-        showToast(res.message || `Sync ${isEncoder ? "Encoder" : "TF-IDF"} OK — F1 ${res.f1_score || ""}`);
-        fetchAllData();
-        try {
-          const reloadRes = await reloadAiModels("nlu");
-          if (reloadRes?.ok) {
-            showToast(`NLU đã nạp nóng sau sync (${reloadRes.nlu_version || inferenceBackend})`);
-            fetchAllData();
-          }
-        } catch (reloadErr) {
-          showToast(`Sync OK — bấm Tải lại model NLU: ${reloadErr.message}`);
-        }
-      })
-      .catch((err) => {
-        if (isEncoder) setSyncingEncoderKaggle(false);
-        else setSyncingKaggle(false);
-        showToast(`Sync ${isEncoder ? "Encoder" : "TF-IDF"} thất bại: ${err.message}`);
-      });
-  };
-
-  const handleResumeKaggle = () => {
-    setResumingKaggle(true);
-    resumeNluKaggle()
+  const handleLlmFinetune = () => {
+    if (!window.confirm("Bắt đầu huấn luyện Fine-tune Qwen2.5-14B-Instruct trên GPU Modal H100?\n\nTác vụ này sẽ chạy nền trong khoảng 1 giờ và tiêu thụ tài nguyên đám mây.")) return;
+    setIsLlmTraining(true);
+    triggerLlmFinetune(llmTrainParams.epochs, llmTrainParams.lr, llmTrainParams.batchSize)
       .then((res) => {
-        setResumingKaggle(false);
-        showToast(res.message || `Resume OK — job ${res.job_id?.slice(0, 8)}`);
-        fetchNluKaggleJobs().then((jobs) => {
-          setKaggleJobs(jobs);
-          const active = jobs.find(job => !["completed", "failed"].includes(job.status));
-          setActiveKaggleJob(active || null);
-        }).catch(() => {});
+        showToast("Đã kích hoạt fine-tune Qwen2.5-14B-Instruct trên GPU Modal H100!");
+        setIsLlmTraining(false);
       })
       .catch((err) => {
-        setResumingKaggle(false);
-        showToast("Resume thất bại: " + err.message);
-      });
-  };
-
-  const handleTrainEncoder = () => {
-    setTrainingEncoder(true);
-    trainEncoderKaggle()
-      .then((res) => {
-        setTrainingEncoder(false);
-        showToast(res.message || `Encoder Kaggle job ${res.job_id?.slice(0, 8)}`);
-        fetchNluKaggleJobs().then((jobs) => {
-          setKaggleJobs(jobs);
-          const active = jobs.find(job => !["completed", "failed"].includes(job.status));
-          setActiveKaggleJob(active || null);
-        }).catch(() => {});
-      })
-      .catch((err) => {
-        setTrainingEncoder(false);
-        showToast("Encoder Kaggle failed: " + err.message);
+        showToast("Fine-tune LLM thất bại: " + err.message);
+        setIsLlmTraining(false);
       });
   };
 
   const handleInferenceBackendChange = (backend) => {
     if (backend === inferenceBackend) return;
+    const confirmMsg = backend === "llm" 
+      ? "Kích hoạt mô hình Qwen2.5-14B-Instruct làm bộ xử lý NLU mặc định?\n\nMô hình sẽ được nạp nóng vào GPU VRAM tự động."
+      : `Chuyển đổi bộ xử lý NLU mặc định thành mô hình ${backend.toUpperCase()}?`;
+    if (!window.confirm(confirmMsg)) return;
+
     setSavingBackend(true);
     setNluInferenceBackend(backend)
       .then((res) => {
         setSavingBackend(false);
-        setInferenceBackend(res.backend || backend);
-        setCompareTrainType((res.backend || backend) === "encoder" ? "encoder" : "tfidf");
-        showToast(res.message || `NLU backend → ${backend}`);
+        const activeBackend = res.backend || backend;
+        setInferenceBackend(activeBackend);
+        setCompareTrainType(activeBackend === "encoder" ? "encoder" : "tfidf");
+        
+        if (activeBackend === "llm") {
+          window.alert("Mô hình LLM Qwen2.5-14B-Instruct đã được kích hoạt thành công làm bộ xử lý NLU mặc định!\n\nLưu ý: Mô hình sẽ bắt đầu được tải nóng vào GPU. Request đầu tiên có thể mất một chút thời gian.");
+        } else {
+          showToast(res.message || `Bộ xử lý NLU mặc định đã đổi thành → ${activeBackend.toUpperCase()}`);
+        }
         getNluModelMeta().then(setModelMeta).catch(() => {});
       })
       .catch((err) => {
@@ -534,41 +446,66 @@ function NluOpsPage() {
       });
   };
 
-  const isEncoderJob = (job) => {
-    if (!job) return false;
-    const scope = String(job.scope || "").toLowerCase();
-    if (scope === "encoder" || scope === "nlu_encoder") return true;
-    return String(job.kernel || "").toLowerCase().includes("encoder");
-  };
-
-  const jobScopeLabel = (job) => {
-    if (isEncoderJob(job)) return "PhoBERT Encoder";
-    return "TF-IDF + NER";
-  };
-
-  const activeEncoderJob =
-    activeKaggleJob && isEncoderJob(activeKaggleJob) ? activeKaggleJob : null;
-  const activeTfidfKaggleJob =
-    activeKaggleJob && !isEncoderJob(activeKaggleJob) ? activeKaggleJob : null;
-  const anyKaggleJobActive = Boolean(activeKaggleJob);
-
-  const hasStuckJob = kaggleJobs.some(job =>
-    !["completed", "failed"].includes(job.status)
-  );
-
   const filteredRules = layer1Rules.filter((r) =>
     (r.keyword || '').toLowerCase().includes(searchExact.toLowerCase()) ||
     (r.userId || '').toLowerCase().includes(searchExact.toLowerCase()) ||
     (r.email || '').toLowerCase().includes(searchExact.toLowerCase())
   );
 
+  const getBackendLabel = (bk) => {
+    if (bk === "llm") return "Qwen2.5 LLM";
+    if (bk === "encoder") return "PhoBERT Encoder";
+    return "TF-IDF Classic";
+  };
+
+  const getBackendBadgeColor = (bk) => {
+    if (bk === "llm") return "var(--accent-emerald)";
+    if (bk === "encoder") return "#a855f7"; // purple
+    return "var(--accent-blue)";
+  };
+
   return (
-    <div className="page-container" style={{ padding: "30px 40px" }}>
-      <div className="page-header" style={{ marginBottom: "24px" }}>
-        <h1 className="page-title" style={{ fontSize: "28px", fontWeight: "700", color: "var(--text-primary)", letterSpacing: "-0.5px" }}>NLU & Retraining Operations</h1>
-        <p className="page-desc" style={{ color: "var(--text-secondary)", fontSize: "14px", marginTop: "4px" }}>
-          Oversee overrides, curate correction datasets, and trigger global model updates.
-        </p>
+    <div className="page-container" style={{ padding: "35px 45px", maxWidth: "1600px", margin: "0 auto" }}>
+      <div className="page-header" style={{ marginBottom: "28px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div>
+          <h1 className="page-title" style={{ fontSize: "28px", fontWeight: "700", color: "var(--text-primary)", letterSpacing: "-0.5px" }}>NLU & Retraining Operations</h1>
+          <p className="page-desc" style={{ color: "var(--text-secondary)", fontSize: "14px", marginTop: "4px" }}>
+            Giám sát layer đè luật, tinh chỉnh dữ liệu đính chính, huấn luyện và kích hoạt các bộ suy luận NLU.
+          </p>
+        </div>
+        <div style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "12px",
+          background: "var(--bg-obsidian-900)",
+          border: "1px solid var(--border-color)",
+          padding: "10px 18px",
+          borderRadius: "12px",
+          boxShadow: "var(--shadow-glow)"
+        }}>
+          <span style={{ fontSize: "11px", color: "var(--text-secondary)", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.05em" }}>Đang hoạt động:</span>
+          <span style={{
+            fontSize: "13px",
+            fontWeight: "700",
+            color: "var(--text-primary)",
+            background: `${getBackendBadgeColor(inferenceBackend)}22`,
+            border: `1px solid ${getBackendBadgeColor(inferenceBackend)}55`,
+            padding: "4px 10px",
+            borderRadius: "6px",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "6px"
+          }}>
+            <span style={{
+              width: "6px",
+              height: "6px",
+              borderRadius: "50%",
+              background: getBackendBadgeColor(inferenceBackend),
+              boxShadow: `0 0 8px ${getBackendBadgeColor(inferenceBackend)}`
+            }}></span>
+            {getBackendLabel(inferenceBackend)}
+          </span>
+        </div>
       </div>
 
       {/* DevOps Status Strip */}
@@ -584,36 +521,36 @@ function NluOpsPage() {
         boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.02)"
       }}>
         <div className="bill-stat" style={{ paddingRight: "20px", borderRight: "1px solid var(--border-color)" }}>
-          <span className="bill-stat-label" style={{ fontSize: "10px", color: "var(--text-muted)", letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: "600", display: "block", marginBottom: "4px" }}>Active Overrides</span>
+          <span className="bill-stat-label" style={{ fontSize: "10px", color: "var(--text-muted)", letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: "600", display: "block", marginBottom: "4px" }}>Luật Layer 1</span>
           <span className="bill-stat-value" style={{ fontSize: "20px", fontWeight: "700", color: "var(--accent-blue-hover)", fontFamily: "var(--font-sans)" }}>{layer1Rules.length} rules</span>
         </div>
         <div className="bill-stat" style={{ paddingRight: "20px", borderRight: "1px solid var(--border-color)" }}>
-          <span className="bill-stat-label" style={{ fontSize: "10px", color: "var(--text-muted)", letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: "600", display: "block", marginBottom: "4px" }}>Correction Pool</span>
+          <span className="bill-stat-label" style={{ fontSize: "10px", color: "var(--text-muted)", letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: "600", display: "block", marginBottom: "4px" }}>Cụm sửa đổi Layer 2</span>
           <span className="bill-stat-value" style={{ fontSize: "20px", fontWeight: "700", color: "var(--accent-amber-hover)", fontFamily: "var(--font-sans)" }}>{aggregations.length} clusters</span>
         </div>
         <div className="bill-stat" style={{ paddingRight: "20px", borderRight: "1px solid var(--border-color)" }}>
-          <span className="bill-stat-label" style={{ fontSize: "10px", color: "var(--text-muted)", letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: "600", display: "block", marginBottom: "4px" }}>Model Version</span>
+          <span className="bill-stat-label" style={{ fontSize: "10px", color: "var(--text-muted)", letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: "600", display: "block", marginBottom: "4px" }}>Phiên bản Model</span>
           <span className="bill-stat-value" style={{ fontSize: "18px", fontWeight: "700", color: "var(--text-primary)", fontFamily: "var(--font-mono)", letterSpacing: "-0.5px" }}>{modelMeta.version || "Unknown"}</span>
         </div>
         <div className="bill-stat" style={{ borderRight: "none" }}>
-          <span className="bill-stat-label" style={{ fontSize: "10px", color: "var(--text-muted)", letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: "600", display: "block", marginBottom: "4px" }}>Pipeline Status</span>
+          <span className="bill-stat-label" style={{ fontSize: "10px", color: "var(--text-muted)", letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: "600", display: "block", marginBottom: "4px" }}>Trạng thái Worker</span>
           <span className="bill-stat-value" style={{
             fontSize: "18px",
             fontWeight: "700",
-            color: isTraining ? "var(--accent-amber-hover)" : "var(--accent-emerald-hover)",
+            color: (isTraining || isLlmTraining) ? "var(--accent-amber-hover)" : "var(--accent-emerald-hover)",
             display: "flex",
             alignItems: "center",
             gap: "8px"
           }}>
             <span className="status-dot" style={{
-              background: isTraining ? "var(--accent-amber)" : "var(--accent-emerald)",
-              boxShadow: isTraining ? "0 0 10px var(--accent-amber)" : "0 0 10px var(--accent-emerald)",
-              animation: isTraining ? "pulse 1.5s infinite" : "none",
+              background: (isTraining || isLlmTraining) ? "var(--accent-amber)" : "var(--accent-emerald)",
+              boxShadow: (isTraining || isLlmTraining) ? "0 0 10px var(--accent-amber)" : "0 0 10px var(--accent-emerald)",
+              animation: (isTraining || isLlmTraining) ? "pulse 1.5s infinite" : "none",
               width: "8px",
               height: "8px",
               borderRadius: "50%"
             }}></span>
-            {isTraining ? "Retraining..." : "Operational"}
+            {(isTraining || isLlmTraining) ? "Retraining..." : "Sẵn sàng"}
           </span>
         </div>
       </div>
@@ -624,29 +561,29 @@ function NluOpsPage() {
           onClick={() => handleTabChange("layer1")}
           style={{ fontSize: "14px", padding: "12px 20px" }}
         >
-          Layer 1: Exact Overrides
+          Layer 1: Đè luật khớp tuyệt đối
         </button>
         <button
           className={`tab-btn ${activeTab === "layer2" ? "active" : ""}`}
           onClick={() => handleTabChange("layer2")}
           style={{ fontSize: "14px", padding: "12px 20px" }}
         >
-          Layer 2: Correction Curation
+          Layer 2: Thu thập đính chính
         </button>
         <button
           className={`tab-btn ${activeTab === "model" ? "active" : ""}`}
           onClick={() => handleTabChange("model")}
           style={{ fontSize: "14px", padding: "12px 20px" }}
         >
-          Model Versioning & Reload
+          Trọng số & Huấn luyện
         </button>
       </div>
 
       {loading && (
-        <div style={{ display: "flex", alignItems: "center", gap: "10px", color: "var(--text-secondary)", marginBottom: "20px", fontSize: "13px" }}>
-          <span className="status-dot" style={{ background: "var(--accent-blue)", boxShadow: "0 0 8px var(--accent-blue)", animation: "pulse 1.5s infinite", width: "6px", height: "6px", borderRadius: "50%" }}></span>
-          <span>Querying PostgreSQL log indices and weights...</span>
-        </div>
+         <div style={{ display: "flex", alignItems: "center", gap: "10px", color: "var(--text-secondary)", marginBottom: "20px", fontSize: "13px" }}>
+           <span className="status-dot" style={{ background: "var(--accent-blue)", boxShadow: "0 0 8px var(--accent-blue)", animation: "pulse 1.5s infinite", width: "6px", height: "6px", borderRadius: "50%" }}></span>
+           <span>Đang truy vấn chỉ mục database và tệp trọng số...</span>
+         </div>
       )}
 
       {/* TAB 1: EXACT MATCH OVERRIDES */}
@@ -661,9 +598,9 @@ function NluOpsPage() {
           }}>
             <div className="panel-header" style={{ paddingBottom: "20px", borderBottom: "1px solid var(--border-color)" }}>
               <div>
-                <h2 className="panel-title" style={{ fontSize: "16px", fontWeight: "600", color: "var(--text-primary)" }}>Layer 1: Custom Map Rules</h2>
+                <h2 className="panel-title" style={{ fontSize: "16px", fontWeight: "600", color: "var(--text-primary)" }}>Layer 1: Ánh xạ đè cưỡng bức</h2>
                 <span className="form-desc" style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "2px", display: "block" }}>
-                  Active mapping overrides forcing specific phrases directly to categories.
+                  Định nghĩa các từ khóa hoặc cụm từ ánh xạ trực tiếp tới một danh mục cố định theo từng User.
                 </span>
               </div>
               <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
@@ -674,12 +611,12 @@ function NluOpsPage() {
                   disabled={loading}
                   onClick={handleCleanupInvalidRules}
                 >
-                  Dọn rule sai
+                  Dọn rule lỗi
                 </button>
                 <input
                   type="text"
                   className="form-input"
-                  placeholder="Search overrides by term or user..."
+                  placeholder="Tìm kiếm cụm từ đè hoặc user..."
                   style={{ width: "260px", padding: "8px 14px", fontSize: "13px", background: "var(--bg-obsidian-950)", borderRadius: "8px", border: "1px solid var(--border-color)" }}
                   value={searchExact}
                   onChange={(e) => setSearchExact(e.target.value)}
@@ -687,15 +624,15 @@ function NluOpsPage() {
               </div>
             </div>
 
-            <div className="table-container" style={{ borderRadius: "12px", border: "1px solid var(--border-color)", overflow: "hidden", marginTop: "10px" }}>
+            <div className="table-container" style={{ borderRadius: "12px", border: "1px solid var(--border-color)", overflow: "hidden", marginTop: "20px" }}>
               <table className="custom-table">
                 <thead>
                   <tr style={{ background: "var(--bg-obsidian-950)" }}>
-                    <th style={{ padding: "14px 18px", color: "var(--text-primary)", fontSize: "11px", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.08em" }}>User ID / Account</th>
-                    <th style={{ padding: "14px 18px", color: "var(--text-primary)", fontSize: "11px", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.08em" }}>Keyword Phrase</th>
-                    <th style={{ padding: "14px 18px", color: "var(--text-primary)", fontSize: "11px", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.08em" }}>Category Mapped</th>
-                    <th style={{ padding: "14px 18px", color: "var(--text-primary)", fontSize: "11px", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.08em" }}>Timestamp</th>
-                    <th style={{ padding: "14px 18px", color: "var(--text-primary)", fontSize: "11px", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.08em", textAlign: "right" }}>Action</th>
+                    <th style={{ padding: "14px 18px", color: "var(--text-primary)", fontSize: "11px", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.08em" }}>Người dùng / Account</th>
+                    <th style={{ padding: "14px 18px", color: "var(--text-primary)", fontSize: "11px", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.08em" }}>Cụm từ đè (Keyword)</th>
+                    <th style={{ padding: "14px 18px", color: "var(--text-primary)", fontSize: "11px", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.08em" }}>Danh mục ép buộc</th>
+                    <th style={{ padding: "14px 18px", color: "var(--text-primary)", fontSize: "11px", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.08em" }}>Ngày tạo</th>
+                    <th style={{ padding: "14px 18px", color: "var(--text-primary)", fontSize: "11px", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.08em", textAlign: "right" }}>Thao tác</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -746,7 +683,7 @@ function NluOpsPage() {
                           }}
                           onClick={() => handleDeleteRule(rule.userId, rule.keyword)}
                         >
-                          Revoke rule
+                          Thu hồi
                         </button>
                       </td>
                     </tr>
@@ -754,7 +691,7 @@ function NluOpsPage() {
                   {filteredRules.length === 0 && (
                     <tr>
                       <td colSpan="5" style={{ textAlign: "center", padding: "40px", color: "var(--text-muted)" }}>
-                        No active exact match overrides registered.
+                        Không có luật ánh xạ cưỡng bức nào phù hợp.
                       </td>
                     </tr>
                   )}
@@ -773,39 +710,39 @@ function NluOpsPage() {
           }}>
             <div className="panel-header" style={{ paddingBottom: "20px", borderBottom: "1px solid var(--border-color)", display: "flex", alignItems: "center", gap: "8px" }}>
               <div className="brand-dot" style={{ background: "var(--accent-blue)" }}></div>
-              <h2 className="panel-title" style={{ fontSize: "16px", fontWeight: "600", color: "var(--text-primary)" }}>Register Exact Override</h2>
+              <h2 className="panel-title" style={{ fontSize: "16px", fontWeight: "600", color: "var(--text-primary)" }}>Thêm luật đè cưỡng bức</h2>
             </div>
             <form onSubmit={handleAddRule} style={{ display: "flex", flexDirection: "column", gap: "18px", marginTop: "16px" }}>
               <div className="form-group">
-                <label className="form-label" style={{ color: "var(--text-primary)" }}>Target User ID (UUID)</label>
+                <label className="form-label" style={{ color: "var(--text-primary)" }}>User ID người dùng (UUID)</label>
                 <input
                   type="text"
                   className="form-input monospaced"
-                  placeholder="e.g. 8f6d7c89-a29b-..."
+                  placeholder="Ví dụ: 8f6d7c89-a29b-..."
                   style={{ background: "var(--bg-obsidian-950)", fontSize: "13px" }}
                   value={newUserId}
                   onChange={(e) => setNewUserId(e.target.value)}
                   required
                 />
-                <span className="form-desc" style={{ fontSize: "11px", color: "var(--text-muted)" }}>Override rule will apply exclusively to this client session.</span>
+                <span className="form-desc" style={{ fontSize: "11px", color: "var(--text-muted)" }}>Luật sẽ chỉ áp dụng riêng cho phiên hội thoại của client này.</span>
               </div>
 
               <div className="form-group">
-                <label className="form-label" style={{ color: "var(--text-primary)" }}>Keyword Phrase</label>
+                <label className="form-label" style={{ color: "var(--text-primary)" }}>Cụm từ khớp tuyệt đối (Keyword)</label>
                 <input
                   type="text"
                   className="form-input"
-                  placeholder="e.g. uống trà sữa xingfu"
+                  placeholder="Ví dụ: uống trà sữa xingfu"
                   style={{ background: "var(--bg-obsidian-950)", fontSize: "13px" }}
                   value={newKeyword}
                   onChange={(e) => setNewKeyword(e.target.value)}
                   required
                 />
-                <span className="form-desc" style={{ fontSize: "11px", color: "var(--text-muted)" }}>Lowercased text input to search and trigger exact match.</span>
+                <span className="form-desc" style={{ fontSize: "11px", color: "var(--text-muted)" }}>Chuỗi chữ thường không dấu hoặc có dấu để bắt trùng khớp.</span>
               </div>
 
               <div className="form-group">
-                <label className="form-label" style={{ color: "var(--text-primary)" }}>Assigned Category Code</label>
+                <label className="form-label" style={{ color: "var(--text-primary)" }}>Danh mục gán tĩnh</label>
                 <select
                   className="form-select"
                   value={newCategory}
@@ -849,7 +786,7 @@ function NluOpsPage() {
                 e.currentTarget.style.boxShadow = "none";
               }}
               >
-                Register Override Mapping
+                Ghi nhận ánh xạ đè
               </button>
             </form>
           </div>
@@ -867,16 +804,16 @@ function NluOpsPage() {
         }}>
           <div className="panel-header" style={{ paddingBottom: "20px", borderBottom: "1px solid var(--border-color)", display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "16px" }}>
             <div>
-              <h2 className="panel-title" style={{ fontSize: "16px", fontWeight: "600", color: "var(--text-primary)" }}>Correction Clusters (Layer 2)</h2>
+              <h2 className="panel-title" style={{ fontSize: "16px", fontWeight: "600", color: "var(--text-primary)" }}>Cụm gom lỗi sửa của người dùng (Layer 2)</h2>
               <span className="form-desc" style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "2px", display: "block" }}>
-                Interactive logs aggregated from user corrections. Approve and package them as training points to fine-tune the classifiers.
+                Các phản hồi điều chỉnh nhãn của khách hàng được tự động gom nhóm. Duyệt các dòng này để lưu vào tập huấn luyện bổ sung.
               </span>
             </div>
             
             <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "12px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                  <span style={{ fontSize: "13px", color: "var(--text-secondary)" }}>Tự động huấn luyện:</span>
+                  <span style={{ fontSize: "13px", color: "var(--text-secondary)" }}>Tự động huấn luyện lại:</span>
                   <select
                     value={autoRetrainAfterCurate}
                     onChange={(e) => setAutoRetrainAfterCurate(e.target.value)}
@@ -893,7 +830,6 @@ function NluOpsPage() {
                   >
                     <option value="none">Không</option>
                     <option value="local">Cục bộ (CPU)</option>
-                    <option value="kaggle">Kaggle (GPU)</option>
                   </select>
                 </div>
                 <button
@@ -910,7 +846,7 @@ function NluOpsPage() {
                     cursor: (!aggregations.some(a => a.approved)) ? "not-allowed" : "pointer"
                   }}
                 >
-                  Approve & Export Curation ({aggregations.filter(a => a.approved).length})
+                  Duyệt và xuất các câu đã chọn ({aggregations.filter(a => a.approved).length})
                 </button>
               </div>
             </div>
@@ -931,12 +867,12 @@ function NluOpsPage() {
                       style={{ width: "16px", height: "16px", accentColor: "var(--accent-emerald)", cursor: "pointer" }}
                     />
                   </th>
-                  <th style={{ padding: "14px 18px", color: "var(--text-primary)", fontSize: "11px", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.08em" }}>Raw Text Block</th>
-                  <th style={{ padding: "14px 18px", color: "var(--text-primary)", fontSize: "11px", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.08em" }}>User Mapped</th>
-                  <th style={{ padding: "14px 18px", color: "var(--text-primary)", fontSize: "11px", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.08em" }}>Record Type</th>
-                  <th style={{ padding: "14px 18px", color: "var(--text-primary)", fontSize: "11px", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.08em" }}>AI Initial Guess</th>
-                  <th style={{ padding: "14px 18px", color: "var(--text-primary)", fontSize: "11px", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.08em" }}>Corrections (Votes)</th>
-                  <th style={{ padding: "14px 18px", color: "var(--text-primary)", fontSize: "11px", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.08em", textAlign: "right" }}>Status</th>
+                  <th style={{ padding: "14px 18px", color: "var(--text-primary)", fontSize: "11px", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.08em" }}>Nội dung câu nói</th>
+                  <th style={{ padding: "14px 18px", color: "var(--text-primary)", fontSize: "11px", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.08em" }}>Người dùng sửa thành</th>
+                  <th style={{ padding: "14px 18px", color: "var(--text-primary)", fontSize: "11px", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.08em" }}>Loại ví</th>
+                  <th style={{ padding: "14px 18px", color: "var(--text-primary)", fontSize: "11px", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.08em" }}>AI đoán ban đầu</th>
+                  <th style={{ padding: "14px 18px", color: "var(--text-primary)", fontSize: "11px", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.08em" }}>Số lượt sửa (Votes)</th>
+                  <th style={{ padding: "14px 18px", color: "var(--text-primary)", fontSize: "11px", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.08em", textAlign: "right" }}>Trạng thái</th>
                 </tr>
               </thead>
               <tbody>
@@ -999,9 +935,9 @@ function NluOpsPage() {
                     </td>
                     <td style={{ padding: "14px 18px", textAlign: "right", fontSize: "13px", fontWeight: "600" }}>
                       {agg.approved ? (
-                        <span style={{ color: "var(--accent-emerald)" }}>✓ Queued for Train</span>
+                        <span style={{ color: "var(--accent-emerald)" }}>✓ Đã xếp hàng chờ</span>
                       ) : (
-                        <span style={{ color: "var(--text-muted)" }}>Pending review</span>
+                        <span style={{ color: "var(--text-muted)" }}>Chờ duyệt</span>
                       )}
                     </td>
                   </tr>
@@ -1009,7 +945,7 @@ function NluOpsPage() {
                 {aggregations.length === 0 && (
                   <tr>
                     <td colSpan="7" style={{ textAlign: "center", padding: "40px", color: "var(--text-muted)" }}>
-                      No corrections aggregated in PostgreSQL log index yet.
+                      Không tìm thấy cụm từ đính chính nào trong chỉ mục logs.
                     </td>
                   </tr>
                 )}
@@ -1019,552 +955,633 @@ function NluOpsPage() {
         </div>
       )}
 
-      {/* TAB 3: MODEL VERSIONING & HOT-RELOAD */}
+      {/* TAB 3: MODEL VERSIONING & RETRAINING */}
       {activeTab === "model" && (
         <>
-          <div className="dashboard-grid" style={{ gap: "24px" }}>
+          {/* Active Model Cards Selector Section */}
+          <div style={{ marginBottom: "30px" }}>
+            <h2 style={{ fontSize: "16px", fontWeight: "600", color: "var(--text-primary)", marginBottom: "16px" }}>Lựa chọn Bộ suy luận NLU vận hành</h2>
+            
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "24px" }}>
+              {/* Card 1: TF-IDF Classic */}
+              <div style={{
+                background: "var(--bg-obsidian-900)",
+                border: inferenceBackend === "tfidf" ? "1px solid var(--accent-blue-hover)" : "1px solid var(--border-color)",
+                borderRadius: "16px",
+                padding: "24px",
+                boxShadow: inferenceBackend === "tfidf" ? "0 0 15px rgba(56, 189, 248, 0.15)" : "none",
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "space-between",
+                opacity: (isTraining || isLlmTraining) ? 0.7 : 1,
+                transition: "all 0.3s ease"
+              }}>
+                <div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "12px" }}>
+                    <span style={{ fontSize: "28px" }}>📊</span>
+                    <span style={{
+                      fontSize: "10px",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.08em",
+                      fontWeight: "700",
+                      background: "rgba(2, 132, 199, 0.15)",
+                      color: "var(--accent-blue-hover)",
+                      padding: "4px 8px",
+                      borderRadius: "6px"
+                    }}>TF-IDF Classic</span>
+                  </div>
+                  <h3 style={{ fontSize: "16px", fontWeight: "700", color: "var(--text-primary)", marginBottom: "6px" }}>Phân loại TF-IDF & spaCy</h3>
+                  <p style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "12px", fontFamily: "var(--font-mono)" }}>Local CPU · ~20 MB · Trễ: &lt; 15ms</p>
+                  <p style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: "1.5" }}>
+                    Bộ phân loại intent và category cổ điển dựa trên tần suất từ (TF-IDF) và spaCy NER. Hoạt động cực nhẹ, phản hồi tức thời nhưng không hiểu ngữ nghĩa phức tạp.
+                  </p>
+                </div>
+                <div style={{ marginTop: "20px" }}>
+                  {inferenceBackend === "tfidf" ? (
+                    <button disabled style={{ width: "100%", padding: "10px", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "var(--text-muted)", borderRadius: "8px", fontWeight: "600", cursor: "not-allowed" }}>
+                      Đang kích hoạt
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => handleInferenceBackendChange("tfidf")}
+                      disabled={savingBackend || isTraining || isLlmTraining}
+                      style={{ width: "100%", padding: "10px", background: "var(--bg-obsidian-950)", border: "1px solid var(--accent-blue)", color: "var(--accent-blue-hover)", borderRadius: "8px", fontWeight: "600", cursor: "pointer", transition: "all 0.2s" }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = "var(--accent-blue-glow)"; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = "var(--bg-obsidian-950)"; }}
+                    >
+                      Kích hoạt bộ lọc Classic
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Card 2: PhoBERT Encoder */}
+              <div style={{
+                background: "var(--bg-obsidian-900)",
+                border: inferenceBackend === "encoder" ? "1px solid #c084fc" : "1px solid var(--border-color)",
+                borderRadius: "16px",
+                padding: "24px",
+                boxShadow: inferenceBackend === "encoder" ? "0 0 15px rgba(192, 132, 252, 0.15)" : "none",
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "space-between",
+                opacity: (isTraining || isLlmTraining) ? 0.7 : 1,
+                transition: "all 0.3s ease"
+              }}>
+                <div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "12px" }}>
+                    <span style={{ fontSize: "28px" }}>🧬</span>
+                    <span style={{
+                      fontSize: "10px",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.08em",
+                      fontWeight: "700",
+                      background: "rgba(168, 85, 247, 0.15)",
+                      color: "#c084fc",
+                      padding: "4px 8px",
+                      borderRadius: "6px"
+                    }}>BERT Encoder</span>
+                  </div>
+                  <h3 style={{ fontSize: "16px", fontWeight: "700", color: "var(--text-primary)", marginBottom: "6px" }}>Phân loại PhoBERT Encoder</h3>
+                  <p style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "12px", fontFamily: "var(--font-mono)" }}>Local CPU/GPU · ~540 MB · Trễ: &lt; 80ms</p>
+                  <p style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: "1.5" }}>
+                    Sử dụng biểu diễn ngữ nghĩa của ngôn ngữ tiếng Việt từ PhoBERT kết hợp mạng nơ-ron MLP để phân lớp. Nhận diện ý định thông minh hơn, chịu lỗi chính tả tốt.
+                  </p>
+                </div>
+                <div style={{ marginTop: "20px" }}>
+                  {inferenceBackend === "encoder" ? (
+                    <button disabled style={{ width: "100%", padding: "10px", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "var(--text-muted)", borderRadius: "8px", fontWeight: "600", cursor: "not-allowed" }}>
+                      Đang kích hoạt
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => handleInferenceBackendChange("encoder")}
+                      disabled={savingBackend || isTraining || isLlmTraining}
+                      style={{ width: "100%", padding: "10px", background: "var(--bg-obsidian-950)", border: "1px solid #a855f7", color: "#c084fc", borderRadius: "8px", fontWeight: "600", cursor: "pointer", transition: "all 0.2s" }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(168, 85, 247, 0.1)"; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = "var(--bg-obsidian-950)"; }}
+                    >
+                      Kích hoạt PhoBERT
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Card 3: Qwen2.5 14B Fine-tuned */}
+              <div style={{
+                background: "var(--bg-obsidian-900)",
+                border: inferenceBackend === "llm" ? "1px solid var(--accent-emerald-hover)" : "1px solid var(--border-color)",
+                borderRadius: "16px",
+                padding: "24px",
+                boxShadow: inferenceBackend === "llm" ? "0 0 15px var(--accent-emerald-glow)" : "none",
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "space-between",
+                opacity: (isTraining || isLlmTraining) ? 0.7 : 1,
+                transition: "all 0.3s ease"
+              }}>
+                <div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "12px" }}>
+                    <span style={{ fontSize: "28px" }}>🔥</span>
+                    <span style={{
+                      fontSize: "10px",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.08em",
+                      fontWeight: "700",
+                      background: "var(--accent-emerald-glow)",
+                      color: "var(--accent-emerald-hover)",
+                      padding: "4px 8px",
+                      borderRadius: "6px"
+                    }}>LLM Agent</span>
+                  </div>
+                  <h3 style={{ fontSize: "16px", fontWeight: "700", color: "var(--text-primary)", marginBottom: "6px" }}>Qwen2.5-14B Fine-tuned (Mặc định)</h3>
+                  <p style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "12px", fontFamily: "var(--font-mono)" }}>Modal GPU (A10G) · ~29.5 GB · Trễ: &lt; 800ms</p>
+                  <p style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: "1.5" }}>
+                    Sử dụng mô hình ngôn ngữ lớn đã fine-tune khớp hội thoại ví Mimo. Phân tích tự nhiên Gen Z slang (ét ô ét, mlem), xử lý đa luồng chi tiêu và phản hồi cực vui nhộn.
+                  </p>
+                </div>
+                <div style={{ marginTop: "20px" }}>
+                  {inferenceBackend === "llm" ? (
+                    <button disabled style={{ width: "100%", padding: "10px", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "var(--text-muted)", borderRadius: "8px", fontWeight: "600", cursor: "not-allowed" }}>
+                      Đang kích hoạt làm mặc định
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => handleInferenceBackendChange("llm")}
+                      disabled={savingBackend || isTraining || isLlmTraining}
+                      style={{ width: "100%", padding: "10px", background: "var(--bg-obsidian-950)", border: "1px solid var(--accent-emerald)", color: "var(--accent-emerald-hover)", borderRadius: "8px", fontWeight: "600", cursor: "pointer", transition: "all 0.2s" }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = "var(--accent-emerald-glow)"; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = "var(--bg-obsidian-950)"; }}
+                    >
+                      Kích hoạt làm Mặc định
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Trigger Train Worker Panel (Full Width) */}
           <div className="panel" style={{
             background: "var(--bg-obsidian-900)",
             border: "1px solid var(--border-color)",
             borderRadius: "16px",
             padding: "24px",
-            boxShadow: "0 4px 20px rgba(0, 0, 0, 0.15)"
+            display: "flex",
+            flexDirection: "column",
+            boxShadow: "0 4px 20px rgba(0, 0, 0, 0.15)",
+            marginBottom: "24px"
           }}>
-            <div className="panel-header" style={{ paddingBottom: "20px", borderBottom: "1px solid var(--border-color)", display: "flex", gap: "10px", alignItems: "center" }}>
-              <h2 className="panel-title" style={{ fontSize: "16px", fontWeight: "600", color: "var(--text-primary)", marginRight: "auto" }}>Model Core Registry</h2>
-              <button
-                className="btn btn-secondary"
-                style={{ padding: "6px 12px", fontSize: "12px", borderRadius: "6px" }}
-                onClick={() => handleSyncKaggle("tfidf")}
-                disabled={syncingKaggle || syncingEncoderKaggle || isTraining}
-                title="Tải output kernel TF-IDF + NER COMPLETE về server"
-              >
-                {syncingKaggle ? "Đang sync TF-IDF..." : "Sync TF-IDF Kaggle"}
-              </button>
-              <button
-                className="btn btn-secondary"
-                style={{ padding: "6px 12px", fontSize: "12px", borderRadius: "6px", border: "1px solid rgba(139, 92, 246, 0.35)" }}
-                onClick={() => handleSyncKaggle("encoder")}
-                disabled={syncingKaggle || syncingEncoderKaggle || isTraining}
-                title="Tải output kernel PhoBERT encoder COMPLETE về server"
-              >
-                {syncingEncoderKaggle ? "Đang sync Encoder..." : "Sync Encoder Kaggle"}
-              </button>
-              <button
-                className="btn btn-secondary"
-                style={{ padding: "6px 12px", fontSize: "12px", borderRadius: "6px", border: "1px solid var(--border-color)" }}
-                onClick={handleReloadNlu}
-                disabled={reloadingNlu || isTraining}
-              >
-                {reloadingNlu ? "Đang tải..." : "Tải lại model NLU"}
-              </button>
-              <button
-                className="btn btn-secondary"
-                style={{ padding: "6px 12px", fontSize: "12px", borderRadius: "6px" }}
-                onClick={fetchAllData}
-              >
-                Sync Registry Status
-              </button>
-            </div>
-            
-            <div style={{ display: "flex", flexDirection: "column", gap: "16px", marginTop: "16px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--border-color)", paddingBottom: "12px" }}>
-                <span style={{ fontSize: "13px", color: "var(--text-secondary)" }}>Active Registry Identifier</span>
-                <strong className="monospaced" style={{ color: "var(--accent-blue-hover)", fontSize: "13px" }}>{modelMeta.version}</strong>
+            <div>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "16px" }}>
+                <div style={{
+                  width: "8px",
+                  height: "8px",
+                  borderRadius: "50%",
+                  background: (isTraining || isLlmTraining) ? "var(--accent-amber)" : "var(--accent-emerald)",
+                  boxShadow: (isTraining || isLlmTraining) ? "0 0 8px var(--accent-amber)" : "0 0 8px var(--accent-emerald)"
+                }} />
+                <h2 className="panel-title" style={{ fontSize: "16px", fontWeight: "600", color: "var(--text-primary)" }}>Bảng điều khiển huấn luyện</h2>
               </div>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--border-color)", paddingBottom: "12px" }}>
-                <span style={{ fontSize: "13px", color: "var(--text-secondary)" }}>Pipeline Epoch / Trained At</span>
-                <strong className="monospaced" style={{ fontSize: "13px" }}>{modelMeta.trainedAt}</strong>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--border-color)", paddingBottom: "12px" }}>
-                <span style={{ fontSize: "13px", color: "var(--text-secondary)" }}>NLU Inference Backend</span>
-                <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                  <select
-                    value={inferenceBackend}
-                    disabled={savingBackend || isTraining}
-                    onChange={(e) => handleInferenceBackendChange(e.target.value)}
+
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "20px", marginBottom: "20px" }}>
+                {/* Local CPU Retrain Card */}
+                <div 
+                  onClick={() => { if (!isTraining && !isLlmTraining) handleRetrain("local"); }}
+                  style={{
+                    border: `1px solid ${isTraining && compareTrainType === "tfidf" ? "var(--accent-emerald)" : "var(--border-color)"}`,
+                    background: isTraining && compareTrainType === "tfidf" ? "rgba(16, 185, 129, 0.05)" : "var(--bg-obsidian-950)",
+                    borderRadius: "12px",
+                    padding: "24px 16px",
+                    cursor: (isTraining || isLlmTraining) ? "not-allowed" : "pointer",
+                    textAlign: "center",
+                    transition: "all 0.2s"
+                  }}
+                >
+                  <div style={{ fontSize: "32px", marginBottom: "10px" }}>💻</div>
+                  <h4 style={{ fontSize: "14px", fontWeight: "600", color: "var(--text-primary)", marginBottom: "6px" }}>Huấn luyện NLU Classic</h4>
+                  <span style={{ fontSize: "12px", color: "var(--text-secondary)", display: "block" }}>Chạy nền · 1-2 phút</span>
+                  <span style={{ fontSize: "11px", color: "var(--text-muted)", display: "block", marginTop: "8px", lineHeight: 1.4 }}>
+                    Huấn luyện lại bộ phân loại TF-IDF cho Intent, Category, Record Type và mô hình Named Entity (NER).
+                  </span>
+                </div>
+
+                {/* PhoBERT Encoder Retrain Card */}
+                <div 
+                  onClick={() => { if (!isTraining && !isLlmTraining) handleRetrain("encoder"); }}
+                  style={{
+                    border: `1px solid ${isTraining && compareTrainType === "encoder" ? "var(--accent-emerald)" : "var(--border-color)"}`,
+                    background: isTraining && compareTrainType === "encoder" ? "rgba(16, 185, 129, 0.05)" : "var(--bg-obsidian-950)",
+                    borderRadius: "12px",
+                    padding: "24px 16px",
+                    cursor: (isTraining || isLlmTraining) ? "not-allowed" : "pointer",
+                    textAlign: "center",
+                    transition: "all 0.2s"
+                  }}
+                >
+                  <div style={{ fontSize: "32px", marginBottom: "10px" }}>🧬</div>
+                  <h4 style={{ fontSize: "14px", fontWeight: "600", color: "var(--text-primary)", marginBottom: "6px" }}>Huấn luyện PhoBERT</h4>
+                  <span style={{ fontSize: "12px", color: "var(--text-secondary)", display: "block" }}>Chạy nền · 2-3 phút</span>
+                  <span style={{ fontSize: "11px", color: "var(--text-muted)", display: "block", marginTop: "8px", lineHeight: 1.4 }}>
+                    Huấn luyện lại các đầu phân loại MLP dựa trên embedding cố định của PhoBERT tiếng Việt.
+                  </span>
+                </div>
+
+                {/* LLM Fine-tune Card */}
+                <div 
+                  style={{
+                    border: `1px solid ${isLlmTraining ? "#a855f7" : "var(--border-color)"}`,
+                    background: isLlmTraining ? "rgba(168, 85, 247, 0.05)" : "var(--bg-obsidian-950)",
+                    borderRadius: "12px",
+                    padding: "24px 16px",
+                    textAlign: "center",
+                    position: "relative"
+                  }}
+                >
+                  <div style={{ fontSize: "32px", marginBottom: "10px" }}>🔥</div>
+                  <h4 style={{ fontSize: "14px", fontWeight: "600", color: "var(--text-primary)", marginBottom: "6px" }}>Fine-tune Qwen2.5-14B</h4>
+                  <span style={{ fontSize: "12px", color: "var(--text-secondary)", display: "block", marginBottom: "12px" }}>GPU H100 Modal · ~1 giờ</span>
+                  
+                  {/* Hyperparameter Inputs */}
+                  <div style={{ display: "flex", gap: "8px", justifyContent: "center", marginBottom: "16px", fontSize: "11px" }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                      <span style={{ color: "var(--text-muted)" }}>Epochs</span>
+                      <input 
+                        type="number" 
+                        min="1" 
+                        max="10" 
+                        value={llmTrainParams.epochs}
+                        onChange={(e) => setLlmTrainParams({ ...llmTrainParams, epochs: parseInt(e.target.value) || 3 })}
+                        style={{ width: "50px", background: "var(--bg-obsidian-900)", border: "1px solid var(--border-color)", color: "var(--text-primary)", borderRadius: "4px", padding: "4px", fontSize: "11px", textAlign: "center" }}
+                      />
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                      <span style={{ color: "var(--text-muted)" }}>LR</span>
+                      <input 
+                        type="number" 
+                        step="0.00005" 
+                        value={llmTrainParams.lr}
+                        onChange={(e) => setLlmTrainParams({ ...llmTrainParams, lr: parseFloat(e.target.value) || 0.0002 })}
+                        style={{ width: "80px", background: "var(--bg-obsidian-900)", border: "1px solid var(--border-color)", color: "var(--text-primary)", borderRadius: "4px", padding: "4px", fontSize: "11px", textAlign: "center" }}
+                      />
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                      <span style={{ color: "var(--text-muted)" }}>Batch Size</span>
+                      <input 
+                        type="number" 
+                        min="1" 
+                        max="16" 
+                        value={llmTrainParams.batchSize}
+                        onChange={(e) => setLlmTrainParams({ ...llmTrainParams, batchSize: parseInt(e.target.value) || 4 })}
+                        style={{ width: "60px", background: "var(--bg-obsidian-900)", border: "1px solid var(--border-color)", color: "var(--text-primary)", borderRadius: "4px", padding: "4px", fontSize: "11px", textAlign: "center" }}
+                      />
+                    </div>
+                  </div>
+
+                  <button 
+                    onClick={handleLlmFinetune}
+                    disabled={isTraining || isLlmTraining}
                     style={{
-                      background: "var(--bg-obsidian-950)",
-                      border: "1px solid var(--border-color)",
-                      color: "var(--text-primary)",
-                      borderRadius: "6px",
-                      padding: "6px 10px",
+                      background: "var(--accent-emerald)",
+                      color: "var(--bg-obsidian-950)",
+                      border: "none",
+                      borderRadius: "8px",
+                      padding: "8px 16px",
                       fontSize: "12px",
+                      fontWeight: "700",
+                      cursor: (isTraining || isLlmTraining) ? "not-allowed" : "pointer",
+                      opacity: (isTraining || isLlmTraining) ? 0.6 : 1
                     }}
                   >
-                    <option value="tfidf">TF-IDF (mặc định)</option>
-                    <option value="encoder">PhoBERT Encoder</option>
-                  </select>
+                    {isLlmTraining ? "Đang Fine-tune..." : "Bắt đầu Fine-tune"}
+                  </button>
                 </div>
               </div>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--border-color)", paddingBottom: "12px" }}>
-                <span style={{ fontSize: "13px", color: "var(--text-secondary)" }}>Global Validation F1-Score</span>
-                <strong className="monospaced" style={{ color: "var(--accent-emerald-hover)", fontSize: "13px" }}>{modelMeta.f1Score}</strong>
-              </div>
-              {modelMeta.pendingNote && (
-                <div style={{ fontSize: "12px", color: "var(--accent-amber-hover)", padding: "8px 12px", background: "rgba(245, 158, 11, 0.08)", borderRadius: "8px", border: "1px solid rgba(245, 158, 11, 0.2)" }}>
-                  {modelMeta.pendingNote}
+
+              {isTraining && (
+                <div style={{ background: "rgba(16, 185, 129, 0.05)", border: "1px solid rgba(16, 185, 129, 0.2)", borderRadius: "8px", padding: "12px", fontSize: "12px", color: "var(--accent-emerald)" }}>
+                  ⚙️ Đang chạy huấn luyện NLU nền... Vui lòng không đóng trang.
                 </div>
               )}
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingBottom: "12px" }}>
-                <span style={{ fontSize: "13px", color: "var(--text-secondary)" }}>Active Background Worker</span>
-                <strong className="monospaced" style={{ fontSize: "13px" }}>
-                  {isTraining ? (
-                    <span style={{ color: "var(--accent-amber-hover)", display: "flex", alignItems: "center", gap: "6px" }}>
-                      <span className="status-dot pulse" style={{ background: "var(--accent-amber)", boxShadow: "0 0 8px var(--accent-amber)", width: "6px", height: "6px", borderRadius: "50%" }}></span>
-                      Pipeline retrain-all running...
-                    </span>
-                  ) : (
-                    <span style={{ color: "var(--accent-emerald-hover)", display: "flex", alignItems: "center", gap: "6px" }}>
-                      <span className="status-dot" style={{ background: "var(--accent-emerald)", boxShadow: "0 0 8px var(--accent-emerald)", width: "6px", height: "6px", borderRadius: "50%" }}></span>
-                      Idle (Model ready for inference)
-                    </span>
-                  )}
-                </strong>
-              </div>
             </div>
           </div>
 
-            {/* Trigger Train Worker Panel */}
+          <div className="dashboard-grid" style={{ gap: "24px" }}>
+            {/* Model Registry Info */}
             <div className="panel" style={{
               background: "var(--bg-obsidian-900)",
               border: "1px solid var(--border-color)",
               borderRadius: "16px",
               padding: "24px",
-              display: "flex",
-              flexDirection: "column",
               boxShadow: "0 4px 20px rgba(0, 0, 0, 0.15)"
             }}>
-              <div>
-                <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "16px" }}>
-                  <div style={{
-                    width: "8px",
-                    height: "8px",
-                    borderRadius: "50%",
-                    background: (isTraining || anyKaggleJobActive) ? "var(--accent-emerald)" : "var(--text-muted)",
-                    boxShadow: (isTraining || anyKaggleJobActive) ? "0 0 8px var(--accent-emerald)" : "none"
-                  }} />
-                  <h2 className="panel-title" style={{ fontSize: "16px", fontWeight: "600", color: "var(--text-primary)" }}>Trigger Train Worker</h2>
-                </div>
-
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "16px", marginBottom: "20px" }}>
-                  {/* Local CPU Retrain Card */}
-                  <div 
-                    onClick={() => { if (!isTraining && !anyKaggleJobActive) handleRetrain("local"); }}
-                    style={{
-                      border: `1px solid ${isTraining ? "var(--accent-emerald)" : "var(--border-color)"}`,
-                      background: isTraining ? "rgba(16, 185, 129, 0.05)" : "var(--bg-obsidian-950)",
-                      borderRadius: "12px",
-                      padding: "20px 16px",
-                      cursor: (isTraining || anyKaggleJobActive) ? "not-allowed" : "pointer",
-                      opacity: anyKaggleJobActive ? 0.5 : 1,
-                      textAlign: "center",
-                      transition: "all 0.2s"
-                    }}
-                  >
-                    <div style={{ fontSize: "28px", marginBottom: "8px" }}>💻</div>
-                    <h4 style={{ fontSize: "13px", fontWeight: "600", color: "var(--text-primary)", marginBottom: "4px" }}>TF-IDF Cục bộ</h4>
-                    <span style={{ fontSize: "11px", color: "var(--text-secondary)", display: "block" }}>CPU local (1-2 phút)</span>
-                    <span style={{ fontSize: "10px", color: "var(--text-muted)", display: "block", marginTop: "6px", lineHeight: 1.4 }}>
-                      Train TF-IDF + NER spaCy
-                    </span>
-                  </div>
-
-                  {/* Kaggle GPU Retrain Card */}
-                  <div 
-                    onClick={() => { if (!isTraining && !anyKaggleJobActive) handleRetrain("kaggle"); }}
-                    style={{
-                      border: `1px solid ${activeTfidfKaggleJob ? "var(--accent-blue-hover)" : "var(--border-color)"}`,
-                      background: activeTfidfKaggleJob ? "rgba(26, 115, 232, 0.05)" : "var(--bg-obsidian-950)",
-                      borderRadius: "12px",
-                      padding: "20px 16px",
-                      cursor: (isTraining || anyKaggleJobActive) ? "not-allowed" : "pointer",
-                      opacity: isTraining ? 0.5 : 1,
-                      textAlign: "center",
-                      transition: "all 0.2s"
-                    }}
-                  >
-                    <div style={{ fontSize: "28px", marginBottom: "8px" }}>☁️</div>
-                    <h4 style={{ fontSize: "13px", fontWeight: "600", color: "var(--text-primary)", marginBottom: "4px" }}>TF-IDF Kaggle</h4>
-                    <span style={{ fontSize: "11px", color: "var(--text-secondary)", display: "block" }}>GPU Cloud (NER spaCy)</span>
-                  </div>
-
-                  {/* PhoBERT Encoder Kaggle Card */}
-                  <div 
-                    onClick={() => { if (!isTraining && !anyKaggleJobActive && !trainingEncoder) handleTrainEncoder(); }}
-                    style={{
-                      border: `1px solid ${(activeEncoderJob || trainingEncoder) ? "var(--accent-violet)" : "var(--border-color)"}`,
-                      background: (activeEncoderJob || trainingEncoder) ? "rgba(139, 92, 246, 0.05)" : "var(--bg-obsidian-950)",
-                      borderRadius: "12px",
-                      padding: "20px 16px",
-                      cursor: (isTraining || anyKaggleJobActive || trainingEncoder) ? "not-allowed" : "pointer",
-                      opacity: (isTraining || activeTfidfKaggleJob) ? 0.5 : 1,
-                      textAlign: "center",
-                      transition: "all 0.2s"
-                    }}
-                  >
-                    <div style={{ fontSize: "28px", marginBottom: "8px" }}>🧠</div>
-                    <h4 style={{ fontSize: "13px", fontWeight: "600", color: "var(--text-primary)", marginBottom: "4px" }}>PhoBERT Encoder</h4>
-                    <span style={{ fontSize: "11px", color: "var(--text-secondary)", display: "block" }}>Kaggle GPU (thay TF-IDF)</span>
-                    <span style={{ fontSize: "10px", color: "var(--text-muted)", display: "block", marginTop: "6px", lineHeight: 1.4 }}>
-                      Semantic embeddings, tránh overfitting
-                    </span>
-                  </div>
-                </div>
-
-                {isTraining && (
-                  <div style={{ background: "rgba(16, 185, 129, 0.05)", border: "1px solid rgba(16, 185, 129, 0.2)", borderRadius: "8px", padding: "12px", fontSize: "12px", color: "var(--accent-emerald)" }}>
-                    ⚙️ Đang chạy huấn luyện cục bộ trên server CPU... Vui lòng không đóng trang.
-                  </div>
-                )}
-
-                {activeKaggleJob && (
-                  <div style={{ background: isEncoderJob(activeKaggleJob) ? "rgba(139, 92, 246, 0.05)" : "rgba(26, 115, 232, 0.05)", border: isEncoderJob(activeKaggleJob) ? "1px solid rgba(139, 92, 246, 0.2)" : "1px solid rgba(26, 115, 232, 0.2)", borderRadius: "8px", padding: "12px", fontSize: "12px", color: isEncoderJob(activeKaggleJob) ? "#c4b5fd" : "var(--accent-blue-hover)", display: "flex", flexDirection: "column", gap: "6px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between" }}>
-                      <span><strong>{jobScopeLabel(activeKaggleJob)}:</strong> {activeKaggleJob.status.toUpperCase()}</span>
-                      <span style={{ fontFamily: "var(--font-mono)" }}>{activeKaggleJob.id?.slice(0, 8)}</span>
-                    </div>
-                    <div style={{ fontSize: "11px", color: "var(--text-secondary)", lineHeight: "1.4" }}>
-                      {activeKaggleJob.status === "queued" && "⏳ Đang xếp hàng chờ trên Kaggle..."}
-                      {activeKaggleJob.status === "versioning_dataset" && "📦 Bước 1/5: Đang đóng gói & đồng bộ Dataset lên Kaggle..."}
-                      {activeKaggleJob.status === "packaging_source" && "📦 Bước 2/5: Đang đóng gói mã nguồn text_nlu..."}
-                      {activeKaggleJob.status === "pushing_kernel" && "🚀 Bước 3/5: Đang đẩy Notebook và kích hoạt GPU Worker..."}
-                      {activeKaggleJob.status === "running_on_kaggle" && "⚙️ Bước 4/5: Đang chạy huấn luyện trên Kaggle GPU (Có thể mất 2-3 phút)..."}
-                      {activeKaggleJob.status === "downloading_outputs" && "📥 Bước 5/5: Huấn luyện xong! Đang tải trọng số model về server..."}
-                      {activeKaggleJob.status === "deploying" && "🔄 Đang giải nén & nạp nóng NLU Model vào bộ nhớ..."}
-                    </div>
-                  </div>
-                )}
-
-                {!isTraining && !activeKaggleJob && hasStuckJob && (
-                  <div style={{
-                    background: "rgba(245, 158, 11, 0.05)",
-                    border: "1px solid rgba(245, 158, 11, 0.25)",
-                    borderRadius: "8px",
-                    padding: "12px",
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    gap: "12px",
-                  }}>
-                    <div>
-                      <div style={{ fontSize: "12px", color: "var(--accent-amber-hover)", fontWeight: "600" }}>
-                        Phát hiện job Kaggle bị treo
-                      </div>
-                      <div style={{ fontSize: "11px", color: "var(--text-secondary)", marginTop: "2px" }}>
-                        Server đã tắt giữa chừng. Bấm Resume để tiếp tục polling và tải kết quả.
-                      </div>
-                    </div>
-                    <button
-                      className="btn"
-                      onClick={handleResumeKaggle}
-                      disabled={resumingKaggle}
-                      style={{
-                        padding: "8px 16px",
-                        fontSize: "12px",
-                        fontWeight: "600",
-                        color: "var(--bg-obsidian-950)",
-                        background: "var(--accent-amber)",
-                        border: "none",
-                        borderRadius: "6px",
-                        cursor: resumingKaggle ? "not-allowed" : "pointer",
-                        opacity: resumingKaggle ? 0.6 : 1,
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {resumingKaggle ? "Đang resume..." : "Resume Job"}
-                    </button>
-                  </div>
-                )}
-
-                {!isTraining && !activeKaggleJob && !hasStuckJob && (
-                  <div style={{ fontSize: "12px", color: "var(--text-muted)", textAlign: "center", marginTop: "12px" }}>
-                    Chọn một trong ba phương thức trên để bắt đầu huấn luyện lại mô hình.
-                  </div>
-                )}
-
-                {kaggleJobs.length > 0 && (
-                  <div style={{ marginTop: "20px" }}>
-                    <h3 style={{ fontSize: "12px", fontWeight: "600", color: "var(--text-primary)", marginBottom: "8px" }}>Lịch sử Kaggle GPU Retrain</h3>
-                    <div style={{ maxHeight: "120px", overflowY: "auto", border: "1px solid var(--border-color)", borderRadius: "8px" }}>
-                      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "11px" }}>
-                        <thead>
-                          <tr style={{ background: "var(--bg-obsidian-950)", borderBottom: "1px solid var(--border-color)" }}>
-                            <th style={{ padding: "6px 10px", textAlign: "left", color: "var(--text-secondary)" }}>Loại</th>
-                            <th style={{ padding: "6px 10px", textAlign: "left", color: "var(--text-secondary)" }}>Job ID</th>
-                            <th style={{ padding: "6px 10px", textAlign: "left", color: "var(--text-secondary)" }}>Thời gian</th>
-                            <th style={{ padding: "6px 10px", textAlign: "left", color: "var(--text-secondary)" }}>F1</th>
-                            <th style={{ padding: "6px 10px", textAlign: "right", color: "var(--text-secondary)" }}>Trạng thái</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {kaggleJobs.slice(0, 10).map((job, i) => (
-                            <tr key={i} style={{ borderBottom: "1px solid var(--border-color)", background: "transparent" }}>
-                              <td style={{ padding: "6px 10px", color: "var(--text-secondary)" }}>{jobScopeLabel(job)}</td>
-                              <td style={{ padding: "6px 10px", fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>{job.id?.slice(0, 8)}</td>
-                              <td style={{ padding: "6px 10px", color: "var(--text-secondary)" }}>
-                                {job.created_at ? new Date(job.created_at).toLocaleString("vi-VN") : "N/A"}
-                              </td>
-                              <td style={{ padding: "6px 10px", fontWeight: "600", color: job.status === "completed" ? "var(--accent-emerald)" : "var(--text-secondary)" }}>
-                                {job.f1_score || "-"}
-                              </td>
-                              <td style={{ padding: "6px 10px", textAlign: "right", fontWeight: "600", color: job.status === "completed" ? "var(--accent-emerald)" : job.status === "failed" ? "var(--accent-red)" : "var(--accent-blue-hover)" }}>
-                                {job.status}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-        {/* Import CSV Panel */}
-        <div className="panel" style={{
-          background: "var(--bg-obsidian-900)",
-          border: "1px solid var(--border-color)",
-          borderRadius: "16px",
-          padding: "24px",
-          boxShadow: "0 4px 20px rgba(0, 0, 0, 0.15)",
-          marginTop: "24px"
-        }}>
-          <div className="panel-header" style={{ paddingBottom: "20px", borderBottom: "1px solid var(--border-color)" }}>
-            <div>
-              <h2 className="panel-title" style={{ fontSize: "16px", fontWeight: "600", color: "var(--text-primary)" }}>Import New Training Data (CSV)</h2>
-              <span className="form-desc" style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "2px", display: "block" }}>
-                Tải lên tập tin CSV chứa mẫu huấn luyện mới để tích hợp trực tiếp vào tập dữ liệu gốc `intent_record.csv`.
-              </span>
-            </div>
-          </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px", marginTop: "20px" }}>
-            {/* Formatting Guidelines */}
-            <div style={{ background: "var(--bg-obsidian-950)", padding: "18px", borderRadius: "12px", border: "1px solid var(--border-color)" }}>
-              <h3 style={{ color: "var(--text-primary)", fontSize: "13px", fontWeight: "600", marginBottom: "10px" }}>Hướng dẫn định dạng CSV:</h3>
-              <p style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: "1.6", margin: 0 }}>
-                • Tập tin sử dụng bảng mã mã hóa <strong>UTF-8</strong>.<br />
-                • Tiêu đề (Header) bắt buộc phải là: <code style={{ color: "var(--accent-blue-hover)", fontFamily: "var(--font-mono)" }}>text,label,type,is_money</code><br />
-                • <strong>text</strong>: Câu mô tả chi tiêu hoặc chitchat (Ví dụ: <code style={{ fontFamily: "var(--font-mono)" }}>"Ăn trưa cơm sườn 45k"</code>)<br />
-                • <strong>label</strong>: Tên danh mục (Ví dụ: <code style={{ fontFamily: "var(--font-mono)" }}>Food, Shopping, Salary, ...</code>)<br />
-                • <strong>type</strong>: Loại giao dịch (<code style={{ fontFamily: "var(--font-mono)" }}>expense</code> hoặc <code style={{ fontFamily: "var(--font-mono)" }}>income</code>)<br />
-                • <strong>is_money</strong>: Điền <code style={{ fontFamily: "var(--font-mono)" }}>1</code> nếu câu có chứa số tiền, điền <code style={{ fontFamily: "var(--font-mono)" }}>0</code> nếu không chứa.
-              </p>
-            </div>
-
-            {/* Upload Area */}
-            <form onSubmit={handleImportCsv} style={{ display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
-              <div className="form-group" style={{ margin: 0 }}>
-                <label className="form-label" style={{ color: "var(--text-primary)", marginBottom: "8px", display: "block" }}>Chọn tập tin dữ liệu</label>
-                <input
-                  id="nlu-csv-file-input"
-                  type="file"
-                  accept=".csv"
-                  className="form-input"
-                  style={{ background: "var(--bg-obsidian-950)", padding: "8px 12px" }}
-                  onChange={(e) => setCsvFile(e.target.files?.[0] || null)}
-                  required
-                />
-              </div>
-
-              <div style={{ display: "flex", alignItems: "center", gap: "16px", marginTop: "16px" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                  <span style={{ fontSize: "13px", color: "var(--text-secondary)" }}>Tự động huấn luyện:</span>
-                  <select
-                    value={autoRetrainCsv}
-                    onChange={(e) => setAutoRetrainCsv(e.target.value)}
-                    style={{
-                      background: "var(--bg-obsidian-950)",
-                      border: "1px solid var(--border-color)",
-                      color: "var(--text-primary)",
-                      borderRadius: "6px",
-                      padding: "6px 12px",
-                      fontSize: "13px",
-                      outline: "none",
-                      cursor: "pointer"
-                    }}
-                  >
-                    <option value="none">Không</option>
-                    <option value="local">Cục bộ (CPU)</option>
-                    <option value="kaggle">Kaggle (GPU)</option>
-                  </select>
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                className="btn btn-primary"
-                disabled={importingCsv || !csvFile}
-                style={{
-                  marginTop: "16px",
-                  background: "var(--accent-emerald)",
-                  color: "var(--bg-obsidian-950)",
-                  fontWeight: "600",
-                  width: "100%",
-                  padding: "10px",
-                  borderRadius: "8px",
-                  opacity: (importingCsv || !csvFile) ? 0.6 : 1,
-                  cursor: (importingCsv || !csvFile) ? "not-allowed" : "pointer"
-                }}
-              >
-                {importingCsv ? "Đang import..." : "Bắt đầu Import dữ liệu"}
-              </button>
-            </form>
-          </div>
-        </div>
-
-        {/* Model Comparison Table */}
-        <div className="panel" style={{
-          background: "var(--bg-obsidian-900)",
-          border: "1px solid var(--border-color)",
-          borderRadius: "16px",
-          padding: "24px",
-          boxShadow: "0 4px 20px rgba(0, 0, 0, 0.15)",
-          marginTop: "24px"
-        }}>
-          <div className="panel-header" style={{ paddingBottom: "20px", borderBottom: "1px solid var(--border-color)", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "16px" }}>
-            <div>
-              <h2 className="panel-title" style={{ fontSize: "16px", fontWeight: "600", color: "var(--text-primary)" }}>So Sánh Hiệu Năng Mô Hình (Diagnostics & Comparison)</h2>
-              <span className="form-desc" style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "2px", display: "block" }}>
-                So sánh metrics trước/sau retrain — tách riêng TF-IDF và PhoBERT encoder (cùng schema accuracy / precision / recall / F1).
-              </span>
-            </div>
-            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
-              {["tfidf", "encoder"].map((type) => (
+              <div className="panel-header" style={{ paddingBottom: "20px", borderBottom: "1px solid var(--border-color)", display: "flex", gap: "10px", alignItems: "center" }}>
+                <h2 className="panel-title" style={{ fontSize: "16px", fontWeight: "600", color: "var(--text-primary)", marginRight: "auto" }}>Chỉ mục trọng số hệ thống</h2>
                 <button
-                  key={type}
-                  type="button"
-                  onClick={() => setCompareTrainType(type)}
-                  style={{
-                    padding: "6px 14px",
-                    borderRadius: "8px",
-                    fontSize: "12px",
-                    fontWeight: "600",
-                    cursor: "pointer",
-                    border: compareTrainType === type
-                      ? (type === "encoder" ? "1px solid var(--accent-violet)" : "1px solid var(--accent-blue-hover)")
-                      : "1px solid var(--border-color)",
-                    background: compareTrainType === type
-                      ? (type === "encoder" ? "rgba(139, 92, 246, 0.1)" : "rgba(26, 115, 232, 0.08)")
-                      : "var(--bg-obsidian-950)",
-                    color: compareTrainType === type ? "var(--text-primary)" : "var(--text-secondary)",
-                  }}
+                  className="btn btn-secondary"
+                  style={{ padding: "6px 12px", fontSize: "12px", borderRadius: "6px", border: "1px solid var(--border-color)" }}
+                  onClick={handleReloadNlu}
+                  disabled={reloadingNlu || isTraining}
                 >
-                  {type === "tfidf" ? "TF-IDF" : "PhoBERT Encoder"}
+                  {reloadingNlu ? "Đang tải..." : "Tải lại model NLU"}
                 </button>
-              ))}
+                <button
+                  className="btn btn-secondary"
+                  style={{ padding: "6px 12px", fontSize: "12px", borderRadius: "6px" }}
+                  onClick={fetchAllData}
+                >
+                  Đồng bộ Registry
+                </button>
+              </div>
+              
+              <div style={{ display: "flex", flexDirection: "column", gap: "16px", marginTop: "16px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--border-color)", paddingBottom: "12px" }}>
+                  <span style={{ fontSize: "13px", color: "var(--text-secondary)" }}>Định danh Registry đang chạy</span>
+                  <strong className="monospaced" style={{ color: "var(--accent-blue-hover)", fontSize: "13px" }}>{modelMeta.version}</strong>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--border-color)", paddingBottom: "12px" }}>
+                  <span style={{ fontSize: "13px", color: "var(--text-secondary)" }}>Huấn luyện tại</span>
+                  <strong className="monospaced" style={{ fontSize: "13px" }}>{modelMeta.trainedAt}</strong>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--border-color)", paddingBottom: "12px" }}>
+                  <span style={{ fontSize: "13px", color: "var(--text-secondary)" }}>Bộ giải mã NLU hiện tại</span>
+                  <strong className="monospaced" style={{ color: "var(--accent-emerald)", fontSize: "13px" }}>{inferenceBackend.toUpperCase()}</strong>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--border-color)", paddingBottom: "12px" }}>
+                  <span style={{ fontSize: "13px", color: "var(--text-secondary)" }}>F1-Score Đánh giá Chung</span>
+                  <strong className="monospaced" style={{ color: "var(--accent-emerald-hover)", fontSize: "13px" }}>{modelMeta.f1Score}</strong>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingBottom: "12px" }}>
+                  <span style={{ fontSize: "13px", color: "var(--text-secondary)" }}>Tiến trình huấn luyện nền</span>
+                  <strong className="monospaced" style={{ fontSize: "13px" }}>
+                    {isTraining ? (
+                      <span style={{ color: "var(--accent-amber-hover)", display: "flex", alignItems: "center", gap: "6px" }}>
+                        <span className="status-dot pulse" style={{ background: "var(--accent-amber)", boxShadow: "0 0 8px var(--accent-amber)", width: "6px", height: "6px", borderRadius: "50%" }}></span>
+                        Đang huấn luyện NLU nền...
+                      </span>
+                    ) : isLlmTraining ? (
+                      <span style={{ color: "var(--accent-amber-hover)", display: "flex", alignItems: "center", gap: "6px" }}>
+                        <span className="status-dot pulse" style={{ background: "var(--accent-amber)", boxShadow: "0 0 8px var(--accent-amber)", width: "6px", height: "6px", borderRadius: "50%" }}></span>
+                        Modal H100 Fine-tuning...
+                      </span>
+                    ) : (
+                      <span style={{ color: "var(--accent-emerald-hover)", display: "flex", alignItems: "center", gap: "6px" }}>
+                        <span className="status-dot" style={{ background: "var(--accent-emerald)", boxShadow: "0 0 8px var(--accent-emerald)", width: "6px", height: "6px", borderRadius: "50%" }}></span>
+                        Trạng thái nghỉ (Idle)
+                      </span>
+                    )}
+                  </strong>
+                </div>
+              </div>
             </div>
-            {(() => {
-              const filtered = filterHistoryByType(trainHistory, compareTrainType);
-              if (!filtered.length) return null;
-              const latest = filtered[filtered.length - 1];
-              const prev = filtered.length > 1 ? filtered[filtered.length - 2] : null;
-              const typeLabel = compareTrainType === "encoder" ? "Encoder" : "TF-IDF";
-              return (
-                <div style={{ fontSize: "12px", color: "var(--text-secondary)", display: "flex", gap: "16px", flexWrap: "wrap", width: "100%" }}>
-                  <span>
-                    {typeLabel} mới nhất: <strong style={{ color: compareTrainType === "encoder" ? "#c4b5fd" : "var(--accent-blue-hover)" }}>Run #{latest.run_index}</strong>
-                    {" "}({new Date(latest.trained_at).toLocaleDateString("vi-VN")})
-                    {latest.source ? ` · ${latest.source}` : ""}
-                    {latest.encoder_model ? ` · ${latest.encoder_model}` : ""}
+
+            {/* Import CSV Panel */}
+            <div className="panel" style={{
+              background: "var(--bg-obsidian-900)",
+              border: "1px solid var(--border-color)",
+              borderRadius: "16px",
+              padding: "24px",
+              boxShadow: "0 4px 20px rgba(0, 0, 0, 0.15)"
+            }}>
+              <div className="panel-header" style={{ paddingBottom: "20px", borderBottom: "1px solid var(--border-color)" }}>
+                <div>
+                  <h2 className="panel-title" style={{ fontSize: "16px", fontWeight: "600", color: "var(--text-primary)" }}>Nạp tập dữ liệu huấn luyện bổ sung (Import CSV)</h2>
+                  <span className="form-desc" style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "2px", display: "block" }}>
+                    Tải lên tệp CSV chứa dữ liệu mẫu để tích hợp trực tiếp vào tập huấn luyện lõi.
                   </span>
-                  {prev && (
+                </div>
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: "20px", marginTop: "20px" }}>
+                {/* Formatting Guidelines */}
+                <div style={{ background: "var(--bg-obsidian-950)", padding: "18px", borderRadius: "12px", border: "1px solid var(--border-color)" }}>
+                  <h3 style={{ color: "var(--text-primary)", fontSize: "13px", fontWeight: "600", marginBottom: "10px" }}>Hướng dẫn định dạng tệp CSV:</h3>
+                  <p style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: "1.6", margin: 0 }}>
+                    • Mã hóa tệp bắt buộc là <strong>UTF-8</strong>.<br />
+                    • Dòng tiêu đề: <code style={{ color: "var(--accent-blue-hover)", fontFamily: "var(--font-mono)" }}>text,label,type,is_money</code><br />
+                    • <strong>text</strong>: Câu mô tả (Ví dụ: <code style={{ fontFamily: "var(--font-mono)" }}>"Ăn sáng hết 35k"</code>)<br />
+                    • <strong>label</strong>: Tên danh mục chuẩn (Ví dụ: <code style={{ fontFamily: "var(--font-mono)" }}>Food, Shopping, ...</code>)
+                  </p>
+                </div>
+
+                {/* Upload Area */}
+                <form 
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (!csvFile) return;
+                    if (!window.confirm(`Bạn có chắc chắn muốn nạp dữ liệu từ tệp "${csvFile.name}" và cập nhật dataset huấn luyện NLU không?`)) return;
+                    handleImportCsv(e);
+                  }} 
+                  style={{ display: "flex", flexDirection: "column", gap: "16px" }}
+                >
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label" style={{ color: "var(--text-primary)", marginBottom: "8px", display: "block" }}>Chọn tệp CSV dữ liệu</label>
+                    <input
+                      id="nlu-csv-file-input"
+                      type="file"
+                      accept=".csv"
+                      className="form-input"
+                      style={{ background: "var(--bg-obsidian-950)", padding: "8px 12px" }}
+                      onChange={(e) => setCsvFile(e.target.files?.[0] || null)}
+                      required
+                    />
+                  </div>
+
+                  <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <span style={{ fontSize: "13px", color: "var(--text-secondary)" }}>Tự động huấn luyện:</span>
+                      <select
+                        value={autoRetrainCsv}
+                        onChange={(e) => setAutoRetrainCsv(e.target.value)}
+                        style={{
+                          background: "var(--bg-obsidian-950)",
+                          border: "1px solid var(--border-color)",
+                          color: "var(--text-primary)",
+                          borderRadius: "6px",
+                          padding: "6px 12px",
+                          fontSize: "13px",
+                          outline: "none",
+                          cursor: "pointer"
+                        }}
+                      >
+                        <option value="none">Không</option>
+                        <option value="local">Cục bộ (CPU)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="btn btn-primary"
+                    disabled={importingCsv || !csvFile}
+                    style={{
+                      background: "var(--accent-emerald)",
+                      color: "var(--bg-obsidian-950)",
+                      fontWeight: "600",
+                      width: "100%",
+                      padding: "10px",
+                      borderRadius: "8px",
+                      opacity: (importingCsv || !csvFile) ? 0.6 : 1,
+                      cursor: (importingCsv || !csvFile) ? "not-allowed" : "pointer"
+                    }}
+                  >
+                    {importingCsv ? "Đang nạp dữ liệu..." : "Nạp dữ liệu vào CSV hệ thống"}
+                  </button>
+                </form>
+              </div>
+            </div>
+          </div>
+
+          {/* Model Comparison Table */}
+          <div className="panel" style={{
+            background: "var(--bg-obsidian-900)",
+            border: "1px solid var(--border-color)",
+            borderRadius: "16px",
+            padding: "24px",
+            boxShadow: "0 4px 20px rgba(0, 0, 0, 0.15)",
+            marginTop: "24px"
+          }}>
+            <div className="panel-header" style={{ paddingBottom: "20px", borderBottom: "1px solid var(--border-color)", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "16px" }}>
+              <div>
+                <h2 className="panel-title" style={{ fontSize: "16px", fontWeight: "600", color: "var(--text-primary)" }}>So sánh chỉ số chất lượng mô hình (F1/Accuracy)</h2>
+                <span className="form-desc" style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "2px", display: "block" }}>
+                  Theo dõi sự thay đổi chất lượng mô hình trước và sau khi retrain riêng biệt cho từng loại.
+                </span>
+              </div>
+              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
+                {["tfidf", "encoder"].map((type) => (
+                  <button
+                    key={type}
+                    type="button"
+                    onClick={() => setCompareTrainType(type)}
+                    style={{
+                      padding: "6px 14px",
+                      borderRadius: "8px",
+                      fontSize: "12px",
+                      fontWeight: "600",
+                      cursor: "pointer",
+                      border: compareTrainType === type
+                        ? (type === "encoder" ? "1px solid var(--accent-violet)" : "1px solid var(--accent-blue-hover)")
+                        : "1px solid var(--border-color)",
+                      background: compareTrainType === type
+                        ? (type === "encoder" ? "rgba(139, 92, 246, 0.1)" : "rgba(26, 115, 232, 0.08)")
+                        : "var(--bg-obsidian-950)",
+                      color: compareTrainType === type ? "var(--text-primary)" : "var(--text-secondary)",
+                    }}
+                  >
+                    {type === "tfidf" ? "NLU Classic (TF-IDF)" : "PhoBERT Encoder"}
+                  </button>
+                ))}
+              </div>
+              {(() => {
+                const filtered = filterHistoryByType(trainHistory, compareTrainType);
+                if (!filtered.length) return null;
+                const latest = filtered[filtered.length - 1];
+                const prev = filtered.length > 1 ? filtered[filtered.length - 2] : null;
+                const typeLabel = compareTrainType === "encoder" ? "Encoder" : "TF-IDF";
+                return (
+                  <div style={{ fontSize: "12px", color: "var(--text-secondary)", display: "flex", gap: "16px", flexWrap: "wrap", width: "100%" }}>
                     <span>
-                      Trước đó: <strong style={{ color: "var(--text-muted)" }}>Run #{prev.run_index}</strong>
-                      {prev.source ? ` · ${prev.source}` : ""}
+                      {typeLabel} mới nhất: <strong style={{ color: compareTrainType === "encoder" ? "#c4b5fd" : "var(--accent-blue-hover)" }}>Run #{latest.run_index}</strong>
+                      {" "}({new Date(latest.trained_at).toLocaleDateString("vi-VN")})
+                      {latest.source ? ` · ${latest.source}` : ""}
+                      {latest.encoder_model ? ` · ${latest.encoder_model}` : ""}
                     </span>
-                  )}
+                    {prev && (
+                      <span>
+                        Trước đó: <strong style={{ color: "var(--text-muted)" }}>Run #{prev.run_index}</strong>
+                        {prev.source ? ` · ${prev.source}` : ""}
+                      </span>
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
+
+            {filterHistoryByType(trainHistory, compareTrainType).length === 0 && (
+              <div style={{ marginTop: "16px", padding: "14px", borderRadius: "8px", background: "var(--bg-obsidian-950)", border: "1px solid var(--border-color)", fontSize: "12px", color: "var(--text-muted)" }}>
+                Chưa có dữ liệu lịch sử chạy huấn luyện thành công cho mô hình {compareTrainType === "encoder" ? "PhoBERT encoder" : "TF-IDF classic"}.
+              </div>
+            )}
+
+            <div className="table-container" style={{ borderRadius: "12px", border: "1px solid var(--border-color)", overflow: "hidden", marginTop: "16px" }}>
+              <table className="custom-table">
+                <thead>
+                  <tr style={{ background: "var(--bg-obsidian-950)" }}>
+                    <th style={{ padding: "14px 18px", color: "var(--text-primary)", fontSize: "11px", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.08em" }}>Thành phần Pipeline</th>
+                    <th style={{ padding: "14px 18px", color: "var(--text-primary)", fontSize: "11px", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.08em" }}>Accuracy (Độ chính xác)</th>
+                    <th style={{ padding: "14px 18px", color: "var(--text-primary)", fontSize: "11px", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.08em" }}>Precision</th>
+                    <th style={{ padding: "14px 18px", color: "var(--text-primary)", fontSize: "11px", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.08em" }}>Recall</th>
+                    <th style={{ padding: "14px 18px", color: "var(--text-primary)", fontSize: "11px", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.08em" }}>F1-Score</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(COMPARISON_ROWS[compareTrainType] || COMPARISON_ROWS.tfidf).map((sub) => (
+                    <tr key={sub.key}>
+                      <td style={{ padding: "14px 18px" }}>
+                        <div style={{ color: "var(--text-primary)", fontWeight: "600", fontSize: "13px" }}>{sub.label}</div>
+                        <div style={{ color: "var(--text-muted)", fontSize: "11px", marginTop: "2px" }}>{sub.desc}</div>
+                      </td>
+                      <td style={{ padding: "14px 18px" }}>{renderMetricCell(sub.key, "accuracy")}</td>
+                      <td style={{ padding: "14px 18px" }}>{renderMetricCell(sub.key, "precision")}</td>
+                      <td style={{ padding: "14px 18px" }}>{renderMetricCell(sub.key, "recall")}</td>
+                      <td style={{ padding: "14px 18px" }}>{renderMetricCell(sub.key, "f1_score")}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {compareTrainType === "tfidf" && (() => {
+              const filtered = filterHistoryByType(trainHistory, "tfidf");
+              const latest = filtered.length ? filtered[filtered.length - 1] : null;
+              const slots = latest?.metrics?.action_slots || modelMeta?.actionSlots;
+              const fields = slots?.fields;
+              if (!fields || typeof fields !== "object") return null;
+              const summary = slots.summary || {};
+              return (
+                <div style={{ marginTop: "20px", padding: "16px", background: "var(--bg-obsidian-950)", borderRadius: "12px", border: "1px solid var(--border-color)" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px", flexWrap: "wrap", gap: "8px" }}>
+                    <h3 style={{ margin: 0, fontSize: "14px", fontWeight: "600", color: "var(--text-primary)" }}>Chi tiết trích xuất Action Slots theo trường</h3>
+                    <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>
+                      {summary.trained_fields ?? Object.keys(fields).length} fields
+                      {summary.dataset_rows != null ? ` · ${summary.dataset_rows.toLocaleString()} rows CSV` : ""}
+                      {summary.avg_weighted_f1 != null ? ` · avg F1 ${(summary.avg_weighted_f1 * 100).toFixed(1)}%` : ""}
+                    </span>
+                  </div>
+                  <div className="table-container" style={{ borderRadius: "8px", border: "1px solid var(--border-color)", overflow: "hidden" }}>
+                    <table className="custom-table">
+                      <thead>
+                        <tr style={{ background: "var(--bg-obsidian-900)" }}>
+                          <th style={{ padding: "10px 14px", fontSize: "10px" }}>Tên Slot Field</th>
+                          <th style={{ padding: "10px 14px", fontSize: "10px" }}>Kiểu dữ liệu</th>
+                          <th style={{ padding: "10px 14px", fontSize: "10px" }}>Số mẫu train</th>
+                          <th style={{ padding: "10px 14px", fontSize: "10px" }}>Accuracy</th>
+                          <th style={{ padding: "10px 14px", fontSize: "10px" }}>Weighted F1</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {Object.entries(fields).map(([name, m]) => (
+                          <tr key={name}>
+                            <td style={{ padding: "10px 14px", fontFamily: "var(--font-mono)", fontSize: "12px" }}>{name}</td>
+                            <td style={{ padding: "10px 14px", fontSize: "12px" }}>{m.type || "—"}</td>
+                            <td style={{ padding: "10px 14px", fontSize: "12px" }}>{m.train_samples ?? "—"}</td>
+                            <td style={{ padding: "10px 14px", fontSize: "12px" }}>
+                              {m.accuracy != null ? `${(m.accuracy * 100).toFixed(1)}%` : "—"}
+                            </td>
+                            <td style={{ padding: "10px 14px", fontSize: "12px" }}>
+                              {m.weighted_f1 != null ? `${(m.weighted_f1 * 100).toFixed(1)}%` : "—"}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               );
             })()}
           </div>
-
-          {filterHistoryByType(trainHistory, compareTrainType).length === 0 && (
-            <div style={{ marginTop: "16px", padding: "14px", borderRadius: "8px", background: "var(--bg-obsidian-950)", border: "1px solid var(--border-color)", fontSize: "12px", color: "var(--text-muted)" }}>
-              Chưa có lịch sử retrain {compareTrainType === "encoder" ? "PhoBERT encoder" : "TF-IDF"} thành công. Chạy train worker tương ứng để ghi metrics.
-            </div>
-          )}
-
-          <div className="table-container" style={{ borderRadius: "12px", border: "1px solid var(--border-color)", overflow: "hidden", marginTop: "16px" }}>
-            <table className="custom-table">
-              <thead>
-                <tr style={{ background: "var(--bg-obsidian-950)" }}>
-                  <th style={{ padding: "14px 18px", color: "var(--text-primary)", fontSize: "11px", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.08em" }}>Thành Phần Mô Hình</th>
-                  <th style={{ padding: "14px 18px", color: "var(--text-primary)", fontSize: "11px", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.08em" }}>Accuracy (Độ chính xác)</th>
-                  <th style={{ padding: "14px 18px", color: "var(--text-primary)", fontSize: "11px", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.08em" }}>Precision (Độ tinh xác)</th>
-                  <th style={{ padding: "14px 18px", color: "var(--text-primary)", fontSize: "11px", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.08em" }}>Recall (Độ bao phủ)</th>
-                  <th style={{ padding: "14px 18px", color: "var(--text-primary)", fontSize: "11px", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.08em" }}>F1-Score (Điểm F1)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(COMPARISON_ROWS[compareTrainType] || COMPARISON_ROWS.tfidf).map((sub) => (
-                  <tr key={sub.key}>
-                    <td style={{ padding: "14px 18px" }}>
-                      <div style={{ color: "var(--text-primary)", fontWeight: "600", fontSize: "13px" }}>{sub.label}</div>
-                      <div style={{ color: "var(--text-muted)", fontSize: "11px", marginTop: "2px" }}>{sub.desc}</div>
-                    </td>
-                    <td style={{ padding: "14px 18px" }}>{renderMetricCell(sub.key, "accuracy")}</td>
-                    <td style={{ padding: "14px 18px" }}>{renderMetricCell(sub.key, "precision")}</td>
-                    <td style={{ padding: "14px 18px" }}>{renderMetricCell(sub.key, "recall")}</td>
-                    <td style={{ padding: "14px 18px" }}>{renderMetricCell(sub.key, "f1_score")}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {compareTrainType === "tfidf" && (() => {
-            const filtered = filterHistoryByType(trainHistory, "tfidf");
-            const latest = filtered.length ? filtered[filtered.length - 1] : null;
-            const slots = latest?.metrics?.action_slots || modelMeta?.actionSlots;
-            const fields = slots?.fields;
-            if (!fields || typeof fields !== "object") return null;
-            const summary = slots.summary || {};
-            return (
-              <div style={{ marginTop: "20px", padding: "16px", background: "var(--bg-obsidian-950)", borderRadius: "12px", border: "1px solid var(--border-color)" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px", flexWrap: "wrap", gap: "8px" }}>
-                  <h3 style={{ margin: 0, fontSize: "14px", fontWeight: "600", color: "var(--text-primary)" }}>Action Slots — chi tiết từng field</h3>
-                  <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>
-                    {summary.trained_fields ?? Object.keys(fields).length} fields
-                    {summary.dataset_rows != null ? ` · ${summary.dataset_rows.toLocaleString()} rows CSV` : ""}
-                    {summary.avg_weighted_f1 != null ? ` · avg F1 ${(summary.avg_weighted_f1 * 100).toFixed(1)}%` : ""}
-                  </span>
-                </div>
-                <div className="table-container" style={{ borderRadius: "8px", border: "1px solid var(--border-color)", overflow: "hidden" }}>
-                  <table className="custom-table">
-                    <thead>
-                      <tr style={{ background: "var(--bg-obsidian-900)" }}>
-                        <th style={{ padding: "10px 14px", fontSize: "10px" }}>Slot field</th>
-                        <th style={{ padding: "10px 14px", fontSize: "10px" }}>Loại</th>
-                        <th style={{ padding: "10px 14px", fontSize: "10px" }}>Train samples</th>
-                        <th style={{ padding: "10px 14px", fontSize: "10px" }}>Accuracy</th>
-                        <th style={{ padding: "10px 14px", fontSize: "10px" }}>Weighted F1</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {Object.entries(fields).map(([name, m]) => (
-                        <tr key={name}>
-                          <td style={{ padding: "10px 14px", fontFamily: "var(--font-mono)", fontSize: "12px" }}>{name}</td>
-                          <td style={{ padding: "10px 14px", fontSize: "12px" }}>{m.type || "—"}</td>
-                          <td style={{ padding: "10px 14px", fontSize: "12px" }}>{m.train_samples ?? "—"}</td>
-                          <td style={{ padding: "10px 14px", fontSize: "12px" }}>
-                            {m.accuracy != null ? `${(m.accuracy * 100).toFixed(1)}%` : "—"}
-                          </td>
-                          <td style={{ padding: "10px 14px", fontSize: "12px" }}>
-                            {m.weighted_f1 != null ? `${(m.weighted_f1 * 100).toFixed(1)}%` : "—"}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            );
-          })()}
-        </div>
-      </>
+        </>
       )}
 
       {toastMessage && (

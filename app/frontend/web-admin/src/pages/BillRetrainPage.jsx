@@ -6,35 +6,17 @@ import {
   billSampleImageUrl,
   deleteBillSample,
   exportBillVerified,
-  fetchBillKaggleJob,
-  fetchBillKaggleJobs,
   fetchBillOcrStatus,
   fetchBillSamples,
   rePrelabelBillSample,
   runBillGoldenEval,
-  fetchBillKagglePlan,
-  triggerBillKaggle,
   reloadAiModels,
   uploadBillSample,
-  syncBillKaggle,
   saveBillSample,
+  triggerBillModal,
 } from "../services/api";
 
 const ENTITIES = ["OTHER", "SELLER", "ADDRESS", "TIMESTAMP", "TOTAL_COST"];
-
-const KAGGLE_STEPS = [
-  { key: "queued", label: "Khởi tạo job" },
-  { key: "versioning_dataset", label: "Upload dataset Kaggle" },
-  { key: "syncing_pick_code", label: "Sync pick-train-code" },
-  { key: "pushing_kernel", label: "Push kernel retrain" },
-  { key: "running_on_kaggle", label: "Train trên Kaggle (GPU)" },
-  { key: "syncing", label: "Đồng bộ output Kaggle" },
-  { key: "deploying", label: "Tải output & deploy weights" },
-  { key: "deploying_from_cloud", label: "Deploy từ cloud fallback" },
-  { key: "completed", label: "Hoàn thành" },
-];
-
-const STEP_ORDER = KAGGLE_STEPS.map((s) => s.key);
 
 const STATUS_LABELS = {
   pending: "pending",
@@ -44,87 +26,6 @@ const STATUS_LABELS = {
 
 function sampleStatusLabel(status) {
   return STATUS_LABELS[status] || status;
-}
-
-function KaggleProgressPanel({ job }) {
-  if (!job) return null;
-  const status = job.status || "queued";
-  const isFailed = status === "failed";
-  const isDone = status === "completed";
-  const curIdx = STEP_ORDER.indexOf(status);
-  const visibleSteps = KAGGLE_STEPS.filter(
-    (step) => {
-      if (step.key === "deploying_from_cloud") {
-        return status === "deploying_from_cloud" || STEP_ORDER.indexOf(step.key) <= curIdx;
-      }
-      if (step.key === "syncing") {
-        return status === "syncing" || status === "syncing_pick_code" || STEP_ORDER.indexOf(step.key) <= curIdx;
-      }
-      return true;
-    }
-  );
-  const activeStep = visibleSteps.find((s) => s.key === status) || visibleSteps[Math.max(0, curIdx)];
-  const stepNum = Math.max(1, curIdx >= 0 ? curIdx + 1 : 1);
-  const stepTotal = Math.max(1, visibleSteps.length - 1);
-  const progressPct =
-    isDone ? 100 : curIdx >= 0 ? Math.min(100, Math.round((curIdx / (STEP_ORDER.length - 2)) * 100)) : 0;
-
-  return (
-    <section className="bill-surface bill-kaggle-progress" id="kaggle-progress-panel">
-      <div className="bill-kaggle-progress-head">
-        <div>
-          <p className="bill-surface-eyebrow">Kaggle retrain</p>
-          <h2 className="bill-surface-title">Tiến độ train</h2>
-        </div>
-        <span className={`bill-status-chip ${status}`}>{status.replace(/_/g, " ")}</span>
-      </div>
-      <p className="bill-kaggle-meta">
-        Job <code>{(job.id || job.job_id || "").slice(0, 8)}</code>
-        {job.job_type && <> · {job.job_type}</>}
-        {job.kernel && <> · {job.kernel}</>}
-      </p>
-      {!isDone && !isFailed && (
-        <p className="bill-kaggle-step-label">
-          Bước {stepNum}/{stepTotal} — {activeStep?.label || status.replace(/_/g, " ")}
-          <span className="bill-kaggle-pct">{progressPct}%</span>
-        </p>
-      )}
-      <div className="kaggle-track" aria-label="Tiến độ retrain">
-        {KAGGLE_STEPS.map((step) => {
-          const state = kaggleStepState(status, step.key);
-          if (step.key === "deploying_from_cloud" && status !== "deploying_from_cloud" && state === "pending") {
-            return null;
-          }
-          if (step.key === "syncing" && status !== "syncing" && state === "pending") {
-            return null;
-          }
-          return (
-            <div key={step.key} className={`kaggle-track-step kaggle-track-step-${state}`} title={step.label}>
-              <span className="kaggle-track-dot" />
-              <span className="kaggle-track-label">{step.label}</span>
-            </div>
-          );
-        })}
-      </div>
-      {!isDone && !isFailed && curIdx >= 0 && (
-        <div className="bill-progress-bar" aria-hidden="true">
-          <div className="bill-progress-fill" style={{ width: `${progressPct}%` }} />
-        </div>
-      )}
-      {isDone && (
-        <p className="bill-inline-toast success">
-          Retrain hoàn thành — weights deploy, ai-service reload OCR.
-          {job.f1_score && job.f1_score !== "N/A" && <> · F1 {job.f1_score}</>}
-        </p>
-      )}
-      {isFailed && (
-        <p className="bill-inline-toast error">
-          Retrain thất bại — kiểm tra log Kaggle.
-          {job.error && <span className="bill-kaggle-err"> {String(job.error).slice(0, 160)}</span>}
-        </p>
-      )}
-    </section>
-  );
 }
 
 function BillToast({ toast, onDismiss }) {
@@ -162,7 +63,7 @@ function formatPrelabelMessage(prelabel) {
   if (n === 0) {
     return "Auto-label trả về 0 box — kiểm tra OCR online rồi bấm Gán nhãn auto lại.";
   }
-  const kieLabel = kie === "pick" ? "PICK KIE" : `heuristic (${kie})`;
+  const kieLabel = kie === "layoutlmv3" ? "LayoutLMv3 KIE" : `heuristic (${kie})`;
   return `Gán nhãn auto: ${n} boxes · entity: ${kieLabel} · ${engine}`;
 }
 
@@ -200,23 +101,6 @@ function PrelabelQueuePanel({ jobs }) {
   );
 }
 
-function kaggleStepState(jobStatus, stepKey) {
-  if (jobStatus === "failed") {
-    const failedIdx = STEP_ORDER.indexOf(stepKey);
-    const currentIdx = STEP_ORDER.findIndex((k) => k === jobStatus);
-    if (stepKey === "completed") return "pending";
-    if (failedIdx <= currentIdx && stepKey !== "completed") return failedIdx === currentIdx ? "failed" : "done";
-    return "pending";
-  }
-  if (jobStatus === "completed") return stepKey === "completed" ? "done" : "done";
-  const curIdx = STEP_ORDER.indexOf(jobStatus);
-  const stepIdx = STEP_ORDER.indexOf(stepKey);
-  if (stepIdx < 0) return "pending";
-  if (stepIdx < curIdx) return "done";
-  if (stepIdx === curIdx) return "active";
-  return "pending";
-}
-
 export default function BillRetrainPage() {
   const [samples, setSamples] = useState([]);
   const [active, setActive] = useState(null);
@@ -228,11 +112,6 @@ export default function BillRetrainPage() {
   const [messageIsError, setMessageIsError] = useState(false);
   const [ocrStatus, setOcrStatus] = useState(null);
   const [golden, setGolden] = useState(null);
-  const [kagglePlan, setKagglePlan] = useState(null);
-  const [kaggleJobs, setKaggleJobs] = useState([]);
-  const [activeJob, setActiveJob] = useState(null);
-  const [triggerKaggleOnExport, setTriggerKaggleOnExport] = useState(false);
-  const [exportJobType, setExportJobType] = useState("pick_retrain");
   const [archiveImagesOnExport, setArchiveImagesOnExport] = useState(true);
   const [drawMode, setDrawMode] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
@@ -329,6 +208,7 @@ export default function BillRetrainPage() {
   };
 
   const onReloadModels = async () => {
+    if (!window.confirm("Bạn có chắc chắn muốn tải lại nóng toàn bộ model OCR (Paddle + VietOCR + LayoutLMv3) không?")) return;
     setBusy(true, "Đang tải lại model OCR...");
     setMessage("");
     try {
@@ -337,7 +217,7 @@ export default function BillRetrainPage() {
       setMessageIsError(!r.ok);
       setMessage(
         r.ok
-          ? `Đã tải lại OCR — KIE: ${r.kie_backend || "unknown"}${r.kie_backend === "pick" ? " (PICK active)" : ""}`
+          ? `Đã tải lại OCR — KIE: ${r.kie_backend || "unknown"}${r.kie_backend === "layoutlmv3" ? " (LayoutLMv3 active)" : ""}`
           : r.ocr_error || "Reload OCR thất bại — kiểm tra ai-service port 8000."
       );
     } catch (err) {
@@ -355,89 +235,10 @@ export default function BillRetrainPage() {
     });
     refreshOcrStatus().then((st) => {
       if (st && !st.ocr_loaded) {
-        reloadAiModels("ocr").catch(() => {});
+        reloadAiModels("ocr").catch(() => { });
       }
     });
-    
-    const storedJobId = localStorage.getItem("active_kaggle_job_id");
-    if (storedJobId) {
-      fetchBillKaggleJob(storedJobId)
-        .then((job) => {
-          if (job && job.status && !["completed", "failed"].includes(job.status)) {
-            setActiveJob(job);
-          } else {
-            localStorage.removeItem("active_kaggle_job_id");
-          }
-        })
-        .catch(() => {});
-    }
   }, [loadSamples, refreshOcrStatus]);
-
-  useEffect(() => {
-    const jobId = activeJob?.id || activeJob?.job_id;
-    if (!jobId) return undefined;
-    if (activeJob.status === "completed" || activeJob.status === "failed") {
-      localStorage.removeItem("active_kaggle_job_id");
-      return undefined;
-    }
-    const t = setInterval(async () => {
-      try {
-        const job = await fetchBillKaggleJob(jobId);
-        setActiveJob(job);
-        if (job.status === "completed" || job.status === "failed") {
-          localStorage.removeItem("active_kaggle_job_id");
-          clearInterval(t);
-          fetchBillKaggleJobs().then(setKaggleJobs).catch(() => {});
-        }
-      } catch {
-        localStorage.removeItem("active_kaggle_job_id");
-        clearInterval(t);
-      }
-    }, 5000);
-    return () => clearInterval(t);
-  }, [activeJob?.id, activeJob?.job_id, activeJob?.status]);
-
-  useEffect(() => {
-    const job = activeJob;
-    if (!job || job.status !== "completed") return;
-    const id = job.id || job.job_id;
-    if (!id || handledJobsRef.current.has(id)) return;
-    handledJobsRef.current.add(id);
-
-    const finish = async () => {
-      let reloadMsg = "";
-      if (job.needs_model_reload !== false) {
-        try {
-          const r = await reloadAiModels("ocr");
-          await refreshOcrStatus();
-          reloadMsg = r.ok ? " OCR đã reload." : " (reload OCR thất bại — bấm Tải lại model OCR).";
-        } catch {
-          reloadMsg = " (reload OCR thất bại — bấm Tải lại model OCR).";
-        }
-      }
-      setMessageIsError(false);
-      setMessage(`Kaggle ${job.job_type || "retrain"} hoàn thành — weights đã deploy.${reloadMsg}`);
-      showToast(
-        "success",
-        `Kaggle retrain hoàn thành (${(job.id || job.job_id || "").slice(0, 8)})${reloadMsg}`,
-        { label: "Xem job", onClick: scrollToKagglePanel }
-      );
-    };
-    finish();
-  }, [activeJob, refreshOcrStatus, showToast, scrollToKagglePanel]);
-
-  useEffect(() => {
-    const job = activeJob;
-    if (!job || job.status !== "failed") return;
-    const id = job.id || job.job_id;
-    if (!id || handledJobsRef.current.has(`failed:${id}`)) return;
-    handledJobsRef.current.add(`failed:${id}`);
-    showToast(
-      "error",
-      `Kaggle retrain thất bại (${id.slice(0, 8)})${job.error ? `: ${String(job.error).slice(0, 80)}` : ""}`,
-      { label: "Xem job", onClick: scrollToKagglePanel }
-    );
-  }, [activeJob, showToast, scrollToKagglePanel]);
 
   const applyPrelabelResult = (sample, prelabel) => {
     setActive(sample);
@@ -521,7 +322,8 @@ export default function BillRetrainPage() {
     setDrawMode(false);
     setActive(s);
     setBoxes(s.adminLabels || s.autoLabels?.boxes || []);
-    setActiveCategory(s.metadata?.category || s.autoLabels?.category || "Others");
+    const cat = s.metadata?.category || s.autoLabels?.category || "Others";
+    setActiveCategory(cat === "Other" ? "Others" : cat);
     setSelectedIdx(null);
     if (!s.metadata?.prelabelError) {
       setMessage("");
@@ -582,7 +384,7 @@ export default function BillRetrainPage() {
       await approveBillSample(active.id, boxes, activeCategory);
       await loadSamples();
       setMessageIsError(false);
-      setMessage("Đã duyệt — nhãn dùng cho export PICK KIE");
+      setMessage("Đã duyệt — nhãn dùng cho export LayoutLMv3");
     } catch (err) {
       setMessageIsError(true);
       setMessage(err.message);
@@ -592,22 +394,17 @@ export default function BillRetrainPage() {
   };
 
   const onExport = async () => {
+    if (!window.confirm("Bạn có chắc chắn muốn xuất toàn bộ mẫu hóa đơn đã duyệt sang thư mục hệ thống để retrain không?")) return;
     setBusy(true, "Đang export nhãn đã duyệt...");
     try {
       const r = await exportBillVerified(
-        triggerKaggleOnExport,
-        exportJobType,
+        false,
+        "layoutlmv3",
         undefined,
         archiveImagesOnExport
       );
-      const username = r.kaggle_username || "mainhatkhangb2205881";
-      let msg = `Đã thêm ${r.exported} hóa đơn vào dataset Kaggle (${username}/webadmin-verified-receipts).`;
+      let msg = `Đã export ${r.exported} hóa đơn sang thư mục hệ thống retrain.`;
       if (r.archivedImages > 0) msg += ` Đã archive ${r.archivedImages} ảnh local.`;
-      if (r.kaggle_job?.job_id) {
-        setActiveJob(r.kaggle_job);
-        localStorage.setItem("active_kaggle_job_id", r.kaggle_job.id || r.kaggle_job.job_id);
-        msg += ` Bắt đầu train job ${r.kaggle_job.job_id.slice(0, 8)} trên Kaggle.`;
-      }
       setMessageIsError(false);
       setMessage(msg);
       const rows = await fetchBillSamples();
@@ -622,7 +419,6 @@ export default function BillRetrainPage() {
           setSelectedIdx(null);
         }
       }
-      fetchBillKaggleJobs().then(setKaggleJobs).catch(() => {});
     } catch (err) {
       setMessageIsError(true);
       setMessage(err.message);
@@ -631,29 +427,27 @@ export default function BillRetrainPage() {
     }
   };
 
-  const onKaggleTrigger = async (jobType) => {
-    setBusy(true, `Đang khởi chạy Kaggle ${jobType}...`);
+  const onModalTrigger = async () => {
+    if (!window.confirm("Bạn có chắc chắn muốn khởi chạy huấn luyện mô hình LayoutLMv3 trên đám mây Modal (sử dụng GPU) không?\n\nTác vụ này sẽ chạy nền và có thể tốn tài nguyên đám mây.")) return;
+    setBusy(true, "Đang khởi chạy training LayoutLMv3 trên Modal Cloud...");
     try {
-      const job = await triggerBillKaggle(jobType);
-      setActiveJob(job);
-      if (job.ok && job.job_id) {
-        localStorage.setItem("active_kaggle_job_id", job.job_id);
-      }
+      const res = await triggerBillModal(30, 0.00002);
+      setMessageIsError(!res.ok);
       setMessage(
-        job.ok
-          ? `Kaggle ${jobType} đã queue — job ${job.job_id?.slice(0, 8)}`
-          : job.error || "Trigger failed"
+        res.ok
+          ? `Modal training đã khởi động thành công — Job: ${res.job_id || "running"}`
+          : res.error || "Không thể khởi chạy training trên Modal"
       );
-      fetchBillKaggleJobs().then(setKaggleJobs).catch(() => {});
     } catch (err) {
       setMessageIsError(true);
-      setMessage(err.message);
+      setMessage(err.message || "Trigger Modal training thất bại");
     } finally {
       setBusy(false);
     }
   };
 
   const onGolden = async () => {
+    if (!window.confirm("Bạn có chắc chắn muốn chạy đánh giá chất lượng (Golden Test) trên tập dữ liệu kiểm thử chuẩn không?")) return;
     setBusy(true, "Đang chạy Golden Test...");
     try {
       const r = await runBillGoldenEval();
@@ -668,62 +462,7 @@ export default function BillRetrainPage() {
     }
   };
 
-  const onKagglePlan = async () => {
-    setBusy(true, "Đang kiểm tra Kaggle plan...");
-    try {
-      const plan = await fetchBillKagglePlan("pick_retrain");
-      setKagglePlan(plan);
-      setMessageIsError(!plan.kaggle_configured);
-      setMessage(plan.kaggle_configured ? "Kaggle CLI sẵn sàng" : "Kaggle CLI chưa sẵn sàng");
-    } catch (err) {
-      setMessageIsError(true);
-      setMessage(err.message);
-    } finally {
-      setBusy(false);
-    }
-  };
 
-  const onSyncKaggle = async () => {
-    if (!window.confirm("Đồng bộ weights từ kernel Kaggle đã COMPLETE? (Dùng khi server tắt giữa chừng retrain)")) {
-      return;
-    }
-    setBusy(true, "Đang tải output Kaggle và deploy weights...");
-    setMessage("");
-    setMessageIsError(false);
-    try {
-      const res = await syncBillKaggle(false, exportJobType);
-      if (!res.ok) {
-        throw new Error(res.error || "Sync Kaggle thất bại");
-      }
-      if (res.job_id) {
-        const jobs = await fetchBillKaggleJobs();
-        setKaggleJobs(jobs);
-        const synced = jobs.find((j) => (j.id || j.job_id) === res.job_id) || {
-          id: res.job_id,
-          job_id: res.job_id,
-          status: "completed",
-          f1_score: res.f1_score,
-          source: "manual_sync",
-        };
-        setActiveJob(synced);
-      }
-      let reloadMsg = "";
-      try {
-        const r = await reloadAiModels("ocr");
-        reloadMsg = r.ok ? " OCR đã reload." : " (reload OCR thất bại — bấm Tải lại model OCR).";
-      } catch {
-        reloadMsg = " (reload OCR thất bại — bấm Tải lại model OCR).";
-      }
-      setMessageIsError(false);
-      setMessage(`${res.message || "Sync Kaggle OK"}${res.f1_score ? ` · F1 ${res.f1_score}` : ""}${reloadMsg}`);
-      refreshOcrStatus();
-    } catch (err) {
-      setMessageIsError(true);
-      setMessage(err.message || "Sync Kaggle thất bại");
-    } finally {
-      setBusy(false);
-    }
-  };
 
   const imageUrl =
     active?.imageUrl && !active?.imageArchived
@@ -761,7 +500,7 @@ export default function BillRetrainPage() {
           <p className="bill-page-eyebrow">Pipeline retrain</p>
           <h1 className="page-title">Bill OCR Retrain</h1>
           <p className="page-desc">
-            Upload, gán nhãn auto, duyệt và export cho PICK KIE trên Kaggle.
+            Upload, gán nhãn auto, duyệt và huấn luyện mô hình LayoutLMv3.
           </p>
           <div className="bill-stat-strip">
             <div className="bill-stat">
@@ -883,38 +622,20 @@ export default function BillRetrainPage() {
               <input type="checkbox" checked={archiveImagesOnExport} onChange={(e) => setArchiveImagesOnExport(e.target.checked)} />
               <span>Xóa ảnh local sau export</span>
             </label>
-            <label className="bill-toggle">
-              <input type="checkbox" checked={triggerKaggleOnExport} onChange={(e) => setTriggerKaggleOnExport(e.target.checked)} />
-              <span>Auto Kaggle</span>
-            </label>
-            <select className="bill-select" value={exportJobType} onChange={(e) => setExportJobType(e.target.value)}>
-              <option value="pick_retrain">PICK retrain</option>
-            </select>
           </div>
         </div>
 
         <div className="bill-toolbar-divider" aria-hidden="true" />
 
         <div className="bill-toolbar-group">
-          <span className="bill-toolbar-label">Kaggle</span>
+          <span className="bill-toolbar-label">Modal Cloud</span>
           <div className="bill-toolbar-actions">
-            <button type="button" className="btn btn-secondary" onClick={() => onKaggleTrigger("pick_retrain")} disabled={loading}>
-              PICK retrain
-            </button>
-            <button type="button" className="btn btn-ghost" onClick={onGolden} disabled={loading}>
-              Golden
-            </button>
-            <button type="button" className="btn btn-ghost" onClick={onKagglePlan} disabled={loading}>
-              Plan
-            </button>
-            <button type="button" className="btn btn-ghost" onClick={onSyncKaggle} disabled={loading} title="Tải output kernel COMPLETE và deploy weights (khi server tắt giữa chừng)">
-              Sync Kaggle
+            <button type="button" className="btn btn-secondary" onClick={onModalTrigger} disabled={loading}>
+              Train LayoutLMv3
             </button>
           </div>
         </div>
       </div>
-
-      {activeJob && <KaggleProgressPanel job={activeJob} />}
 
       <div className="grid-2 bill-retrain-grid">
         <section className="bill-surface bill-queue-panel">
@@ -1064,51 +785,6 @@ export default function BillRetrainPage() {
           )}
         </section>
       </div>
-
-      <section className="bill-surface bill-jobs-panel">
-        <div className="bill-surface-head">
-          <div>
-            <p className="bill-surface-eyebrow">History</p>
-            <h2 className="bill-surface-title">Kaggle jobs</h2>
-          </div>
-          {kaggleJobs.length === 0 && (
-            <button
-              type="button"
-              className="btn btn-secondary"
-              style={{ padding: "6px 12px", fontSize: "12px", height: "auto" }}
-              onClick={() => fetchBillKaggleJobs().then(setKaggleJobs).catch(() => {})}
-            >
-              Tải lịch sử
-            </button>
-          )}
-        </div>
-        {kaggleJobs.length > 0 ? (
-          <ul className="kaggle-job-list">
-            {kaggleJobs.slice(0, 8).map((j) => (
-              <li key={j.id || j.job_id}>
-                <button type="button" className="kaggle-job-btn" onClick={() => {
-                  setActiveJob(j);
-                  if (j && j.status && !["completed", "failed"].includes(j.status)) {
-                    localStorage.setItem("active_kaggle_job_id", j.id || j.job_id);
-                  } else {
-                    localStorage.removeItem("active_kaggle_job_id");
-                  }
-                }}>
-                  <code>{(j.id || j.job_id || "").slice(0, 8)}</code>
-                  <span className={`job-status ${j.status}`}>{j.status}</span>
-                  <span className="muted">{j.job_type}</span>
-                  {j.f1_score && j.f1_score !== "N/A" && <span className="muted">F1 {j.f1_score}</span>}
-                </button>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="muted" style={{ padding: "12px 0 0 0", fontSize: "13px" }}>Bấm nút Tải lịch sử bên trên để truy xuất danh sách job từ Kaggle.</p>
-        )}
-      </section>
-
-      {golden && <pre className="code-block">{JSON.stringify(golden, null, 2)}</pre>}
-      {kagglePlan && <pre className="code-block">{JSON.stringify(kagglePlan, null, 2)}</pre>}
     </div>
   );
 }

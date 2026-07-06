@@ -467,6 +467,44 @@ function UserManagementPage() {
                 </dl>
               </div>
 
+              <div className="user-profile-actions" style={{ marginTop: "16px", padding: "16px", background: "white", borderRadius: "12px", border: "1px solid #f1f5f9" }}>
+                <h4 style={{ fontWeight: "600", fontSize: "14px", marginBottom: "12px", color: "#1e293b" }}>Xuất dữ liệu chi tiêu (Excel/CSV)</h4>
+                <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                  <a
+                    href={`${import.meta.env.VITE_API_BASE_URL || "http://localhost:4000"}/api/admin/transactions/export?userId=${selectedUser.id}&period=day`}
+                    download
+                    className="user-mgmt-page-btn"
+                    style={{ textDecoration: "none", fontSize: "12px", padding: "6px 12px", textAlign: "center" }}
+                  >
+                    📅 Hôm nay
+                  </a>
+                  <a
+                    href={`${import.meta.env.VITE_API_BASE_URL || "http://localhost:4000"}/api/admin/transactions/export?userId=${selectedUser.id}&period=week`}
+                    download
+                    className="user-mgmt-page-btn"
+                    style={{ textDecoration: "none", fontSize: "12px", padding: "6px 12px", textAlign: "center" }}
+                  >
+                    🗓️ Tuần này
+                  </a>
+                  <a
+                    href={`${import.meta.env.VITE_API_BASE_URL || "http://localhost:4000"}/api/admin/transactions/export?userId=${selectedUser.id}&period=month`}
+                    download
+                    className="user-mgmt-page-btn"
+                    style={{ textDecoration: "none", fontSize: "12px", padding: "6px 12px", textAlign: "center" }}
+                  >
+                    📊 Tháng này
+                  </a>
+                  <a
+                    href={`${import.meta.env.VITE_API_BASE_URL || "http://localhost:4000"}/api/admin/transactions/export?userId=${selectedUser.id}&period=all`}
+                    download
+                    className="user-mgmt-page-btn primary"
+                    style={{ textDecoration: "none", fontSize: "12px", padding: "6px 12px", textAlign: "center", background: "#0d9488", color: "white" }}
+                  >
+                    📥 Tất cả
+                  </a>
+                </div>
+              </div>
+
               {inspectorError && <div className="user-mgmt-error">{inspectorError}</div>}
 
               <div className="user-inspector-wrap">

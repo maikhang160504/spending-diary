@@ -316,6 +316,13 @@ export function runBillGoldenEval() {
   return request("/api/admin/bill-retrain/golden-eval");
 }
 
+export function triggerBillModal(numEpochs = 30, learningRate = 0.00002) {
+  return request("/api/admin/bill-retrain/modal/trigger", {
+    method: "POST",
+    body: JSON.stringify({ numEpochs, learningRate }),
+  });
+}
+
 export function reloadAiModels(scope = "ocr") {
   return request("/api/admin/ai-service/reload", {
     method: "POST",
@@ -358,4 +365,30 @@ export function importNluCsv(file, autoRetrain = false, trainTarget = "local") {
     return res.json();
   });
 }
+
+export function getNluBenchmarkResults() {
+  return request("/api/admin/nlu/benchmark/results");
+}
+
+export function triggerNluBenchmark() {
+  return request("/api/admin/nlu/benchmark/run", {
+    method: "POST"
+  });
+}
+
+export function getLlmTrainHistory() {
+  return request("/api/admin/train/llm-history");
+}
+
+export function getOcrTrainHistory() {
+  return request("/api/admin/bill-retrain/ocr-history");
+}
+
+export function triggerLlmFinetune(epochs = 3, lr = 0.0002, batchSize = 4) {
+  return request("/api/admin/train/llm-trigger", {
+    method: "POST",
+    body: JSON.stringify({ epochs, lr, batchSize })
+  });
+}
+
 

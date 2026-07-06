@@ -1,27 +1,31 @@
 import { useState, useEffect } from "react";
-import { getBotPrompts, saveBotPrompts } from "../services/api";
+import { getBotPrompts, saveBotPrompts, getSystemSettings, saveSystemSettings } from "../services/api";
 
 const PERSONA_LABELS = {
   vui: "Vui vẻ / Năng lượng cao",
-  dan_doi: "Giận dỗi / Lo lắng",
-  cham_choc: "Châm chọc / Hài hước nhẹ",
-  dong_cam: "Đồng cảm / Ấm áp",
-  nghiem_tuc: "Nghiêm túc / Rõ ràng",
-  hai_huoc: "Hài hước / Bắt trend"
+  dan_doi: "Giận dỗi / Lo lắng"
+};
+
+const PERSONA_ICONS = {
+  vui: "🎉🔥",
+  dan_doi: "😢💔"
 };
 
 const MOCK_PREVIEWS = {
-  vui: "Ăn sáng vỉa hè hết 45k hả sen? Bữa sáng thịnh soạn hết nước chấm luôn, quẩy thôi! ☕️🐢",
-  dan_doi: "Lại ăn sườn nướng 55k? É t ô é t cứu con tim, nhức nhức cái đầu quá bạn ơi! 😢",
-  cham_choc: "Ăn sáng nhẹ hết 45k? Ơ kìa bạn ơi, không tin nổi luôn, tiêu hoang thế! 🙄",
-  dong_cam: "Bạn đã chi 45k cho bữa sáng. Oki bae, bạn làm tốt lắm, mình ở đây động viên nha! 🥺",
-  nghiem_tuc: "Đã ghi nhận giao dịch ăn sáng trị giá 45,000 VND. Số liệu rõ ràng, kiểm soát tốt. ✅",
-  hai_huoc: "Phở gà 45k hết nước chấm luôn trời ơi! Não cá vàng rồi hay sao mà ăn sang dzậy ta! 😂🔥"
+  vui: "Ăn sáng vỉa hè hết 45k hả sen? Bữa sáng thịnh soạn hết nước chấm luôn, quẩy thôi! ☕️🔥",
+  dan_doi: "Lại ăn sườn nướng 55k? Ét ô ét cứu con tim, nhức nhức cái đầu quá bạn ơi! 😢"
 };
 
 function BotPromptsPage() {
   const [promptsData, setPromptsData] = useState(null);
-  const [persona, setPersona] = useState("hai_huoc");
+  const [systemSettings, setSystemSettings] = useState({
+    llmTemperature: 0.7,
+    llmTopK: 40,
+    ocrWeight: 0.75,
+    nluThreshold: 0.85,
+    dateFallback: "transaction"
+  });
+  const [persona, setPersona] = useState("vui");
   const [customPrompt, setCustomPrompt] = useState("");
   const [thresholds, setThresholds] = useState({
     budgetAlert: 30,
@@ -44,46 +48,54 @@ function BotPromptsPage() {
   };
 
   useEffect(() => {
-    getBotPrompts()
-      .then((data) => {
-        setPromptsData(data);
-        if (data.emotions && data.emotions[persona]) {
-          setCustomPrompt(data.emotions[persona].system);
+    Promise.all([
+      getBotPrompts(),
+      getSystemSettings()
+    ])
+      .then(([prompts, settings]) => {
+        setPromptsData(prompts);
+        if (prompts.emotions && prompts.emotions[persona]) {
+          setCustomPrompt(prompts.emotions[persona].system);
+        }
+        if (settings) {
+          setSystemSettings(settings);
         }
         setLoading(false);
       })
       .catch((err) => {
-        triggerToast("Failed to fetch prompts: " + err.message);
+        triggerToast("Failed to fetch settings: " + err.message);
         setLoading(false);
       });
   }, []);
 
-  const handlePersonaChange = (e) => {
-    const val = e.target.value;
+  const handlePersonaChange = (val) => {
     setPersona(val);
     if (promptsData && promptsData.emotions && promptsData.emotions[val]) {
       setCustomPrompt(promptsData.emotions[val].system);
     }
   };
 
-  const handleSavePrompt = (e) => {
+  const handleSaveAllSettings = (e) => {
     e.preventDefault();
     if (!promptsData) return;
     setSaving(true);
 
-    const updated = { ...promptsData };
-    if (updated.emotions && updated.emotions[persona]) {
-      updated.emotions[persona].system = customPrompt;
+    const updatedPrompts = { ...promptsData };
+    if (updatedPrompts.emotions && updatedPrompts.emotions[persona]) {
+      updatedPrompts.emotions[persona].system = customPrompt;
     }
 
-    saveBotPrompts(updated)
-      .then((res) => {
-        setPromptsData(updated);
+    Promise.all([
+      saveBotPrompts(updatedPrompts),
+      saveSystemSettings(systemSettings)
+    ])
+      .then(() => {
+        setPromptsData(updatedPrompts);
         setSaving(false);
-        triggerToast(res.message || "Prompt settings successfully deployed and hot-reloaded!");
+        triggerToast("Cấu hình prompt & tham số LLM đã lưu và áp dụng thành công!");
       })
       .catch((err) => {
-        triggerToast("Failed to save: " + err.message);
+        triggerToast("Lưu cấu hình thất bại: " + err.message);
         setSaving(false);
       });
   };
@@ -92,8 +104,8 @@ function BotPromptsPage() {
     return (
       <div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "80vh", color: "var(--text-secondary)" }}>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "12px" }}>
-          <div className="brand-dot" style={{ width: "16px", height: "16px", animation: "pulse 1.5s infinite" }}></div>
-          <p style={{ fontSize: "14px", fontWeight: "500" }}>Loading bot prompt schema...</p>
+          <div className="brand-dot" style={{ width: "16px", height: "16px", animation: "pulse 1.5s infinite", background: "var(--accent-blue)" }}></div>
+          <p style={{ fontSize: "14px", fontWeight: "500" }}>Loading bot prompt schema & configs...</p>
         </div>
       </div>
     );
@@ -102,9 +114,9 @@ function BotPromptsPage() {
   return (
     <div className="page-container" style={{ padding: "30px 40px" }}>
       <div className="page-header" style={{ marginBottom: "24px" }}>
-        <h1 className="page-title" style={{ fontSize: "28px", fontWeight: "700", color: "var(--text-primary)", letterSpacing: "-0.5px" }}>Bot Prompt Scenarios</h1>
+        <h1 className="page-title" style={{ fontSize: "28px", fontWeight: "700", color: "var(--text-primary)", letterSpacing: "-0.5px" }}>Bot Prompt & LLM Calibrator</h1>
         <p className="page-desc" style={{ color: "var(--text-secondary)", fontSize: "14px", marginTop: "4px" }}>
-          Modify System Prompts for Chat AI personas and calibrate trigger thresholds for alerts.
+          Hiệu chỉnh tham số mô hình LLM, System Prompts theo cảm xúc, và ngưỡng cảnh báo chi tiêu thông minh.
         </p>
       </div>
 
@@ -121,35 +133,37 @@ function BotPromptsPage() {
         boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.02)"
       }}>
         <div className="bill-stat" style={{ paddingRight: "20px", borderRight: "1px solid var(--border-color)" }}>
-          <span className="bill-stat-label" style={{ fontSize: "10px", color: "var(--text-muted)", letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: "600", display: "block", marginBottom: "4px" }}>Available Personas</span>
-          <span className="bill-stat-value" style={{ fontSize: "20px", fontWeight: "700", color: "var(--accent-blue-hover)", fontFamily: "var(--font-sans)" }}>6 active vibe modes</span>
+          <span className="bill-stat-label" style={{ fontSize: "10px", color: "var(--text-muted)", letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: "600", display: "block", marginBottom: "4px" }}>HuggingFace Model</span>
+          <span className="bill-stat-value" style={{ fontSize: "16px", fontWeight: "700", color: "var(--accent-blue-hover)", fontFamily: "var(--font-mono)" }}>qwen-vismimo (14B)</span>
         </div>
         <div className="bill-stat" style={{ paddingRight: "20px", borderRight: "1px solid var(--border-color)" }}>
-          <span className="bill-stat-label" style={{ fontSize: "10px", color: "var(--text-muted)", letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: "600", display: "block", marginBottom: "4px" }}>Active Vibe</span>
-          <span className="bill-stat-value" style={{ fontSize: "20px", fontWeight: "700", color: "var(--accent-emerald-hover)", fontFamily: "var(--font-sans)" }}>{persona.toUpperCase()}</span>
+          <span className="bill-stat-label" style={{ fontSize: "10px", color: "var(--text-muted)", letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: "600", display: "block", marginBottom: "4px" }}>Vibe Mode</span>
+          <span className="bill-stat-value" style={{ fontSize: "16px", fontWeight: "700", color: "var(--accent-emerald-hover)", fontFamily: "var(--font-sans)" }}>
+            {PERSONA_ICONS[persona]} {persona.toUpperCase()}
+          </span>
         </div>
         <div className="bill-stat" style={{ paddingRight: "20px", borderRight: "1px solid var(--border-color)" }}>
-          <span className="bill-stat-label" style={{ fontSize: "10px", color: "var(--text-muted)", letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: "600", display: "block", marginBottom: "4px" }}>Instruction Size</span>
-          <span className="bill-stat-value" style={{ fontSize: "18px", fontWeight: "700", color: "var(--text-primary)", fontFamily: "var(--font-mono)" }}>{customPrompt?.length || 0} chars</span>
+          <span className="bill-stat-label" style={{ fontSize: "10px", color: "var(--text-muted)", letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: "600", display: "block", marginBottom: "4px" }}>LLM Sample Temp</span>
+          <span className="bill-stat-value" style={{ fontSize: "18px", fontWeight: "700", color: "var(--text-primary)", fontFamily: "var(--font-mono)" }}>{systemSettings.llmTemperature}</span>
         </div>
         <div className="bill-stat" style={{ borderRight: "none" }}>
-          <span className="bill-stat-label" style={{ fontSize: "10px", color: "var(--text-muted)", letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: "600", display: "block", marginBottom: "4px" }}>Deployment Mode</span>
+          <span className="bill-stat-label" style={{ fontSize: "10px", color: "var(--text-muted)", letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: "600", display: "block", marginBottom: "4px" }}>Modal GPU Node</span>
           <span className="bill-stat-value" style={{
-            fontSize: "18px",
+            fontSize: "16px",
             fontWeight: "700",
             color: "var(--accent-emerald-hover)",
             display: "flex",
             alignItems: "center",
             gap: "8px"
           }}>
-            <span className="status-dot" style={{
+            <span className="status-dot pulse" style={{
               background: "var(--accent-emerald)",
               boxShadow: "0 0 10px var(--accent-emerald)",
               width: "8px",
               height: "8px",
               borderRadius: "50%"
             }}></span>
-            Hot Reload Enabled
+            A10G Quantized (4-bit)
           </span>
         </div>
       </div>
@@ -161,28 +175,43 @@ function BotPromptsPage() {
           border: "1px solid var(--border-color)",
           borderRadius: "16px",
           padding: "24px",
-          boxShadow: "0 4px 20px rgba(0, 0, 0, 0.15)"
+          boxShadow: "0 4px 20px rgba(0, 0, 0, 0.15)",
+          display: "flex",
+          flexDirection: "column",
+          gap: "20px"
         }}>
-          <div className="panel-header" style={{ paddingBottom: "20px", borderBottom: "1px solid var(--border-color)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div>
-              <h2 className="panel-title" style={{ fontSize: "16px", fontWeight: "600", color: "var(--text-primary)" }}>System Prompt Architecture</h2>
-              <span className="form-desc" style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "2px", display: "block" }}>Customize LLM agent parameters based on active user sentiment.</span>
-            </div>
-            <select
-              className="form-select"
-              style={{ width: "220px", padding: "8px 14px", fontSize: "13px", background: "var(--bg-obsidian-950)", borderRadius: "8px", border: "1px solid var(--border-color)" }}
-              value={persona}
-              onChange={handlePersonaChange}
-            >
-              {Object.keys(PERSONA_LABELS).map(key => (
-                <option key={key} value={key}>Vibe: {PERSONA_LABELS[key]}</option>
-              ))}
-            </select>
+          <div className="panel-header" style={{ paddingBottom: "16px", borderBottom: "1px solid var(--border-color)" }}>
+            <h2 className="panel-title" style={{ fontSize: "16px", fontWeight: "600", color: "var(--text-primary)", marginBottom: "4px" }}>System Prompt Settings</h2>
+            <span className="form-desc" style={{ fontSize: "12px", color: "var(--text-muted)" }}>Thiết lập phản hồi và tính cách tương tác của chatbot.</span>
           </div>
 
-          <form onSubmit={handleSavePrompt} style={{ display: "flex", flexDirection: "column", gap: "20px", marginTop: "16px" }}>
+          {/* Persona selector tabs */}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+            {Object.keys(PERSONA_LABELS).map((key) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => handlePersonaChange(key)}
+                style={{
+                  background: persona === key ? "rgba(2, 132, 199, 0.15)" : "var(--bg-obsidian-950)",
+                  border: `1px solid ${persona === key ? "var(--accent-blue)" : "var(--border-color)"}`,
+                  color: persona === key ? "var(--accent-blue-hover)" : "var(--text-secondary)",
+                  borderRadius: "8px",
+                  padding: "8px 14px",
+                  fontSize: "12px",
+                  fontWeight: "600",
+                  cursor: "pointer",
+                  transition: "all 0.2s"
+                }}
+              >
+                {PERSONA_ICONS[key]} {PERSONA_LABELS[key].split(" / ")[0]}
+              </button>
+            ))}
+          </div>
+
+          <form onSubmit={handleSaveAllSettings} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
             <div className="form-group">
-              <label className="form-label" style={{ color: "var(--text-primary)", fontWeight: "500", display: "flex", justifyContent: "space-between" }}>
+              <label className="form-label" style={{ color: "var(--text-primary)", fontWeight: "600", display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
                 <span>System Instruction Prompt</span>
                 <span className="monospaced" style={{ color: "var(--accent-blue-hover)", fontSize: "12px" }}>{persona}.system</span>
               </label>
@@ -197,7 +226,7 @@ function BotPromptsPage() {
                   border: "1px solid var(--border-color)",
                   borderRadius: "8px",
                   padding: "14px",
-                  minHeight: "180px",
+                  minHeight: "160px",
                   color: "var(--text-primary)"
                 }}
               />
@@ -205,7 +234,7 @@ function BotPromptsPage() {
 
             {/* AI Response Preview */}
             <div className="form-group">
-              <label className="form-label" style={{ color: "var(--text-primary)", fontWeight: "500" }}>Interactive Chat Preview (Scenario: "ăn sáng 45k")</label>
+              <label className="form-label" style={{ color: "var(--text-primary)", fontWeight: "600", marginBottom: "8px" }}>Interactive Chat Preview (Kịch bản: "chi tiêu ăn sáng hết 45k")</label>
               <div
                 style={{
                   background: "var(--bg-obsidian-950)",
@@ -218,8 +247,8 @@ function BotPromptsPage() {
               >
                 <div style={{ display: "flex", gap: "10px", alignItems: "center", marginBottom: "12px" }}>
                   <div className="brand-dot" style={{ background: "var(--accent-emerald)", boxShadow: "0 0 8px var(--accent-emerald)" }}></div>
-                  <strong style={{ fontSize: "13px", color: "var(--text-primary)" }}>Mimo Mascot (Preview)</strong>
-                  <span className="badge badge-success" style={{
+                  <strong style={{ fontSize: "13px", color: "var(--text-primary)" }}>Mimo Mascot (Mô phỏng phản hồi)</strong>
+                  <span className="badge" style={{
                     fontSize: "10px",
                     padding: "2px 8px",
                     borderRadius: "6px",
@@ -251,11 +280,12 @@ function BotPromptsPage() {
             <button type="submit" className="btn btn-primary" disabled={saving} style={{
               background: "var(--accent-emerald)",
               color: "var(--bg-obsidian-950)",
-              fontWeight: "600",
+              fontWeight: "700",
               fontSize: "14px",
               padding: "12px",
               borderRadius: "8px",
-              cursor: "pointer"
+              cursor: "pointer",
+              transition: "all 0.2s"
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.background = "var(--accent-emerald-hover)";
@@ -266,99 +296,159 @@ function BotPromptsPage() {
               e.currentTarget.style.boxShadow = "none";
             }}
             >
-              {saving ? "Deploying Prompt Configuration..." : "Deploy System Prompt Settings"}
+              {saving ? "Deploying Configuration..." : "Lưu & Áp Dụng Cấu Hình Hệ Thống"}
             </button>
           </form>
         </div>
 
-        {/* Right: Alert Threshold Sliders */}
-        <div className="panel" style={{
-          background: "var(--bg-obsidian-900)",
-          border: "1px solid var(--border-color)",
-          borderRadius: "16px",
-          padding: "24px",
-          boxShadow: "0 4px 20px rgba(0, 0, 0, 0.15)",
-          height: "fit-content"
-        }}>
-          <div className="panel-header" style={{ paddingBottom: "20px", borderBottom: "1px solid var(--border-color)" }}>
-            <h2 className="panel-title" style={{ fontSize: "16px", fontWeight: "600", color: "var(--text-primary)" }}>Mimo Alert Logic Calibration</h2>
-            <span className="form-desc" style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "2px", display: "block" }}>Calibrate mathematical alerts that trigger chatbot comments.</span>
+        {/* Right Columns: LLM Parameters & Thresholds */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+          
+          {/* Hugging Face Model Card widget */}
+          <div className="panel" style={{
+            background: "linear-gradient(135deg, rgba(26,115,232,0.08) 0%, rgba(139,92,246,0.08) 100%)",
+            border: "1px solid var(--border-color)",
+            borderRadius: "16px",
+            padding: "20px 24px",
+            boxShadow: "0 4px 20px rgba(0, 0, 0, 0.1)"
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <div style={{ fontSize: "28px" }}>🤗</div>
+              <div>
+                <h4 style={{ fontSize: "14px", fontWeight: "700", color: "var(--text-primary)", margin: 0 }}>Hugging Face Repository</h4>
+                <p style={{ fontSize: "11px", color: "var(--text-secondary)", margin: "2px 0 0 0" }}>Active fine-tuned weights registry</p>
+              </div>
+            </div>
+            
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "16px", fontSize: "12px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px dashed var(--border-color)", paddingBottom: "6px" }}>
+                <span style={{ color: "var(--text-muted)" }}>Merged Base Model</span>
+                <strong style={{ fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>Maikhang/qwen-vismimo</strong>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", paddingBottom: "6px" }}>
+                <span style={{ color: "var(--text-muted)" }}>LoRA Adapter</span>
+                <strong style={{ fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>qwen-vismimo-lora</strong>
+              </div>
+            </div>
           </div>
 
-          <form onSubmit={(e) => { e.preventDefault(); triggerToast("Alert thresholds calibration saved!"); }} style={{ display: "flex", flexDirection: "column", gap: "24px", marginTop: "20px" }}>
-            <div className="form-group">
-              <label className="form-label" style={{ color: "var(--text-primary)", fontWeight: "500", display: "flex", justifyContent: "space-between" }}>
-                <span>Budget Excess Warning</span>
-                <strong style={{ color: "var(--accent-blue-hover)", fontFamily: "var(--font-mono)" }}>{thresholds.budgetAlert}%</strong>
-              </label>
-              <input
-                type="range"
-                min="10"
-                max="80"
-                step="5"
-                value={thresholds.budgetAlert}
-                onChange={(e) => setThresholds({ ...thresholds, budgetAlert: parseInt(e.target.value) })}
-                style={{ accentColor: "var(--accent-blue)", width: "100%", height: "6px", background: "var(--bg-obsidian-950)", borderRadius: "3px" }}
-              />
-              <span className="form-desc" style={{ fontSize: "11px", color: "var(--text-muted)" }}>Warn users when spending in any category hits this ratio of their configured limit.</span>
+          {/* LLM Sampling Sliders */}
+          <div className="panel" style={{
+            background: "var(--bg-obsidian-900)",
+            border: "1px solid var(--border-color)",
+            borderRadius: "16px",
+            padding: "24px",
+            boxShadow: "0 4px 20px rgba(0, 0, 0, 0.15)"
+          }}>
+            <div className="panel-header" style={{ paddingBottom: "16px", borderBottom: "1px solid var(--border-color)", marginBottom: "20px" }}>
+              <h2 className="panel-title" style={{ fontSize: "16px", fontWeight: "600", color: "var(--text-primary)", marginBottom: "4px" }}>LLM Sampling Parameters</h2>
+              <span className="form-desc" style={{ fontSize: "12px", color: "var(--text-muted)" }}>Hiệu chỉnh tham số suy diễn của mô hình fine-tuned.</span>
             </div>
 
-            <div className="form-group">
-              <label className="form-label" style={{ color: "var(--text-primary)", fontWeight: "500", display: "flex", justifyContent: "space-between" }}>
-                <span>Category Surge Rate</span>
-                <strong style={{ color: "var(--accent-amber-hover)", fontFamily: "var(--font-mono)" }}>{thresholds.categorySurge}%</strong>
-              </label>
-              <input
-                type="range"
-                min="5"
-                max="50"
-                step="5"
-                value={thresholds.categorySurge}
-                onChange={(e) => setThresholds({ ...thresholds, categorySurge: parseInt(e.target.value) })}
-                style={{ accentColor: "var(--accent-amber)", width: "100%", height: "6px", background: "var(--bg-obsidian-950)", borderRadius: "3px" }}
-              />
-              <span className="form-desc" style={{ fontSize: "11px", color: "var(--text-muted)" }}>Warn users if week-over-week spending in any category jumps by this ratio.</span>
+            <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+              <div className="form-group">
+                <label className="form-label" style={{ color: "var(--text-primary)", fontWeight: "500", display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
+                  <span>Inference Temperature</span>
+                  <strong style={{ color: "var(--accent-blue-hover)", fontFamily: "var(--font-mono)" }}>{systemSettings.llmTemperature}</strong>
+                </label>
+                <input
+                  type="range"
+                  min="0.1"
+                  max="1.5"
+                  step="0.05"
+                  value={systemSettings.llmTemperature}
+                  onChange={(e) => setSystemSettings({ ...systemSettings, llmTemperature: parseFloat(e.target.value) })}
+                  style={{ accentColor: "var(--accent-blue)", width: "100%", height: "6px", background: "var(--bg-obsidian-950)", borderRadius: "3px" }}
+                />
+                <span className="form-desc" style={{ fontSize: "11px", color: "var(--text-muted)" }}>Nhiệt độ cao giúp câu trả lời ngẫu nhiên & sáng tạo hơn. Thấp giúp câu trả lời nhất quán & chính xác.</span>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label" style={{ color: "var(--text-primary)", fontWeight: "500", display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
+                  <span>Top-K Sampling Limit</span>
+                  <strong style={{ color: "var(--accent-violet-hover)", fontFamily: "var(--font-mono)" }}>{systemSettings.llmTopK}</strong>
+                </label>
+                <input
+                  type="range"
+                  min="1"
+                  max="100"
+                  step="1"
+                  value={systemSettings.llmTopK}
+                  onChange={(e) => setSystemSettings({ ...systemSettings, llmTopK: parseInt(e.target.value) })}
+                  style={{ accentColor: "var(--accent-violet)", width: "100%", height: "6px", background: "var(--bg-obsidian-950)", borderRadius: "3px" }}
+                />
+                <span className="form-desc" style={{ fontSize: "11px", color: "var(--text-muted)" }}>Giới hạn tập hợp các token có xác suất cao nhất được xem xét khi generate câu tiếp theo.</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Mimo Alert Calibration */}
+          <div className="panel" style={{
+            background: "var(--bg-obsidian-900)",
+            border: "1px solid var(--border-color)",
+            borderRadius: "16px",
+            padding: "24px",
+            boxShadow: "0 4px 20px rgba(0, 0, 0, 0.15)"
+          }}>
+            <div className="panel-header" style={{ paddingBottom: "16px", borderBottom: "1px solid var(--border-color)", marginBottom: "20px" }}>
+              <h2 className="panel-title" style={{ fontSize: "16px", fontWeight: "600", color: "var(--text-primary)", marginBottom: "4px" }}>Mimo Alert Logic Calibration</h2>
+              <span className="form-desc" style={{ fontSize: "12px", color: "var(--text-muted)" }}>Ngưỡng chi tiêu kích hoạt cảnh báo thông minh của chatbot.</span>
             </div>
 
-            <div className="form-group">
-              <label className="form-label" style={{ color: "var(--text-primary)", fontWeight: "500", display: "flex", justifyContent: "space-between" }}>
-                <span>Velocity / Volume Surge</span>
-                <strong style={{ color: "var(--accent-rose-hover)", fontFamily: "var(--font-mono)" }}>{thresholds.dailyVol} tx/day</strong>
-              </label>
-              <input
-                type="range"
-                min="2"
-                max="15"
-                step="1"
-                value={thresholds.dailyVol}
-                onChange={(e) => setThresholds({ ...thresholds, dailyVol: parseInt(e.target.value) })}
-                style={{ accentColor: "var(--accent-rose)", width: "100%", height: "6px", background: "var(--bg-obsidian-950)", borderRadius: "3px" }}
-              />
-              <span className="form-desc" style={{ fontSize: "11px", color: "var(--text-muted)" }}>Send a warning about high velocity if more transactions than this are logged in 24 hours.</span>
-            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+              <div className="form-group">
+                <label className="form-label" style={{ color: "var(--text-primary)", fontWeight: "500", display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
+                  <span>Budget Excess Warning</span>
+                  <strong style={{ color: "var(--accent-blue-hover)", fontFamily: "var(--font-mono)" }}>{thresholds.budgetAlert}%</strong>
+                </label>
+                <input
+                  type="range"
+                  min="10"
+                  max="80"
+                  step="5"
+                  value={thresholds.budgetAlert}
+                  onChange={(e) => setThresholds({ ...thresholds, budgetAlert: parseInt(e.target.value) })}
+                  style={{ accentColor: "var(--accent-blue)", width: "100%", height: "6px", background: "var(--bg-obsidian-950)", borderRadius: "3px" }}
+                />
+                <span className="form-desc" style={{ fontSize: "11px", color: "var(--text-muted)" }}>Cảnh báo khi chi tiêu bất kỳ danh mục nào đạt tỷ lệ này so với hạn mức của họ.</span>
+              </div>
 
-            <button type="submit" className="btn btn-secondary" style={{
-              borderStyle: "dashed",
-              width: "100%",
-              padding: "12px",
-              fontSize: "13px",
-              borderRadius: "8px",
-              borderColor: "var(--border-color)",
-              color: "var(--text-primary)",
-              background: "transparent"
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = "var(--text-secondary)";
-              e.currentTarget.style.background = "var(--bg-obsidian-800)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = "var(--border-color)";
-              e.currentTarget.style.background = "transparent";
-            }}
-            >
-              Calibrate Logic Thresholds
-            </button>
-          </form>
+              <div className="form-group">
+                <label className="form-label" style={{ color: "var(--text-primary)", fontWeight: "500", display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
+                  <span>Category Surge Rate</span>
+                  <strong style={{ color: "var(--accent-amber-hover)", fontFamily: "var(--font-mono)" }}>{thresholds.categorySurge}%</strong>
+                </label>
+                <input
+                  type="range"
+                  min="5"
+                  max="50"
+                  step="5"
+                  value={thresholds.categorySurge}
+                  onChange={(e) => setThresholds({ ...thresholds, categorySurge: parseInt(e.target.value) })}
+                  style={{ accentColor: "var(--accent-amber)", width: "100%", height: "6px", background: "var(--bg-obsidian-950)", borderRadius: "3px" }}
+                />
+                <span className="form-desc" style={{ fontSize: "11px", color: "var(--text-muted)" }}>Cảnh báo nếu chi tiêu danh mục tăng vọt theo tỷ lệ này so với tuần trước.</span>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label" style={{ color: "var(--text-primary)", fontWeight: "500", display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
+                  <span>Velocity / Volume Surge</span>
+                  <strong style={{ color: "var(--accent-rose-hover)", fontFamily: "var(--font-mono)" }}>{thresholds.dailyVol} tx/day</strong>
+                </label>
+                <input
+                  type="range"
+                  min="2"
+                  max="15"
+                  step="1"
+                  value={thresholds.dailyVol}
+                  onChange={(e) => setThresholds({ ...thresholds, dailyVol: parseInt(e.target.value) })}
+                  style={{ accentColor: "var(--accent-rose)", width: "100%", height: "6px", background: "var(--bg-obsidian-950)", borderRadius: "3px" }}
+                />
+                <span className="form-desc" style={{ fontSize: "11px", color: "var(--text-muted)" }}>Gửi thông báo nhác nhở nếu số giao dịch ghi nhận vượt ngưỡng này trong 24 giờ.</span>
+              </div>
+            </div>
+          </div>
+
         </div>
       </div>
 
