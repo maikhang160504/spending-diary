@@ -589,6 +589,7 @@ async function _processBillBackground(userId, walletId, transactionId, fileBuffe
         imageUrl,
         storyId,
         mascot_mood: aiResponse.nlu?.mascot_mood || null,
+        ai_confidence: extracted.confidence != null ? Number(extracted.confidence) : null,
         story:
           aiResponse.nlu?.gemini_json?.response ||
           aiResponse.nlu?.gemini_json?.story ||
@@ -945,12 +946,29 @@ async function _runChatLlmFollowUp(userId, sessionId, messageId, context) {
 
     await chatService.updateMessageContent(userId, sessionId, messageId, llmText, intentActionPatch);
 
+    const completeIntentAction = {
+      ...intentActionPatch,
+      intent: intent,
+      amount: mergedNlu.amount ?? mergedNlu.amount_spent,
+      category: mergedNlu.category,
+      nlu: mergedNlu,
+    };
+    if (mergedNlu.multi_records && Array.isArray(mergedNlu.multi_records) && mergedNlu.multi_records.length >= 2) {
+      completeIntentAction.multi_records = mergedNlu.multi_records.map(r => ({
+        text: r.text || '',
+        amount: Number(r.amount) || 0,
+        category: r.category || 'Other',
+        record_type: r.record_type || 'Expense',
+      }));
+    }
+
     sendToUser(userId, {
       type: 'chat_llm_update',
       sessionId,
       messageId,
       content: llmText,
       mood,
+      intentAction: completeIntentAction,
     });
   } catch (err) {
     logger.warn({ err: err.message, userId, sessionId, messageId }, 'chat LLM follow-up failed');
@@ -1016,7 +1034,7 @@ async function aiChat(userId, sessionId, userMessage) {
       user_corrections: userCorrections,
       chat_history: slidingWindow,
       chat_summary: summary,
-      run_llm: false,
+      run_llm: true,
     });
     if (aiResponse.intent === 'Action' && aiResponse.action_type) {
       aiResponse.action_type = actionService.disambiguateActionType(
@@ -1146,19 +1164,23 @@ async function aiChat(userId, sessionId, userMessage) {
       intentAction: intentAction,
     });
 
-    setImmediate(() => {
-      _runChatLlmFollowUp(userId, sessionId, savedMsg.id, {
-        userMessage,
-        aiResponse,
-        emotion,
-        profile,
-        userCorrections,
-        summary,
-        slidingWindow,
-      }).catch((err) => {
-        logger.warn({ err: err.message, userId, sessionId }, 'chat LLM follow-up scheduling failed');
+    const isLlmBackend = (aiResponse.backend === 'llm_unified' || aiResponse.backend === 'llm_fallback' || String(aiResponse.backend).startsWith('user_')) && !actionService.isReportAction(intentAction.nlu?.action_type);
+
+    if (!isLlmBackend && process.env.NODE_ENV !== 'test') {
+      setImmediate(() => {
+        _runChatLlmFollowUp(userId, sessionId, savedMsg?.id, {
+          userMessage,
+          aiResponse,
+          emotion,
+          profile,
+          userCorrections,
+          summary,
+          slidingWindow,
+        }).catch((err) => {
+          logger.warn({ err: err.message, userId, sessionId }, 'chat LLM follow-up scheduling failed');
+        });
       });
-    });
+    }
 
     await logAi(userId, 'chat', { sessionId, userMessage }, aiResponse, {
       backend: aiResponse.backend,
@@ -1168,8 +1190,8 @@ async function aiChat(userId, sessionId, userMessage) {
     return {
       response: assistantContent,
       intentAction: intentAction,
-      messageId: savedMsg.id,
-      llmPending: true,
+      messageId: savedMsg?.id,
+      llmPending: !isLlmBackend,
     };
   } catch (err) {
     await logAi(userId, 'chat', { sessionId, userMessage }, null, { error: err.message });

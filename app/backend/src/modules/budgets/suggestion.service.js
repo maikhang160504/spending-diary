@@ -239,15 +239,24 @@ async function computeSuggestionsForUser(userId, targetMonth) {
     incomes.push(income);
   }
 
-  // Collect all unique categories across 3 months
+  // Fetch user's active budgets and restrict suggestions to those categories
+  const activeBudgets = await budgetsService.list(userId);
+  const activeCats = new Set(activeBudgets.map(b => b.categoryCode).filter(Boolean));
+
+  // Collect all unique categories across 3 months (restricted to active budgets)
   const allCats = new Set();
   for (const { data } of monthlyData) {
-    for (const cat of data.keys()) allCats.add(cat);
+    for (const cat of data.keys()) {
+      if (activeCats.has(cat)) {
+        allCats.add(cat);
+      }
+    }
   }
 
-  // If user has no data at all, fallback to peer benchmark
+  // If user has no data at all, fallback to peer benchmark (filtered by active budgets)
   if (allCats.size === 0) {
-    return computeFallbackFromPeer(userId, targetMonth, holidayFactor);
+    const fallback = await computeFallbackFromPeer(userId, targetMonth, holidayFactor);
+    return fallback.filter(s => activeCats.has(s.category_code));
   }
 
   const incomeFactor = computeIncomeFactor(incomes);
@@ -316,6 +325,75 @@ async function computeSuggestionsForUser(userId, targetMonth) {
       holiday_factor: Math.round(holidayFactor * 1000) / 1000,
       reason,
     });
+  }
+
+  // ── 50/30/20 Financial Calibration & Dynamic Adjustments ──
+  const NEEDS_CATEGORIES = new Set(['Food', 'Transport', 'Housing', 'Essentials', 'Education', 'Health']);
+  const WANTS_CATEGORIES = new Set(['Shopping', 'Entertainment', 'Beauty', 'Social', 'Other', 'Others']);
+
+  let userIncome = incomes.reduce((a, b) => a + b, 0) / (incomes.filter(v => v > 0).length || 1);
+  if (userIncome <= 0) {
+    try {
+      const settingsRes = await query('SELECT income_amount::numeric FROM user_settings WHERE user_id = $1', [userId]);
+      if (settingsRes.rows[0]?.income_amount) {
+        userIncome = Number(settingsRes.rows[0].income_amount);
+      }
+    } catch (_) {}
+    if (userIncome <= 0) {
+      userIncome = 10000000; // Fallback 10M VND
+    }
+  }
+
+  let initialNeedsSum = 0;
+  let initialWantsSum = 0;
+  let initialSavingsSum = 0;
+
+  for (const s of suggestions) {
+    if (NEEDS_CATEGORIES.has(s.category_code)) {
+      initialNeedsSum += s.suggested_amount;
+    } else if (WANTS_CATEGORIES.has(s.category_code)) {
+      initialWantsSum += s.suggested_amount;
+    } else {
+      initialSavingsSum += s.suggested_amount;
+    }
+  }
+
+  let isDynamicAdjusted = false;
+  let needsLimit = userIncome * 0.50;
+  let wantsLimit = userIncome * 0.30;
+  let savingsLimit = userIncome * 0.20;
+
+  // Dynamic calibration when essential needs exceed 50%
+  if (initialNeedsSum > needsLimit) {
+    isDynamicAdjusted = true;
+    const minSavingsTarget = Math.max(0, userIncome - initialNeedsSum - (initialWantsSum * 0.50));
+    needsLimit = initialNeedsSum;
+    wantsLimit = initialWantsSum * 0.50;
+    savingsLimit = minSavingsTarget;
+  }
+
+  const needsScale = initialNeedsSum > needsLimit ? (needsLimit / initialNeedsSum) : 1.0;
+  const wantsScale = initialWantsSum > wantsLimit ? (wantsLimit / initialWantsSum) : 1.0;
+  const savingsScale = initialSavingsSum > savingsLimit ? (savingsLimit / initialSavingsSum) : 1.0;
+
+  for (const s of suggestions) {
+    let scale = 1.0;
+    let ruleName = '';
+    if (NEEDS_CATEGORIES.has(s.category_code)) {
+      scale = needsScale;
+      ruleName = isDynamicAdjusted ? 'Thiết yếu thực tế' : 'Thiết yếu 50%';
+    } else if (WANTS_CATEGORIES.has(s.category_code)) {
+      scale = wantsScale;
+      ruleName = isDynamicAdjusted ? 'Linh hoạt điều chỉnh (giảm 50%)' : 'Linh hoạt 30%';
+    } else {
+      scale = savingsScale;
+      ruleName = isDynamicAdjusted ? 'Tích lũy tối thiểu' : 'Tích lũy 20%';
+    }
+
+    if (scale < 1.0) {
+      s.suggested_amount = Math.round(s.suggested_amount * scale);
+      s.reason += ` (Tối ưu 50/30/20 nhóm ${ruleName}: giảm ${Math.round((1 - scale) * 100)}%)`;
+    }
   }
 
   return suggestions;

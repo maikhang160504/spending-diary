@@ -169,8 +169,35 @@ describe('actionService report scenarios', () => {
       p80_amount: 3800000,
       target_category: 'Food'
     });
-    expect(payload.message).toContain('cao hơn 95%');
+    expect(payload.message).toContain('thấp hơn 57%');
     expect(payload.message).toContain('nhóm 18-22 tuổi làm nghề Sinh viên');
+  });
+
+  test('buildReportStory for category comparison', () => {
+    const reportResult = {
+      period_label: 'Tháng này',
+      report_kind: 'expense',
+      report_sub_type: 'compare',
+      compareCategories: ['Food', 'Transport'],
+      by_category: [
+        { categoryCode: 'Food', total: 1200000 },
+        { categoryCode: 'Transport', total: 800000 }
+      ]
+    };
+    const story = actionService.buildReportStory(reportResult);
+    expect(story).toContain('So sánh chi tiêu');
+    expect(story).toContain('chi cho ăn uống (1.200.000đ) nhiều hơn cho đi lại (800.000đ)');
+  });
+
+  test('executeReport returns comparison payload when multiple categories present', async () => {
+    const payload = await actionService.executeReport('user-1', {
+      text: 'so sánh ăn uống và đi lại tháng này',
+      timeRange: { from: '2026-06-01T00:00:00Z', to: '2026-06-07T23:59:59Z', period_label: 'Tháng này', granularity: 'month' }
+    });
+    expect(payload.kind).toBe('report');
+    expect(payload.report_sub_type).toBe('compare');
+    expect(payload.compareCategories).toEqual(['Food', 'Transport']);
+    expect(payload.message).toContain('So sánh chi tiêu');
   });
 });
 

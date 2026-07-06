@@ -19,6 +19,59 @@ const env = require('../config/env');
 const logger = require('../config/logger');
 
 // 1. GET /api/admin/analytics
+router.get('/transactions/export', async (req, res, next) => {
+  try {
+    const { userId, period } = req.query;
+    if (!userId) {
+      return res.status(400).json({ error: 'Missing userId' });
+    }
+    const txService = require('../modules/transactions/transactions.service');
+    const range = txService.inferRangeForExport(period);
+    const list = await txService.listForUser(userId, {
+      from: range.from,
+      to: range.to,
+      pageSize: 10000
+    });
+
+    let csvContent = '\uFEFF';
+    csvContent += 'Mã giao dịch,Ngày phát sinh,Loại,Danh mục,Số tiền,Ghi chú,Nguồn nhập,Độ tin cậy\n';
+    
+    const VI_CATEGORY_LABELS = {
+      'Food': 'Ăn uống',
+      'Transport': 'Di chuyển',
+      'Housing': 'Nhà ở',
+      'Shopping': 'Mua sắm',
+      'Entertainment': 'Giải trí',
+      'Health': 'Sức khỏe',
+      'Education': 'Giáo dục',
+      'Beauty': 'Làm đẹp',
+      'Social': 'Xã hội',
+      'Others': 'Tiêu dùng khác',
+      'salary': 'Lương',
+      'bonus': 'Thưởng',
+      'investment': 'Đầu tư',
+      'business': 'Kinh doanh'
+    };
+
+    for (const tx of list.items) {
+      const dateStr = new Date(tx.occurredAt).toLocaleString('vi-VN');
+      const typeLabel = tx.type === 'income' ? 'Thu nhập' : 'Chi tiêu';
+      const catLabel = VI_CATEGORY_LABELS[tx.categoryCode] || tx.categoryCode || 'Khác';
+      const sourceLabel = tx.source === 'manual' ? 'Thủ công' : tx.source === 'text' ? 'Trò chuyện' : tx.source === 'bill' ? 'Hóa đơn' : tx.source;
+      const confidence = tx.aiConfidence != null ? `${Math.round(tx.aiConfidence * 100)}%` : 'N/A';
+      
+      const noteClean = (tx.note || '').replace(/"/g, '""');
+      csvContent += `"${tx.id}","${dateStr}","${typeLabel}","${catLabel}",${tx.amount},"${noteClean}","${sourceLabel}","${confidence}"\n`;
+    }
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename=user_${userId}_transactions_export_${period || 'all'}.csv`);
+    res.send(csvContent);
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.get('/analytics', async (req, res, next) => {
   try {
     const userCount = await query('SELECT COUNT(*) AS count FROM users');
@@ -409,7 +462,7 @@ router.post('/nlu/curate', async (req, res, next) => {
     let trainMessage = '';
     if (autoRetrain && addedCount > 0) {
       try {
-        const r = await aiClient.triggerTrain(trainTarget || 'local');
+        const r = await aiClient.triggerTrain('local');
         trainMessage = r.message || ' Retraining started.';
       } catch (trainErr) {
         logger.warn({ err: trainErr.message }, '[Admin Curation] auto-retrain failed');
@@ -554,6 +607,25 @@ router.get('/train/inference-backend', async (req, res, next) => {
 });
 
 router.post('/train/inference-backend', async (req, res, next) => {
+  try {
+    const backend = req.body?.backend;
+    const result = await aiClient.setNluInferenceBackend(backend);
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/settings/nlu-backend', async (req, res, next) => {
+  try {
+    const result = await aiClient.getNluInferenceBackend();
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.put('/settings/nlu-backend', async (req, res, next) => {
   try {
     const backend = req.body?.backend;
     const result = await aiClient.setNluInferenceBackend(backend);
@@ -774,7 +846,7 @@ router.post('/nlu/import-csv', upload.single('file'), async (req, res, next) => 
     let trainMessage = '';
     if (autoRetrain && addedCount > 0) {
       try {
-        const r = await aiClient.triggerTrain(trainTarget);
+        const r = await aiClient.triggerTrain('local');
         trainMessage = r.message || ' Retraining started.';
       } catch (trainErr) {
         logger.warn({ err: trainErr.message }, '[Admin CSV Import] auto-retrain failed');
@@ -796,6 +868,42 @@ router.post('/nlu/import-csv', upload.single('file'), async (req, res, next) => 
 router.get('/train/history', async (req, res, next) => {
   try {
     const history = await aiClient.getNluTrainHistory();
+    res.json(history);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/nlu/benchmark/results', async (req, res, next) => {
+  try {
+    const results = await aiClient.getNluBenchmarkResults();
+    res.json(results);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/nlu/benchmark/run', async (req, res, next) => {
+  try {
+    const run = await aiClient.triggerNluBenchmark();
+    res.json(run);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/train/llm-history', async (req, res, next) => {
+  try {
+    const history = await aiClient.getLlmTrainHistory();
+    res.json(history);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/bill-retrain/ocr-history', async (req, res, next) => {
+  try {
+    const history = await aiClient.getOcrTrainHistory();
     res.json(history);
   } catch (err) {
     next(err);
@@ -1100,84 +1208,21 @@ router.post('/bill-retrain/export', async (req, res, next) => {
   }
 });
 
-router.post('/bill-retrain/kaggle/trigger', async (req, res, next) => {
+router.post('/train/llm-trigger', async (req, res, next) => {
   try {
-    const jobType = req.body.jobType || 'pick_retrain';
-    const result = await aiClient.billKaggleTrigger(jobType, req.body.webhookUrl, req.body.cloudFallbackUrl);
+    const { epochs, lr, batchSize } = req.body;
+    const run = await aiClient.triggerLlmFinetune(epochs, lr, batchSize);
+    res.json(run);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/bill-retrain/modal/trigger', async (req, res, next) => {
+  try {
+    const { numEpochs, learningRate } = req.body;
+    const result = await aiClient.billModalTrigger(numEpochs, learningRate);
     res.json(result);
-  } catch (err) {
-    next(err);
-  }
-});
-
-router.get('/bill-retrain/kaggle/jobs', async (req, res, next) => {
-  try {
-    const jobs = await aiClient.billKaggleJobs(req.query.limit || 20);
-    res.json(jobs);
-  } catch (err) {
-    next(err);
-  }
-});
-
-router.get('/bill-retrain/kaggle/jobs/:jobId', async (req, res, next) => {
-  try {
-    const job = await aiClient.billKaggleJob(req.params.jobId);
-    res.json(job);
-  } catch (err) {
-    next(err);
-  }
-});
-
-router.post('/bill-retrain/kaggle/deploy', async (req, res, next) => {
-  try {
-    const { source, jobType, batchId } = req.body;
-    const result = await aiClient.billKaggleDeploy(source, jobType || 'pick_retrain', batchId);
-    res.json(result);
-  } catch (err) {
-    next(err);
-  }
-});
-
-router.post('/bill-retrain/kaggle/sync', async (req, res, next) => {
-  try {
-    const skipDownload = req.body?.skipDownload === true;
-    const jobType = req.body?.jobType || 'pick_retrain';
-    const result = await aiClient.syncBillKaggle({
-      skip_download: skipDownload,
-      job_type: jobType,
-    });
-    res.json(result);
-  } catch (err) {
-    next(err);
-  }
-});
-
-router.post('/bill-retrain/kaggle/webhook', async (req, res, next) => {
-  try {
-    const { job_id: jobId, status, auto_reload: autoReload, scope } = req.body || {};
-    logger.info('Bill retrain webhook received: %j', req.body);
-    let reload = null;
-    if (status === 'completed' && (autoReload !== false)) {
-      const reloadScope = (scope === 'nlu' || scope === 'nlu_encoder') ? 'nlu' : 'ocr';
-      try {
-        reload = await aiClient.reloadModels(reloadScope);
-        logger.info('Auto-reloaded %s after Kaggle job %s', reloadScope, jobId);
-      } catch (reloadErr) {
-        logger.warn('Auto-reload %s failed after Kaggle job: %s', reloadScope, reloadErr.message);
-        reload = { ok: false, error: reloadErr.message };
-      }
-    }
-    res.json({ ok: true, received: req.body, reload });
-  } catch (err) {
-    next(err);
-  }
-});
-
-router.post('/bill-retrain/kaggle/plan', async (req, res, next) => {
-  try {
-    const jobType = req.body.jobType || 'pick_retrain';
-    const plan = await aiClient.billKagglePlan(jobType);
-    res.json(plan);
   } catch (err) {
     next(err);
   }
@@ -1200,7 +1245,9 @@ router.get('/settings', async (req, res, next) => {
     const defaults = {
       ocr_weight: 0.75,
       nlu_threshold: 0.85,
-      date_fallback: 'transaction'
+      date_fallback: 'transaction',
+      llm_temperature: 0.7,
+      llm_top_k: 40
     };
     
     for (const r of result.rows) {
@@ -1211,6 +1258,8 @@ router.get('/settings', async (req, res, next) => {
       ocrWeight: settings.ocr_weight !== undefined ? parseFloat(settings.ocr_weight) : defaults.ocr_weight,
       nluThreshold: settings.nlu_threshold !== undefined ? parseFloat(settings.nlu_threshold) : defaults.nlu_threshold,
       dateFallback: settings.date_fallback !== undefined ? String(settings.date_fallback) : defaults.date_fallback,
+      llmTemperature: settings.llm_temperature !== undefined ? parseFloat(settings.llm_temperature) : defaults.llm_temperature,
+      llmTopK: settings.llm_top_k !== undefined ? parseInt(settings.llm_top_k) : defaults.llm_top_k,
     };
     
     res.json(responseSettings);
@@ -1221,12 +1270,14 @@ router.get('/settings', async (req, res, next) => {
 
 // POST /api/admin/settings
 router.post('/settings', async (req, res, next) => {
-  const { ocrWeight, nluThreshold, dateFallback } = req.body;
+  const { ocrWeight, nluThreshold, dateFallback, llmTemperature, llmTopK } = req.body;
   try {
     const updates = [
       { key: 'ocr_weight', value: ocrWeight },
       { key: 'nlu_threshold', value: nluThreshold },
-      { key: 'date_fallback', value: dateFallback }
+      { key: 'date_fallback', value: dateFallback },
+      { key: 'llm_temperature', value: llmTemperature },
+      { key: 'llm_top_k', value: llmTopK }
     ];
     
     for (const u of updates) {

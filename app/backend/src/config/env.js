@@ -47,7 +47,7 @@ const env = {
   ai: {
     url: process.env.AI_SERVICE_URL || 'http://localhost:8000',
     apiKey: process.env.AI_SERVICE_API_KEY || null,
-    timeoutMs: int(process.env.AI_SERVICE_TIMEOUT_MS, 15000),
+    timeoutMs: int(process.env.AI_SERVICE_TIMEOUT_MS, 120000),
     /** Bill OCR (Paddle+VietOCR+PICK) — often 60–180s on CPU/GPU */
     billOcrTimeoutMs: int(process.env.BILL_OCR_TIMEOUT_MS, 300000),
     /** Max concurrent bill OCR jobs on backend (CPU: 2 thường nhanh hơn 5) */

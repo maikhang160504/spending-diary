@@ -73,6 +73,7 @@ const router = express.Router();
 router.use(requireAuth);
 router.get('/', validate({ query: listTxQuerySchema }), controller.list);
 router.post('/', validate({ body: createTxSchema }), controller.create);
+router.get('/export', controller.exportCsv);
 router.get('/:id', controller.get);
 router.patch('/:id', validate({ body: updateTxSchema }), controller.update);
 router.delete('/:id', controller.remove);

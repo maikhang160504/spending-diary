@@ -7,10 +7,29 @@ const env = require('../config/env');
 const logger = require('../config/logger');
 const ApiError = require('../utils/ApiError');
 
+const http = require('http');
+const https = require('https');
+
+const httpAgent = new http.Agent({
+  keepAlive: true,
+  maxSockets: 100,
+  maxFreeSockets: 10,
+  timeout: 60000,
+});
+
+const httpsAgent = new https.Agent({
+  keepAlive: true,
+  maxSockets: 100,
+  maxFreeSockets: 10,
+  timeout: 60000,
+});
+
 const client = axios.create({
   baseURL: env.ai.url,
   timeout: env.ai.timeoutMs,
   headers: env.ai.apiKey ? { 'X-API-Key': env.ai.apiKey } : undefined,
+  httpAgent,
+  httpsAgent,
 });
 
 client.interceptors.response.use(
@@ -33,6 +52,25 @@ client.interceptors.response.use(
     throw ApiError.upstream('AI service unreachable', { code: err.code });
   }
 );
+
+const cacheStore = new Map();
+
+function withCache(ttlMs, fn) {
+  return async (...args) => {
+    const key = fn.name + JSON.stringify(args);
+    const now = Date.now();
+    const cached = cacheStore.get(key);
+    if (cached && cached.expiresAt > now) {
+      return cached.promise;
+    }
+    const promise = fn(...args);
+    cacheStore.set(key, { promise, expiresAt: now + ttlMs });
+    promise.catch(() => {
+      cacheStore.delete(key);
+    });
+    return promise;
+  };
+}
 
 /**
  * Retry wrapper with exponential backoff.
@@ -151,6 +189,11 @@ async function savePrompts(payload) {
 }
 
 async function triggerTrain(target = 'local') {
+  for (const key of cacheStore.keys()) {
+    if (key.startsWith('getTrainStatus')) {
+      cacheStore.delete(key);
+    }
+  }
   const r = await client.post('/api/v1/nlu/train', { target });
   return r.data;
 }
@@ -227,6 +270,19 @@ async function billGoldenEval() {
   return r.data;
 }
 
+async function billModalTrigger(numEpochs = 30, learningRate = 0.00002) {
+  for (const key of cacheStore.keys()) {
+    if (key.startsWith('getTrainStatus')) {
+      cacheStore.delete(key);
+    }
+  }
+  const r = await client.post('/api/v1/bill-retrain/modal/trigger', {
+    num_epochs: numEpochs,
+    learning_rate: learningRate,
+  });
+  return r.data;
+}
+
 async function syncBillKaggle(body = {}) {
   const r = await client.post('/api/v1/bill-retrain/kaggle/sync', body, { timeout: 900000 });
   return r.data;
@@ -247,23 +303,35 @@ async function getNluModelMeta() {
   return r.data;
 }
 
-async function syncNluKaggle(body = {}) {
-  const r = await client.post('/api/v1/nlu/train/kaggle/sync', body, { timeout: 900000 });
+async function getNluBenchmarkResults() {
+  const r = await client.get('/api/v1/nlu/benchmark/results');
   return r.data;
 }
 
-async function syncNluEncoderKaggle(body = {}) {
-  const r = await client.post('/api/v1/nlu/train/kaggle/encoder/sync', body, { timeout: 900000 });
+async function triggerNluBenchmark() {
+  const r = await client.post('/api/v1/nlu/benchmark/run');
   return r.data;
 }
 
-async function resumeNluKaggle() {
-  const r = await client.post('/api/v1/nlu/train/kaggle/resume', {}, { timeout: 30000 });
+async function getLlmTrainHistory() {
+  const r = await client.get('/api/v1/nlu/train/llm-history');
   return r.data;
 }
 
-async function trainEncoderKaggle() {
-  const r = await client.post('/api/v1/nlu/train/kaggle/encoder', {}, { timeout: 30000 });
+async function getOcrTrainHistory() {
+  const r = await client.get('/api/v1/bill-retrain/ocr-history');
+  return r.data;
+}
+
+async function triggerLlmFinetune(epochs = 3, lr = 0.0002, batchSize = 4) {
+  for (const key of cacheStore.keys()) {
+    if (key.startsWith('getTrainStatus')) {
+      cacheStore.delete(key);
+    }
+  }
+  const r = await client.post('/api/v1/nlu/train/llm-trigger', null, {
+    params: { epochs, lr, batch_size: batchSize }
+  });
   return r.data;
 }
 
@@ -277,48 +345,44 @@ async function setNluInferenceBackend(backend) {
   return r.data;
 }
 
-async function getNluKaggleJobs(limit = 20) {
-  const r = await client.get(`/api/v1/nlu/train/kaggle/jobs?limit=${limit}`);
-  return r.data;
-}
-
-async function getNluKaggleJob(jobId) {
-  const r = await client.get(`/api/v1/nlu/train/kaggle/jobs/${jobId}`);
-  return r.data;
-}
+const healthCached = withCache(5000, health);
+const getTrainStatusCached = withCache(3000, getTrainStatus);
+const getNluTrainHistoryCached = withCache(5000, getNluTrainHistory);
+const getNluModelMetaCached = withCache(5000, getNluModelMeta);
+const getNluBenchmarkResultsCached = withCache(5000, getNluBenchmarkResults);
+const getLlmTrainHistoryCached = withCache(5000, getLlmTrainHistory);
+const getOcrTrainHistoryCached = withCache(5000, getOcrTrainHistory);
+const getNluInferenceBackendCached = withCache(5000, getNluInferenceBackend);
+const inferTextCached = withCache(3000, inferText);
+const expenseFromTextCached = withCache(3000, expenseFromText);
 
 module.exports = {
-  health,
-  inferText,
+  health: healthCached,
+  inferText: inferTextCached,
   ocrImage,
-  expenseFromText,
+  expenseFromText: expenseFromTextCached,
   expenseFromBill,
   aiChat,
   getPrompts,
   savePrompts,
   triggerTrain,
-  getTrainStatus,
+  getTrainStatus: getTrainStatusCached,
   getInternalStatus,
   billPrelabel,
   billExportVerified,
-  billKagglePlan,
-  billKaggleTrigger,
-  billKaggleJob,
-  billKaggleJobs,
-  billKaggleDeploy,
   billGoldenEval,
-  syncBillKaggle,
+  billModalTrigger,
   reloadModels,
-  getNluTrainHistory,
-  getNluModelMeta,
-  syncNluKaggle,
-  syncNluEncoderKaggle,
-  resumeNluKaggle,
-  trainEncoderKaggle,
-  getNluInferenceBackend,
+  getNluTrainHistory: getNluTrainHistoryCached,
+  getNluModelMeta: getNluModelMetaCached,
+  getNluInferenceBackend: getNluInferenceBackendCached,
   setNluInferenceBackend,
-  getNluKaggleJobs,
-  getNluKaggleJob,
+  getNluBenchmarkResults: getNluBenchmarkResultsCached,
+  triggerNluBenchmark,
+  getLlmTrainHistory: getLlmTrainHistoryCached,
+  getOcrTrainHistory: getOcrTrainHistoryCached,
+  triggerLlmFinetune,
 };
+
 
 

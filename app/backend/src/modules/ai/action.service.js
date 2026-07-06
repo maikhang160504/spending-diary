@@ -85,6 +85,24 @@ function resolveCategoryCode(categoryCode, actionDetails, text) {
   return null;
 }
 
+function resolveMultipleCategoryCodes(text) {
+  if (!text) return [];
+  const t = _norm(text);
+  const found = new Set();
+  for (const [alias, code] of Object.entries(VI_CATEGORY_MAP)) {
+    if (t.includes(alias)) {
+      found.add(code);
+    }
+  }
+  for (const [code, label] of Object.entries(VI_CATEGORY_LABELS)) {
+    const normLabel = _norm(label);
+    if (t.includes(normLabel)) {
+      found.add(code);
+    }
+  }
+  return Array.from(found);
+}
+
 /** Rule-based fixes for common NLU action_type confusions. */
 function disambiguateActionType(text, actionType) {
   const t = _norm(text || '');
@@ -105,7 +123,7 @@ function monthStartDate(now = new Date()) {
 }
 
 function resolveAmount(payload, actionDetails) {
-  const raw = payload.amount ?? payload.actionParam ?? actionDetails?.value;
+  const raw = payload.amount ?? payload.actionParam ?? actionDetails?.amount ?? actionDetails?.value;
   const n = Number(raw);
   return Number.isFinite(n) && n > 0 ? n : null;
 }
@@ -334,15 +352,72 @@ async function executeReport(userId, { timeRange, categoryCode, reportKind, text
   const dash = await statsService.dashboard(userId, { from: range.from, to: range.to });
   const kind = reportKind || detectReportKind(text, null);
   const resolvedCategory = resolveCategoryCode(categoryCode, actionDetails, text);
+  const multipleCategories = resolveMultipleCategoryCodes(text || '');
 
   let byCategory = dash.byCategory || [];
-  if (resolvedCategory) {
+  let totalExpense = dash.totals?.expense ?? 0;
+  let totalIncome = dash.totals?.income ?? 0;
+  let txCount = dash.totals?.countExpense ?? 0;
+
+  let days = dash.byDay || [];
+  if (resolvedCategory && multipleCategories.length < 2) {
+    const matchedCat = byCategory.find((c) => c.categoryCode === resolvedCategory);
     byCategory = byCategory.filter((c) => c.categoryCode === resolvedCategory);
+    if (matchedCat) {
+      totalExpense = matchedCat.total;
+      txCount = matchedCat.count;
+      totalIncome = 0;
+      if (['Salary', 'Bonus', 'Investment', 'Business'].includes(resolvedCategory)) {
+        totalIncome = matchedCat.total;
+        totalExpense = 0;
+      }
+    } else {
+      totalExpense = 0;
+      txCount = 0;
+      totalIncome = 0;
+    }
+
+    try {
+      const list = await txService.listForUser(userId, {
+        from: range.from,
+        to: range.to,
+        pageSize: 1000
+      });
+      const filteredTxs = (list.items || []).filter(
+        (tx) => tx.categoryCode === resolvedCategory
+      );
+      
+      const dailyMap = new Map();
+      for (const tx of filteredTxs) {
+        const dObj = new Date(tx.occurredAt);
+        if (isNaN(dObj.getTime())) continue;
+        // Shift to local UTC+7 timezone
+        const localTime = new Date(dObj.getTime() + 7 * 3600000);
+        const dayStr = localTime.toISOString().slice(0, 10);
+        
+        const isExp = tx.type === 'expense' && tx.categoryCode !== 'Saving';
+        const isInc = tx.type === 'income';
+        if (!dailyMap.has(dayStr)) {
+          dailyMap.set(dayStr, { expense: 0, income: 0 });
+        }
+        const dayData = dailyMap.get(dayStr);
+        if (isExp) dayData.expense += Number(tx.amount || 0);
+        if (isInc) dayData.income += Number(tx.amount || 0);
+      }
+      
+      days = days.map((d) => {
+        const dayData = dailyMap.get(d.day) || { expense: 0, income: 0 };
+        return {
+          day: d.day,
+          expense: dayData.expense,
+          income: dayData.income,
+        };
+      });
+    } catch (err) {
+      console.error('Failed to filter byDay category breakdown:', err);
+    }
   }
 
-  const totalExpense = dash.totals?.expense ?? 0;
-  const totalIncome = dash.totals?.income ?? 0;
-  const txCount = dash.totals?.countExpense ?? 0;
   const catTotal = byCategory.reduce((s, c) => s + c.total, 0);
 
   const enriched = byCategory.map((c) => ({
@@ -355,7 +430,9 @@ async function executeReport(userId, { timeRange, categoryCode, reportKind, text
   // Determine report sub-type (general, highest, cycle, compare)
   const normText = _norm(text || '');
   let subType = 'general';
-  if (/\b(cao nhat|dat nhat|ton tien nhat|to nhat|nhieu nhat|lon nhat)\b/.test(normText)) {
+  if (multipleCategories.length >= 2) {
+    subType = 'compare';
+  } else if (/\b(cao nhat|dat nhat|ton tien nhat|to nhat|nhieu nhat|lon nhat)\b/.test(normText)) {
     subType = 'highest';
   } else if (/\b(so sanh|nhom|moi nguoi|sinh vien khac|dong trang lua|cung nhom|hon ai|thua ai)\b/.test(normText)) {
     subType = 'compare';
@@ -368,7 +445,11 @@ async function executeReport(userId, { timeRange, categoryCode, reportKind, text
   const prevRange = getPreviousPeriodRange(range.from, range.to, range.granularity);
   try {
     const prevDash = await statsService.dashboard(userId, { from: prevRange.from, to: prevRange.to });
-    const prevExpense = prevDash.totals?.expense ?? 0;
+    let prevExpense = prevDash.totals?.expense ?? 0;
+    if (resolvedCategory) {
+      const prevCat = (prevDash.byCategory || []).find((c) => c.categoryCode === resolvedCategory);
+      prevExpense = prevCat ? prevCat.total : 0;
+    }
     if (prevExpense > 0) {
       comparePercent = Math.round(((totalExpense - prevExpense) / prevExpense) * 100);
     }
@@ -404,7 +485,7 @@ async function executeReport(userId, { timeRange, categoryCode, reportKind, text
 
   // 4. Fetch peak day and its highest transaction
   let peakDay = null;
-  const days = dash.byDay || [];
+  // Use the already filtered days array
   if (days.length > 0) {
     let maxDay = null;
     let maxExpense = -1;
@@ -442,7 +523,7 @@ async function executeReport(userId, { timeRange, categoryCode, reportKind, text
     );
     const ageGroup = settingsRes.rows[0]?.age_group;
     const jobType = settingsRes.rows[0]?.job_type;
-    
+
     if (ageGroup && jobType) {
       const benchmarkRes = await query(
         `SELECT avg_amount, p80_amount 
@@ -484,6 +565,9 @@ async function executeReport(userId, { timeRange, categoryCode, reportKind, text
     highest_transactions: highestTransactions,
     peak_day: peakDay,
     peer_benchmark: peerBenchmark,
+    categoryCode: resolvedCategory,
+    text: text,
+    compareCategories: multipleCategories.length >= 2 ? multipleCategories.slice(0, 2) : null,
   };
   payload.message = buildReportStory(payload);
   return payload;
@@ -552,25 +636,34 @@ async function executeSetGoal(userId, payload) {
   const amount = resolveAmount(payload, actionDetails);
   if (!amount) throw ApiError.badRequest('Thiếu số tiền mục tiêu.');
 
-  const actionType = String(payload.actionType || '').toUpperCase();
   const goalName = payload.goalName || actionDetails.goal_name || actionDetails.goalName || 'Mục tiêu tiết kiệm';
-  const verb = (actionDetails.verb || 'SET').toUpperCase();
 
-  if (actionType === 'ADD_GOAL' || verb === 'ADD') {
-    const goals = await goalsService.list(userId);
-    const normName = _norm(goalName);
-    const existing = goals.find((g) => {
-      const gn = _norm(g.name || '');
-      return gn === normName || gn.includes(normName) || normName.includes(gn);
-    });
-    if (existing) {
-      const updated = await goalsService.contribute(userId, existing.id, amount);
-      return {
-        kind: 'goal_contribute',
-        goal: updated,
-        message: `✅ Đã bù ${formatVnd(amount)}đ vào mục tiêu "${existing.name}".`,
-      };
+  const goals = await goalsService.list(userId);
+  const normName = _norm(goalName);
+  let existing = null;
+  let maxSim = 0;
+
+  for (const g of goals) {
+    const gn = _norm(g.name || '');
+    if (gn === normName || gn.includes(normName) || normName.includes(gn)) {
+      existing = g;
+      maxSim = 1.0;
+      break;
     }
+    const sim = stringSimilarity(normName, gn);
+    if (sim > maxSim) {
+      maxSim = sim;
+      existing = g;
+    }
+  }
+
+  if (existing && maxSim > 0.75) {
+    const updated = await goalsService.contribute(userId, existing.id, amount);
+    return {
+      kind: 'goal_contribute',
+      goal: updated,
+      message: `Mimo đã cập nhật hạn mức cho mục tiêu '${existing.name}' hiện có của bạn rồi nhé!`,
+    };
   }
 
   const goal = await goalsService.create(userId, {
@@ -585,6 +678,40 @@ async function executeSetGoal(userId, payload) {
     goal,
     message: `✅ Đã tạo mục tiêu "${goal.name || goalName}" — ${formatVnd(amount)}đ.`,
   };
+}
+
+function levenshteinDistance(s1, s2) {
+  const m = s1.length;
+  const n = s2.length;
+  const dp = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+
+  for (let i = 0; i <= m; i++) dp[i][0] = i;
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      if (s1[i - 1] === s2[j - 1]) {
+        dp[i][j] = dp[i - 1][j - 1];
+      } else {
+        dp[i][j] = Math.min(
+          dp[i - 1][j] + 1,    // deletion
+          dp[i][j - 1] + 1,    // insertion
+          dp[i - 1][j - 1] + 1 // substitution
+        );
+      }
+    }
+  }
+  return dp[m][n];
+}
+
+function stringSimilarity(s1, s2) {
+  const longer = s1.length > s2.length ? s1 : s2;
+  const shorter = s1.length > s2.length ? s2 : s1;
+  const longerLength = longer.length;
+  if (longerLength === 0) {
+    return 1.0;
+  }
+  return (longerLength - levenshteinDistance(longer, shorter)) / longerLength;
 }
 
 async function executeDeleteLastRecord(userId) {
@@ -643,7 +770,8 @@ async function executeSearch(userId, payload) {
       .replace(/\b(tren|trên|duoi|dưới)\s+\d[\d.,kkmtr]*\s*(dong|đ|đồng)?\b/gi, '')
       .trim();
   }
-  const minAmount = payload.minAmount ? Number(payload.minAmount) : resolveAmount(payload, details);
+  // Try payload.amount first, then details.amount, then resolveAmount
+  const minAmount = payload.amount ?? details.amount ?? (payload.minAmount ? Number(payload.minAmount) : resolveAmount(payload, details));
   const categoryCode = resolveCategoryCode(payload.categoryCode, details, payload.text);
   const limit = Math.min(Number(payload.limit) || 5, 10);
 
@@ -655,11 +783,19 @@ async function executeSearch(userId, payload) {
     values.push(categoryCode);
     where += ` AND t.category_code = $${values.length}`;
   }
+  
+  const verb = (details.verb || '').toUpperCase();
+  const isLessThan = verb === 'LT' || payload.text?.includes('dưới') || payload.text?.includes('nho hon');
   if (minAmount && minAmount > 0) {
     values.push(minAmount);
-    where += ` AND t.amount >= $${values.length}`;
+    if (isLessThan) {
+      where += ` AND t.amount <= $${values.length}`;
+    } else {
+      where += ` AND t.amount >= $${values.length}`;
+    }
   }
-  if (q) {
+  
+  if (q && !q.includes('>') && !q.includes('<')) {
     values.push(`%${q.slice(0, 80)}%`);
     where += ` AND (t.note ILIKE $${values.length} OR t.category_code ILIKE $${values.length})`;
   }
@@ -746,7 +882,7 @@ async function executeSetUsername(userId, payload) {
   const actionDetails = payload.actionDetails || {};
   const newName = actionDetails.value || payload.username || (payload.text ? extractNameFromText(payload.text) : null);
   if (!newName) throw ApiError.badRequest('Không tìm thấy tên cần đổi.');
-  
+
   const authService = require('../auth/auth.service');
   const updatedUser = await authService.updateProfile(userId, { username: newName });
   return {
@@ -758,7 +894,7 @@ async function executeSetUsername(userId, payload) {
 
 function extractNameFromText(text) {
   const m = text.match(/(?:gọi|goi)\s+(?:mình|tớ|tớ là|tôi|cậu là|anh là|chị là|em là|la|là)\s+([A-ZẮẰẲẴẶẤẦẨẪẬẾỀỂỄỆỐỒỔỖỘỚỜỞỠỢỨỪỬỮỰÝỲỶỸÝa-zA-Zàáâãèéêìíòóôõùúăđĩũơưđ\s]+)/i) ||
-            text.match(/(?:tên|ten)\s+(?:mình|tớ|tôi|la|là)\s+([A-ZẮẰẲẴẶẤẦẨẪẬẾỀỂỄỆỐỒỔỖỘỚỜỞỠỢỨỪỬỮỰÝỲỶỸÝa-zA-Zàáâãèéêìíòóôõùúăđĩũơưđ\s]+)/i);
+    text.match(/(?:tên|ten)\s+(?:mình|tớ|tôi|la|là)\s+([A-ZẮẰẲẴẶẤẦẨẪẬẾỀỂỄỆỐỒỔỖỘỚỜỞỠỢỨỪỬỮỰÝỲỶỸÝa-zA-Zàáâãèéêìíòóôõùúăđĩũơưđ\s]+)/i);
   return m ? m[1].trim() : null;
 }
 
@@ -766,7 +902,7 @@ async function executeSetIncome(userId, payload) {
   const actionDetails = payload.actionDetails || {};
   const amount = resolveAmount(payload, actionDetails);
   if (!amount) throw ApiError.badRequest('Thiếu số tiền thu nhập.');
-  
+
   const authService = require('../auth/auth.service');
   await authService.updateProfile(userId, { incomeAmount: amount });
   return {
@@ -826,13 +962,17 @@ async function executeExportData(userId, payload) {
     csvContent += `"${tx.id}","${tx.occurredAt}","${tx.categoryCode}",${tx.amount},"${tx.type}","${tx.note || ''}"\n`;
   }
 
-  console.log(`[Export Data] Generating CSV for user ${user.email}, ${list.items.length} records, length ${csvContent.length}`);
+  const periodType = range.granularity === 'day' ? 'day' : range.granularity === 'week' ? 'week' : 'month';
+  const downloadUrl = `/api/v1/transactions/export?period=${periodType}&date=${new Date().toISOString().slice(0, 10)}`;
+
+  console.log(`[Export Data] Generating CSV for user ${user.email}, ${list.items.length} records, downloadUrl: ${downloadUrl}`);
 
   return {
     kind: 'export_data',
     email: user.email,
     period: range.period_label,
-    message: `✅ Đã tạo tệp dữ liệu chi tiêu ${range.period_label.toLowerCase()}. Tệp CSV đang được gửi đến hòm thư ${user.email} của bạn.`,
+    downloadUrl,
+    message: `✅ Đã sẵn sàng xuất dữ liệu chi tiêu ${range.period_label.toLowerCase()}! Bạn có thể tải trực tiếp tệp Excel/CSV qua đường dẫn bên dưới hoặc kiểm tra hòm thư ${user.email} của mình.`,
   };
 }
 
@@ -916,6 +1056,8 @@ function buildReportStory(actionResult) {
     highest_transactions,
     peak_day,
     peer_benchmark,
+    categoryCode,
+    text,
   } = actionResult;
 
   if (report_kind === 'income') {
@@ -929,15 +1071,45 @@ function buildReportStory(actionResult) {
 
   const periodUnit = period_label.toLowerCase().includes('tuần') ? 'tuần' : 'tháng';
 
-  // 1. Kịch bản So sánh đồng trang lứa (Peer Comparison)
+  // 1. Kịch bản So sánh đồng trang lứa (Peer Comparison) hoặc So sánh thời gian (Period Comparison) hoặc So sánh danh mục
   if (report_sub_type === 'compare') {
-    if (peer_benchmark) {
+    const { compareCategories } = actionResult;
+    if (compareCategories && compareCategories.length >= 2) {
+      const catCode1 = compareCategories[0];
+      const catCode2 = compareCategories[1];
+      const cat1 = (by_category || []).find((c) => c.categoryCode === catCode1);
+      const cat2 = (by_category || []).find((c) => c.categoryCode === catCode2);
+      const total1 = cat1 ? cat1.total : 0;
+      const total2 = cat2 ? cat2.total : 0;
+      const label1 = getCategoryLabelVi(catCode1);
+      const label2 = getCategoryLabelVi(catCode2);
+
+      if (total1 > total2) {
+        return `So sánh chi tiêu: ${period_label} bạn chi cho ${label1} (${formatVnd(total1)}đ) nhiều hơn cho ${label2} (${formatVnd(total2)}đ) nha.`;
+      } else if (total1 < total2) {
+        return `So sánh chi tiêu: ${period_label} bạn chi cho ${label1} (${formatVnd(total1)}đ) ít hơn cho ${label2} (${formatVnd(total2)}đ) nha.`;
+      } else {
+        return `So sánh chi tiêu: ${period_label} bạn chi cho ${label1} và ${label2} bằng nhau luôn, đều là ${formatVnd(total1)}đ!`;
+      }
+    }
+
+    const isPeerQuery = text ? /\b(nhom|nhóm|nguoi khac|người khác|sinh vien khac|sinh viên khác|moi nguoi|mọi người|dong trang lua|đồng trang lứa|hon ai|hơn ai|thua ai)\b/.test(String(text).toLowerCase()) ||
+      /\b(cung nhom|cùng nhóm|trung binh|trung bình)\b/.test(String(text).toLowerCase()) : true;
+
+    if (peer_benchmark && isPeerQuery) {
       const diffVal = total_expense - peer_benchmark.avg_amount;
       const diffPercent = Math.round((Math.abs(diffVal) / peer_benchmark.avg_amount) * 100);
       const comparisonWord = diffVal >= 0 ? 'cao hơn' : 'thấp hơn';
       return `Nè bạn ơi, ${period_label.toLowerCase()} bạn đã chi ${formatVnd(total_expense)}đ cho mục ${getCategoryLabelVi(peer_benchmark.target_category)} rồi đó. Trông thì bình thường nhưng con số này đang ${comparisonWord} ${diffPercent}% so với mức trung bình của nhóm ${peer_benchmark.age_group} làm nghề ${peer_benchmark.job_type} (${formatVnd(peer_benchmark.avg_amount)}đ) rồi nè! Thử tự nấu ăn nhiều hơn hoặc cân nhắc điều chỉnh lại xem sao nha!`;
     } else {
-      return `${period_label}: bạn tiêu tổng cộng ${formatVnd(total_expense)}đ. Hiện tại chưa có dữ liệu nhóm tương đồng của bạn để so sánh.`;
+      const compWord = compare_percent >= 0 ? 'nhanh' : 'chậm';
+      const compWord2 = compare_percent >= 0 ? 'nhiều' : 'ít';
+      const catMsg = categoryCode ? ` cho danh mục ${getCategoryLabelVi(categoryCode)}` : '';
+      if (compare_percent !== 0) {
+        return `So sánh chi tiêu${catMsg}: ${period_label} bạn tiêu hết ${formatVnd(total_expense)}đ, tiêu ${compWord} hơn ${Math.abs(compare_percent)}% (tương đương tiêu ${compWord2} hơn) so với cùng kỳ trước đó nha.`;
+      } else {
+        return `So sánh chi tiêu${catMsg}: ${period_label} bạn tiêu hết ${formatVnd(total_expense)}đ, bằng y chang so với cùng kỳ trước đó luôn!`;
+      }
     }
   }
 
@@ -974,7 +1146,7 @@ function buildReportStory(actionResult) {
 
   // 4. Kịch bản 1: Báo cáo Tổng chi tiêu (General)
   let story = `Tính đến hôm nay, bạn đã tiêu tổng cộng ${formatVnd(total_expense)}đ rồi nè.`;
-  
+
   if (compare_percent !== 0) {
     story += ` Tốc độ tiêu xài đang ${compare_percent >= 0 ? 'nhanh' : 'chậm'} hơn ${Math.abs(compare_percent)}% so với cùng kỳ ${periodUnit} trước đó nha`;
   } else {

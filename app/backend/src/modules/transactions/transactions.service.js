@@ -366,6 +366,100 @@ async function checkBudgetLimitsAndAlert(userId, categoryCode, walletId) {
   const { dispatchUserNotification } = require('../../services/notificationDispatch');
 
   try {
+    // 15% Income Exceeded Checker
+    try {
+      const incomeRes = await query(
+        `SELECT COALESCE(SUM(amount), 0) AS total_income 
+         FROM transactions 
+         WHERE wallet_id IN (SELECT wallet_id FROM wallet_members WHERE user_id = $1)
+           AND type = 'income' AND is_deleted = FALSE 
+           AND date_trunc('month', occurred_at) = date_trunc('month', NOW())`,
+        [userId]
+      );
+      let monthlyIncome = Number(incomeRes.rows[0]?.total_income || 0);
+      
+      if (monthlyIncome <= 0) {
+        const avgIncomeRes = await query(
+          `SELECT COALESCE(AVG(monthly_sum), 0) AS avg_income FROM (
+             SELECT SUM(amount) AS monthly_sum 
+             FROM transactions 
+             WHERE wallet_id IN (SELECT wallet_id FROM wallet_members WHERE user_id = $1)
+               AND type = 'income' AND is_deleted = FALSE
+               AND occurred_at >= NOW() - INTERVAL '3 months'
+             GROUP BY date_trunc('month', occurred_at)
+           ) t`,
+          [userId]
+        );
+        monthlyIncome = Number(avgIncomeRes.rows[0]?.avg_income || 0);
+      }
+      
+      if (monthlyIncome <= 0) {
+        monthlyIncome = 8000000; // Fallback
+      }
+
+      const spentRes = await query(
+        `SELECT COALESCE(SUM(amount), 0) AS total_spent 
+         FROM transactions 
+         WHERE wallet_id IN (SELECT wallet_id FROM wallet_members WHERE user_id = $1)
+           AND type = 'expense' AND category_code = $2 AND is_deleted = FALSE 
+           AND date_trunc('month', occurred_at) = date_trunc('month', NOW())`,
+        [userId, categoryCode]
+      );
+      const categorySpent = Number(spentRes.rows[0]?.total_spent || 0);
+
+      if (categorySpent > 0.15 * monthlyIncome) {
+        const localDateStr = new Date(Date.now() + 7 * 3600000).toISOString().split('T')[0];
+        const timePeriod = `exceed_15_${categoryCode}`.substring(0, 20);
+        
+        const logCheck = await query(
+          `SELECT 1 FROM user_notification_logs 
+           WHERE user_id = $1 AND sent_date = $2::date AND time_period = $3`,
+          [userId, localDateStr, timePeriod]
+        );
+
+        if (logCheck.rows.length === 0) {
+          await query(
+            `INSERT INTO user_notification_logs (user_id, notification_type, time_period, sent_date)
+             VALUES ($1, 'MASCOT_EXCEED_15_ALERT', $2, $3::date)`,
+            [userId, timePeriod, localDateStr]
+          );
+
+          const VI_CATEGORY_LABELS = {
+            'Food': 'Ăn uống',
+            'Transport': 'Di chuyển',
+            'Housing': 'Nhà ở',
+            'Shopping': 'Mua sắm',
+            'Entertainment': 'Giải trí',
+            'Health': 'Sức khỏe',
+            'Education': 'Giáo dục',
+            'Beauty': 'Làm đẹp',
+            'Social': 'Xã hội',
+            'Others': 'Tiêu dùng khác',
+          };
+          const catLabel = VI_CATEGORY_LABELS[categoryCode] || categoryCode;
+          const pct = Math.round((categorySpent / monthlyIncome) * 100);
+          
+          const title = '💡 Gợi ý từ Mimo';
+          const message = `Mimo nhận thấy bạn đã tiêu dùng cho '${catLabel}' (${pct}% thu nhập). Bạn nên thiết lập hạn mức để tránh thâm hụt nhé!`;
+
+          await dispatchUserNotification(userId, {
+            type: 'MASCOT_EXCEED_15_ALERT',
+            payload: {
+              title,
+              message,
+              categoryCode,
+              usagePct: pct,
+              suggestedLimit: Math.round(monthlyIncome * 0.10),
+              deepLink: `/limits?categoryCode=${categoryCode}`,
+            },
+          });
+          console.log(`[15% Exceeded Suggest] Notification dispatched to user ${userId} for ${categoryCode}`);
+        }
+      }
+    } catch (err) {
+      console.error('[15% Monitor check] failed:', err.message);
+    }
+
     const summaries = await budgetsService.summary(userId);
     const budget = summaries.find(b => b.categoryCode === categoryCode && b.isActive);
     if (!budget) {
@@ -471,6 +565,34 @@ async function checkBudgetLimitsAndAlert(userId, categoryCode, walletId) {
   }
 }
 
+function inferRangeForExport(period, dateStr) {
+  const now = dateStr ? new Date(dateStr) : new Date();
+  const startOfDay = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0);
+  const endOfDay = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59);
+
+  if (period === 'day') {
+    const from = startOfDay(now);
+    const to = endOfDay(now);
+    return { from: from.toISOString(), to: to.toISOString() };
+  }
+  if (period === 'week') {
+    const from = startOfDay(now);
+    const day = from.getDay();
+    const diff = day === 0 ? 6 : day - 1;
+    from.setDate(from.getDate() - diff);
+    const to = new Date(from);
+    to.setDate(to.getDate() + 6);
+    return { from: from.toISOString(), to: endOfDay(to).toISOString() };
+  }
+  if (period === 'month') {
+    const from = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
+    const to = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+    return { from: from.toISOString(), to: to.toISOString() };
+  }
+  const from = new Date(now.getFullYear() - 10, now.getMonth(), 1);
+  return { from: from.toISOString(), to: now.toISOString() };
+}
+
 module.exports = {
   create,
   listForUser,
@@ -480,4 +602,5 @@ module.exports = {
   createFromAi,
   findCategoryByCode,
   checkBudgetLimitsAndAlert,
+  inferRangeForExport,
 };
