@@ -54,17 +54,30 @@ async function applyFile(absolutePath, recordName) {
   }
   const sql = fs.readFileSync(absolutePath, 'utf8');
   logger.info({ filename, bytes: sql.length }, 'applying migration');
-  // Dùng dedicated client để chạy multi-statement SQL trong 1 transaction.
-  // Tránh "invalid message format" khi gửi cả DO $$...$$ block qua pg pool.
+  // Dùng dedicated client để chạy multi-statement SQL.
   const client = await pool.connect();
+  const noTx = sql.includes('-- NO TRANSACTION');
   try {
-    await client.query('BEGIN');
-    await client.query(sql);
-    await client.query('INSERT INTO _migrations(filename) VALUES ($1)', [filename]);
-    await client.query('COMMIT');
+    if (noTx) {
+      const statements = sql
+        .split(';')
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0);
+      for (const stmt of statements) {
+        await client.query(stmt);
+      }
+      await client.query('INSERT INTO _migrations(filename) VALUES ($1)', [filename]);
+    } else {
+      await client.query('BEGIN');
+      await client.query(sql);
+      await client.query('INSERT INTO _migrations(filename) VALUES ($1)', [filename]);
+      await client.query('COMMIT');
+    }
     logger.info({ filename }, 'migration done');
   } catch (err) {
-    await client.query('ROLLBACK').catch(() => {});
+    if (!noTx) {
+      await client.query('ROLLBACK').catch(() => {});
+    }
     throw err;
   } finally {
     client.release();

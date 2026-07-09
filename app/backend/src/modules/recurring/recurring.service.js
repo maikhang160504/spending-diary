@@ -8,6 +8,7 @@ function row(r) {
     id: r.id,
     userId: r.user_id,
     walletId: r.wallet_id,
+    walletName: r.wallet_name || 'Ví cá nhân',
     amount: Number(r.amount),
     type: r.type,
     categoryCode: r.category_code,
@@ -22,7 +23,11 @@ function row(r) {
 
 async function list(userId) {
   const r = await query(
-    `SELECT * FROM recurring_rules WHERE user_id = $1 ORDER BY created_at DESC`,
+    `SELECT r.*, w.name AS wallet_name
+     FROM recurring_rules r
+     LEFT JOIN wallets w ON r.wallet_id = w.id
+     WHERE r.user_id = $1
+     ORDER BY r.created_at DESC`,
     [userId]
   );
   return r.rows.map(row);

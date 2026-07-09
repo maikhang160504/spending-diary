@@ -502,6 +502,16 @@ router.post('/prompts', async (req, res, next) => {
   }
 });
 
+// 11.1 POST /api/admin/prompts/test
+router.post('/prompts/test', async (req, res, next) => {
+  try {
+    const r = await aiClient.testPrompt(req.body);
+    res.json(r);
+  } catch (err) {
+    next(err);
+  }
+});
+
 // 12. POST /api/admin/train
 router.post('/train', async (req, res, next) => {
   try {

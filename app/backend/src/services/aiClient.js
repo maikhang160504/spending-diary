@@ -347,6 +347,13 @@ async function setNluInferenceBackend(backend) {
 
 const healthCached = withCache(5000, health);
 const getTrainStatusCached = withCache(3000, getTrainStatus);
+async function testPrompt(payload) {
+  return withRetry(async () => {
+    const r = await client.post('/api/v1/nlu/test-prompt', payload);
+    return r.data;
+  });
+}
+
 const getNluTrainHistoryCached = withCache(5000, getNluTrainHistory);
 const getNluModelMetaCached = withCache(5000, getNluModelMeta);
 const getNluBenchmarkResultsCached = withCache(5000, getNluBenchmarkResults);
@@ -365,6 +372,7 @@ module.exports = {
   aiChat,
   getPrompts,
   savePrompts,
+  testPrompt,
   triggerTrain,
   getTrainStatus: getTrainStatusCached,
   getInternalStatus,

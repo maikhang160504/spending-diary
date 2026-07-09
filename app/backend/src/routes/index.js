@@ -16,6 +16,7 @@ const storiesRoutes = require('../modules/stories/stories.routes');
 const chatRoutes = require('../modules/chat/chat.routes');
 const recurringRoutes = require('../modules/recurring/recurring.routes');
 const fcmRoutes = require('../modules/fcm/fcm.routes');
+const loansRoutes = require('../modules/loans/loans.route');
 const authController = require('../modules/auth/auth.controller');
 const { requireAuth } = require('../middlewares/auth');
 
@@ -50,5 +51,6 @@ router.use('/stories', storiesRoutes);
 router.use('/chat', chatRoutes);
 router.use('/recurring', recurringRoutes);
 router.use('/users/me/fcm', fcmRoutes);
+router.use('/loans', loansRoutes);
 
 module.exports = router;

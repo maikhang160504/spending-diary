@@ -9,6 +9,7 @@ const { ping, pool } = require('./config/db');
 const { attachWsServer } = require('./services/wsHub');
 const { startScheduler, stopScheduler } = require('./modules/recurring/recurring.scheduler');
 const { startNotificationScheduler, stopNotificationScheduler } = require('./modules/fcm/notification.scheduler');
+const { initLoanReminderCron } = require('./cron/loanReminder.cron');
 
 async function start() {
   if (env.database.url) {
@@ -30,6 +31,7 @@ async function start() {
     attachWsServer(server);
     startScheduler(); // Start checking for due recurring transaction rules
     startNotificationScheduler(); // Start checking for due dynamic story prompts
+    initLoanReminderCron(); // Start checking for due loans
   });
 
   const shutdown = async (signal) => {

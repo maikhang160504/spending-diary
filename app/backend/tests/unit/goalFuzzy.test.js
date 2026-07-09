@@ -35,7 +35,7 @@ describe('Saving Goal Fuzzy Matching', () => {
     expect(goalsService.contribute).toHaveBeenCalledWith('user-1', 'goal-1', 2000000);
     expect(goalsService.create).not.toHaveBeenCalled();
     expect(result.kind).toBe('goal_contribute');
-    expect(result.message).toBe("Mimo đã cập nhật hạn mức cho mục tiêu 'Mua xe máy' hiện có của bạn rồi nhé!");
+    expect(result.message).toContain("Mimo đã ghi nhận 2.000.000đ tích lũy vào mục tiêu 'Mua xe máy'");
   });
 
   test('Creates a new goal when similarity is <= 75% (e.g. "Mua laptop" vs "Mua xe máy")', async () => {
@@ -65,6 +65,6 @@ describe('Saving Goal Fuzzy Matching', () => {
       targetAmount: 20000000
     }));
     expect(result.kind).toBe('goal');
-    expect(result.message).toContain('Đã tạo mục tiêu "Mua laptop"');
+    expect(result.message).toContain('Đã tạo mục tiêu mới "Mua laptop"');
   });
 });

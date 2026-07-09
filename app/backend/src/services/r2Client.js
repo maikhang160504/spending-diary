@@ -1,6 +1,6 @@
 'use strict';
 
-const { S3Client, PutObjectCommand, GetObjectCommand } = require('@aws-sdk/client-s3');
+const { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 
 const env = require('../config/env');
@@ -74,10 +74,26 @@ async function presignDownload(key) {
   return { url, expiresIn: env.r2.presignExpires };
 }
 
+async function deleteFile(key) {
+  try {
+    await getClient().send(
+      new DeleteObjectCommand({
+        Bucket: env.r2.bucket,
+        Key: key,
+      })
+    );
+    logger.info({ key }, 'Deleted file from R2 bucket');
+    return true;
+  } catch (err) {
+    logger.warn({ err: err.message, key }, 'Failed to delete file from R2 bucket');
+    return false;
+  }
+}
+
 function isConfigured() {
   return Boolean(env.r2.accountId && env.r2.accessKeyId && env.r2.secretAccessKey);
 }
 
-module.exports = { presignUpload, uploadBuffer, presignDownload, isConfigured, publicUrl };
+module.exports = { presignUpload, uploadBuffer, presignDownload, isConfigured, publicUrl, deleteFile };
 
 void logger; // silence unused-import lint, kept for future debug logs

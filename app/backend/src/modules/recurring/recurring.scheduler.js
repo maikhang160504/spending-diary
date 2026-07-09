@@ -14,7 +14,7 @@ function calculateNextOccurrence(currentDateStr, frequency) {
   } else if (frequency === 'monthly') {
     date.setUTCMonth(date.getUTCMonth() + 1);
   }
-  return date.toISOString().split('T')[0];
+  return date.toISOString();
 }
 
 async function checkAndProcessRecurring() {
@@ -25,7 +25,7 @@ async function checkAndProcessRecurring() {
     const rulesRes = await client.query(
       `SELECT * FROM recurring_rules 
        WHERE is_active = TRUE 
-         AND next_occurrence <= CURRENT_DATE`
+         AND next_occurrence <= NOW()`
     );
 
     if (rulesRes.rows.length === 0) {
@@ -59,20 +59,23 @@ async function checkAndProcessRecurring() {
         // 4. Update the rule next occurrence
         await client.query(
           `UPDATE recurring_rules 
-           SET next_occurrence = $1::date, updated_at = NOW() 
+           SET next_occurrence = $1::timestamptz, updated_at = NOW() 
            WHERE id = $2`,
           [newNext, rule.id]
         );
 
-        // 5. Send WebSocket real-time notification
-        const amountStr = Number(rule.amount).toLocaleString('vi-VN') + ' đ';
+        // 5. Send WebSocket real-time notification + Push Notification
+        const isExpense = rule.type === 'expense';
+        const amountStr = `${isExpense ? '-' : '+'}${Number(rule.amount).toLocaleString('vi-VN')} đ`;
         const description = rule.note || rule.category_code || 'Giao dịch định kỳ';
         
         await dispatchUserNotification(rule.user_id, {
           type: 'RECURRING_ALERT',
           payload: {
-            title: 'Giao dịch định kỳ tự động',
-            message: `Mimo đã tự động ghi nhận giao dịch định kỳ cho "${description}" trị giá ${amountStr}!`,
+            title: isExpense
+                ? 'Giao dịch chi tiêu định kỳ tự động 💸'
+                : 'Giao dịch thu nhập định kỳ tự động 💰',
+            message: `Hệ thống đã tự động ghi nhận khoản ${isExpense ? 'chi' : 'thu'} "${description}" trị giá ${amountStr} vào ví của bạn.`,
             deepLink: '/',
           },
         });

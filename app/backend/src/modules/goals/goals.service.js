@@ -3,11 +3,12 @@
 const { query } = require('../../config/db');
 const ApiError = require('../../utils/ApiError');
 
-async function list(userId) {
+async function list(userId, type) {
   const r = await query(
     `SELECT DISTINCT g.* FROM goals g
      LEFT JOIN wallet_members wm ON wm.wallet_id = g.wallet_id AND wm.user_id = $1
-     WHERE (g.user_id = $1 OR wm.user_id IS NOT NULL) AND g.status != 'cancelled'
+     LEFT JOIN goal_members gm ON gm.goal_id = g.id AND gm.user_id = $1
+     WHERE (g.user_id = $1 OR wm.user_id IS NOT NULL OR gm.user_id IS NOT NULL) AND g.status != 'cancelled'
      ORDER BY g.created_at DESC`,
     [userId]
   );
@@ -19,7 +20,8 @@ async function getById(userId, goalId) {
     `SELECT g.*, w.name AS wallet_name, w.type AS wallet_type FROM goals g
      LEFT JOIN wallets w ON w.id = g.wallet_id
      LEFT JOIN wallet_members wm ON wm.wallet_id = g.wallet_id AND wm.user_id = $2
-     WHERE g.id = $1 AND (g.user_id = $2 OR wm.user_id IS NOT NULL)`,
+     LEFT JOIN goal_members gm ON gm.goal_id = g.id AND gm.user_id = $2
+     WHERE g.id = $1 AND (g.user_id = $2 OR wm.user_id IS NOT NULL OR gm.user_id IS NOT NULL)`,
     [goalId, userId]
   );
   if (r.rowCount === 0) throw ApiError.notFound('Goal not found.');
@@ -37,6 +39,15 @@ async function getById(userId, goalId) {
     );
     walletMembers = mems.rows;
   }
+
+  // Fetch goal members
+  const gMems = await query(
+    `SELECT gm.user_id AS id, u.username, u.avatar_url AS "avatarUrl", gm.role
+     FROM goal_members gm
+     JOIN users u ON u.id = gm.user_id
+     WHERE gm.goal_id = $1`,
+    [goalId]
+  );
 
   // Fetch contributions list
   const contribs = await query(
@@ -62,11 +73,13 @@ async function getById(userId, goalId) {
 
   return {
     ...goal,
+    inviteCode: goal.invite_code,
     target_amount: Number(goal.target_amount),
     current_amount: Number(goal.current_amount),
     walletName: goal.wallet_name,
     walletType: goal.wallet_type,
     walletMembers,
+    goalMembers: gMems.rows,
     contributions: contribs.rows.map((c) => ({
       id: c.id,
       amount: Number(c.amount),
@@ -96,7 +109,14 @@ async function create(userId, payload) {
       payload.deadline || null,
     ]
   );
-  return r.rows[0];
+  const goal = r.rows[0];
+  await query(
+    `INSERT INTO goal_members (goal_id, user_id, role)
+     VALUES ($1, $2, 'owner')
+     ON CONFLICT DO NOTHING`,
+    [goal.id, userId]
+  );
+  return goal;
 }
 
 async function update(userId, goalId, payload) {
@@ -143,45 +163,60 @@ async function contribute(userId, goalId, amount) {
   const newAmount = goal.current_amount + amount;
   const status = newAmount >= goal.target_amount ? 'completed' : 'active';
 
-  // 1. Record the contribution
   await query(
     `INSERT INTO goal_contributions (goal_id, user_id, amount)
      VALUES ($1, $2, $3)`,
     [goalId, userId, amount]
   );
 
-  // 2. Update current amount and status on the goal itself
   const r = await query(
     `UPDATE goals SET current_amount = $2, status = $3, updated_at = NOW()
      WHERE id = $1 RETURNING *`,
     [goalId, newAmount, status]
   );
 
-  // 3. Create a Saving transaction to deduct from the wallet balance
-  let walletId = goal.wallet_id;
-  if (!walletId) {
-    const personalWallets = await query(
-      `SELECT w.id FROM wallets w
-       JOIN wallet_members wm ON wm.wallet_id = w.id
-       WHERE wm.user_id = $1 AND w.type = 'personal'
-       ORDER BY w.created_at ASC LIMIT 1`,
-      [userId]
-    );
-    walletId = personalWallets.rows[0]?.id;
-  }
-
-  if (walletId) {
-    await transactionService.create(userId, {
-      walletId,
-      categoryCode: 'Saving',
-      amount,
-      type: 'expense',
-      note: `Đóng góp mục tiêu: ${goal.name}`,
-      source: 'manual',
-    });
-  }
-
   return r.rows[0];
 }
 
-module.exports = { list, getById, create, update, remove, contribute };
+const crypto = require('crypto');
+
+async function generateInviteCode(userId, goalId) {
+  const goal = await getById(userId, goalId);
+  if (goal.inviteCode) return { inviteCode: goal.inviteCode };
+
+  const inviteCode = crypto.randomBytes(3).toString('hex').toUpperCase();
+  await query(
+    `UPDATE goals SET invite_code = $1 WHERE id = $2`,
+    [inviteCode, goalId]
+  );
+  return { inviteCode };
+}
+
+async function joinByInviteCode(userId, inviteCode) {
+  const r = await query(
+    `SELECT id FROM goals WHERE invite_code = $1 AND status != 'cancelled'`,
+    [inviteCode.trim().toUpperCase()]
+  );
+  if (r.rowCount === 0) throw ApiError.notFound('Mã mời không hợp lệ hoặc mục tiêu đã kết thúc.');
+  const goalId = r.rows[0].id;
+
+  await query(
+    `INSERT INTO goal_members (goal_id, user_id, role)
+     VALUES ($1, $2, 'member')
+     ON CONFLICT DO NOTHING`,
+    [goalId, userId]
+  );
+
+  return getById(userId, goalId);
+}
+
+module.exports = {
+  list,
+  getById,
+  create,
+  update,
+  remove,
+  contribute,
+  generateInviteCode,
+  joinByInviteCode,
+};

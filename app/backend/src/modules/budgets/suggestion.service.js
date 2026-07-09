@@ -282,6 +282,7 @@ async function computeSuggestionsForUser(userId, targetMonth) {
     }
   } catch (_) { /* peer data optional */ }
 
+  const FIXED_COSTS_CATEGORIES = new Set(['Housing', 'Housing & Utilities', 'Utilities']);
   const suggestions = [];
 
   for (const cat of allCats) {
@@ -292,27 +293,36 @@ async function computeSuggestionsForUser(userId, targetMonth) {
       return denoiseCategory(cat, catData.amounts, m);
     });
 
-    const baseSpending = computeBaseSpending(totals);
+    let baseSpending;
+    if (FIXED_COSTS_CATEGORIES.has(cat)) {
+      // For fixed costs, suggestion should equal last month's actual spending (totals[0])
+      baseSpending = (totals[0] !== null && totals[0] !== undefined && totals[0] > 0) ? totals[0] : computeBaseSpending(totals);
+    } else {
+      baseSpending = computeBaseSpending(totals);
+    }
+
     if (baseSpending === null || baseSpending <= 0) continue;
 
     // Check if user exceeded peer benchmark last month
     const peerAvg = peerBenchmarks.get(cat);
     const peerExceeded = peerAvg ? totals[0] > peerAvg : false;
 
-    const savingRate = getSavingRate(cat, peerExceeded);
+    const savingRate = FIXED_COSTS_CATEGORIES.has(cat) ? 0.00 : getSavingRate(cat, peerExceeded);
 
     const suggested = Math.round(baseSpending * incomeFactor * (1 - savingRate) * holidayFactor);
 
     // Build reason text
-    let reason = `Dựa trên chi tiêu trung bình ${formatVnd(Math.round(baseSpending))}đ/tháng`;
-    if (savingRate > 0) {
+    let reason = FIXED_COSTS_CATEGORIES.has(cat)
+      ? `Dựa trên chi tiêu thực tế tháng trước (${formatVnd(Math.round(baseSpending))}đ) cho danh mục cố định`
+      : `Dựa trên chi tiêu trung bình ${formatVnd(Math.round(baseSpending))}đ/tháng`;
+    if (!FIXED_COSTS_CATEGORIES.has(cat) && savingRate > 0) {
       reason += `, giảm ${Math.round(savingRate * 100)}% để tiết kiệm`;
     }
     if (holidayFactor !== 1.0) {
       const adj = holidayFactor > 1 ? 'tăng' : 'giảm';
       reason += `, ${adj} ${Math.round(Math.abs(holidayFactor - 1) * 100)}% theo mùa lễ`;
     }
-    if (peerExceeded) {
+    if (peerExceeded && !FIXED_COSTS_CATEGORIES.has(cat)) {
       reason += ` (đang cao hơn nhóm tương đồng)`;
     }
 
@@ -500,7 +510,11 @@ async function applySuggestions(userId, targetMonth, overrides = {}) {
   const budgets = [];
 
   for (const s of suggestions) {
-    const amount = overrides[s.categoryCode] || s.suggestedAmount;
+    const overrideVal = overrides[s.categoryCode];
+    if (overrideVal === -1 || overrideVal === null || overrideVal === false) {
+      continue; // Bỏ qua không áp dụng gợi ý này
+    }
+    const amount = overrideVal !== undefined ? Number(overrideVal) : s.suggestedAmount;
     const budget = await budgetsService.create(userId, {
       categoryCode: s.categoryCode,
       period: 'month',

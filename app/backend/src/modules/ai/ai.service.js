@@ -141,6 +141,100 @@ async function _enrichNluWithAction(userId, payload, response) {
   if (response.intent !== 'Action') return response;
 
   const actionType = response.action_type;
+  
+  if (actionType === 'SUGGEST_BUDGET') {
+    try {
+      const suggestionService = require('../budgets/suggestion.service');
+      const now = new Date();
+      let m = now.getMonth() + 2;
+      let y = now.getFullYear();
+      if (m > 12) { m = 1; y += 1; }
+      const targetMonth = `${y}-${String(m).padStart(2, '0')}`;
+      
+      let suggestions = await suggestionService.getSuggestions(userId, targetMonth);
+      if (suggestions.length === 0) {
+        await suggestionService.generateForUser(userId, targetMonth);
+        suggestions = await suggestionService.getSuggestions(userId, targetMonth);
+      }
+      const story = suggestionService.buildSuggestionStory(suggestions, targetMonth);
+      
+      const displayEmotion = 'Thinking';
+      response.gemini_json = response.gemini_json || {};
+      response.gemini_json.story = story;
+      response.gemini_json.mimo_emotion = displayEmotion;
+      response.gemini_json.emotion = displayEmotion;
+      response.mimo_emotion = displayEmotion;
+      response.nlg_response = story;
+      response.action_result = { suggestions };
+      
+      await logAi(userId, 'action_executed', { text: payload.text, actionType }, { suggestions }, { backend: response.backend });
+      return response;
+    } catch (err) {
+      logger.warn({ err: err.message, userId }, 'action suggest budget execution failed');
+      return response;
+    }
+  }
+
+  if (actionType === 'SEARCH_RECORD') {
+    try {
+      const actionResult = await actionService.executeAction(userId, {
+        actionType,
+        text: payload.text || response.text || '',
+        actionDetails: response.action_details,
+      });
+      response.action_result = actionResult;
+      let story = actionResult.message;
+
+      const runLlm = Boolean(payload.runLlm || payload.run_llm || response.gemini_json || response.llama_json);
+      if (runLlm) {
+        try {
+          let nlgPersona = payload.nlgPersona || payload.emotion;
+          if (!nlgPersona && userId) {
+            const settingsRes = await query('SELECT verbal_style FROM user_settings WHERE user_id = $1', [userId]);
+            const verbalStyle = settingsRes.rows[0]?.verbal_style || 'funny';
+            nlgPersona = mapVerbalStyleToNlgPersona(verbalStyle);
+          }
+          const userCorrections = userId ? await _fetchUserCorrections(userId) : [];
+          const secondPayload = {
+            text: payload.text || response.text || '',
+            profile: {
+              ...(payload.profile || {}),
+              action_facts: actionResult,
+            },
+            run_llm: true,
+            nlg_persona: nlgPersona || null,
+            emotion: nlgPersona || null,
+            user_id: userId,
+            user_corrections: userCorrections,
+          };
+          const secondRes = await aiClient.inferText(secondPayload);
+          const secondStory = secondRes.gemini_json?.response || secondRes.gemini_json?.story || secondRes.nlg_response;
+          if (secondStory) {
+            story = secondStory;
+            response.gemini_json = secondRes.gemini_json || response.gemini_json;
+            response.llama_json = secondRes.llama_json || response.llama_json;
+          }
+        } catch (err) {
+          logger.error({ err: err.message, userId }, 'Second LLM call for search failed');
+        }
+      }
+
+      const displayEmotion = pickMimoEmotionFromNlu(response, 'Action');
+      response.gemini_json = response.gemini_json || {};
+      response.gemini_json.mimo_emotion = displayEmotion;
+      response.gemini_json.emotion = displayEmotion;
+      response.mimo_emotion = displayEmotion;
+      response.nlg_response = story || response.nlg_response;
+      response.gemini_json.story = story || response.gemini_json.story;
+
+      await logAi(userId, 'action_executed', { text: payload.text, actionType }, actionResult, { backend: response.backend });
+      return response;
+    } catch (err) {
+      logger.warn({ err: err.message, userId }, 'action search execution failed');
+      return response;
+    }
+  }
+
   if (!actionService.isReportAction(actionType)) return response;
 
   const timeRange =
@@ -367,6 +461,21 @@ async function _fetchWalletProfile(userId, walletId) {
 
     if (walletRes.rows[0]) {
       const row = walletRes.rows[0];
+      
+      const nowDt = new Date();
+      // Shift to UTC+7 for local Vietnamese time context
+      const localTime = new Date(nowDt.getTime() + 7 * 3600000);
+      const hour = localTime.getUTCHours();
+      let time_of_day = 'sáng';
+      if (hour >= 11 && hour < 14) time_of_day = 'trưa';
+      else if (hour >= 14 && hour < 18) time_of_day = 'chiều';
+      else if (hour >= 18 && hour < 22) time_of_day = 'tối';
+      else if (hour >= 22 || hour < 5) time_of_day = 'đêm khuya';
+      
+      const day_of_month = localTime.getUTCDate();
+      const days_to_payday = day_of_month <= 25 ? (25 - day_of_month) : (30 - day_of_month + 25);
+      const weather = ['nắng đẹp', 'mưa rả rích', 'mát mẻ', 'hơi oi bức', 'se lạnh'][Math.floor(Math.random() * 5)];
+      
       const data = {
         budget_total:     Number(row.budget_total) || 0,
         budget_remain:    Number(row.budget_remain) || 0,
@@ -377,6 +486,10 @@ async function _fetchWalletProfile(userId, walletId) {
         wallet_type:      row.wallet_type,
         member_count:     Number(row.member_count) || 0,
         category_stats,
+        time_of_day,
+        day_of_month,
+        days_to_payday,
+        weather,
       };
       walletProfileCache.set(cacheKey, { data, expiresAt: now + 30000 });
       return data;
@@ -386,14 +499,24 @@ async function _fetchWalletProfile(userId, walletId) {
 }
 
 async function expenseFromText(userId, payload) {
-  const profile = await _fetchWalletProfile(userId, payload.walletId);
+  let profile = await _fetchWalletProfile(userId, payload.walletId);
   let emotion = null;
+  let username = 'bạn';
   if (userId) {
     try {
+      const userRes = await query('SELECT username FROM users WHERE id = $1', [userId]);
+      if (userRes.rows[0]?.username) {
+        username = userRes.rows[0].username;
+      }
       const settingsRes = await query('SELECT verbal_style FROM user_settings WHERE user_id = $1', [userId]);
       const verbalStyle = settingsRes.rows[0]?.verbal_style || 'funny';
       emotion = mapVerbalStyleToEmotion(verbalStyle);
     } catch (_) {}
+  }
+  if (!profile) {
+    profile = { username };
+  } else {
+    profile.username = username;
   }
   const userCorrections = userId ? await _fetchUserCorrections(userId) : [];
   const aiResponse = await aiClient.expenseFromText({
@@ -480,16 +603,31 @@ async function _processBillBackground(userId, walletId, transactionId, fileBuffe
     }
 
     const extracted = aiResponse.extracted || {};
+    
+    // Verify if it is a valid receipt image. 
+    // A valid bill MUST have an amount > 0.
+    // If it has no amount, it's either a normal image or an unreadable bill.
+    const hasNoAmount = !extracted.amount || extracted.amount <= 0;
+    if (hasNoAmount) {
+      throw new Error('Không tìm thấy số tiền trên hóa đơn. Vui lòng đảm bảo ảnh chụp là hóa đơn rõ ràng.');
+    }
+
     const personalizationKeyword = resolveKeywordFromOcrPayload(
       aiResponse.ocr || {},
       extracted.note || null
     );
-    const categoryId = extracted.category
-      ? (await query(
-          `SELECT id FROM categories WHERE code = $1 LIMIT 1`,
-          [extracted.category]
-        )).rows[0]?.id || null
-      : null;
+    let categoryId = null;
+    let finalCategoryCode = extracted.category || null;
+    if (extracted.category) {
+      const catRes = await query(
+        `SELECT id, code FROM categories WHERE LOWER(code) = LOWER($1) OR LOWER(name) = LOWER($1) LIMIT 1`,
+        [extracted.category]
+      );
+      if (catRes.rows[0]) {
+        categoryId = catRes.rows[0].id;
+        finalCategoryCode = catRes.rows[0].code;
+      }
+    }
 
     // Tạo story + ai_comment để story feed hiển thị mascot + comment LLM (giống luồng nhập tay)
     const nlu = aiResponse.nlu || {};
@@ -545,7 +683,7 @@ async function _processBillBackground(userId, walletId, transactionId, fileBuffe
        WHERE id = $9`,
       [
         categoryId,
-        extracted.category || null,
+        finalCategoryCode,
         extracted.amount || null,
         extracted.record_type === 'Income' ? 'income' : extracted.amount ? 'expense' : null,
         extracted.note || null,
@@ -637,9 +775,23 @@ async function _processBillBackground(userId, walletId, transactionId, fileBuffe
   } catch (err) {
     logger.error({ err: err.message, transactionId }, 'bill background job failed');
     await query(
-      `UPDATE transactions SET processing_status = 'failed', updated_at = NOW() WHERE id = $1`,
+      `DELETE FROM transactions WHERE id = $1`,
       [transactionId]
     ).catch(() => {});
+
+    if (imageUrl) {
+      try {
+        const r2Client = require('../../services/r2Client');
+        const env = require('../../config/env');
+        if (env.r2.publicBaseUrl) {
+          const key = imageUrl.replace(env.r2.publicBaseUrl, '').replace(/^\//, '');
+          await r2Client.deleteFile(key);
+        }
+      } catch (r2Err) {
+        logger.warn({ err: r2Err.message, imageUrl }, 'Failed to delete failed bill image from R2');
+      }
+    }
+
     sendToUser(userId, { type: 'transaction_failed', transactionId, error: err.message });
   }
 }
@@ -994,8 +1146,13 @@ async function aiChat(userId, sessionId, userMessage) {
   const summary = summarizeOlderMessages(olderMessages);
 
   let emotion = null;
+  let username = 'bạn';
   if (userId) {
     try {
+      const userRes = await query('SELECT username FROM users WHERE id = $1', [userId]);
+      if (userRes.rows[0]?.username) {
+        username = userRes.rows[0].username;
+      }
       const settingsRes = await query('SELECT verbal_style FROM user_settings WHERE user_id = $1', [userId]);
       const verbalStyle = settingsRes.rows[0]?.verbal_style || 'funny';
       emotion = mapVerbalStyleToEmotion(verbalStyle);
@@ -1024,6 +1181,11 @@ async function aiChat(userId, sessionId, userMessage) {
   let profile = null;
   if (walletId) {
     profile = await _fetchWalletProfile(userId, walletId);
+  }
+  if (!profile) {
+    profile = { username };
+  } else {
+    profile.username = username;
   }
 
   const userCorrections = userId ? await _fetchUserCorrections(userId) : [];
@@ -1157,6 +1319,61 @@ async function aiChat(userId, sessionId, userMessage) {
       }));
     }
 
+    if (intentAction.intent === 'Record' && intentAction.category) {
+      try {
+        const categoryCode = intentAction.category;
+        const budgetsService = require('../budgets/budgets.service');
+        const summaries = await budgetsService.summary(userId);
+        const activeBudget = summaries.find(b => b.categoryCode === categoryCode && b.isActive);
+        if (!activeBudget) {
+          const incomeRes = await query(
+            `SELECT COALESCE(SUM(amount), 0) AS total_income 
+             FROM transactions 
+             WHERE wallet_id IN (SELECT wallet_id FROM wallet_members WHERE user_id = $1)
+               AND type = 'income' AND is_deleted = FALSE 
+               AND date_trunc('month', occurred_at) = date_trunc('month', NOW())`,
+            [userId]
+          );
+          let monthlyIncome = Number(incomeRes.rows[0]?.total_income || 0);
+          if (monthlyIncome <= 0) {
+            const avgIncomeRes = await query(
+              `SELECT COALESCE(AVG(monthly_sum), 0) AS avg_income FROM (
+                 SELECT SUM(amount) AS monthly_sum 
+                 FROM transactions 
+                 WHERE wallet_id IN (SELECT wallet_id FROM wallet_members WHERE user_id = $1)
+                   AND type = 'income' AND is_deleted = FALSE
+                   AND occurred_at >= NOW() - INTERVAL '3 months'
+                 GROUP BY date_trunc('month', occurred_at)
+               ) t`,
+              [userId]
+            );
+            monthlyIncome = Number(avgIncomeRes.rows[0]?.avg_income || 0);
+          }
+          if (monthlyIncome <= 0) {
+            monthlyIncome = 8000000;
+          }
+
+          const suggestedAmount = Math.round(monthlyIncome * 0.10);
+          const targetMonth = new Date().toISOString().substring(0, 7);
+          
+          intentAction.budget_suggestion = {
+            kind: 'budget_suggestion',
+            targetMonth: targetMonth,
+            suggestions: [
+              {
+                categoryCode: categoryCode,
+                suggestedAmount: suggestedAmount,
+                baseSpending: 0,
+                reason: `Bạn vừa chi tiêu cho danh mục này nhưng chưa thiết lập hạn mức tháng.`
+              }
+            ]
+          };
+        }
+      } catch (err) {
+        logger.warn({ err: err.message }, 'Failed to check budget suggestion in aiChat');
+      }
+    }
+
     // Save AI response to chat session
     const savedMsg = await chatService.addMessage(userId, sessionId, {
       content: assistantContent,
@@ -1164,7 +1381,7 @@ async function aiChat(userId, sessionId, userMessage) {
       intentAction: intentAction,
     });
 
-    const isLlmBackend = (aiResponse.backend === 'llm_unified' || aiResponse.backend === 'llm_fallback' || String(aiResponse.backend).startsWith('user_')) && !actionService.isReportAction(intentAction.nlu?.action_type);
+    const isLlmBackend = (aiResponse.backend === 'llm_unified' || aiResponse.backend === 'llm_fallback' || String(aiResponse.backend).startsWith('user_') || actionService.isReportAction(intentAction.nlu?.action_type));
 
     if (!isLlmBackend && process.env.NODE_ENV !== 'test') {
       setImmediate(() => {

@@ -32,3 +32,14 @@ exports.contribute = asyncHandler(async (req, res) => {
   const data = await service.contribute(req.user.id, req.params.id, req.body.amount);
   res.json({ success: true, data });
 });
+
+exports.generateInviteCode = asyncHandler(async (req, res) => {
+  const data = await service.generateInviteCode(req.user.id, req.params.id);
+  res.json({ success: true, data });
+});
+
+exports.joinByInviteCode = asyncHandler(async (req, res) => {
+  const data = await service.joinByInviteCode(req.user.id, req.body.inviteCode);
+  res.json({ success: true, data });
+});
+

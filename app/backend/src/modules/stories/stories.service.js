@@ -4,32 +4,33 @@ const { query } = require('../../config/db');
 const ApiError = require('../../utils/ApiError');
 
 async function list(userId, walletId) {
-  let sql = `SELECT s.*, 
-    (SELECT COUNT(*) FROM story_items si WHERE si.story_id = s.id) AS item_count,
-    (SELECT COUNT(*) FROM transactions t WHERE t.story_item_id IN (SELECT si2.id FROM story_items si2 WHERE si2.story_id = s.id) AND NOT t.is_deleted) AS tx_count,
-    (SELECT content_text FROM ai_comments ac WHERE ac.story_id = s.id ORDER BY ac.created_at DESC LIMIT 1) AS ai_message,
-    (SELECT emotion FROM ai_comments ac WHERE ac.story_id = s.id ORDER BY ac.created_at DESC LIMIT 1) AS ai_emotion,
-    (SELECT raw_text FROM story_items si WHERE si.story_id = s.id ORDER BY si.created_at ASC LIMIT 1) AS description,
-    (SELECT MAX(t.occurred_at) FROM story_items si3
-      JOIN transactions t ON t.story_item_id = si3.id AND NOT t.is_deleted
-      WHERE si3.story_id = s.id) AS latest_occurred_at
-    FROM stories s WHERE `;
+  let sql = `SELECT * FROM (
+    SELECT s.*, 
+      (SELECT COUNT(*) FROM story_items si WHERE si.story_id = s.id) AS item_count,
+      (SELECT COUNT(*) FROM transactions t WHERE t.story_item_id IN (SELECT si2.id FROM story_items si2 WHERE si2.story_id = s.id) AND NOT t.is_deleted) AS tx_count,
+      (SELECT content_text FROM ai_comments ac WHERE ac.story_id = s.id ORDER BY ac.created_at DESC LIMIT 1) AS ai_message,
+      (SELECT emotion FROM ai_comments ac WHERE ac.story_id = s.id ORDER BY ac.created_at DESC LIMIT 1) AS ai_emotion,
+      (SELECT raw_text FROM story_items si WHERE si.story_id = s.id ORDER BY si.created_at ASC LIMIT 1) AS description,
+      (SELECT category_code FROM transactions t WHERE t.story_item_id IN (SELECT si2.id FROM story_items si2 WHERE si2.story_id = s.id) AND NOT t.is_deleted GROUP BY category_code ORDER BY SUM(amount) DESC LIMIT 1) AS category_code,
+      (SELECT MAX(t.occurred_at) FROM story_items si3
+        JOIN transactions t ON t.story_item_id = si3.id AND NOT t.is_deleted
+        WHERE si3.story_id = s.id) AS latest_occurred_at
+      FROM stories s
+  ) AS s_sub WHERE s_sub.tx_count > 0 AND `;
   const params = [];
   if (walletId) {
-    sql += `s.wallet_id = $1 AND EXISTS (
-      SELECT 1 FROM wallet_members wm WHERE wm.wallet_id = s.wallet_id AND wm.user_id = $2
+    sql += `s_sub.wallet_id = $1 AND EXISTS (
+      SELECT 1 FROM wallet_members wm WHERE wm.wallet_id = s_sub.wallet_id AND wm.user_id = $2
     )`;
     params.push(walletId, userId);
   } else {
-    sql += 's.user_id = $1';
+    sql += 's_sub.user_id = $1';
     params.push(userId);
   }
   sql += ` ORDER BY COALESCE(
-    (SELECT MAX(t.occurred_at) FROM story_items si4
-      JOIN transactions t ON t.story_item_id = si4.id AND NOT t.is_deleted
-      WHERE si4.story_id = s.id),
-    s.created_at
-  ) DESC, s.created_at DESC`;
+    s_sub.latest_occurred_at,
+    s_sub.created_at
+  ) DESC, s_sub.created_at DESC`;
   const r = await query(sql, params);
   return r.rows;
 }
@@ -39,7 +40,8 @@ async function getById(userId, storyId) {
     `SELECT s.*,
       (SELECT MAX(t.occurred_at) FROM story_items si2
         JOIN transactions t ON t.story_item_id = si2.id AND NOT t.is_deleted
-        WHERE si2.story_id = s.id) AS latest_occurred_at
+        WHERE si2.story_id = s.id) AS latest_occurred_at,
+      (SELECT category_code FROM transactions t WHERE t.story_item_id IN (SELECT si2.id FROM story_items si2 WHERE si2.story_id = s.id) AND NOT t.is_deleted GROUP BY category_code ORDER BY SUM(amount) DESC LIMIT 1) AS category_code
      FROM stories s 
      WHERE s.id = $1 AND (
        s.user_id = $2 OR (

@@ -63,11 +63,11 @@ async function dashboard(userId, { from, to, walletId } = {}) {
   );
 
   const byCategoryQ = query(
-    `SELECT COALESCE(category_code, 'Others') AS category_code,
+    `SELECT CASE WHEN category_code IS NULL OR LOWER(category_code) IN ('other', 'others') THEN 'Other' ELSE category_code END AS category_code,
             SUM(amount)::numeric AS total,
             COUNT(*)::int AS count
      FROM transactions t WHERE ${baseWhere} AND type = 'expense' AND (category_code IS NULL OR category_code != 'Saving')
-     GROUP BY COALESCE(category_code, 'Others')
+     GROUP BY 1
      ORDER BY total DESC`,
     params
   );
@@ -119,8 +119,8 @@ async function dashboard(userId, { from, to, walletId } = {}) {
       income: Number(total.rows[0].total_income),
       net:
         Number(total.rows[0].total_income) - Number(total.rows[0].total_expense),
-      countExpense: total.rows[0].count_expense,
-      countIncome: total.rows[0].count_income,
+      countExpense: Number(total.rows[0].count_expense || 0),
+      countIncome: Number(total.rows[0].count_income || 0),
     },
     byCategory: byCategory.rows.map((r) => ({
       categoryCode: r.category_code,
@@ -209,14 +209,14 @@ async function byCategory(userId, { from, to, range, walletId } = {}) {
   }
 
   const r = await query(
-    `SELECT COALESCE(category_code, 'Others') AS category_code,
+    `SELECT CASE WHEN category_code IS NULL OR LOWER(category_code) IN ('other', 'others') THEN 'Other' ELSE category_code END AS category_code,
             SUM(amount)::numeric AS total,
             COUNT(*)::int AS count
      FROM transactions t
      WHERE ${baseWhere}
        AND type = 'expense'
        AND (category_code IS NULL OR category_code != 'Saving')
-     GROUP BY COALESCE(category_code, 'Others')
+     GROUP BY 1
      ORDER BY total DESC`,
     params
   );

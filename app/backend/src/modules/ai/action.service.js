@@ -34,9 +34,12 @@ const TONE_MAP = {
   'hai huoc': 'funny',
   'vui ve': 'funny',
   'funny': 'funny',
+  'dui de': 'funny',
   'dan doi': 'strict',
   'strict': 'strict',
   'nghiem': 'strict',
+  'sassy': 'strict',
+  'xeo sac': 'strict',
 };
 
 function isReportAction(actionType) {
@@ -110,7 +113,10 @@ function disambiguateActionType(text, actionType) {
   const hasLimit = /\b(han muc|gioi han|limit|tang han muc|giam han muc)\b/.test(t);
   const hasGoal = /\b(muc tieu|tiet kiem|goal)\b/.test(t);
   const hasContribute = /\b(bu them|bo sung|cat them|gop them|contribute)\b/.test(t) || /\bbu\s+\d/.test(t);
+  const hasSuggest = /\b(goi y|de xuat|suggest|recommend|khuyen)\b/.test(t);
+  const hasBudget = /\b(han muc|chi tieu|budget|ngan sach)\b/.test(t);
 
+  if (hasSuggest && hasBudget) return 'SUGGEST_BUDGET';
   if (hasContribute && hasGoal) return 'ADD_GOAL';
   if (hasLimit && (upper.includes('GOAL') || upper === 'RECORD')) return 'SET_LIMIT';
   if (hasGoal && !hasLimit && upper.includes('LIMIT')) return 'SET_GOAL';
@@ -359,16 +365,64 @@ async function executeReport(userId, { timeRange, categoryCode, reportKind, text
   let totalIncome = dash.totals?.income ?? 0;
   let txCount = dash.totals?.countExpense ?? 0;
 
+  if (kind === 'income') {
+    txCount = dash.totals?.countIncome ?? 0;
+    try {
+      const r = await query(
+        `SELECT COALESCE(category_code, 'Others') AS category_code,
+                SUM(amount)::numeric AS total,
+                COUNT(*)::int AS count
+         FROM transactions t
+         WHERE t.is_deleted = FALSE
+           AND t.wallet_id IN (SELECT wallet_id FROM wallet_members WHERE user_id = $1)
+           AND t.occurred_at BETWEEN $2 AND $3
+           AND type = 'income'
+         GROUP BY COALESCE(category_code, 'Others')
+         ORDER BY total DESC`,
+        [userId, range.from, range.to]
+      );
+      byCategory = r.rows.map((row) => ({
+        categoryCode: row.category_code,
+        total: Number(row.total),
+        count: row.count,
+      }));
+    } catch (err) {
+      console.error('Failed to query income categories:', err);
+    }
+  } else if (kind === 'saving') {
+    try {
+      const r = await query(
+        `SELECT COALESCE(SUM(amount), 0)::numeric AS total,
+                COUNT(*)::int AS count
+         FROM transactions t
+         WHERE t.is_deleted = FALSE
+           AND t.wallet_id IN (SELECT wallet_id FROM wallet_members WHERE user_id = $1)
+           AND t.occurred_at BETWEEN $2 AND $3
+           AND category_code = 'Saving'`,
+        [userId, range.from, range.to]
+      );
+      totalExpense = Number(r.rows[0].total);
+      txCount = r.rows[0].count;
+      byCategory = [{
+        categoryCode: 'Saving',
+        total: totalExpense,
+        count: txCount,
+      }];
+    } catch (err) {
+      console.error('Failed to query saving totals:', err);
+    }
+  }
+
   let days = dash.byDay || [];
   if (resolvedCategory && multipleCategories.length < 2) {
     const matchedCat = byCategory.find((c) => c.categoryCode === resolvedCategory);
     byCategory = byCategory.filter((c) => c.categoryCode === resolvedCategory);
     if (matchedCat) {
-      totalExpense = matchedCat.total;
-      txCount = matchedCat.count;
+      totalExpense = Number(matchedCat.total);
+      txCount = Number(matchedCat.count);
       totalIncome = 0;
       if (['Salary', 'Bonus', 'Investment', 'Business'].includes(resolvedCategory)) {
-        totalIncome = matchedCat.total;
+        totalIncome = Number(matchedCat.total);
         totalExpense = 0;
       }
     } else {
@@ -418,6 +472,25 @@ async function executeReport(userId, { timeRange, categoryCode, reportKind, text
     }
   }
 
+  // Merge "Other" and "Others" category codes
+  const mergedCategoryMap = new Map();
+  for (const c of byCategory) {
+    let code = c.categoryCode || 'Others';
+    if (code === 'Other') code = 'Others';
+    if (mergedCategoryMap.has(code)) {
+      const existing = mergedCategoryMap.get(code);
+      existing.total += Number(c.total);
+      existing.count += Number(c.count);
+    } else {
+      mergedCategoryMap.set(code, {
+        categoryCode: code,
+        total: Number(c.total),
+        count: Number(c.count)
+      });
+    }
+  }
+  byCategory = Array.from(mergedCategoryMap.values());
+
   const catTotal = byCategory.reduce((s, c) => s + c.total, 0);
 
   const enriched = byCategory.map((c) => ({
@@ -442,9 +515,11 @@ async function executeReport(userId, { timeRange, categoryCode, reportKind, text
 
   // 1. Calculate previous period comparison
   let comparePercent = 0;
+  let prevByDay = [];
   const prevRange = getPreviousPeriodRange(range.from, range.to, range.granularity);
   try {
     const prevDash = await statsService.dashboard(userId, { from: prevRange.from, to: prevRange.to });
+    prevByDay = prevDash.byDay || [];
     let prevExpense = prevDash.totals?.expense ?? 0;
     if (resolvedCategory) {
       const prevCat = (prevDash.byCategory || []).find((c) => c.categoryCode === resolvedCategory);
@@ -558,6 +633,7 @@ async function executeReport(userId, { timeRange, categoryCode, reportKind, text
     transaction_count: txCount,
     by_category: enriched.slice(0, 8),
     by_day: days,
+    prev_by_day: prevByDay,
     range: dash.range,
     compare_percent: comparePercent,
     limit_amount: limitAmount,
@@ -659,10 +735,11 @@ async function executeSetGoal(userId, payload) {
 
   if (existing && maxSim > 0.75) {
     const updated = await goalsService.contribute(userId, existing.id, amount);
+    const percent = Math.min(100, Math.round((Number(updated.current_amount || 0) / Number(updated.target_amount || 1)) * 100));
     return {
       kind: 'goal_contribute',
       goal: updated,
-      message: `Mimo đã cập nhật hạn mức cho mục tiêu '${existing.name}' hiện có của bạn rồi nhé!`,
+      message: `Tuyệt vời! Mimo đã ghi nhận ${formatVnd(amount)}đ tích lũy vào mục tiêu '${existing.name}' của bạn rồi nhé! Hiện bạn đã đạt được ${formatVnd(updated.current_amount)}đ / ${formatVnd(updated.target_amount)}đ (${percent}%). Cố gắng lên nhé! 🚀`,
     };
   }
 
@@ -676,7 +753,7 @@ async function executeSetGoal(userId, payload) {
   return {
     kind: 'goal',
     goal,
-    message: `✅ Đã tạo mục tiêu "${goal.name || goalName}" — ${formatVnd(amount)}đ.`,
+    message: `🎉 Đã tạo mục tiêu mới "${goal.name || goalName}" — mục tiêu tích lũy ${formatVnd(amount)}đ. Chúc bạn sớm hoàn thành nhé! 🏆`,
   };
 }
 
@@ -733,7 +810,7 @@ async function executeDeleteLastRecord(userId) {
 
 async function executeSetTone(userId, payload) {
   const details = payload.actionDetails || {};
-  let style = payload.verbalStyle || details.verbal_style || details.style;
+  let style = payload.verbalStyle || details.verbal_style || details.style || (payload.slots ? payload.slots.verbal_style : null);
   if (!style && payload.text) {
     const t = _norm(payload.text);
     for (const [key, val] of Object.entries(TONE_MAP)) {
@@ -751,13 +828,29 @@ async function executeSetTone(userId, payload) {
   if (style !== 'funny' && style !== 'strict') {
     style = 'funny';
   }
+
+  // Check current verbal style
+  const currentSettings = await query('SELECT verbal_style FROM user_settings WHERE user_id = $1', [userId]);
+  const currentStyle = currentSettings.rows[0]?.verbal_style || 'funny';
+
+  const labels = { funny: 'Dui Dẻ', strict: 'Dận Dỗi' };
+
+  if (currentStyle === style) {
+    return {
+      kind: 'tone',
+      verbalStyle: style,
+      changed: false,
+      message: `Mimo hiện đang nói chuyện theo giọng ${labels[style] || style} rồi mà! Không cần đổi đâu nè.`,
+    };
+  }
+
   await settingsService.update(userId, { verbalStyle: style });
 
-  const labels = { funny: 'hài hước', strict: 'dạn dòi' };
   return {
     kind: 'tone',
     verbalStyle: style,
-    message: `✅ Mimo sẽ nói chuyện theo giọng ${labels[style] || style}.`,
+    changed: true,
+    message: `✅ Mimo sẽ nói chuyện theo giọng ${labels[style] || style} kể từ bây giờ nhé!`,
   };
 }
 
@@ -770,9 +863,23 @@ async function executeSearch(userId, payload) {
       .replace(/\b(tren|trên|duoi|dưới)\s+\d[\d.,kkmtr]*\s*(dong|đ|đồng)?\b/gi, '')
       .trim();
   }
-  // Try payload.amount first, then details.amount, then resolveAmount
   const minAmount = payload.amount ?? details.amount ?? (payload.minAmount ? Number(payload.minAmount) : resolveAmount(payload, details));
   const categoryCode = resolveCategoryCode(payload.categoryCode, details, payload.text);
+
+  if (categoryCode && q) {
+    const aliases = [];
+    for (const [alias, code] of Object.entries(VI_CATEGORY_MAP)) {
+      if (code === categoryCode) aliases.push(alias);
+    }
+    const label = VI_CATEGORY_LABELS[categoryCode];
+    if (label) aliases.push(_norm(label));
+    
+    let qNorm = _norm(q);
+    for (const alias of aliases) {
+      qNorm = qNorm.replace(new RegExp(alias, 'gi'), '').trim();
+    }
+    q = qNorm;
+  }
   const limit = Math.min(Number(payload.limit) || 5, 10);
 
   const values = [userId];
@@ -842,7 +949,7 @@ async function executeAction(userId, payload) {
   if (type.includes('GOAL')) {
     return executeSetGoal(userId, payload);
   }
-  if (type.includes('TONE')) {
+  if (type.includes('TONE') || type === 'SET_VERBAL_STYLE') {
     return executeSetTone(userId, payload);
   }
   if (type.includes('SEARCH')) {
@@ -851,12 +958,14 @@ async function executeAction(userId, payload) {
   if (type.includes('SUGGEST') || type === 'SUGGEST_BUDGET') {
     return executeSuggestBudget(userId, payload);
   }
-  if (type === 'SETTING' || type === 'SYSTEM_SETTING') {
+  if (type === 'SETTING' || type === 'SYSTEM_SETTING' || type === 'SET_SYSTEM_SETTING') {
+    const details = payload.actionDetails || {};
+    const themeSlot = payload.theme || details.theme || (payload.slots ? payload.slots.theme : null);
     const normText = _norm(payload.text || '');
-    if (/\b(toi|dark|dem|night|den)\b/.test(normText)) {
+    if (themeSlot === 'dark' || /\b(toi|dark|dem|night|den)\b/.test(normText)) {
       await settingsService.update(userId, { themeMode: true });
       return { kind: 'theme', themeMode: true, message: '✅ Đã chuyển sang giao diện tối!' };
-    } else if (/\b(sang|light|day|trang)\b/.test(normText)) {
+    } else if (themeSlot === 'light' || /\b(sang|light|day|trang)\b/.test(normText)) {
       await settingsService.update(userId, { themeMode: false });
       return { kind: 'theme', themeMode: false, message: '✅ Đã chuyển sang giao diện sáng!' };
     }
@@ -924,7 +1033,7 @@ async function executeEditRecord(userId, payload) {
     updates.amount = amount;
   }
 
-  const categoryCode = resolveCategoryCode(payload.categoryCode, actionDetails);
+  const categoryCode = resolveCategoryCode(payload.categoryCode, actionDetails, payload.text);
   if (categoryCode) {
     updates.categoryCode = categoryCode;
   }
@@ -985,7 +1094,7 @@ async function executeSetAlert(userId, payload) {
   } else {
     isEnable = !payload.text?.includes('tắt') && !payload.text?.includes('tat');
   }
-  const categoryCode = resolveCategoryCode(payload.categoryCode, actionDetails);
+  const categoryCode = resolveCategoryCode(payload.categoryCode, actionDetails, payload.text);
 
   if (categoryCode) {
     const budgets = await budgetsService.list(userId);
@@ -1145,7 +1254,8 @@ function buildReportStory(actionResult) {
   }
 
   // 4. Kịch bản 1: Báo cáo Tổng chi tiêu (General)
-  let story = `Tính đến hôm nay, bạn đã tiêu tổng cộng ${formatVnd(total_expense)}đ rồi nè.`;
+  const catMsg = categoryCode ? ` cho danh mục ${getCategoryLabelVi(categoryCode)}` : '';
+  let story = `Tính đến hôm nay, bạn đã tiêu tổng cộng ${formatVnd(total_expense)}đ${catMsg} rồi nè.`;
 
   if (compare_percent !== 0) {
     story += ` Tốc độ tiêu xài đang ${compare_percent >= 0 ? 'nhanh' : 'chậm'} hơn ${Math.abs(compare_percent)}% so với cùng kỳ ${periodUnit} trước đó nha`;

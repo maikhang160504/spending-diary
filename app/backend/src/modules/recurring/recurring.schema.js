@@ -9,7 +9,9 @@ const createRecurringRuleSchema = z.object({
   categoryCode: z.string().min(1).max(40).optional().nullable(),
   note: z.string().optional().nullable(),
   frequency: z.enum(['daily', 'weekly', 'monthly']),
-  nextOccurrence: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  nextOccurrence: z.string().refine((val) => !isNaN(Date.parse(val)), {
+    message: "Invalid date format, must be a valid date or ISO 8601 string",
+  }),
   isActive: z.boolean().default(true),
 });
 
