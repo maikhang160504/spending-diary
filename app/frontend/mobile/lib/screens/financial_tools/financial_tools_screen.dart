@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../theme/app_colors.dart';
+import '../../theme/app_radii.dart';
 import '../goals/goal_screen.dart';
 import 'loans_screen.dart';
 
@@ -43,26 +45,16 @@ class _FinancialToolsScreenState extends State<FinancialToolsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).cardColor,
-        elevation: 0,
-        centerTitle: false,
-        title: Text(
-          'Công cụ tiền tệ',
-          style: TextStyle(
-            color: Theme.of(context).textTheme.bodyLarge!.color!,
-            fontWeight: FontWeight.w800,
-            fontSize: 24,
-            letterSpacing: -0.5,
-          ),
-        ),
-      ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+        child: Column(
+          children: [
+            const _ToolsHeader(),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
               Text(
                 'Quản lý và lập kế hoạch tài chính hiệu quả hơn với các bộ công cụ thông minh.',
                 style: TextStyle(
@@ -105,9 +97,12 @@ class _FinancialToolsScreenState extends State<FinancialToolsScreen> {
                 title: 'Vay mượn',
                 subtitle: 'Quản lý khoản vay và cho mượn',
                 onTap: () => _openFeatureCard(const LoansScreen()),
-              ),
-            ],
+                ),
+              ],
+            ),
           ),
+            ),
+          ],
         ),
       ),
     );
@@ -187,6 +182,71 @@ class _FinancialToolsScreenState extends State<FinancialToolsScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _ToolsHeader extends StatelessWidget {
+  const _ToolsHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: AppGradients.teal,
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(AppRadii.xl),
+          bottomRight: Radius.circular(AppRadii.xl),
+        ),
+      ),
+      padding: const EdgeInsets.fromLTRB(24, 20, 20, 24),
+      child: Row(
+        children: [
+          if (Navigator.canPop(context)) ...[
+            GestureDetector(
+              onTap: () => Navigator.of(context).pop(),
+              child: Container(
+                width: 38,
+                height: 38,
+                margin: const EdgeInsets.only(right: 14),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.22),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 18),
+              ),
+            ),
+          ],
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Công cụ tiền tệ',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 21,
+                      ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  'Quản lý tài chính, vay mượn và mục tiêu tương lai',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Colors.white.withValues(alpha: 0.88),
+                        fontSize: 12,
+                      ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

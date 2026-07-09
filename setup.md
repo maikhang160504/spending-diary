@@ -324,3 +324,15 @@ Thêm SHA-1 từ Play Console → App integrity → App signing key vào Firebas
 | Retrain readiness 0% | Duyệt bill trên `/bill-retrain`; category trên `/nlu-ops` |
 
 Tài liệu chiến lược retrain: **`RETRAIN.md`** · Brainstorm OCR: **`solutions_brainstorm.md`**
+
+---
+
+## 14. Công thức tính Chi tiêu lũy kế so với hạn mức (Cumulative Expense vs. Budget)
+
+Hệ thống Báo cáo MiMo áp dụng mô hình so sánh đường lũy kế thực tế với đường phân bổ hạn mức lý tưởng theo từng ngày:
+- **Đường lý tưởng đến ngày $k$ ($I_k$)**: $I_k = k \times \frac{B}{N}$ (với $B$ là tổng hạn mức, $N$ là tổng số ngày trong kỳ).
+- **Chi tiêu lũy kế thực tế đến ngày $k$ ($C_k$)**: $C_k = \sum_{i=1}^{k} E_i$.
+- **Tốc độ tiêu hao (Burn Rate Index - $\beta$)**: $\beta = \frac{C_{\text{now}} / B}{d_{\text{now}} / N}$.
+- **Hạn mức an toàn còn lại mỗi ngày**: $\text{Safe Daily Budget} = \frac{\max(0, B - C_{\text{now}})}{N - d_{\text{now}}}$.
+
+Xem toàn bộ công thức, ví dụ minh họa và lý thuyết toán học tại: **`docs/cong_thuc_chi_tieu_luy_ke.md`**.

@@ -545,23 +545,26 @@ class _GoalHeader extends StatelessWidget {
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   onJoin != null ? 'Thử thách' : 'Tiết kiệm',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     color: Colors.white,
                     fontWeight: FontWeight.w800,
-                    fontSize: 24,
+                    fontSize: 21,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 3),
                 Text(
                   onJoin != null
                       ? 'Tiết kiệm cùng bạn bè với thử thách chung'
                       : 'Tạo mục tiêu tiết kiệm và theo dõi tiến độ của bạn',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: Colors.white.withValues(alpha: 0.88),
-                    fontSize: 13,
+                    fontSize: 12,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -569,45 +572,38 @@ class _GoalHeader extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 8),
           if (onJoin != null) ...[
-            GestureDetector(
-              onTap: onJoin,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.22),
-                  borderRadius: BorderRadius.circular(24),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.group_add_outlined, color: Colors.white, size: 18),
-                    SizedBox(width: 5),
-                    Text(
-                      'Nhập mã',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
+            Tooltip(
+              message: 'Nhập mã mời',
+              child: GestureDetector(
+                onTap: onJoin,
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.22),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.group_add_outlined, color: Colors.white, size: 20),
                 ),
               ),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 8),
           ],
-          GestureDetector(
-            onTap: onAdd,
-            child: Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.22),
-                shape: BoxShape.circle,
+          Tooltip(
+            message: 'Tạo mới',
+            child: GestureDetector(
+              onTap: onAdd,
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.22),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.add, color: Colors.white, size: 22),
               ),
-              child: const Icon(Icons.add, color: Colors.white, size: 24),
             ),
           ),
         ],

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../services/api_client.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_palette.dart';
+import '../../theme/app_radii.dart';
 import '../../theme/app_spacing.dart';
 import '../../utils/formatters.dart';
 import 'loan_form_screen.dart';
@@ -80,34 +81,15 @@ class _LoansScreenState extends State<LoansScreen> with AutomaticKeepAliveClient
 
     return Scaffold(
       backgroundColor: context.palette.bg,
-      appBar: Navigator.canPop(context)
-          ? AppBar(
-              backgroundColor: context.palette.card,
-              elevation: 0,
-              centerTitle: false,
-              leading: IconButton(
-                icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-                onPressed: () => Navigator.of(context).pop(),
-              ),
-              title: Text(
-                'Vay mượn',
-                style: TextStyle(
-                  color: context.palette.textPrimary,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 20,
-                ),
-              ),
-            )
-          : null,
-      floatingActionButton: FloatingActionButton(
-        onPressed: _showCreateLoan,
-        backgroundColor: AppColors.teal,
-        child: const Icon(Icons.add, color: Colors.white),
-      ),
-      body: _loans.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+      body: SafeArea(
+        child: Column(
+          children: [
+            _LoansHeader(onAdd: _showCreateLoan),
+            Expanded(
+              child: _loans.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(
                     Icons.handshake_outlined,
@@ -221,6 +203,92 @@ class _LoansScreenState extends State<LoansScreen> with AutomaticKeepAliveClient
           );
         },
       ),
+      ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _LoansHeader extends StatelessWidget {
+  final VoidCallback onAdd;
+  const _LoansHeader({required this.onAdd});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: AppGradients.teal,
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(AppRadii.xl),
+          bottomRight: Radius.circular(AppRadii.xl),
+        ),
+      ),
+      padding: const EdgeInsets.fromLTRB(24, 20, 20, 24),
+      child: Row(
+        children: [
+          if (Navigator.canPop(context)) ...[
+            GestureDetector(
+              onTap: () => Navigator.of(context).pop(),
+              child: Container(
+                width: 38,
+                height: 38,
+                margin: const EdgeInsets.only(right: 14),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.22),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 18),
+              ),
+            ),
+          ],
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Vay mượn',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 21,
+                      ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  'Quản lý các khoản đi vay & cho mượn của bạn',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Colors.white.withValues(alpha: 0.88),
+                        fontSize: 12,
+                      ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Tooltip(
+            message: 'Tạo khoản vay/mượn',
+            child: GestureDetector(
+              onTap: onAdd,
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.22),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.add, color: Colors.white, size: 22),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
