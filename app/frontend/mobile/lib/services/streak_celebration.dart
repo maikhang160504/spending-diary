@@ -19,6 +19,11 @@ class StreakCelebration {
     if (lastDate != null) await _storage.write(key: _keyDate, value: lastDate);
   }
 
+  Future<void> reset() async {
+    await _storage.delete(key: _keyStreak);
+    await _storage.delete(key: _keyDate);
+  }
+
   Future<int?> _readLastStreak() async {
     final s = await _storage.read(key: _keyStreak);
     return s != null ? int.tryParse(s) : null;
@@ -49,6 +54,7 @@ class StreakCelebration {
       final cur = (data['currentStreak'] as num?)?.toInt() ?? 0;
       final lastDate = data['lastActivityDate'] as String?;
       if (!context.mounted) return;
+      // Khi người dùng vào app lần đầu tiên (prev == null), KHÔNG báo streak
       if (prev != null && prev > 0 && cur == 0) {
         await _showBroken(context);
       }

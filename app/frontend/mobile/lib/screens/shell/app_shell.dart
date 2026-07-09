@@ -19,6 +19,7 @@ import '../../theme/app_palette.dart';
 import '../../widgets/mimo_overlay.dart';
 import '../../widgets/notification_overlay.dart';
 import '../../widgets/bill_processing_banner.dart';
+import '../../widgets/ai_popup_menu.dart';
 
 /// AppShell wraps the 4 ShellRoute tabs + persistent bottom nav + MiMo overlay + Notification banner
 class AppShell extends StatefulWidget {
@@ -35,6 +36,7 @@ class _AppShellState extends State<AppShell> {
   Timer? _reconnectTimer;
   int _reconnectAttempt = 0;
   final _api = ApiClient();
+  bool _showAiPopup = false;
 
   @override
   void initState() {
@@ -236,7 +238,7 @@ class _AppShellState extends State<AppShell> {
                 ),
               );
               PushNotificationService.instance.showNotification(
-                id: 2,
+                id: DateTime.now().millisecondsSinceEpoch % 100000,
                 title: title,
                 body: message,
                 payload: deepLink,
@@ -287,7 +289,9 @@ class _AppShellState extends State<AppShell> {
   }
 
   void _onFabTap(BuildContext context) {
-    context.push(AppRoutes.camera, extra: {'walletId': ApiClient.lastSelectedWalletId});
+    setState(() {
+      _showAiPopup = !_showAiPopup;
+    });
   }
 
   @override
@@ -343,6 +347,41 @@ class _AppShellState extends State<AppShell> {
                 onDismiss: inAppNotificationController.dismiss,
               ),
             ),
+          // AI Assistant Speed Dial Popup overlay
+          if (_showAiPopup)
+            Positioned.fill(
+              child: AiAssistantPopupMenu(
+                onClose: () {
+                  setState(() {
+                    _showAiPopup = false;
+                  });
+                },
+                onSelectBill: () {
+                  context.push(
+                    AppRoutes.camera,
+                    extra: {
+                      'walletId': ApiClient.lastSelectedWalletId,
+                      'initialMode': 'Bill',
+                    },
+                  );
+                },
+                onSelectPhotoText: () {
+                  context.push(
+                    AppRoutes.camera,
+                    extra: {
+                      'walletId': ApiClient.lastSelectedWalletId,
+                      'initialMode': 'Ảnh',
+                    },
+                  );
+                },
+                onSelectChat: () {
+                  context.push(
+                    AppRoutes.chat,
+                    extra: {'walletId': ApiClient.lastSelectedWalletId},
+                  );
+                },
+              ),
+            ),
         ],
       ),
       bottomNavigationBar: Container(
@@ -360,11 +399,11 @@ class _AppShellState extends State<AppShell> {
               children: [
                 Row(
                   children: [
-                    _NavItem(icon: Icons.home_outlined, activeIcon: Icons.home_rounded, label: 'Home', isActive: currentIndex == 0, onTap: () => _onTabTap(context, 0)),
-                    _NavItem(icon: Icons.analytics_outlined, activeIcon: Icons.analytics_rounded, label: 'Report', isActive: currentIndex == 1, onTap: () => _onTabTap(context, 1)),
+                    _NavItem(icon: Icons.home_outlined, activeIcon: Icons.home_rounded, label: 'Trang chủ', isActive: currentIndex == 0, onTap: () => _onTabTap(context, 0)),
+                    _NavItem(icon: Icons.insights_outlined, activeIcon: Icons.insights_rounded, label: 'Báo cáo', isActive: currentIndex == 1, onTap: () => _onTabTap(context, 1)),
                     const Expanded(child: SizedBox()), // gap for FAB
-                    _NavItem(icon: Icons.emoji_events_outlined, activeIcon: Icons.emoji_events_rounded, label: 'Goals', isActive: currentIndex == 2, onTap: () => _onTabTap(context, 2)),
-                    _NavItem(icon: Icons.manage_accounts_outlined, activeIcon: Icons.manage_accounts_rounded, label: 'Settings', isActive: currentIndex == 3, onTap: () => _onTabTap(context, 3)),
+                    _NavItem(icon: Icons.savings_outlined, activeIcon: Icons.savings_rounded, label: 'Công cụ', isActive: currentIndex == 2, onTap: () => _onTabTap(context, 2)),
+                    _NavItem(icon: Icons.settings_outlined, activeIcon: Icons.settings_rounded, label: 'Cài đặt', isActive: currentIndex == 3, onTap: () => _onTabTap(context, 3)),
                   ],
                 ),
                 // FAB raised above bar (SH-02: animated rotation on tap)
@@ -463,15 +502,32 @@ class _AnimatedFabState extends State<_AnimatedFab> with SingleTickerProviderSta
         decoration: BoxDecoration(
           color: context.palette.card,
           shape: BoxShape.circle,
-          border: Border.all(color: context.palette.border, width: 1),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, -3),
+            )
+          ],
         ),
         child: Center(
           child: Container(
             width: 50, height: 50,
             decoration: BoxDecoration(
-              color: AppColors.teal,
+              gradient: const LinearGradient(
+                colors: [Color(0xFF14B8A6), Color(0xFF06B6D4)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
               shape: BoxShape.circle,
-              boxShadow: const [BoxShadow(color: Color(0x4014B8A6), blurRadius: 12, offset: Offset(0, 4))],
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF14B8A6).withValues(alpha: 0.5),
+                  blurRadius: 16,
+                  spreadRadius: 1,
+                  offset: const Offset(0, 4),
+                )
+              ],
             ),
             child: AnimatedBuilder(
               animation: _rotation,
@@ -479,7 +535,7 @@ class _AnimatedFabState extends State<_AnimatedFab> with SingleTickerProviderSta
                 angle: _rotation.value * 0.785398, // 45 degrees
                 child: child,
               ),
-              child: const Icon(Icons.add, color: Colors.white, size: 26),
+              child: const Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 26),
             ),
           ),
         ),

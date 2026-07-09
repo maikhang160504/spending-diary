@@ -13,7 +13,7 @@ import '../screens/camera/camera_screen.dart';
 import '../screens/chat/chat_history_screen.dart';
 import '../screens/chat/chat_screen.dart';
 import '../screens/goals/goal_detail_screen.dart';
-import '../screens/goals/goal_screen.dart';
+import '../screens/financial_tools/financial_tools_screen.dart';
 import '../screens/home/home_calendar_screen.dart';
 import '../screens/home/home_gallery_screen.dart';
 import '../screens/home/home_screen.dart';
@@ -160,13 +160,43 @@ final GoRouter appRouter = GoRouter(
         ),
         GoRoute(
           path: AppRoutes.goals,
-          pageBuilder: (context, state) => _lottiePage(state, 'assets/animations/Success_goal.json', const GoalScreen()),
+          pageBuilder: (context, state) {
+            final tabParam = state.uri.queryParameters['tab'];
+            int initialTab = 0;
+            if (tabParam == 'challenge' || tabParam == '1' || tabParam == 'thuthach') {
+              initialTab = 1;
+            } else if (tabParam == 'loans' || tabParam == '2' || tabParam == 'vaymuon') {
+              initialTab = 2;
+            }
+            final joinCode = state.uri.queryParameters['code'];
+            return _lottiePage(
+              state,
+              'assets/animations/Success_goal.json',
+              FinancialToolsScreen(
+                initialTabIndex: initialTab,
+                initialJoinCode: joinCode,
+              ),
+            );
+          },
         ),
         GoRoute(
           path: AppRoutes.settings,
           pageBuilder: (context, state) => _lottiePage(state, 'assets/animations/Loading.json', const SettingsScreen()),
         ),
       ],
+    ),
+
+    // Deep link routes for challenge and loans
+    GoRoute(
+      path: '/challenge',
+      redirect: (context, state) {
+        final code = state.uri.queryParameters['code'];
+        return '${AppRoutes.goals}?tab=challenge${code != null ? '&code=$code' : ''}';
+      },
+    ),
+    GoRoute(
+      path: '/loans',
+      redirect: (context, state) => '${AppRoutes.goals}?tab=loans',
     ),
 
     // ── Home sub-views ───────────────────────────────────────
@@ -181,6 +211,7 @@ final GoRouter appRouter = GoRouter(
         return CameraScreen(
           returnOnlyImagePath: extra?['returnOnlyImagePath'] as bool? ?? false,
           walletId: extra?['walletId'] as String?,
+          initialMode: extra?['initialMode'] as String?,
         );
       },
     ),

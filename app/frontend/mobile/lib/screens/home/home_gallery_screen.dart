@@ -9,6 +9,7 @@ import '../../theme/app_radii.dart';
 import '../../theme/app_spacing.dart';
 import '../../utils/formatters.dart';
 import '../../services/api_client.dart';
+import '../../theme/categories.dart';
 import '../../widgets/loading_indicator.dart';
 
 class HomeGalleryScreen extends StatefulWidget {
@@ -34,9 +35,15 @@ class _HomeGalleryScreenState extends State<HomeGalleryScreen> {
       final res = await _api.getStories();
       if (mounted) {
         setState(() {
-          _stories = res.where((s) =>
-            (s['cover_image_url'] as String? ?? s['coverImageUrl'] as String? ?? '').isNotEmpty
-          ).toList();
+          _stories = res
+              .where(
+                (s) =>
+                    (s['cover_image_url'] as String? ??
+                            s['coverImageUrl'] as String? ??
+                            '')
+                        .isNotEmpty,
+              )
+              .toList();
           _loading = false;
         });
       }
@@ -70,47 +77,56 @@ class _HomeGalleryScreenState extends State<HomeGalleryScreen> {
                   children: [
                     Row(
                       children: [
-                        Text('Gallery', style: Theme.of(context).textTheme.titleSmall),
+                        Text(
+                          'Gallery',
+                          style: Theme.of(context).textTheme.titleSmall,
+                        ),
                         const SizedBox(width: 6),
                         const Text('📸', style: TextStyle(fontSize: 18)),
                       ],
                     ),
                     const SizedBox(height: 12),
                     _loading
-                        ? const Center(child: Padding(
-                            padding: EdgeInsets.symmetric(vertical: 40),
-                            child: LoadingIndicator(),
-                          ))
+                        ? const Center(
+                            child: Padding(
+                              padding: EdgeInsets.symmetric(vertical: 40),
+                              child: LoadingIndicator(),
+                            ),
+                          )
                         : _stories.isEmpty
-                            ? Center(
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(vertical: 40),
-                                  child: Text('Chưa có story nào',
-                                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.muted)),
-                                ),
-                              )
-                            : GridView.builder(
-                                shrinkWrap: true,
-                                physics: const NeverScrollableScrollPhysics(),
-                                itemCount: _stories.length,
-                                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        ? Center(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 40),
+                              child: Text(
+                                'Chưa có story nào',
+                                style: Theme.of(context).textTheme.bodyMedium
+                                    ?.copyWith(color: AppColors.muted),
+                              ),
+                            ),
+                          )
+                        : GridView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: _stories.length,
+                            gridDelegate:
+                                const SliverGridDelegateWithFixedCrossAxisCount(
                                   crossAxisCount: 3,
                                   mainAxisSpacing: 6,
                                   crossAxisSpacing: 6,
                                   childAspectRatio: 0.72,
                                 ),
-                                itemBuilder: (context, index) {
-                                  final allIds = _stories
-                                      .map((s) => (s['id'] as String?) ?? '')
-                                      .where((e) => e.isNotEmpty)
-                                      .toList();
-                                  return _GalleryCard(
-                                    story: _stories[index],
-                                    allStoryIds: allIds,
-                                    initialIndex: index,
-                                  );
-                                },
-                              ),
+                            itemBuilder: (context, index) {
+                              final allIds = _stories
+                                  .map((s) => (s['id'] as String?) ?? '')
+                                  .where((e) => e.isNotEmpty)
+                                  .toList();
+                              return _GalleryCard(
+                                story: _stories[index],
+                                allStoryIds: allIds,
+                                initialIndex: index,
+                              );
+                            },
+                          ),
                     const SizedBox(height: 24),
                   ],
                 ),
@@ -146,11 +162,23 @@ class _HeaderSection extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Thứ Bảy, 9 tháng 05 2026', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white70)),
+                  Text(
+                    'Thứ Bảy, 9 tháng 05 2026',
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodySmall?.copyWith(color: Colors.white70),
+                  ),
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      Text('Chào bạn!', style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.white, fontWeight: FontWeight.w700)),
+                      Text(
+                        'Chào bạn!',
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                            ),
+                      ),
                       const SizedBox(width: 4),
                       const Text('👋', style: TextStyle(fontSize: 18)),
                     ],
@@ -158,7 +186,10 @@ class _HeaderSection extends StatelessWidget {
                 ],
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(AppRadii.md),
@@ -170,8 +201,19 @@ class _HeaderSection extends StatelessWidget {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('7 ngày', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white, fontWeight: FontWeight.w600)),
-                        Text('Streak', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white70, fontSize: 10)),
+                        Text(
+                          '7 ngày',
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                              ),
+                        ),
+                        Text(
+                          'Streak',
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(color: Colors.white70, fontSize: 10),
+                        ),
                       ],
                     ),
                   ],
@@ -184,7 +226,11 @@ class _HeaderSection extends StatelessWidget {
             scrollDirection: Axis.horizontal,
             child: Row(
               children: const [
-                _WalletChip(label: 'Ví riêng', icon: Icons.account_balance_wallet_outlined, isSelected: true),
+                _WalletChip(
+                  label: 'Ví riêng',
+                  icon: Icons.account_balance_wallet_outlined,
+                  isSelected: true,
+                ),
                 SizedBox(width: 8),
                 _WalletChip(label: 'Gia đình (4)', icon: Icons.group_outlined),
                 SizedBox(width: 8),
@@ -204,19 +250,46 @@ class _HeaderSection extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.auto_awesome, color: AppColors.teal, size: 16),
+                    const Icon(
+                      Icons.auto_awesome,
+                      color: AppColors.teal,
+                      size: 16,
+                    ),
                     const SizedBox(width: 6),
-                    Text('Số dư hiện tại', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary)),
+                    Text(
+                      'Số dư hiện tại',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: context.palette.textSecondary,
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 8),
-                Text('5.380.000 đ', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700, fontSize: 26)),
+                Text(
+                  '5.380.000 đ',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 26,
+                  ),
+                ),
                 const SizedBox(height: 12),
                 Row(
                   children: [
-                    Expanded(child: _BalanceStat(label: 'Thu nhập', value: '8.000.000 đ', color: AppColors.teal)),
+                    Expanded(
+                      child: _BalanceStat(
+                        label: 'Thu nhập',
+                        value: '8.000.000 đ',
+                        color: AppColors.teal,
+                      ),
+                    ),
                     Container(width: 1, height: 28, color: AppColors.border),
-                    Expanded(child: _BalanceStat(label: 'Chi tiêu', value: '2.620.000 đ', color: AppColors.danger)),
+                    Expanded(
+                      child: _BalanceStat(
+                        label: 'Chi tiêu',
+                        value: '2.620.000 đ',
+                        color: AppColors.danger,
+                      ),
+                    ),
                   ],
                 ),
               ],
@@ -233,7 +306,11 @@ class _WalletChip extends StatelessWidget {
   final IconData icon;
   final bool isSelected;
 
-  const _WalletChip({required this.label, required this.icon, this.isSelected = false});
+  const _WalletChip({
+    required this.label,
+    required this.icon,
+    this.isSelected = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -246,9 +323,19 @@ class _WalletChip extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 16, color: isSelected ? AppColors.teal : Colors.white),
+          Icon(
+            icon,
+            size: 16,
+            color: isSelected ? AppColors.teal : Colors.white,
+          ),
           const SizedBox(width: 6),
-          Text(label, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: isSelected ? AppColors.teal : Colors.white, fontWeight: FontWeight.w600)),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: isSelected ? AppColors.teal : Colors.white,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ],
       ),
     );
@@ -260,7 +347,11 @@ class _BalanceStat extends StatelessWidget {
   final String value;
   final Color color;
 
-  const _BalanceStat({required this.label, required this.value, required this.color});
+  const _BalanceStat({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -269,9 +360,20 @@ class _BalanceStat extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary)),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: context.palette.textSecondary,
+            ),
+          ),
           const SizedBox(height: 4),
-          Text(value, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: color, fontWeight: FontWeight.w700)),
+          Text(
+            value,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: color,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
         ],
       ),
     );
@@ -288,7 +390,10 @@ class _SegmentTabs extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       color: context.palette.bg,
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl, vertical: 12),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.xxl,
+        vertical: 12,
+      ),
       child: Container(
         padding: const EdgeInsets.all(4),
         decoration: BoxDecoration(
@@ -297,9 +402,24 @@ class _SegmentTabs extends StatelessWidget {
         ),
         child: Row(
           children: [
-            _SegmentItem(label: 'Story', icon: Icons.article_outlined, isSelected: selected == 'Story', onTap: () => onTabSelected('Story')),
-            _SegmentItem(label: 'Gallery', icon: Icons.grid_view, isSelected: selected == 'Gallery', onTap: () => onTabSelected('Gallery')),
-            _SegmentItem(label: 'Calendar', icon: Icons.calendar_month, isSelected: selected == 'Calendar', onTap: () => onTabSelected('Calendar')),
+            _SegmentItem(
+              label: 'Story',
+              icon: Icons.article_outlined,
+              isSelected: selected == 'Story',
+              onTap: () => onTabSelected('Story'),
+            ),
+            _SegmentItem(
+              label: 'Gallery',
+              icon: Icons.grid_view,
+              isSelected: selected == 'Gallery',
+              onTap: () => onTabSelected('Gallery'),
+            ),
+            _SegmentItem(
+              label: 'Calendar',
+              icon: Icons.calendar_month,
+              isSelected: selected == 'Calendar',
+              onTap: () => onTabSelected('Calendar'),
+            ),
           ],
         ),
       ),
@@ -313,7 +433,12 @@ class _SegmentItem extends StatelessWidget {
   final bool isSelected;
   final VoidCallback onTap;
 
-  const _SegmentItem({required this.label, required this.icon, required this.isSelected, required this.onTap});
+  const _SegmentItem({
+    required this.label,
+    required this.icon,
+    required this.isSelected,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -330,14 +455,18 @@ class _SegmentItem extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 16, color: isSelected ? AppColors.teal : AppColors.muted),
+              Icon(
+                icon,
+                size: 16,
+                color: isSelected ? AppColors.teal : AppColors.muted,
+              ),
               const SizedBox(width: 6),
               Text(
                 label,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: isSelected ? AppColors.teal : AppColors.muted,
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                    ),
+                  color: isSelected ? AppColors.teal : AppColors.muted,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                ),
               ),
             ],
           ),
@@ -352,15 +481,26 @@ class _GalleryCard extends StatelessWidget {
   final List<String>? allStoryIds;
   final int initialIndex;
 
-  const _GalleryCard({required this.story, this.allStoryIds, this.initialIndex = 0});
+  const _GalleryCard({
+    required this.story,
+    this.allStoryIds,
+    this.initialIndex = 0,
+  });
 
   @override
   Widget build(BuildContext context) {
     final id = story['id'] as String? ?? '';
     final title = story['title'] as String? ?? 'Story';
-    final category = story['category_code'] as String? ?? story['categoryCode'] as String? ?? '';
-    final imageUrl = story['cover_image_url'] as String? ?? story['coverImageUrl'] as String? ?? '';
-    final occurredOn = story['occurred_on'] as String? ?? story['occurredOn'] as String? ?? '';
+    final category =
+        story['category_code'] as String? ??
+        story['categoryCode'] as String? ??
+        '';
+    final imageUrl =
+        story['cover_image_url'] as String? ??
+        story['coverImageUrl'] as String? ??
+        '';
+    final occurredOn =
+        story['occurred_on'] as String? ?? story['occurredOn'] as String? ?? '';
     final amount = ((story['total_amount'] ?? story['totalAmount'] ?? 0) is num)
         ? ((story['total_amount'] ?? story['totalAmount'] ?? 0) as num).toInt()
         : 0;
@@ -369,7 +509,8 @@ class _GalleryCard extends StatelessWidget {
     if (occurredOn.isNotEmpty) {
       try {
         final dt = DateTime.parse(occurredOn).toLocal();
-        dateStr = '${dt.day.toString().padLeft(2, '0')}-${dt.month.toString().padLeft(2, '0')}';
+        dateStr =
+            '${dt.day.toString().padLeft(2, '0')}-${dt.month.toString().padLeft(2, '0')}';
       } catch (_) {}
     }
 
@@ -379,10 +520,13 @@ class _GalleryCard extends StatelessWidget {
               final ids = allStoryIds;
               if (ids != null && ids.isNotEmpty) {
                 final idx = ids.indexOf(id);
-                context.push(AppRoutes.storyDetailOf(id), extra: {
-                  'storyIds': ids,
-                  'initialIndex': idx < 0 ? initialIndex : idx,
-                });
+                context.push(
+                  AppRoutes.storyDetailOf(id),
+                  extra: {
+                    'storyIds': ids,
+                    'initialIndex': idx < 0 ? initialIndex : idx,
+                  },
+                );
               } else {
                 context.push(AppRoutes.storyDetailOf(id));
               }
@@ -400,12 +544,20 @@ class _GalleryCard extends StatelessWidget {
                     memCacheWidth: 600,
                     errorWidget: (ctx, url, e) => Container(
                       color: const Color(0xFFCBD5E1),
-                      child: const Icon(Icons.photo_camera_outlined, color: Colors.white54, size: 24),
+                      child: const Icon(
+                        Icons.photo_camera_outlined,
+                        color: Colors.white54,
+                        size: 24,
+                      ),
                     ),
                   )
                 : Container(
                     color: const Color(0xFFCBD5E1),
-                    child: const Icon(Icons.photo_camera_outlined, color: Colors.white54, size: 24),
+                    child: const Icon(
+                      Icons.photo_camera_outlined,
+                      color: Colors.white54,
+                      size: 24,
+                    ),
                   ),
             // Dark gradient overlay at bottom
             Positioned.fill(
@@ -414,7 +566,10 @@ class _GalleryCard extends StatelessWidget {
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: [Colors.transparent, Colors.black.withValues(alpha: 0.7)],
+                    colors: [
+                      Colors.transparent,
+                      Colors.black.withValues(alpha: 0.7),
+                    ],
                     stops: const [0.4, 1.0],
                   ),
                 ),
@@ -426,31 +581,43 @@ class _GalleryCard extends StatelessWidget {
                 left: 5,
                 top: 5,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 5,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.black.withValues(alpha: 0.55),
                     borderRadius: BorderRadius.circular(999),
                   ),
-                  child: Text(dateStr, style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.w600)),
-                ),
-              ),
-            // Category top-right
-            if (category.isNotEmpty)
-              Positioned(
-                right: 5,
-                top: 5,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: AppColors.teal.withValues(alpha: 0.85),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
                   child: Text(
-                    category.length > 8 ? '${category.substring(0, 6)}...' : category,
-                    style: const TextStyle(color: Colors.white, fontSize: 7, fontWeight: FontWeight.w600),
+                    dateStr,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 8,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ),
+            // Category Icon Badge top-right
+            Positioned(
+              right: 5,
+              top: 5,
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: CategoryTheme.chipIconBackground(
+                    category.isEmpty ? 'Other' : category,
+                    onDark: true,
+                  ),
+                  shape: BoxShape.circle,
+                ),
+                child: CategoryTheme.iconOf(
+                  category.isEmpty ? 'Other' : category,
+                  size: 12,
+                ),
+              ),
+            ),
             // Amount bottom-left (prominent)
             Positioned(
               left: 5,
@@ -462,21 +629,31 @@ class _GalleryCard extends StatelessWidget {
                 children: [
                   if (amount > 0)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: AppColors.danger.withValues(alpha: 0.9),
                         borderRadius: BorderRadius.circular(999),
                       ),
                       child: Text(
                         '-${formatVnd(amount)}',
-                        style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
                   if (title.isNotEmpty) ...[
                     const SizedBox(height: 2),
                     Text(
                       title,
-                      style: const TextStyle(color: Colors.white70, fontSize: 9),
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 9,
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),

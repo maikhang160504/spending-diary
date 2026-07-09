@@ -37,108 +37,48 @@ class _LoginScreenState extends State<LoginScreen> {
       _error = null;
     });
     String? idToken;
-    bool isFallbackUsed = false;
 
     debugPrint('[GoogleSignIn LOG] Bắt đầu đăng nhập bằng Google...');
     try {
-      debugPrint(
-        '[GoogleSignIn LOG] Cấu hình GoogleSignIn với scopes: [email, profile] và serverClientId: 388012082045-3t6pakclihrq25focvubq4eb6t2fbnap.apps.googleusercontent.com',
-      );
       final googleSignIn = GoogleSignIn(
         scopes: ['email', 'profile'],
         serverClientId:
             '388012082045-g1ctihjmrv6i478p4ceqjo8nia6r3fma.apps.googleusercontent.com',
       );
 
-      debugPrint('[GoogleSignIn LOG] Gọi googleSignIn.signIn()...');
       final account = await googleSignIn.signIn();
 
       if (account == null) {
-        debugPrint(
-          '[GoogleSignIn LOG] googleSignIn.signIn() trả về null (Có thể do người dùng hủy/back, hoặc lỗi cấu hình thầm lặng)',
-        );
         setState(() => _googleLoading = false);
         return;
       }
 
-      debugPrint('[GoogleSignIn LOG] Đăng nhập tài khoản Google thành công!');
-      debugPrint('[GoogleSignIn LOG] Email: ${account.email}');
-      debugPrint('[GoogleSignIn LOG] Tên hiển thị: ${account.displayName}');
-      debugPrint('[GoogleSignIn LOG] ID người dùng: ${account.id}');
-
-      debugPrint('[GoogleSignIn LOG] Yêu cầu thông tin Authentication...');
       final auth = await account.authentication;
-
       idToken = auth.idToken;
-      final accessToken = auth.accessToken;
-
-      debugPrint('[GoogleSignIn LOG] Đã lấy được Authentication:');
-      debugPrint(
-        ' - idToken: ${idToken != null ? "Độ dài ${idToken.length} ký tự (OK)" : "NULL"}',
-      );
-      debugPrint(
-        ' - accessToken: ${accessToken != null ? "Độ dài ${accessToken.length} ký tự (OK)" : "NULL"}',
-      );
-    } catch (e, stackTrace) {
-      debugPrint(
-        '[GoogleSignIn LOG] BỊ LỖI ở bước xác thực Google (signIn hoặc authentication):',
-      );
-      if (e is PlatformException) {
-        debugPrint(' - Loại lỗi: PlatformException');
-        debugPrint(' - Mã lỗi (code): ${e.code}');
-        debugPrint(' - Tin nhắn (message): ${e.message}');
-        debugPrint(' - Chi tiết (details): ${e.details}');
-
-        // Hướng dẫn khắc phục lỗi phổ biến
-        if (e.code == '10' || e.code == 'DEVELOPER_ERROR') {
-          debugPrint('[GoogleSignIn TIP] Lỗi 10 / DEVELOPER_ERROR thường do:');
-          debugPrint(
-            ' 1. Chưa cấu hình SHA-1 của máy debug này vào Firebase / Google Cloud Console.',
-          );
-          debugPrint(
-            ' 2. serverClientId (Web Client ID) bị cấu hình sai (đang dùng Android Client ID thay vì Web Client ID).',
-          );
-          debugPrint(
-            ' 3. Tên package name của ứng dụng không khớp với cấu hình.',
-          );
-        } else if (e.code == '7') {
-          debugPrint(
-            '[GoogleSignIn TIP] Lỗi 7 (NETWORK_ERROR): Vui lòng kiểm tra lại kết nối mạng trên thiết bị/giả lập.',
-          );
-        }
-      } else {
-        debugPrint(' - Lỗi chung: $e');
+      if (idToken == null) {
+        await googleSignIn.signOut();
+        setState(() {
+          _error = 'Đăng nhập Google thất bại. Vui lòng chọn lại tài khoản Google khác.';
+          _googleLoading = false;
+        });
+        return;
       }
-      debugPrint('[GoogleSignIn LOG] Stacktrace:\n$stackTrace');
-
-      idToken = 'mock-google-token';
-      isFallbackUsed = true;
-    }
-
-    if (idToken == null) {
-      debugPrint(
-        '[GoogleSignIn LOG] idToken bị NULL, tự động fallback sang tài khoản dev mock.',
-      );
-      idToken = 'mock-google-token';
-      isFallbackUsed = true;
+    } catch (e) {
+      debugPrint('[GoogleSignIn LOG] Lỗi đăng nhập Google: $e');
+      try {
+        await GoogleSignIn().signOut();
+      } catch (_) {}
+      setState(() {
+        _error = 'Đăng nhập Google thất bại. Vui lòng chọn lại tài khoản Google khác.';
+        _googleLoading = false;
+      });
+      return;
     }
 
     try {
       final api = ApiClient();
       await api.loginWithGoogle(idToken);
       if (!mounted) return;
-
-      if (isFallbackUsed) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Google Sign-In lỗi (SHA-1/Emulator). Đã tự động dùng tài khoản Dev Thử nghiệm!',
-            ),
-            backgroundColor: Colors.orange,
-            duration: Duration(seconds: 4),
-          ),
-        );
-      }
 
       try {
         final settings = await api.getSettings();
@@ -159,7 +99,7 @@ class _LoginScreenState extends State<LoginScreen> {
     } on ApiException catch (e) {
       setState(() => _error = e.localizedMessage);
     } catch (e) {
-      setState(() => _error = 'Đăng nhập Google thất bại, thử lại sau');
+      setState(() => _error = 'Đăng nhập Google thất bại. Vui lòng thử lại.');
     } finally {
       if (mounted) setState(() => _googleLoading = false);
     }

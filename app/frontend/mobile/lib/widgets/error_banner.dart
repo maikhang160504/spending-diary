@@ -69,15 +69,29 @@ class EmptyState extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(32),
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Text(emoji, style: const TextStyle(fontSize: 48)),
+          Text(emoji, style: const TextStyle(fontSize: 64)),
           const SizedBox(height: 16),
-          Text(title, style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600), textAlign: TextAlign.center),
+          Text(
+            title,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+              fontSize: 18,
+            ),
+            textAlign: TextAlign.center,
+          ),
           if (subtitle != null) ...[
             const SizedBox(height: 8),
-            Text(subtitle!, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.muted), textAlign: TextAlign.center),
+            Text(
+              subtitle!,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: AppColors.muted,
+                fontSize: 14,
+              ),
+              textAlign: TextAlign.center,
+            ),
           ],
           if (action != null) ...[
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
             action!,
           ],
         ]),

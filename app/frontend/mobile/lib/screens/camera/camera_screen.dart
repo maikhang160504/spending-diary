@@ -12,13 +12,14 @@ import '../../theme/app_colors.dart';
 class CameraScreen extends StatefulWidget {
   final bool returnOnlyImagePath;
   final String? walletId;
-  const CameraScreen({super.key, this.returnOnlyImagePath = false, this.walletId});
+  final String? initialMode;
+  const CameraScreen({super.key, this.returnOnlyImagePath = false, this.walletId, this.initialMode});
   @override
   State<CameraScreen> createState() => _CameraScreenState();
 }
 
 class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver {
-  String _mode = 'Ảnh';
+  late String _mode;
   CameraController? _controller;
   List<CameraDescription> _cameras = [];
   int _cameraIndex = 0;
@@ -37,6 +38,7 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
   @override
   void initState() {
     super.initState();
+    _mode = widget.initialMode ?? 'Ảnh';
     WidgetsBinding.instance.addObserver(this);
     _initCamera();
   }
@@ -127,36 +129,37 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
       return;
     }
     if (_mode == 'Bill') {
-      setState(() { _isTakingPhoto = true; _billError = null; });
-      try {
-        final wallets = await _api.getWallets();
-        wallets.sort((a, b) {
-          final aType = a['type'] as String? ?? 'personal';
-          final bType = b['type'] as String? ?? 'personal';
-          if (aType == 'personal' && bType != 'personal') return -1;
-          if (aType != 'personal' && bType == 'personal') return 1;
-          return 0;
-        });
-        final targetId = widget.walletId ?? ApiClient.lastSelectedWalletId ?? (wallets.isNotEmpty ? wallets[0]['id'] as String : '');
-        await BillProcessingService.instance.submitBill(
-          walletId: targetId,
-          imagePath: imagePath,
-        );
-        if (!mounted) return;
-        context.pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Bill đang được xử lý ngầm — bạn có thể tiếp tục dùng app'),
-            duration: Duration(seconds: 3),
-          ),
-        );
-      } on ApiException catch (e) {
-        if (mounted) setState(() => _billError = e.localizedMessage);
-      } catch (_) {
-        if (mounted) setState(() => _billError = 'Không thể upload bill. Thử lại sau.');
-      } finally {
-        if (mounted) setState(() => _isTakingPhoto = false);
+      String? targetId = widget.walletId ?? ApiClient.lastSelectedWalletId;
+      if (targetId == null || targetId.isEmpty) {
+        try {
+          final wallets = await _api.getWallets();
+          wallets.sort((a, b) {
+            final aType = a['type'] as String? ?? 'personal';
+            final bType = b['type'] as String? ?? 'personal';
+            if (aType == 'personal' && bType != 'personal') return -1;
+            if (aType != 'personal' && bType == 'personal') return 1;
+            return 0;
+          });
+          if (wallets.isNotEmpty) targetId = wallets[0]['id'] as String?;
+        } catch (_) {}
       }
+      targetId ??= '';
+
+      // Gửi đi ngay lập tức (không block UI) và quay lại màn hình trước để hiển thị banner
+      BillProcessingService.instance.submitBill(
+        walletId: targetId,
+        imagePath: imagePath,
+      );
+
+      if (!mounted) return;
+      context.pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Đã gửi hóa đơn! Đang phân tích ngầm...'),
+          duration: Duration(seconds: 2),
+          backgroundColor: AppColors.teal,
+        ),
+      );
     } else {
       context.push(AppRoutes.cameraInput, extra: {
         'imagePath': imagePath,
@@ -230,9 +233,13 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
                   ),
                 ),
                 const Spacer(),
+                // Mode toggle
                 Container(
                   padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.18), borderRadius: BorderRadius.circular(999)),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.18),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
                   child: Row(children: [
                     _ModeChip(label: 'Ảnh', selected: _mode == 'Ảnh', onTap: () => setState(() => _mode = 'Ảnh')),
                     _ModeChip(label: 'Bill', selected: _mode == 'Bill', onTap: () => setState(() => _mode = 'Bill')),
@@ -253,6 +260,25 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
                 ),
               ]),
             ),
+            // Bill mode tip banner
+            if (_mode == 'Bill')
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.yellow.withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.yellow.withValues(alpha: 0.4)),
+                ),
+                child: const Row(children: [
+                  Icon(Icons.receipt_long, color: Colors.yellow, size: 16),
+                  SizedBox(width: 8),
+                  Expanded(child: Text(
+                    'Hãy chụp thẳng vào toàn bộ hóa đơn, giữ phẳng và đủ ánh sáng',
+                    style: TextStyle(color: Colors.yellow, fontSize: 11, fontWeight: FontWeight.w500),
+                  )),
+                ]),
+              ),
 
             // ── Camera Viewfinder (tỉ lệ 4:3, bo góc 16, không khung) ──
             Expanded(
@@ -286,6 +312,9 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
                                     color: const Color(0xFF0D1117),
                                     child: const Center(child: CircularProgressIndicator(color: AppColors.teal, strokeWidth: 2)),
                                   ),
+
+                                if (_mode == 'Bill')
+                                  const _BillScanFrameOverlay(),
 
                                 // Focus ring
                                 if (_focusPoint != null && _showFocusRing)
@@ -341,27 +370,52 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
             Container(
               color: Colors.black,
               padding: const EdgeInsets.fromLTRB(40, 20, 40, 28),
-              child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                _CtrlBtn(icon: Icons.photo_library_outlined, label: 'Thư viện', onTap: _pickFromGallery),
-                GestureDetector(
-                  onTap: _takePhoto,
-                  child: Container(
-                    width: 72, height: 72,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: AppColors.teal, width: 3),
-                      boxShadow: [
-                        BoxShadow(color: AppColors.teal.withValues(alpha: 0.35), blurRadius: 16, spreadRadius: 2),
-                      ],
+              child: Column(
+                children: [
+                  Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                    _CtrlBtn(icon: Icons.photo_library_outlined, label: 'Thư viện', onTap: _pickFromGallery),
+                    // Capture button
+                    GestureDetector(
+                      onTap: _takePhoto,
+                      child: Container(
+                        width: 72, height: 72,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: _mode == 'Bill' ? Colors.yellow : AppColors.teal,
+                            width: 3,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: (_mode == 'Bill' ? Colors.yellow : AppColors.teal).withValues(alpha: 0.35),
+                              blurRadius: 16,
+                              spreadRadius: 2,
+                            ),
+                          ],
+                        ),
+                        child: Center(
+                          child: _isTakingPhoto
+                              ? const SizedBox(width: 32, height: 32, child: CircularProgressIndicator(color: AppColors.teal, strokeWidth: 2))
+                              : Container(width: 56, height: 56, decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle)),
+                        ),
+                      ),
                     ),
-                    child: Center(child: _isTakingPhoto
-                      ? const SizedBox(width: 32, height: 32, child: CircularProgressIndicator(color: AppColors.teal, strokeWidth: 2))
-                      : Container(width: 56, height: 56, decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle)),
+                    _CtrlBtn(icon: Icons.cameraswitch_outlined, label: 'Xoay cam', onTap: _flipCamera),
+                  ]),
+                  if (_mode == 'Bill') ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      _isTakingPhoto ? 'Mimso đang đọc hóa đơn...' : 'Chụp để xử lý tự động',
+                      style: TextStyle(
+                        color: _isTakingPhoto ? Colors.yellow : Colors.white54,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      textAlign: TextAlign.center,
                     ),
-                  ),
-                ),
-                _CtrlBtn(icon: Icons.cameraswitch_outlined, label: 'Xoay cam', onTap: _flipCamera),
-              ]),
+                  ],
+                ],
+              ),
             ),
           ],
         ),
@@ -409,4 +463,114 @@ class _ModeChip extends StatelessWidget {
       ]),
     ),
   );
+}
+
+class _BillScanFrameOverlay extends StatefulWidget {
+  const _BillScanFrameOverlay();
+
+  @override
+  State<_BillScanFrameOverlay> createState() => _BillScanFrameOverlayState();
+}
+
+class _BillScanFrameOverlayState extends State<_BillScanFrameOverlay> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final w = constraints.maxWidth;
+        final h = constraints.maxHeight;
+        final frameW = w * 0.8;
+        final frameH = h * 0.8;
+        final left = (w - frameW) / 2;
+        final top = (h - frameH) / 2;
+
+        return Stack(
+          children: [
+            // Darkened background outside the frame
+            ColorFiltered(
+              colorFilter: ColorFilter.mode(
+                Colors.black.withOpacity(0.5),
+                BlendMode.srcOut,
+              ),
+              child: Stack(
+                children: [
+                  Container(
+                    decoration: const BoxDecoration(
+                      color: Colors.black,
+                      backgroundBlendMode: BlendMode.dstOut,
+                    ),
+                  ),
+                  Align(
+                    alignment: Alignment.center,
+                    child: Container(
+                      width: frameW,
+                      height: frameH,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Yellow frame border
+            Align(
+              alignment: Alignment.center,
+              child: Container(
+                width: frameW,
+                height: frameH,
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.yellow, width: 2),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+            ),
+            // Animated scanner bar
+            AnimatedBuilder(
+              animation: _controller,
+              builder: (context, child) {
+                final currentY = top + (frameH * _controller.value);
+                return Positioned(
+                  left: left + 10,
+                  top: currentY,
+                  child: Container(
+                    width: frameW - 20,
+                    height: 3,
+                    decoration: BoxDecoration(
+                      color: Colors.yellow,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.yellow.withOpacity(0.8),
+                          blurRadius: 8,
+                          spreadRadius: 2,
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
 }

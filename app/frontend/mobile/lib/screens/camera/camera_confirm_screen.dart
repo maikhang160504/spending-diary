@@ -127,6 +127,7 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
   }
 
   Future<void> _onConfirm() async {
+    if (_saving) return;
     final wallets = _wallets.isNotEmpty ? _wallets : await _api.getWallets();
     if (!mounted) return;
     final targetWalletId = _targetWalletId ?? widget.extractedData?['walletId'] as String? ?? ApiClient.lastSelectedWalletId ?? (wallets.isNotEmpty ? wallets[0]['id'] as String : '');

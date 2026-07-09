@@ -587,7 +587,7 @@ class _HomeCalendarScreenState extends State<HomeCalendarScreen> {
                     Text(
                       'Số dư hiện tại',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textSecondary,
+                        color: context.palette.textSecondary,
                       ),
                     ),
                   ],
@@ -1249,7 +1249,7 @@ class _BalanceStat extends StatelessWidget {
             label,
             style: Theme.of(
               context,
-            ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+            ).textTheme.bodySmall?.copyWith(color: context.palette.textSecondary),
           ),
           const SizedBox(height: 4),
           Text(

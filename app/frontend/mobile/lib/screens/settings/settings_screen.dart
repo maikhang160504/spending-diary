@@ -486,7 +486,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       backgroundColor: context.palette.bg,
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.only(bottom: 24),
+          padding: const EdgeInsets.only(bottom: 110),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -613,6 +613,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                       const SizedBox(height: 4),
                                       Text(
                                         _email,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
                                         style: Theme.of(context)
                                             .textTheme
                                             .bodySmall
@@ -622,6 +624,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                       ),
                                     ],
                                   ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.edit_outlined,
+                                    color: AppColors.teal,
+                                    size: 20,
+                                  ),
+                                  onPressed: _showPersonalInfoDialog,
                                 ),
                               ],
                             ),
@@ -805,9 +815,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                         ?.copyWith(fontWeight: FontWeight.w600),
                                   ),
                                 ),
-                                Switch(
-                                  value: _notificationsEnabled,
-                                  onChanged: (v) async {
+                                Transform.scale(
+                                  scale: 0.8,
+                                  child: Switch(
+                                    value: _notificationsEnabled,
+                                    activeThumbColor: AppColors.teal,
+                                    onChanged: (v) async {
                                     if (v) {
                                       final status = await Permission.notification.status;
                                       if (!mounted) return;
@@ -834,8 +847,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                     }
                                     setState(() => _notificationsEnabled = v);
                                     _updateSetting('notificationsEnabled', v);
-                                  },
-                                  activeThumbColor: AppColors.teal,
+                                    },
+                                  ),
                                 ),
                               ],
                             ),
@@ -874,19 +887,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                         ?.copyWith(fontWeight: FontWeight.w600),
                                   ),
                                 ),
-                                Switch(
-                                  value:
-                                      ThemeController.instance.mode ==
-                                      ThemeMode.dark,
-                                  onChanged: (v) {
-                                    // Đổi giao diện ngay + lưu lựa chọn cục bộ.
-                                    ThemeController.instance.setMode(
-                                      v ? ThemeMode.dark : ThemeMode.light,
-                                    );
-                                    setState(() {});
-                                    _updateSetting('themeMode', v);
-                                  },
-                                  activeThumbColor: AppColors.teal,
+                                Transform.scale(
+                                  scale: 0.8,
+                                  child: Switch(
+                                    value:
+                                        ThemeController.instance.mode ==
+                                        ThemeMode.dark,
+                                    onChanged: (v) {
+                                      // Đổi giao diện ngay + lưu lựa chọn cục bộ.
+                                      ThemeController.instance.setMode(
+                                        v ? ThemeMode.dark : ThemeMode.light,
+                                      );
+                                      setState(() {});
+                                      _updateSetting('themeMode', v);
+                                    },
+                                    activeThumbColor: AppColors.teal,
+                                  ),
                                 ),
                               ],
                             ),
@@ -1038,6 +1054,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ).textTheme.bodySmall?.copyWith(color: AppColors.muted),
                       ),
                     ),
+                    const SizedBox(height: 90), // Tránh bị Bottom Bar che khuất
                   ],
                 ),
               ),
@@ -1151,6 +1168,8 @@ class _SettingRow extends StatelessWidget {
                         const SizedBox(height: 2),
                         Text(
                           subtitle!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: Theme.of(context).textTheme.bodySmall
                               ?.copyWith(color: AppColors.textSecondary),
                         ),

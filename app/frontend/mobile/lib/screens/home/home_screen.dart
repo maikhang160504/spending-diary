@@ -86,7 +86,7 @@ class _HomeScreenState extends State<HomeScreen> {
       final failed =
           walletsState.status == QueryStatus.error && walletsState.data == null;
       if (failed) {
-        setState(() => _error = 'Không thể tải dữ liệu');
+        if (mounted) setState(() => _error = 'Không thể tải dữ liệu');
         return;
       }
 
@@ -116,7 +116,7 @@ class _HomeScreenState extends State<HomeScreen> {
         StreakCelebration.instance.checkBrokenOnLaunch(context);
       }
     } catch (e) {
-      setState(() => _error = 'Không thể tải dữ liệu');
+      if (mounted) setState(() => _error = 'Không thể tải dữ liệu');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -284,6 +284,10 @@ class _HomeScreenState extends State<HomeScreen> {
       AppQueries.invalidateWalletData();
       await _loadData();
       if (mounted) {
+        if (result['type'] == 'group') {
+           _onWalletTap(result);
+           return;
+        }
         setState(() {
           _selectedWalletId = result['id'] as String?;
         });
@@ -382,10 +386,6 @@ class _HomeScreenState extends State<HomeScreen> {
                           await _loadData();
 
                           if (mounted && ctx.mounted) {
-                            setState(() {
-                              _selectedWalletId = newWallet['id'] as String?;
-                            });
-                            _loadWalletData();
                             Navigator.pop(ctx);
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
@@ -395,6 +395,15 @@ class _HomeScreenState extends State<HomeScreen> {
                                 backgroundColor: AppColors.teal,
                               ),
                             );
+                            if (newWallet['type'] == 'group') {
+                              _onWalletTap(newWallet);
+                            } else {
+                              setState(() {
+                                _selectedWalletId = newWallet['id'] as String?;
+                              });
+                              ApiClient.lastSelectedWalletId = _selectedWalletId;
+                              _loadWalletData();
+                            }
                           }
                         } on ApiException catch (e) {
                           setDialogState(() {
@@ -471,77 +480,133 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       backgroundColor: context.palette.bg,
       body: SafeArea(
-        child: Stack(
-          children: [
-            RefreshIndicator(
-              onRefresh: _loadData,
-              color: AppColors.teal,
-              child: CustomScrollView(
-                slivers: [
-                  SliverPersistentHeader(
-                    pinned: true,
-                    delegate: _HomeHeaderDelegate(
-                      userName: _userName,
-                      formattedDate: _formattedDate(),
-                      streakDays: _streakDays,
-                      wallets: _wallets,
-                      selectedWalletId: _selectedWalletId,
-                      loading: _loading,
-                      balance: _balance,
-                      income: _totalIncome,
-                      expense: _totalExpense,
-                      tab: _tab,
-                      onWalletTap: _onWalletTap,
-                      onWalletLongPress: _deleteWallet,
-                      onTabChanged: (t) => setState(() => _tab = t),
-                      onStreakTap: () => context.push(AppRoutes.streak),
-                      onCreateWallet: _onCreateWallet,
-                      onJoinWallet: _joinWalletByCode,
-                    ),
-                  ),
-                  if (_error != null)
-                    SliverToBoxAdapter(
-                      child: ErrorBanner(message: _error!, onRetry: _loadData),
-                    ),
-                  const SliverToBoxAdapter(child: SizedBox(height: 16)),
-                  // Draft Reminder Banner — ghim trên Timeline nếu có giao dịch chờ
-                  if (_draftTransactions.isNotEmpty)
-                    SliverToBoxAdapter(
-                      child: _DraftReminderBanner(
-                        draftCount: _draftTransactions.length,
-                        onTap: () => _showDraftListSheet(context),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final isWide = constraints.maxWidth >= 768;
+
+            final headerDelegate = _HomeHeaderDelegate(
+              userName: _userName,
+              formattedDate: _formattedDate(),
+              streakDays: _streakDays,
+              wallets: _wallets,
+              selectedWalletId: _selectedWalletId,
+              loading: _loading,
+              balance: _balance,
+              income: _totalIncome,
+              expense: _totalExpense,
+              tab: _tab,
+              onWalletTap: _onWalletTap,
+              onWalletLongPress: _deleteWallet,
+              onTabChanged: (t) => setState(() => _tab = t),
+              onStreakTap: () => context.push(AppRoutes.streak),
+              onCreateWallet: _onCreateWallet,
+              onJoinWallet: _joinWalletByCode,
+            );
+
+            Widget mainContent;
+            if (isWide) {
+              mainContent = Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    flex: 4,
+                    child: RefreshIndicator(
+                      onRefresh: _loadData,
+                      color: AppColors.teal,
+                      child: CustomScrollView(
+                        slivers: [
+                          SliverPersistentHeader(
+                            pinned: true,
+                            delegate: headerDelegate,
+                          ),
+                          if (_error != null)
+                            SliverToBoxAdapter(
+                              child: ErrorBanner(message: _error!, onRetry: _loadData),
+                            ),
+                          const SliverToBoxAdapter(child: SizedBox(height: 100)),
+                        ],
                       ),
                     ),
-                  ..._buildTabContent(),
-                  const SliverToBoxAdapter(child: SizedBox(height: 100)),
+                  ),
+                  const VerticalDivider(width: 1),
+                  Expanded(
+                    flex: 6,
+                    child: CustomScrollView(
+                      slivers: [
+                        const SliverToBoxAdapter(child: SizedBox(height: 16)),
+                        if (_draftTransactions.isNotEmpty)
+                          SliverToBoxAdapter(
+                            child: _DraftReminderBanner(
+                              draftCount: _draftTransactions.length,
+                              onTap: () => _showDraftListSheet(context),
+                            ),
+                          ),
+                        ..._buildTabContent(),
+                        const SliverToBoxAdapter(child: SizedBox(height: 100)),
+                      ],
+                    ),
+                  ),
                 ],
-              ),
-            ),
-            // Chat FAB
-            Positioned(
-              right: AppSpacing.xxl,
-              bottom: 24,
-              child: GestureDetector(
-                onTap: () => context.push(
-                  AppRoutes.chat,
-                  extra: {'walletId': _selectedWalletId},
+              );
+            } else {
+              mainContent = RefreshIndicator(
+                onRefresh: _loadData,
+                color: AppColors.teal,
+                child: CustomScrollView(
+                  slivers: [
+                    SliverPersistentHeader(
+                      pinned: true,
+                      delegate: headerDelegate,
+                    ),
+                    if (_error != null)
+                      SliverToBoxAdapter(
+                        child: ErrorBanner(message: _error!, onRetry: _loadData),
+                      ),
+                    const SliverToBoxAdapter(child: SizedBox(height: 16)),
+                    if (_draftTransactions.isNotEmpty)
+                      SliverToBoxAdapter(
+                        child: _DraftReminderBanner(
+                          draftCount: _draftTransactions.length,
+                          onTap: () => _showDraftListSheet(context),
+                        ),
+                      ),
+                    ..._buildTabContent(),
+                    const SliverToBoxAdapter(child: SizedBox(height: 100)),
+                  ],
                 ),
-                child: Container(
-                  height: 48,
-                  width: 48,
-                  decoration: BoxDecoration(
-                    color: context.palette.card,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: context.palette.cardShadow,
-                  ),
-                  child: const Icon(
-                    Icons.chat_bubble_outline_rounded,
-                    color: AppColors.teal,
+              );
+            }
+
+            return Stack(
+              children: [
+                mainContent,
+                // Chat FAB
+                Positioned(
+                  right: AppSpacing.xxl,
+                  bottom: 24,
+                  child: GestureDetector(
+                    onTap: () => context.push(
+                      AppRoutes.chat,
+                      extra: {'walletId': _selectedWalletId},
+                    ),
+                    child: Container(
+                      height: 48,
+                      width: 48,
+                      decoration: BoxDecoration(
+                        color: context.palette.card,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: context.palette.cardShadow,
+                      ),
+                      child: const Icon(
+                        Icons.chat_bubble_outline_rounded,
+                        color: AppColors.teal,
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ),
-          ],
+              ],
+            );
+          },
         ),
       ),
     );
@@ -549,6 +614,50 @@ class _HomeScreenState extends State<HomeScreen> {
 
   List<Widget> _buildTabContent() {
     if (_loading) {
+      if (_tab == 'Gallery') {
+        return [
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
+            sliver: SliverGrid(
+              delegate: SliverChildBuilderDelegate(
+                (ctx, i) => const Padding(
+                  padding: EdgeInsets.all(4),
+                  child: SkeletonCard(height: 100),
+                ),
+                childCount: 9,
+              ),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
+                mainAxisSpacing: 5,
+                crossAxisSpacing: 5,
+                childAspectRatio: 1,
+              ),
+            ),
+          ),
+        ];
+      }
+      if (_tab == 'Calendar') {
+        return [
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(7, (i) => const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 4),
+                      child: SkeletonCard(width: 40, height: 60),
+                    )),
+                  ),
+                  const SizedBox(height: 16),
+                  const SkeletonCard(height: 80),
+                ],
+              ),
+            ),
+          ),
+        ];
+      }
       return [
         SliverList(
           delegate: SliverChildBuilderDelegate(
@@ -916,7 +1025,11 @@ class _HomeHeaderDelegate extends SliverPersistentHeaderDelegate {
             bottom: _segmentH,
             child: Container(
               decoration: const BoxDecoration(
-                gradient: AppGradients.teal,
+                gradient: LinearGradient(
+                  colors: [Color(0xFF0D9488), Color(0xFF2DD4BF)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
                 borderRadius: BorderRadius.only(
                   bottomLeft: Radius.circular(AppRadii.xl),
                   bottomRight: Radius.circular(AppRadii.xl),
@@ -932,9 +1045,11 @@ class _HomeHeaderDelegate extends SliverPersistentHeaderDelegate {
             right: 20,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Expanded(
                   child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       Flexible(
                         child: Text(
@@ -946,8 +1061,12 @@ class _HomeHeaderDelegate extends SliverPersistentHeaderDelegate {
                           ),
                         ),
                       ),
-                      const SizedBox(width: 4),
-                      const Text('👋', style: TextStyle(fontSize: 18)),
+                      const SizedBox(width: 6),
+                      const Icon(
+                        Icons.waving_hand_rounded,
+                        color: Color(0xFFFFD600),
+                        size: 20,
+                      ),
                     ],
                   ),
                 ),
@@ -963,8 +1082,13 @@ class _HomeHeaderDelegate extends SliverPersistentHeaderDelegate {
                       borderRadius: BorderRadius.circular(AppRadii.md),
                     ),
                     child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        const Text('🔥', style: TextStyle(fontSize: 14)),
+                        const Icon(
+                          Icons.local_fire_department_rounded,
+                          color: Color(0xFFFF9100),
+                          size: 18,
+                        ),
                         const SizedBox(width: 6),
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1010,59 +1134,71 @@ class _HomeHeaderDelegate extends SliverPersistentHeaderDelegate {
                       Text(
                         formattedDate,
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: Colors.white70,
+                          color: Colors.white.withValues(alpha: 0.85),
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                       const SizedBox(height: 12),
                       SizedBox(
                         height: 38,
-                        child: SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: Row(
-                            children: [
-                              ...wallets.map((w) {
-                                final wId = w['id'] as String;
-                                final wName = w['name'] as String? ?? 'Ví';
-                                final wType =
-                                    w['type'] as String? ?? 'personal';
-                                final memberCount =
-                                    (w['member_count'] ?? 0) as int;
-                                final icon = wType == 'group'
-                                    ? Icons.group_outlined
-                                    : Icons.account_balance_wallet_outlined;
-                                final label = memberCount > 0
-                                    ? '$wName ($memberCount)'
-                                    : wName;
-                                final unseenCount =
-                                    (w['unseenCount'] ?? 0) as int;
-                                return Padding(
-                                  padding: const EdgeInsets.only(right: 8),
-                                  child: _WalletChip(
-                                    label: label,
-                                    icon: icon,
-                                    isSelected: selectedWalletId == wId,
-                                    unseenCount: unseenCount,
-                                    onTap: () => onWalletTap(w),
-                                    onLongPress: onWalletLongPress != null
-                                        ? () => onWalletLongPress!(w)
-                                        : null,
-                                  ),
-                                );
-                              }),
-                              _WalletChip(
-                                label: 'Tạo ví',
-                                icon: Icons.add_circle_outline,
-                                isSelected: false,
-                                onTap: onCreateWallet,
-                              ),
-                              const SizedBox(width: 8),
-                              _WalletChip(
-                                label: 'Nhập mã mời',
-                                icon: Icons.vpn_key_outlined,
-                                isSelected: false,
-                                onTap: onJoinWallet,
-                              ),
-                            ],
+                        child: ShaderMask(
+                          shaderCallback: (Rect bounds) {
+                            return const LinearGradient(
+                              begin: Alignment.centerLeft,
+                              end: Alignment.centerRight,
+                              colors: [Colors.black, Colors.black, Colors.transparent],
+                              stops: [0.0, 0.92, 1.0],
+                            ).createShader(bounds);
+                          },
+                          blendMode: BlendMode.dstIn,
+                          child: SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: Row(
+                              children: [
+                                ...wallets.map((w) {
+                                  final wId = w['id'] as String;
+                                  final wName = w['name'] as String? ?? 'Ví';
+                                  final wType =
+                                      w['type'] as String? ?? 'personal';
+                                  final memberCount =
+                                      (w['member_count'] ?? 0) as int;
+                                  final icon = wType == 'group'
+                                      ? Icons.group_outlined
+                                      : Icons.account_balance_wallet_outlined;
+                                  final label = memberCount > 0
+                                      ? '$wName ($memberCount)'
+                                      : wName;
+                                  final unseenCount =
+                                      (w['unseenCount'] ?? 0) as int;
+                                  return Padding(
+                                    padding: const EdgeInsets.only(right: 8),
+                                    child: _WalletChip(
+                                      label: label,
+                                      icon: icon,
+                                      isSelected: selectedWalletId == wId,
+                                      unseenCount: unseenCount,
+                                      onTap: () => onWalletTap(w),
+                                      onLongPress: onWalletLongPress != null
+                                          ? () => onWalletLongPress!(w)
+                                          : null,
+                                    ),
+                                  );
+                                }),
+                                _WalletChip(
+                                  label: 'Tạo ví',
+                                  icon: Icons.add_circle_outline,
+                                  isSelected: false,
+                                  onTap: onCreateWallet,
+                                ),
+                                const SizedBox(width: 8),
+                                _WalletChip(
+                                  label: 'Nhập mã mời',
+                                  icon: Icons.vpn_key_outlined,
+                                  isSelected: false,
+                                  onTap: onJoinWallet,
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
@@ -1088,7 +1224,7 @@ class _HomeHeaderDelegate extends SliverPersistentHeaderDelegate {
                                 Text(
                                   'Số dư hiện tại',
                                   style: theme.textTheme.bodySmall?.copyWith(
-                                    color: AppColors.textSecondary,
+                                    color: context.palette.textSecondary,
                                   ),
                                 ),
                               ],
@@ -1099,8 +1235,9 @@ class _HomeHeaderDelegate extends SliverPersistentHeaderDelegate {
                                 : Text(
                                     formatVnd(balance),
                                     style: theme.textTheme.titleLarge?.copyWith(
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 26,
+                                      fontWeight: balance < 0 ? FontWeight.w800 : FontWeight.w700,
+                                      fontSize: balance < 0 ? 28 : 26,
+                                      color: balance < 0 ? AppColors.danger : theme.textTheme.titleLarge?.color,
                                     ),
                                   ),
                             const SizedBox(height: 12),
@@ -1651,8 +1788,8 @@ class _TransactionStoryCard extends StatelessWidget {
                                   : 'B',
                               style: TextStyle(
                                 color: catStyle.color,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 16,
                               ),
                             ),
                           ),
@@ -1697,7 +1834,7 @@ class _TransactionStoryCard extends StatelessWidget {
             // ── Caption: user's note (text they typed) ──
             if (caption.isNotEmpty)
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 14),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
                 child: Text(
                   caption,
                   style: Theme.of(
@@ -1706,26 +1843,9 @@ class _TransactionStoryCard extends StatelessWidget {
                 ),
               ),
 
-            // ── Photo attachment — tỉ lệ vuông 1:1 (kích thước tối ưu cho story) ──
-            if (imageUrl != null && imageUrl.isNotEmpty) ...[
-              const SizedBox(height: 10),
-              ClipRRect(
-                child: AspectRatio(
-                  aspectRatio: 1,
-                  child: CachedNetworkImage(
-                    imageUrl: imageUrl,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                    memCacheWidth: 1080,
-                    errorWidget: (_, _, _) => const SizedBox.shrink(),
-                  ),
-                ),
-              ),
-            ],
-
-            // ── Amount chip shown below the image ──
+            // ── Amount chip (moved above image) ──
             Padding(
-              padding: const EdgeInsets.fromLTRB(14, 12, 14, 4),
+              padding: const EdgeInsets.fromLTRB(14, 6, 14, 10),
               child: Row(
                 children: [
                   Container(
@@ -1767,69 +1887,71 @@ class _TransactionStoryCard extends StatelessWidget {
               ),
             ),
 
+            // ── Photo attachment — bo góc và có padding ──
+            if (imageUrl != null && imageUrl.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: AspectRatio(
+                    aspectRatio: 1.5,
+                    child: CachedNetworkImage(
+                      imageUrl: imageUrl,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                      memCacheWidth: 1080,
+                      errorWidget: (_, _, _) => const SizedBox.shrink(),
+                    ),
+                  ),
+                ),
+              ),
+
             Divider(height: 1, color: context.palette.divider),
 
-            // ── AI comment: emotion avatar + comment bubble (luôn hiển thị) ──
+            // ── Compact Mimo AI comment bubble ──
             Padding(
               padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: 34,
-                    height: 34,
-                    decoration: BoxDecoration(
-                      color: AppColors.teal.withValues(alpha: 0.15),
-                      shape: BoxShape.circle,
-                    ),
-                    child: ClipOval(
-                      child: Image.asset(
-                        'assets/MiMo/emotions/$mascotMood.png',
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, _, _) => const Center(
-                          child: Text('😎', style: TextStyle(fontSize: 16)),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: context.palette.surfaceAlt,
+                  borderRadius: BorderRadius.circular(AppRadii.md),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    // Mimo avatar or robot emoji
+                    Container(
+                      width: 20,
+                      height: 20,
+                      decoration: BoxDecoration(
+                        color: AppColors.teal.withValues(alpha: 0.15),
+                        shape: BoxShape.circle,
+                      ),
+                      child: ClipOval(
+                        child: Image.asset(
+                          'assets/MiMo/emotions/$mascotMood.png',
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, _, _) => const Center(
+                            child: Text('🤖', style: TextStyle(fontSize: 10)),
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        color: context.palette.surfaceAlt,
-                        borderRadius: BorderRadius.circular(AppRadii.md),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Mimo AI',
-                            style: TextStyle(
-                              color: AppColors.teal,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            (aiComment != null && aiComment.isNotEmpty)
-                                ? aiComment
-                                : 'Mimo đã ghi nhận giao dịch này!',
-                            style: Theme.of(context).textTheme.bodySmall
-                                ?.copyWith(
-                                  color: context.palette.textPrimary,
-                                  height: 1.4,
-                                ),
-                          ),
-                        ],
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Mimo: ${(aiComment != null && aiComment.isNotEmpty) ? aiComment : 'Mimo đã ghi nhận giao dịch này!'}',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: context.palette.textPrimary,
+                          height: 1.35,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ],
@@ -1938,7 +2060,7 @@ class _BalanceStat extends StatelessWidget {
             label,
             style: Theme.of(
               context,
-            ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+            ).textTheme.bodySmall?.copyWith(color: context.palette.textSecondary),
           ),
           const SizedBox(height: 4),
           Text(
@@ -2061,7 +2183,7 @@ class _StoryGalleryCard extends StatelessWidget {
             }
           : null,
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(AppRadii.md),
+        borderRadius: BorderRadius.circular(20),
         child: Stack(
           fit: StackFit.expand,
           children: [
@@ -2095,21 +2217,21 @@ class _StoryGalleryCard extends StatelessWidget {
                     end: Alignment.bottomCenter,
                     colors: [
                       Colors.transparent,
-                      Colors.black.withValues(alpha: 0.55),
+                      Colors.black.withValues(alpha: 0.85),
                     ],
-                    stops: const [0.5, 1.0],
+                    stops: const [0.4, 1.0],
                   ),
                 ),
               ),
             ),
             if (dateStr.isNotEmpty)
               Positioned(
-                left: 5,
-                top: 5,
+                left: 6,
+                top: 6,
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 5,
-                    vertical: 2,
+                    horizontal: 6,
+                    vertical: 3,
                   ),
                   decoration: BoxDecoration(
                     color: Colors.black54,
@@ -2117,21 +2239,42 @@ class _StoryGalleryCard extends StatelessWidget {
                   ),
                   child: Text(
                     dateStr,
-                    style: const TextStyle(color: Colors.white70, fontSize: 8),
+                    style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.w600),
                   ),
                 ),
               ),
+            // Category Icon Badge at top-right
             Positioned(
-              left: 5,
-              bottom: 5,
-              right: 5,
+              right: 6,
+              top: 6,
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: const BoxDecoration(
+                  color: Colors.black54,
+                  shape: BoxShape.circle,
+                ),
+                child: IconTheme(
+                  data: const IconThemeData(color: Colors.white),
+                  child: CategoryTheme.iconOf(
+                    story['category_code'] as String? ??
+                    story['categoryCode'] as String? ??
+                    'Other',
+                    size: 12,
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              left: 8,
+              bottom: 8,
+              right: 8,
               child: Text(
                 title.isNotEmpty ? title : 'Story',
                 style: const TextStyle(
                   color: Colors.white,
-                  fontSize: 9,
+                  fontSize: 10,
                   fontWeight: FontWeight.w700,
-                  shadows: [Shadow(color: Colors.black54, blurRadius: 4)],
+                  shadows: [Shadow(color: Colors.black, blurRadius: 6)],
                 ),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
@@ -2160,7 +2303,7 @@ class _InlineCalendarView extends StatefulWidget {
 class _InlineCalendarViewState extends State<_InlineCalendarView> {
   DateTime _focus = DateTime(DateTime.now().year, DateTime.now().month);
   int? _selectedDay;
-
+  
   Map<int, Map<String, dynamic>> get _dayMap {
     final result = <int, Map<String, dynamic>>{};
     for (final entry in widget.byDay) {
@@ -2211,71 +2354,74 @@ class _InlineCalendarViewState extends State<_InlineCalendarView> {
                   _selectedDay = null;
                 }),
               ),
+              
             ],
           ),
-          Row(
-            children: ['S', 'M', 'T', 'W', 'T', 'F', 'S']
-                .map(
-                  (d) => Expanded(
-                    child: Center(
-                      child: Text(
-                        d,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppColors.muted,
-                          fontWeight: FontWeight.w600,
+          const SizedBox(height: 12),
+          
+            Row(
+              children: ['S', 'M', 'T', 'W', 'T', 'F', 'S']
+                  .map(
+                    (d) => Expanded(
+                      child: Center(
+                        child: Text(
+                          d,
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: AppColors.muted,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                )
-                .toList(),
-          ),
-          const SizedBox(height: 8),
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: startWeekday + daysInMonth,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 7,
-              mainAxisSpacing: 4,
-              crossAxisSpacing: 4,
-              childAspectRatio: 0.58,
+                  )
+                  .toList(),
             ),
-            itemBuilder: (ctx, i) {
-              if (i < startWeekday) return const SizedBox();
-              final day = i - startWeekday + 1;
-              final isSelected = _selectedDay == day;
-              final isToday =
-                  _focus.month == DateTime.now().month &&
-                  _focus.year == DateTime.now().year &&
-                  day == DateTime.now().day;
+            const SizedBox(height: 8),
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: startWeekday + daysInMonth,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 7,
+                mainAxisSpacing: 4,
+                crossAxisSpacing: 4,
+                childAspectRatio: 0.58,
+              ),
+              itemBuilder: (ctx, i) {
+                if (i < startWeekday) return const SizedBox();
+                final day = i - startWeekday + 1;
+                final isSelected = _selectedDay == day;
+                final isToday =
+                    _focus.month == DateTime.now().month &&
+                    _focus.year == DateTime.now().year &&
+                    day == DateTime.now().day;
 
-              final dayTxList = widget.transactions.where((tx) {
-                final dateStr =
-                    tx['occurredAt'] as String? ??
-                    tx['occurred_at'] as String? ??
-                    tx['createdAt'] as String? ??
-                    tx['created_at'] as String? ??
-                    '';
-                if (dateStr.isEmpty) return false;
-                try {
-                  final dt = DateTime.parse(dateStr).toLocal();
-                  return dt.year == _focus.year &&
-                      dt.month == _focus.month &&
-                      dt.day == day;
-                } catch (_) {
-                  return false;
-                }
-              }).toList();
+                final dayTxList = widget.transactions.where((tx) {
+                  final dateStr =
+                      tx['occurredAt'] as String? ??
+                      tx['occurred_at'] as String? ??
+                      tx['createdAt'] as String? ??
+                      tx['created_at'] as String? ??
+                      '';
+                  if (dateStr.isEmpty) return false;
+                  try {
+                    final dt = DateTime.parse(dateStr).toLocal();
+                    return dt.year == _focus.year &&
+                        dt.month == _focus.month &&
+                        dt.day == day;
+                  } catch (_) {
+                    return false;
+                  }
+                }).toList();
 
-              return GestureDetector(
-                onTap: () => setState(
-                  () => _selectedDay = _selectedDay == day ? null : day,
-                ),
-                child: _buildDayCell(day, dayTxList, isSelected, isToday),
-              );
-            },
-          ),
+                return GestureDetector(
+                  onTap: () => setState(
+                    () => _selectedDay = _selectedDay == day ? null : day,
+                  ),
+                  child: _buildDayCell(day, dayTxList, isSelected, isToday),
+                );
+              },
+            ),
           if (_selectedDay != null && dayMap[_selectedDay!] != null) ...[
             const SizedBox(height: 16),
             Row(
@@ -2331,34 +2477,7 @@ class _InlineCalendarViewState extends State<_InlineCalendarView> {
                   }
                 })
                 .map((tx) {
-                  final dayNavIds = widget.transactions
-                      .where((t) {
-                        final ds =
-                            t['occurredAt'] as String? ??
-                            t['occurred_at'] as String? ??
-                            t['createdAt'] as String? ??
-                            t['created_at'] as String? ??
-                            '';
-                        if (ds.isEmpty) return false;
-                        try {
-                          final d = DateTime.parse(ds).toLocal();
-                          return d.year == _focus.year &&
-                              d.month == _focus.month &&
-                              d.day == _selectedDay;
-                        } catch (_) {
-                          return false;
-                        }
-                      })
-                      .map<String>(
-                        (t) =>
-                            (t['storyId'] as String?) ??
-                            (t['story_id'] as String?) ??
-                            (t['id'] as String?) ??
-                            '',
-                      )
-                      .where((e) => e.isNotEmpty)
-                      .toList();
-                  return _TransactionStoryCard(tx: tx, allStoryIds: dayNavIds);
+                  return _CalendarTransactionListItem(tx: Map<String, dynamic>.from(tx as Map));
                 }),
           ],
           const SizedBox(height: 24),
@@ -2592,6 +2711,99 @@ class _InlineCalendarViewState extends State<_InlineCalendarView> {
                   ? FontWeight.w700
                   : FontWeight.w500,
               color: isToday ? AppColors.teal : context.palette.textPrimary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CalendarTransactionListItem extends StatelessWidget {
+  final Map<String, dynamic> tx;
+  const _CalendarTransactionListItem({required this.tx});
+
+  @override
+  Widget build(BuildContext context) {
+    final amount = parseToInt(tx['amount']);
+    final type = tx['type'] as String? ?? 'expense';
+    final category =
+        tx['category_name'] as String? ??
+        tx['categoryCode'] as String? ??
+        tx['category_code'] as String? ??
+        'Other';
+    final note = tx['note'] as String? ?? '';
+    final originalText = tx['originalText'] as String? ?? tx['original_text'] as String? ?? '';
+    final label = originalText.isNotEmpty ? originalText : (note.isNotEmpty ? note : 'Giao dịch');
+    final displayTime = txTimestampIso(tx) ?? '';
+    final isExpense = type.toLowerCase() == 'expense';
+    final catStyle = CategoryTheme.of(category);
+
+    String timeStr = '';
+    if (displayTime.isNotEmpty) {
+      final dt = parseToLocalDateTime(displayTime);
+      if (dt != null) {
+        timeStr = '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+      }
+    }
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: context.palette.card,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: context.palette.softShadow,
+      ),
+      child: Row(
+        children: [
+          // Category Icon Circle
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: catStyle.color.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: Center(
+              child: CategoryTheme.iconOf(category, size: 20),
+            ),
+          ),
+          const SizedBox(width: 12),
+          // Info Column
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: context.palette.textPrimary,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (timeStr.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    timeStr,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppColors.muted,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          // Amount
+          Text(
+            '${isExpense ? '-' : '+'}${formatVnd(amount)}',
+            style: TextStyle(
+              color: isExpense ? AppColors.danger : AppColors.teal,
+              fontWeight: FontWeight.w700,
+              fontSize: 15,
             ),
           ),
         ],

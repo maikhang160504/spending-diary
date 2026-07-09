@@ -14,11 +14,13 @@ String? nluString(dynamic v) {
 int? nluInt(dynamic v) {
   if (v is int) return v;
   if (v is num) return v.toInt();
+  if (v is String) return int.tryParse(v);
   return null;
 }
 
 double? nluDouble(dynamic v) {
   if (v is double) return v;
   if (v is num) return v.toDouble();
+  if (v is String) return double.tryParse(v);
   return null;
 }

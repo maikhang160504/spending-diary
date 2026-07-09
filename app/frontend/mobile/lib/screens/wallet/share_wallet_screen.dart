@@ -14,6 +14,7 @@ import '../../theme/categories.dart';
 import '../../services/transaction_notifier.dart';
 import '../../utils/formatters.dart';
 import '../../utils/mimo_emotion.dart';
+import '../../widgets/ai_popup_menu.dart';
 import '../../widgets/error_banner.dart';
 import '../../widgets/loading_indicator.dart';
 import '../../widgets/notification_overlay.dart';
@@ -29,6 +30,7 @@ class _ShareWalletScreenState extends State<ShareWalletScreen> {
   final _api = ApiClient();
   String _tab = 'Story';
   bool _showMembers = false;
+  bool _showAiPopup = false;
   bool _loading = true;
   Map<String, dynamic> _wallet = {};
   List<dynamic> _members = [];
@@ -36,6 +38,7 @@ class _ShareWalletScreenState extends State<ShareWalletScreen> {
   List<dynamic> _transactions = [];
   Map<String, dynamic> _dashboard = {};
   String? _error;
+  String? _currentUserId;
 
   @override
   void initState() {
@@ -81,6 +84,7 @@ class _ShareWalletScreenState extends State<ShareWalletScreen> {
         _api.getStories(walletId: id),
         _api.getDashboard(walletId: id),
         _api.getTransactions(walletId: id, pageSize: 50),
+        AppQueries.me().result,
       ]);
       if (!mounted) return;
       
@@ -96,6 +100,12 @@ class _ShareWalletScreenState extends State<ShareWalletScreen> {
       setState(() {
         _wallet = results[0] as Map<String, dynamic>;
         _members = results[1] as List<dynamic>;
+        
+        final meResult = results[5];
+        if (meResult is dynamic) { // generic QueryResult
+           final data = (meResult as dynamic).data as Map<String, dynamic>?;
+           _currentUserId = data?['user']?['id'] as String?;
+        }
         _stories = results[2] as List<dynamic>;
         _dashboard = results[3] as Map<String, dynamic>;
         _transactions = txs;
@@ -385,6 +395,22 @@ class _ShareWalletScreenState extends State<ShareWalletScreen> {
                               final name = member['username'] as String? ?? member['email'] as String? ?? '?';
                               final role = member['role'] as String? ?? 'member';
                               final isOwner = role == 'owner';
+                              final isMe = member['id'] == _currentUserId;
+                              final isCurrentUserOwner = _members.any((m) => m['id'] == _currentUserId && m['role'] == 'owner');
+                              
+                              Widget? trailingWidget;
+                              if (isCurrentUserOwner) {
+                                trailingWidget = isOwner ? null : IconButton(
+                                  icon: const Icon(Icons.person_remove_outlined, size: 18, color: AppColors.danger),
+                                  onPressed: () => _confirmRemove(member),
+                                );
+                              } else {
+                                trailingWidget = isMe ? IconButton(
+                                  icon: const Icon(Icons.exit_to_app, size: 18, color: AppColors.danger),
+                                  onPressed: () => _confirmRemove(member),
+                                ) : null;
+                              }
+
                               return ListTile(
                                 leading: CircleAvatar(
                                   backgroundColor: AppColors.teal.withValues(alpha: 0.15),
@@ -399,10 +425,7 @@ class _ShareWalletScreenState extends State<ShareWalletScreen> {
                                   isOwner ? 'Chủ ví 👑' : role,
                                   style: TextStyle(fontSize: 11, color: isOwner ? AppColors.teal : AppColors.muted),
                                 ),
-                                trailing: isOwner ? null : IconButton(
-                                  icon: const Icon(Icons.person_remove_outlined, size: 18, color: AppColors.danger),
-                                  onPressed: () => _confirmRemove(member),
-                                ),
+                                trailing: trailingWidget,
                               );
                             }),
                             const Divider(height: 1),
@@ -422,13 +445,47 @@ class _ShareWalletScreenState extends State<ShareWalletScreen> {
                   ),
                 ),
               ),
+            if (_showAiPopup)
+              Positioned.fill(
+                child: AiAssistantPopupMenu(
+                  onClose: () {
+                    setState(() {
+                      _showAiPopup = false;
+                    });
+                  },
+                  onSelectBill: () {
+                    context.push(
+                      AppRoutes.camera,
+                      extra: {
+                        'walletId': widget.walletId,
+                        'initialMode': 'Bill',
+                      },
+                    );
+                  },
+                  onSelectPhotoText: () {
+                    context.push(
+                      AppRoutes.camera,
+                      extra: {
+                        'walletId': widget.walletId,
+                        'initialMode': 'Ảnh',
+                      },
+                    );
+                  },
+                  onSelectChat: () {
+                    context.push(
+                      AppRoutes.chat,
+                      extra: {'walletId': widget.walletId},
+                    );
+                  },
+                ),
+              ),
           ],
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => context.push(AppRoutes.camera, extra: {'walletId': widget.walletId}),
+        onPressed: () => setState(() => _showAiPopup = true),
         backgroundColor: AppColors.teal,
-        child: const Icon(Icons.camera_alt_outlined, color: Colors.white),
+        child: const Icon(Icons.auto_awesome, color: Colors.white),
       ),
     );
   }
@@ -438,7 +495,11 @@ class _ShareWalletScreenState extends State<ShareWalletScreen> {
     final balance = (_wallet['balance'] as num?)?.toInt() ?? 0;
     return Container(
       decoration: const BoxDecoration(
-        gradient: AppGradients.teal,
+        gradient: LinearGradient(
+          colors: [Color(0xFF0D9488), Color(0xFF2DD4BF)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
         borderRadius: BorderRadius.only(bottomLeft: Radius.circular(AppRadii.xl), bottomRight: Radius.circular(AppRadii.xl)),
       ),
       padding: const EdgeInsets.fromLTRB(8, 14, 16, 24),
@@ -458,24 +519,6 @@ class _ShareWalletScreenState extends State<ShareWalletScreen> {
             Text('${_members.length} thành viên', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white70)),
           ]),
           const Spacer(),
-          GestureDetector(
-            onTap: () => context.push(AppRoutes.camera, extra: {'walletId': widget.walletId}),
-            child: Container(
-              width: 36, height: 36,
-              decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), shape: BoxShape.circle),
-              child: const Icon(Icons.camera_alt_outlined, color: Colors.white, size: 18),
-            ),
-          ),
-          const SizedBox(width: 8),
-          GestureDetector(
-            onTap: () => context.push(AppRoutes.chat, extra: {'walletId': widget.walletId}),
-            child: Container(
-              width: 36, height: 36,
-              decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), shape: BoxShape.circle),
-              child: const Icon(Icons.chat_bubble_outline_rounded, color: Colors.white, size: 18),
-            ),
-          ),
-          const SizedBox(width: 8),
           GestureDetector(
             onTap: _showInviteDialog,
             child: Container(
@@ -502,10 +545,17 @@ class _ShareWalletScreenState extends State<ShareWalletScreen> {
             Row(children: [
               const Icon(Icons.account_balance_wallet_outlined, color: AppColors.teal, size: 16),
               const SizedBox(width: 6),
-              Text('Số dư ví chung', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary)),
+              Text('Số dư ví chung', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: context.palette.textSecondary)),
             ]),
             const SizedBox(height: 8),
-            Text(formatVnd(balance), style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700, fontSize: 24)),
+            Text(
+              formatVnd(balance),
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 24,
+                    color: balance < 0 ? AppColors.danger : null,
+                  ),
+            ),
             const SizedBox(height: 12),
             Row(children: [
               Expanded(child: _BalanceStat(label: 'Thu nhập', value: formatVnd(_totalIncome), color: AppColors.teal)),
@@ -576,7 +626,7 @@ class _BalanceStat extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(label, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary)),
+        Text(label, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: context.palette.textSecondary)),
         const SizedBox(height: 4),
         Text(value, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: color, fontWeight: FontWeight.w700)),
       ]),

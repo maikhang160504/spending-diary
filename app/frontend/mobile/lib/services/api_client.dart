@@ -5,6 +5,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../utils/image_compressor.dart';
 import 'connection_manager.dart';
+import 'streak_celebration.dart';
 
 /// Centralized API client for all backend calls.
 /// Replaces old `BackendApiService` with proper JWT auth flow.
@@ -14,6 +15,7 @@ class ApiClient {
   final String baseUrl;
   final FlutterSecureStorage _storage;
   final http.Client _http;
+  static Future<bool>? _refreshFuture;
 
   static String _normalizeBaseUrl(String url) {
     final trimmed = url.endsWith('/') ? url.substring(0, url.length - 1) : url;
@@ -44,11 +46,17 @@ class ApiClient {
   Future<void> _saveTokens(String access, String refresh) async {
     await _storage.write(key: 'access_token', value: access);
     await _storage.write(key: 'refresh_token', value: refresh);
+    try {
+      await StreakCelebration.instance.reset();
+    } catch (_) {}
   }
 
   Future<void> clearTokens() async {
     await _storage.delete(key: 'access_token');
     await _storage.delete(key: 'refresh_token');
+    try {
+      await StreakCelebration.instance.reset();
+    } catch (_) {}
   }
 
   Future<bool> get isLoggedIn async => (await accessToken) != null;
@@ -125,8 +133,10 @@ class ApiClient {
       }
     }
 
-    final jsonBody =
-        jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+    final decoded = jsonDecode(utf8.decode(response.bodyBytes));
+    final Map<String, dynamic> jsonBody = decoded is List
+        ? {'success': true, 'data': decoded}
+        : (decoded as Map<String, dynamic>);
 
     if (response.statusCode >= 400) {
       final errMap = jsonBody['error'] as Map<String, dynamic>?;
@@ -144,6 +154,18 @@ class ApiClient {
   }
 
   Future<bool> _tryRefresh() async {
+    if (_refreshFuture != null) {
+      return _refreshFuture!;
+    }
+    _refreshFuture = _doRefresh();
+    try {
+      return await _refreshFuture!;
+    } finally {
+      _refreshFuture = null;
+    }
+  }
+
+  Future<bool> _doRefresh() async {
     final rToken = await refreshToken;
     if (rToken == null) return false;
 
@@ -428,8 +450,9 @@ class ApiClient {
   }
 
   // ─── Goals ────────────────────────────────────────────────────────
-  Future<List<dynamic>> getGoals() async {
-    final result = await _request('GET', '/goals');
+  Future<List<dynamic>> getGoals([String? type]) async {
+    final path = type != null ? '/goals?type=' : '/goals';
+    final result = await _request('GET', path);
     return result['data'] as List<dynamic>;
   }
 
@@ -460,6 +483,18 @@ class ApiClient {
   Future<void> deleteGoal(String id) async {
     await _request('DELETE', '/goals/$id');
   }
+
+  Future<String> inviteGoal(String id) async {
+    final result = await _request('POST', '/goals/$id/invite');
+    final data = result['data'] as Map<String, dynamic>;
+    return data['inviteCode'] as String;
+  }
+
+  Future<Map<String, dynamic>> joinGoal(String inviteCode) async {
+    final result = await _request('POST', '/goals/join', body: {'inviteCode': inviteCode});
+    return result['data'] as Map<String, dynamic>;
+  }
+
 
   // ─── Recurring Rules ──────────────────────────────────────────────
   Future<List<dynamic>> getRecurringRules() async {
@@ -820,6 +855,23 @@ class ApiClient {
 
   Future<void> removeWalletMember(String walletId, String memberId) async {
     await _request('DELETE', '/wallets/$walletId/members/$memberId');
+  }
+
+  // ─── Loans ────────────────────────────────────────────────────────
+  Future<List<dynamic>> getLoans() async {
+    final result = await _request('GET', '/loans');
+    return (result['data'] as List<dynamic>?) ?? [];
+  }
+  Future<Map<String, dynamic>> createLoan(Map<String, dynamic> body) async {
+    final result = await _request('POST', '/loans', body: body);
+    return (result['data'] as Map<String, dynamic>?) ?? {};
+  }
+  Future<Map<String, dynamic>> updateLoan(String id, Map<String, dynamic> body) async {
+    final result = await _request('PATCH', '/loans/$id', body: body);
+    return (result['data'] as Map<String, dynamic>?) ?? {};
+  }
+  Future<void> deleteLoan(String id) async {
+    await _request('DELETE', '/loans/$id');
   }
 }
 

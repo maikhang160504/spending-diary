@@ -504,13 +504,13 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
                       else if (deadlineDate != null)
                         Text(
                           'Hạn chót: ${deadlineDate.day}/${deadlineDate.month}/${deadlineDate.year} (${daysLeft >= 0 ? 'Còn $daysLeft ngày' : 'Đã quá hạn'})',
-                          style: TextStyle(color: daysLeft < 5 ? AppColors.danger : AppColors.textSecondary, fontSize: 13, fontWeight: FontWeight.w600),
+                          style: TextStyle(color: daysLeft < 5 ? AppColors.danger : context.palette.textSecondary, fontSize: 13, fontWeight: FontWeight.w600),
                         ),
                       const SizedBox(height: 24),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text('Tiến độ tích lũy', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary)),
+                          Text('Tiến độ tích lũy', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: context.palette.textSecondary)),
                           Text('${(percent * 100).toStringAsFixed(1)}%',
                               style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.teal, fontWeight: FontWeight.w800)),
                         ],
@@ -535,7 +535,7 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text('Đã tích lũy', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary, fontSize: 11)),
+                                  Text('Đã tích lũy', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: context.palette.textSecondary, fontSize: 11)),
                                   const SizedBox(height: 4),
                                   Text(formatVnd(currentAmount), style: const TextStyle(color: AppColors.teal, fontWeight: FontWeight.w800, fontSize: 16)),
                                 ],
@@ -550,7 +550,7 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text('Còn thiếu', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary, fontSize: 11)),
+                                  Text('Còn thiếu', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: context.palette.textSecondary, fontSize: 11)),
                                   const SizedBox(height: 4),
                                   Text(formatVnd(remaining > 0 ? remaining : 0), style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
                                 ],

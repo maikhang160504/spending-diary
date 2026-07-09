@@ -22,8 +22,16 @@ void main() {
     testWidgets('quick-action chips are rendered', (tester) async {
       await pumpTestApp(tester, const ChatScreen());
 
-      expect(find.textContaining('Tuần'), findsOneWidget);
-      expect(find.textContaining('Phở'), findsOneWidget);
+      // Since suggestions are shuffled, we check if at least one common keyword is rendered.
+      final keywords = ['chi tiêu', 'tháng', 'tiêu', 'hạn mức', 'mục tiêu', 'báo cáo', 'tuần', '35k', '45k', '50k'];
+      bool foundAny = false;
+      for (final kw in keywords) {
+        if (tester.any(find.textContaining(kw))) {
+          foundAny = true;
+          break;
+        }
+      }
+      expect(foundAny, isTrue);
     });
 
     testWidgets('typing a message updates the text field', (tester) async {

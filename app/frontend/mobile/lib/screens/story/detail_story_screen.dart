@@ -125,21 +125,11 @@ class _StoryPageState extends State<_StoryPage> {
   /// Lấy transaction theo id (dùng cho fallback bill-detail).
   Future<Map<String, dynamic>?> _findTransaction(String id) async {
     try {
-      final res = await _api.getTransactions(pageSize: 100);
-      final data = res['data'];
-      List<dynamic> items;
-      if (data is Map<String, dynamic>) {
-        items = (data['items'] as List<dynamic>?) ?? [];
-      } else if (data is List<dynamic>) {
-        items = data;
-      } else {
-        items = [];
-      }
-      for (final t in items) {
-        if ((t['id'] as String?) == id) return t as Map<String, dynamic>;
-      }
-    } catch (_) {}
-    return null;
+      final data = await _api.getTransaction(id);
+      return data;
+    } catch (_) {
+      return null;
+    }
   }
 
   Map<String, dynamic> _buildStoryFromTx(Map<String, dynamic> tx) {
@@ -401,7 +391,10 @@ class _StoryPageState extends State<_StoryPage> {
                             messenger.showSnackBar(const SnackBar(content: Text('Không thể cập nhật giao dịch')));
                           }
                         },
-                  style: FilledButton.styleFrom(backgroundColor: AppColors.teal, padding: const EdgeInsets.symmetric(vertical: 14)),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: CategoryTheme.colorOf(editCategory),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
                   child: saving
                       ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                       : const Text('Lưu chỉnh sửa'),
@@ -419,6 +412,8 @@ class _StoryPageState extends State<_StoryPage> {
     if (dt == null) return '';
     return formatDateTimeFull(dt);
   }
+
+
 
   Widget _glassActionButton({
     required IconData icon,
@@ -507,11 +502,21 @@ class _StoryPageState extends State<_StoryPage> {
       children: [
         Positioned.fill(
           child: (imageUrl != null && imageUrl.isNotEmpty)
-              ? CachedNetworkImage(
-                  imageUrl: imageUrl,
-                  fit: BoxFit.cover,
-                  memCacheWidth: 1080,
-                  errorWidget: (ctx, url, err) => Container(color: const Color(0xFF0D1117)),
+              ? GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => FullScreenImagePreview(imageUrl: imageUrl!),
+                      ),
+                    );
+                  },
+                  child: CachedNetworkImage(
+                    imageUrl: imageUrl,
+                    fit: BoxFit.cover,
+                    memCacheWidth: 1080,
+                    errorWidget: (ctx, url, err) => Container(color: const Color(0xFF0D1117)),
+                  ),
                 )
               : Container(color: const Color(0xFF0D1117)),
         ),
@@ -543,7 +548,7 @@ class _StoryPageState extends State<_StoryPage> {
                       padding: const EdgeInsets.all(AppSpacing.lg),
                       child: _buildError(),
                     )
-                  : _buildContent(title, amount, aiMessage, occurredAt, categoryCode, mascotMood, items),
+                  : _buildContent(title, amount, aiMessage, occurredAt, categoryCode, mascotMood, items, imageUrl),
         ),
       ],
     );
@@ -607,7 +612,7 @@ class _StoryPageState extends State<_StoryPage> {
         : 'Other';
   }
 
-  Widget _buildContent(String title, int amount, String aiMessage, String? occurredAt, String? categoryCode, String mascotMood, List<dynamic>? items) {
+  Widget _buildContent(String title, int amount, String aiMessage, String? occurredAt, String? categoryCode, String mascotMood, List<dynamic>? items, String? imageUrl) {
     final category = CategoryTheme.canonicalCodeOf(categoryCode ?? 'Other');
     final txList = <dynamic>[];
     if (items != null) {
@@ -631,7 +636,10 @@ class _StoryPageState extends State<_StoryPage> {
       }
     }
 
-    final amountColor = isExpense ? Colors.white : const Color(0xFF5EEAD4);
+    final hasImage = imageUrl != null && imageUrl.isNotEmpty;
+    final amountColor = hasImage
+        ? (isExpense ? Colors.white : const Color(0xFF5EEAD4))
+        : Colors.white;
     final catColor = CategoryTheme.colorOf(category);
 
     return Column(
@@ -640,11 +648,10 @@ class _StoryPageState extends State<_StoryPage> {
         Padding(
           padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, 0),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              _glassActionButton(icon: Icons.delete_outline, tooltip: 'Xóa', onPressed: _confirmDelete),
-              const SizedBox(width: 8),
               _glassActionButton(icon: Icons.close, tooltip: 'Đóng', onPressed: () => context.pop()),
+              const Spacer(),
+              _glassActionButton(icon: Icons.delete_outline, tooltip: 'Xóa', onPressed: _confirmDelete),
             ],
           ),
         ),
@@ -677,10 +684,15 @@ class _StoryPageState extends State<_StoryPage> {
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [
-                    Color.lerp(const Color(0xCC121218), catColor, 0.14)!,
-                    const Color(0xF0121218),
-                  ],
+                  colors: hasImage
+                      ? [
+                          Color.lerp(const Color(0xCC121218), catColor, 0.14)!,
+                          const Color(0xF0121218),
+                        ]
+                      : [
+                          const Color(0xFF1E293B),
+                          const Color(0xFF0F172A),
+                        ],
                 ),
                 border: Border(top: BorderSide(color: catColor.withValues(alpha: 0.35))),
                 boxShadow: [
@@ -799,6 +811,45 @@ class _StoryPageState extends State<_StoryPage> {
                           ),
                         ),
                       ],
+                      if (imageUrl != null && imageUrl.isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        InkWell(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => FullScreenImagePreview(imageUrl: imageUrl),
+                              ),
+                            );
+                          },
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.05),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.receipt_long_outlined, size: 16, color: catColor),
+                                const SizedBox(width: 8),
+                                const Text(
+                                  'Xem ảnh hóa đơn đính kèm',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                Icon(Icons.open_in_new_rounded, size: 12, color: Colors.white.withValues(alpha: 0.5)),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
                   const SizedBox(height: 18),
                   Container(
                     padding: const EdgeInsets.all(14),
@@ -902,16 +953,30 @@ class _StoryPageState extends State<_StoryPage> {
                       ],
                     ),
                   ),
-                  if (txList.isNotEmpty) ...[
+                  // Show transaction list only when there are multiple sub-transactions (bill with many items)
+                  if (txList.length > 1) ...[
                     const SizedBox(height: 22),
-                    Text(
-                      'DANH SÁCH CHI TIÊU',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.55),
-                        fontWeight: FontWeight.w700,
-                        fontSize: 11,
-                        letterSpacing: 1.3,
-                      ),
+                    Row(
+                      children: [
+                        Container(
+                          width: 3,
+                          height: 14,
+                          margin: const EdgeInsets.only(right: 8),
+                          decoration: BoxDecoration(
+                            color: catColor,
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                        ),
+                        Text(
+                          'DANH SÁCH CHI TIÊU',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.55),
+                            fontWeight: FontWeight.w700,
+                            fontSize: 11,
+                            letterSpacing: 1.3,
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 10),
                     ...txList.map((tx) {
@@ -921,11 +986,10 @@ class _StoryPageState extends State<_StoryPage> {
                       final txTime = txTimestampIso(Map<String, dynamic>.from(tx as Map)) ?? '';
                       final txImg = tx['image_url'] as String? ?? tx['imageUrl'] as String?;
                       final txIsExpense = (tx['type'] as String? ?? 'expense').toLowerCase() == 'expense';
-                      final catStyle = CategoryTheme.of(txCat);
 
                       return Container(
                         margin: const EdgeInsets.only(bottom: 10),
-                        padding: const EdgeInsets.all(12),
+                        padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
                           color: Colors.white.withValues(alpha: 0.05),
                           borderRadius: BorderRadius.circular(14),
@@ -935,41 +999,46 @@ class _StoryPageState extends State<_StoryPage> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
+                                // Left: icon circle
+                                Container(
+                                  width: 36,
+                                  height: 36,
+                                  decoration: BoxDecoration(
+                                    color: CategoryTheme.colorOf(txCat).withValues(alpha: 0.18),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Center(child: CategoryTheme.iconOf(txCat, size: 18)),
+                                ),
+                                const SizedBox(width: 12),
+                                // Middle: note + time
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        txNote.isNotEmpty ? txNote : catStyle.label,
-                                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 14),
+                                        txNote.isNotEmpty ? txNote : CategoryTheme.of(txCat).label,
+                                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
                                       ),
-                                      const SizedBox(height: 8),
-                                      CategoryChip(category: txCat, size: CategoryChipSize.compact, onDark: true),
+                                      if (txTime.isNotEmpty)
+                                        Text(_formatTxTime(txTime), style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 11)),
                                     ],
                                   ),
                                 ),
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.end,
-                                  children: [
-                                    Text(
-                                      txIsExpense ? '-${formatVnd(txAmount)}' : '+${formatVnd(txAmount)}',
-                                      style: TextStyle(
-                                        color: txIsExpense ? const Color(0xFFFF9B9B) : const Color(0xFF5EEAD4),
-                                        fontWeight: FontWeight.w700,
-                                        fontSize: 14,
-                                      ),
-                                    ),
-                                    if (txTime.isNotEmpty) ...[
-                                      const SizedBox(height: 4),
-                                      Text(_formatTxTime(txTime), style: TextStyle(color: Colors.white.withValues(alpha: 0.38), fontSize: 10)),
-                                    ],
-                                  ],
+                                // Right: amount
+                                Text(
+                                  txIsExpense ? '-${formatVnd(txAmount)}' : '+${formatVnd(txAmount)}',
+                                  style: TextStyle(
+                                    color: txIsExpense ? const Color(0xFFFF9B9B) : const Color(0xFF5EEAD4),
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 14,
+                                  ),
                                 ),
                               ],
                             ),
-                            if (txImg != null && txImg.isNotEmpty) ...[
+                            if (txImg != null && txImg.isNotEmpty && txImg != imageUrl) ...[
                               const SizedBox(height: 10),
                               ClipRRect(
                                 borderRadius: BorderRadius.circular(10),
@@ -990,35 +1059,23 @@ class _StoryPageState extends State<_StoryPage> {
                       );
                     }),
                   ],
-                  const SizedBox(height: 18),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.white,
-                            side: BorderSide(color: Colors.white.withValues(alpha: 0.35)),
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadii.lg)),
-                          ),
-                          onPressed: () => context.pop(),
-                          child: const Text('Đóng'),
-                        ),
+                  const SizedBox(height: 20),
+                  // Edit button — color follows category
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: _showEditSheet,
+                      icon: const Icon(Icons.edit_outlined, size: 18),
+                      label: const Text('Chỉnh sửa giao dịch', style: TextStyle(fontWeight: FontWeight.w700)),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: catColor,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadii.lg)),
+                        elevation: 0,
+                        shadowColor: catColor.withValues(alpha: 0.4),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: FilledButton(
-                          onPressed: _showEditSheet,
-                          style: FilledButton.styleFrom(
-                            backgroundColor: AppColors.teal,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadii.lg)),
-                            elevation: 0,
-                          ),
-                          child: const Text('Chỉnh sửa', style: TextStyle(fontWeight: FontWeight.w700)),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                   SizedBox(height: MediaQuery.paddingOf(context).bottom + 16),
                 ],
@@ -1037,5 +1094,51 @@ class _StoryPageState extends State<_StoryPage> {
     final dt = parseToLocalDateTime(iso);
     if (dt == null) return '';
     return formatTimeOnly(dt);
+  }
+}
+
+class FullScreenImagePreview extends StatelessWidget {
+  final String imageUrl;
+
+  const FullScreenImagePreview({super.key, required this.imageUrl});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: InteractiveViewer(
+              minScale: 0.5,
+              maxScale: 4.0,
+              child: Center(
+                child: CachedNetworkImage(
+                  imageUrl: imageUrl,
+                  fit: BoxFit.contain,
+                  placeholder: (context, url) => const Center(
+                    child: CircularProgressIndicator(color: AppColors.teal),
+                  ),
+                  errorWidget: (context, url, error) => const Center(
+                    child: Icon(Icons.error, color: Colors.white),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 16,
+            right: 16,
+            child: CircleAvatar(
+              backgroundColor: Colors.black.withValues(alpha: 0.5),
+              child: IconButton(
+                icon: const Icon(Icons.close, color: Colors.white),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

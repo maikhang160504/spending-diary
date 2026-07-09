@@ -7,16 +7,20 @@ import '../helpers/test_app.dart';
 void main() {
   group('HomeScreen', () {
     testWidgets('renders loading skeleton on first paint', (tester) async {
-      await pumpTestApp(tester, const HomeScreen());
-
-      expect(find.byType(SkeletonCard), findsWidgets);
+      await tester.runAsync(() async {
+        await pumpTestApp(tester, const HomeScreen());
+        expect(find.byType(SkeletonCard), findsWidgets);
+      });
     });
 
-    testWidgets('tab bar has Story and Giao dịch tabs', (tester) async {
-      await pumpTestApp(tester, const HomeScreen());
+    testWidgets('tab bar has Story, Gallery, and Calendar tabs', (tester) async {
+      await tester.runAsync(() async {
+        await pumpTestApp(tester, const HomeScreen());
 
-      expect(find.textContaining('Story'), findsAtLeast(1));
-      expect(find.textContaining('Giao dịch'), findsAtLeast(1));
+        expect(find.textContaining('Story'), findsAtLeast(1));
+        expect(find.textContaining('Gallery'), findsAtLeast(1));
+        expect(find.textContaining('Calendar'), findsAtLeast(1));
+      });
     });
   });
 }
