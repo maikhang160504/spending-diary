@@ -26,7 +26,7 @@
   --accent-amber-hover: #fbbf24;
   --accent-amber-glow: rgba(245, 158, 11, 0.15);
   
-  --border-color: #1e293b;
+  --border-color: rgba(255, 255, 255, 0.08);
   
   --font-sans: 'Outfit', system-ui, -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
@@ -284,15 +284,16 @@ a {
 }
 
 .metric-card {
-  background: var(--bg-obsidian-900);
+  background: linear-gradient(180deg, var(--bg-obsidian-900) 0%, rgba(11, 15, 25, 0.6) 100%);
   border: 1px solid var(--border-color);
-  border-radius: 12px;
+  border-radius: 8px;
   padding: 24px;
   display: flex;
   flex-direction: column;
   gap: 8px;
   position: relative;
   transition: all 0.2s;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 .metric-card:hover {
@@ -340,13 +341,14 @@ a {
 }
 
 .panel {
-  background: var(--bg-obsidian-900);
+  background: linear-gradient(180deg, var(--bg-obsidian-900) 0%, rgba(11, 15, 25, 0.6) 100%);
   border: 1px solid var(--border-color);
-  border-radius: 12px;
+  border-radius: 8px;
   padding: 28px;
   display: flex;
   flex-direction: column;
   gap: 20px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .panel-header {
@@ -917,18 +919,17 @@ a {
 
 /* Surfaces */
 .bill-surface {
-  padding: 20px; border-radius: 16px;
+  padding: 20px; border-radius: 8px;
   border: 1px solid var(--border-color);
-  background: var(--bg-obsidian-900);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  background: linear-gradient(180deg, var(--bg-obsidian-900) 0%, rgba(11, 15, 25, 0.6) 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 2px 10px rgba(0, 0, 0, 0.15);
 }
 .bill-surface-head {
   display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
   margin-bottom: 16px;
 }
 .bill-surface-eyebrow {
-  font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
-  color: var(--text-muted); margin-bottom: 4px;
+  display: none; /* Deprecated in anti-slop redesign */
 }
 .bill-surface-title { margin: 0; font-size: 1.05rem; font-weight: 600; color: var(--text-primary); }
 .bill-count-badge {
@@ -1004,20 +1005,20 @@ a {
 .bill-empty-boxes { margin: 12px 0 0; font-size: 13px; }
 
 .grid-2 { display: grid; grid-template-columns: minmax(260px, 1fr) minmax(0, 2.2fr); gap: 20px; }
+.grid-3 { display: grid; grid-template-columns: minmax(280px, 1.2fr) minmax(0, 2.3fr) minmax(280px, 1.3fr); gap: 20px; }
 .sample-list { list-style: none; max-height: 520px; overflow: auto; padding: 0; margin: 0; }
-.sample-list-row { display: flex; align-items: stretch; gap: 8px; margin-bottom: 8px; }
-.sample-list-row > .sample-card { flex: 1; margin-bottom: 0; }
+.sample-list-row { display: flex; align-items: stretch; gap: 8px; border-bottom: 1px solid var(--border-color); }
+.sample-list-row > .sample-card { flex: 1; margin: 0; }
 .sample-card {
-  width: 100%; text-align: left; padding: 11px 12px; background: var(--bg-obsidian-950);
-  border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 10px; cursor: pointer;
+  width: 100%; text-align: left; padding: 14px 12px; background: transparent;
+  border: none; color: var(--text-primary); cursor: pointer;
   display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
-  transition: border-color 0.2s, transform 0.15s;
+  transition: background 0.15s ease;
 }
-.sample-card:hover { border-color: var(--text-muted); transform: translateY(-1px); }
-.sample-card:active { transform: scale(0.99); }
+.sample-card:hover { background: rgba(255, 255, 255, 0.03); }
+.sample-card:active { background: rgba(255, 255, 255, 0.05); }
 .sample-card.active {
-  border-color: var(--accent-emerald);
-  box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.2), inset 0 1px 0 rgba(255,255,255,0.04);
+  background: rgba(16, 185, 129, 0.08);
 }
 .sample-card.approved { border-left: 3px solid var(--accent-emerald); }
 .sample-card.exported { border-left: 3px solid var(--accent-blue); opacity: 0.92; }
@@ -1026,6 +1027,7 @@ a {
 .sample-status.pending { color: var(--accent-amber, #fbbf24); }
 .sample-status.exported_archived { color: var(--accent-blue-hover); }
 .sample-meta.archived-tag { color: var(--text-muted); font-size: 10px; }
+.sample-meta.unlabeled-tag { color: var(--accent-rose, #f43f5e); font-size: 10px; font-weight: 600; border: 1px dashed rgba(244, 63, 94, 0.4); padding: 2px 6px; border-radius: 6px; background: rgba(244, 63, 94, 0.1); }
 .bill-archived-notice { margin-bottom: 12px; }
 .sample-meta { font-size: 12px; color: var(--text-secondary); }
 
@@ -1071,8 +1073,9 @@ a {
   box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.35);
 }
 .bill-label-canvas-wrap {
-  margin-bottom: 12px; max-width: 100%; overflow: auto; border-radius: 12px;
+  margin-bottom: 12px; max-width: 100%; height: 520px; overflow: auto; border-radius: 12px;
   border: 1px solid var(--border-color); background: var(--bg-obsidian-950);
+  display: flex; justify-content: center; align-items: center;
 }
 .bill-label-canvas { position: relative; display: inline-block; }
 .bill-label-overlay { position: absolute; left: 0; top: 0; pointer-events: auto; }
@@ -1329,10 +1332,10 @@ a {
 
 .user-mgmt-table-wrap {
   border: 1px solid var(--border-color);
-  border-radius: 16px;
+  border-radius: 8px;
   overflow: hidden;
-  background: var(--bg-obsidian-900);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
+  background: linear-gradient(180deg, var(--bg-obsidian-900) 0%, rgba(11, 15, 25, 0.6) 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 2px 10px rgba(0, 0, 0, 0.15);
 }
 
 .user-mgmt-table {
@@ -1679,13 +1682,179 @@ a {
 }
 .user-inspector-skeleton-wide { height: 72px; }
 
+/* ==========================================================================
+   UI/UX PRO MAX & UI-STYLING PREMIUM CHARTS SYSTEM
+   ========================================================================== */
+
+.pro-max-chart-panel {
+  background: linear-gradient(145deg, var(--bg-obsidian-900) 0%, var(--bg-obsidian-950) 100%);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 22px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.pro-max-chart-panel:hover {
+  border-color: rgba(255, 255, 255, 0.16);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.55), 0 0 24px rgba(16, 185, 129, 0.04);
+}
+
+.pro-max-chart-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.pro-max-chart-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pro-max-chart-subtitle {
+  font-size: 12px;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 6px;
+}
+
+.pro-max-pill-tabs {
+  display: inline-flex;
+  align-items: center;
+  background: var(--bg-obsidian-950);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 3px;
+  gap: 2px;
+}
+
+.pro-max-pill-tab {
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--font-sans);
+  padding: 4px 10px;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.pro-max-pill-tab:hover {
+  color: var(--text-primary);
+}
+
+.pro-max-pill-tab.active {
+  background: var(--bg-obsidian-800);
+  color: var(--text-primary);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.pro-max-tooltip {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  background: rgba(11, 15, 25, 0.92);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 10px;
+  padding: 10px 14px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+  z-index: 20;
+  animation: tooltipFadeIn 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes tooltipFadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.pro-max-benchmark-card {
+  background: linear-gradient(145deg, var(--bg-obsidian-900) 0%, var(--bg-obsidian-950) 100%);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.35);
+}
+
+.pro-max-bar-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pro-max-bar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+}
+
+.pro-max-bar-track {
+  height: 10px;
+  background: var(--bg-obsidian-950);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.pro-max-bar-fill {
+  height: 100%;
+  border-radius: 6px;
+  transition: width 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+}
+
+.pro-max-bar-fill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.25) 50%, rgba(255, 255, 255, 0) 100%);
+  opacity: 0.4;
+}
+
+.pro-max-stat-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+}
+
 @media (max-width: 960px) {
   .bill-page-hero { grid-template-columns: 1fr; }
   .bill-page-hero-actions { justify-content: flex-start; }
   .bill-toolbar-divider { display: none; }
   .bill-toolbar { flex-direction: column; align-items: stretch; }
   .bill-toolbar-group { flex-direction: column; align-items: flex-start; }
-  .grid-2, .bill-retrain-grid { grid-template-columns: 1fr; }
+  .grid-2, .grid-3, .bill-retrain-grid { grid-template-columns: 1fr; }
   .user-mgmt-layout { grid-template-columns: 1fr; }
   .user-mgmt-detail { position: static; }
   .user-mgmt-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }

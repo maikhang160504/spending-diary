@@ -80,8 +80,29 @@ function ReadinessCard({ title, current, threshold, percent, level, ready, extra
   );
 }
 
+function buildSmoothSvgPath(coords) {
+  if (!coords || coords.length === 0) return "";
+  if (coords.length === 1) return `M ${coords[0].x},${coords[0].y}`;
+  let d = `M ${coords[0].x},${coords[0].y}`;
+  for (let i = 0; i < coords.length - 1; i++) {
+    const p0 = coords[i === 0 ? 0 : i - 1];
+    const p1 = coords[i];
+    const p2 = coords[i + 1];
+    const p3 = coords[i + 2 <= coords.length - 1 ? i + 2 : i + 1];
+
+    const cp1x = p1.x + (p2.x - p0.x) / 6;
+    const cp1y = p1.y + (p2.y - p0.y) / 6;
+    const cp2x = p2.x - (p3.x - p1.x) / 6;
+    const cp2y = p2.y - (p3.y - p1.y) / 6;
+
+    d += ` C ${cp1x.toFixed(1)},${cp1y.toFixed(1)} ${cp2x.toFixed(1)},${cp2y.toFixed(1)} ${p2.x.toFixed(1)},${p2.y.toFixed(1)}`;
+  }
+  return d;
+}
+
 function ModelSubChart({ title, modelKey, historyData }) {
-  const [selectedMetric, setSelectedMetric] = useState("accuracy"); // accuracy, precision, recall, f1_score, test_set
+  const [selectedMetric, setSelectedMetric] = useState("accuracy");
+  const [hoveredIndex, setHoveredIndex] = useState(null);
 
   const metricLabels = {
     accuracy: "Accuracy",
@@ -92,11 +113,9 @@ function ModelSubChart({ title, modelKey, historyData }) {
   };
 
   const getMetricValue = (run, key, metric) => {
-    // Support flat metrics structure for LayoutLMv3 ocrHistory
     if (run.metrics && run.metrics[metric] !== undefined && !run.metrics[key]) {
       return run.metrics[metric];
     }
-    // Nested NLU structure
     if (!run.metrics || !run.metrics[key]) {
       if (metric === "test_set") return 150;
       if (metric === "f1_score" && key === "ner") return 91.5;
@@ -105,7 +124,6 @@ function ModelSubChart({ title, modelKey, historyData }) {
     const val = run.metrics[key][metric];
     if (val !== undefined) return val;
 
-    // Fallback aliases
     if (metric === "f1_score") {
       return run.metrics[key].weighted_f1 || run.metrics[key].f1 || run.metrics[key].ents_f || 88.0;
     }
@@ -116,8 +134,9 @@ function ModelSubChart({ title, modelKey, historyData }) {
 
   if (runs.length === 0) {
     return (
-      <div className="panel" style={{ padding: "30px", textAlign: "center", color: "var(--text-muted)" }}>
-        <p>Không có dữ liệu huấn luyện.</p>
+      <div className="pro-max-chart-panel" style={{ padding: "34px", textAlign: "center" }}>
+        <h3 className="pro-max-chart-title" style={{ justifyContent: "center" }}>{title}</h3>
+        <p style={{ color: "var(--text-muted)", fontSize: "13px", marginTop: "8px" }}>Chưa có dữ liệu huấn luyện.</p>
       </div>
     );
   }
@@ -125,118 +144,169 @@ function ModelSubChart({ title, modelKey, historyData }) {
   const values = runs.map(r => getMetricValue(r, modelKey, selectedMetric));
   const isCount = selectedMetric === "test_set";
   
-  // Dynamic scale
   const minVal = isCount ? 0 : Math.max(0, Math.min(50, ...values) - 5);
   const maxVal = isCount ? Math.max(...values) + 30 : 100;
   const range = maxVal - minVal;
 
-  const getX = (index) => 35 + (index * (230 / Math.max(1, runs.length - 1)));
-  const getY = (val) => 125 - ((val - minVal) / (range || 1)) * 95;
-
-  const points = runs.map((r, i) => `${getX(i)},${getY(values[i])}`).join(" ");
-
-  const fillPath = runs.length > 0
-    ? `M ${getX(0)},130 L ${runs.map((r, i) => `${getX(i)} ${getY(values[i])}`).join(" L ")} L ${getX(runs.length - 1)},130 Z`
-    : "";
+  const getX = (index) => 36 + (index * (232 / Math.max(1, runs.length - 1)));
+  const getY = (val) => 120 - ((val - minVal) / (range || 1)) * 88;
 
   const chartColor = modelKey === "ocr" ? "var(--accent-blue)" 
-                  : modelKey === "nlu_record" ? "var(--accent-emerald)" 
-                  : modelKey === "nlu_action" ? "var(--accent-amber)" 
-                  : modelKey === "nlu_chitchat" ? "#a855f7" 
-                  : "#ec4899"; // fusion
+                  : modelKey === "intent" ? "var(--accent-emerald)" 
+                  : modelKey === "record_type" ? "var(--accent-amber)" 
+                  : modelKey === "category" ? "#a855f7" 
+                  : "var(--accent-blue)";
 
-  const accentLabelClass = modelKey === "ocr" ? "indicator-blue" 
-                  : modelKey === "nlu_record" ? "indicator-emerald" 
-                  : modelKey === "nlu_action" ? "indicator-amber" 
-                  : "indicator-emerald";
+  const encoderColor = "#c084fc";
 
-  return (
-    <div className="panel" style={{
-      background: "var(--bg-obsidian-900)",
-      border: "1px solid var(--border-color)",
-      borderRadius: "12px",
-      padding: "18px",
-      display: "flex",
-      flexDirection: "column",
-      position: "relative"
-    }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "16px" }}>
-        <div>
-          <h3 style={{ fontSize: "14px", fontWeight: "600", color: "var(--text-primary)" }}>{title}</h3>
-          <span style={{ fontSize: "11px", color: "var(--text-secondary)", display: "block", marginTop: "2px" }}>
-            Hiện tại: <strong style={{ color: chartColor, fontFamily: "var(--font-mono)" }}>{values[values.length - 1]}{isCount ? "" : "%"}</strong>
-          </span>
-        </div>
-        <select
-          className="form-select"
-          style={{ width: "95px", padding: "4px 8px", fontSize: "11px", height: "24px", background: "var(--bg-obsidian-800)", border: "1px solid var(--border-color)", color: "var(--text-primary)", borderRadius: "6px" }}
-          value={selectedMetric}
-          onChange={(e) => setSelectedMetric(e.target.value)}
-        >
-          {Object.keys(metricLabels).map(k => (
-            <option key={k} value={k}>{metricLabels[k]}</option>
-          ))}
-        </select>
-      </div>
+  const tfidfRuns = modelKey === "ocr" ? runs : runs.filter(r => !r.train_type || r.train_type === "tfidf");
+  const encoderRuns = modelKey === "ocr" ? [] : runs.filter(r => r.train_type === "encoder");
 
-      <div style={{ height: "130px", position: "relative" }}>
-        <svg viewBox="0 0 300 135" className="svg-chart" style={{ width: "100%", height: "100%", overflow: "visible" }} preserveAspectRatio="none">
-          <defs>
-            <linearGradient id={`grad-${modelKey}`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={chartColor} stopOpacity="0.18" />
-              <stop offset="100%" stopColor={chartColor} stopOpacity="0" />
-            </linearGradient>
-          </defs>
-          
-          {/* Horizontal lines */}
-          <line x1="30" y1="30" x2="280" y2="30" stroke="var(--border-color)" strokeWidth="0.5" strokeDasharray="4 4" />
-          <line x1="30" y1="80" x2="280" y2="80" stroke="var(--border-color)" strokeWidth="0.5" strokeDasharray="4 4" />
-          <line x1="30" y1="130" x2="280" y2="130" stroke="var(--border-color)" strokeWidth="0.5" />
-          
-          {/* Area fill */}
-          {fillPath && <path d={fillPath} fill={`url(#grad-${modelKey})`} />}
-          
-          {/* Polyline */}
-          <polyline
-            fill="none"
-            stroke={chartColor}
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            points={points}
-          />
-          
-          {/* Interactive node points & values */}
-          {runs.map((r, i) => (
-            <g key={i}>
+  const renderSmoothSeries = (lineRuns, color, idSuffix) => {
+    if (lineRuns.length === 0) return null;
+    const coords = lineRuns.map(r => {
+      const globalIdx = runs.findIndex(x => x === r);
+      return { x: getX(globalIdx), y: getY(getMetricValue(r, modelKey, selectedMetric)) };
+    });
+
+    const smoothLinePath = buildSmoothSvgPath(coords);
+    const fillPath = coords.length > 1
+      ? `${smoothLinePath} L ${coords[coords.length - 1].x},125 L ${coords[0].x},125 Z`
+      : "";
+
+    return (
+      <g key={idSuffix}>
+        <defs>
+          <linearGradient id={`grad-${modelKey}-${idSuffix}`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={color} stopOpacity="0.32" />
+            <stop offset="100%" stopColor={color} stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        {fillPath && <path d={fillPath} fill={`url(#grad-${modelKey}-${idSuffix})`} />}
+        <path d={smoothLinePath} fill="none" stroke={color} strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" />
+        {lineRuns.map((r) => {
+          const globalIdx = runs.findIndex(x => x === r);
+          const v = getMetricValue(r, modelKey, selectedMetric);
+          const isHovered = hoveredIndex === globalIdx;
+          return (
+            <g
+              key={globalIdx}
+              style={{ cursor: "pointer" }}
+              onMouseEnter={() => setHoveredIndex(globalIdx)}
+            >
+              {isHovered && (
+                <line
+                  x1={getX(globalIdx)}
+                  y1="25"
+                  x2={getX(globalIdx)}
+                  y2="125"
+                  stroke={color}
+                  strokeWidth="1"
+                  strokeDasharray="3 3"
+                  opacity="0.7"
+                />
+              )}
               <circle
-                cx={getX(i)}
-                cy={getY(values[i])}
-                r="4"
+                cx={getX(globalIdx)}
+                cy={getY(v)}
+                r={isHovered ? "6" : "4"}
                 fill="var(--bg-obsidian-950)"
-                stroke={chartColor}
-                strokeWidth="2.5"
+                stroke={color}
+                strokeWidth={isHovered ? "3" : "2.2"}
+                style={{ transition: "all 0.18s ease" }}
               />
               <text
-                x={getX(i)}
-                y={getY(values[i]) - 8}
+                x={getX(globalIdx)}
+                y={getY(v) - 10}
                 textAnchor="middle"
-                fill="var(--text-primary)"
-                fontSize="9px"
-                fontWeight="600"
+                fill={isHovered ? "var(--text-primary)" : "var(--text-secondary)"}
+                fontSize={isHovered ? "10px" : "9px"}
+                fontWeight="700"
                 fontFamily="var(--font-mono)"
               >
-                {values[i]}{isCount ? "" : "%"}
+                {v}{isCount ? "" : "%"}
               </text>
             </g>
+          );
+        })}
+      </g>
+    );
+  };
+
+  const latestVal = runs.length > 0 ? getMetricValue(runs[runs.length - 1], modelKey, selectedMetric) : 0;
+  const firstVal = runs.length > 1 ? getMetricValue(runs[0], modelKey, selectedMetric) : latestVal;
+  const delta = (latestVal - firstVal).toFixed(1);
+
+  return (
+    <div className="pro-max-chart-panel" onMouseLeave={() => setHoveredIndex(null)}>
+      <div className="pro-max-chart-head">
+        <div>
+          <h3 className="pro-max-chart-title">
+            <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: chartColor, display: "inline-block" }}></span>
+            {title}
+          </h3>
+          <div className="pro-max-chart-subtitle">
+            <span>Mới nhất: <strong style={{ color: chartColor, fontFamily: "var(--font-mono)" }}>{latestVal}{isCount ? "" : "%"}</strong></span>
+            {runs.length > 1 && !isCount && (
+              <span className="pro-max-stat-pill" style={{
+                background: delta >= 0 ? "rgba(16, 185, 129, 0.12)" : "rgba(239, 68, 68, 0.12)",
+                color: delta >= 0 ? "var(--accent-emerald)" : "var(--accent-rose)"
+              }}>
+                {delta >= 0 ? `+${delta}%` : `${delta}%`}
+              </span>
+            )}
+          </div>
+        </div>
+
+        <div className="pro-max-pill-tabs">
+          {Object.entries(metricLabels).map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              className={`pro-max-pill-tab ${selectedMetric === key ? "active" : ""}`}
+              onClick={() => setSelectedMetric(key)}
+            >
+              {label}
+            </button>
           ))}
+        </div>
+      </div>
+
+      <div style={{ height: "145px", position: "relative" }}>
+        {hoveredIndex !== null && runs[hoveredIndex] && (
+          <div className="pro-max-tooltip">
+            <div style={{ fontSize: "11px", color: "var(--text-secondary)", marginBottom: "3px" }}>
+              Run #{runs[hoveredIndex].run_index || (hoveredIndex + 1)}
+            </div>
+            <div style={{ fontSize: "14px", fontWeight: "700", color: "var(--text-primary)", fontFamily: "var(--font-mono)" }}>
+              {metricLabels[selectedMetric]}: {getMetricValue(runs[hoveredIndex], modelKey, selectedMetric)}{isCount ? "" : "%"}
+            </div>
+          </div>
+        )}
+
+        <svg viewBox="0 0 300 135" style={{ width: "100%", height: "100%", overflow: "visible" }} preserveAspectRatio="none">
+          <line x1="30" y1="35" x2="280" y2="35" stroke="var(--border-color)" strokeWidth="0.5" strokeDasharray="3 3" />
+          <line x1="30" y1="80" x2="280" y2="80" stroke="var(--border-color)" strokeWidth="0.5" strokeDasharray="3 3" />
+          <line x1="30" y1="125" x2="280" y2="125" stroke="var(--border-color)" strokeWidth="0.8" />
+
+          {renderSmoothSeries(tfidfRuns, chartColor, "tfidf")}
+          {renderSmoothSeries(encoderRuns, encoderColor, "encoder")}
         </svg>
       </div>
 
-      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "9px", padding: "0 6px", marginTop: "10px", borderTop: "1px solid var(--border-color)", paddingTop: "8px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-mono)", marginTop: "12px", borderTop: "1px solid var(--border-color)", paddingTop: "10px" }}>
         {runs.map((r, i) => (
-          <span key={i} style={{ color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
-            Run #{r.run_index || (i+1)}
+          <span
+            key={i}
+            style={{
+              color: hoveredIndex === i ? "var(--text-primary)" : "var(--text-muted)",
+              fontWeight: hoveredIndex === i ? "700" : "400",
+              cursor: "pointer",
+              transition: "color 0.2s ease"
+            }}
+            onMouseEnter={() => setHoveredIndex(i)}
+          >
+            Run #{r.run_index || (i + 1)}
           </span>
         ))}
       </div>
@@ -245,65 +315,88 @@ function ModelSubChart({ title, modelKey, historyData }) {
 }
 
 function NluBenchmarkChart({ data }) {
-  if (!data) return <p style={{ color: "var(--text-muted)", textAlign: "center", padding: "20px" }}>Chưa có dữ liệu benchmark.</p>;
+  if (!data) return <p style={{ color: "var(--text-muted)", textAlign: "center", padding: "24px" }}>Chưa có dữ liệu benchmark.</p>;
   
   const backends = [
-    { key: "tfidf", label: "TF-IDF + SVM (Local)", color: "var(--accent-blue)" },
-    { key: "phobert", label: "PhoBERT Encoder (Modal)", color: "var(--accent-emerald)" },
-    { key: "phogpt", label: "Qwen2.5-14B-Instruct (GPU)", color: "#a855f7" }
+    { key: "tfidf", label: "TF-IDF + SVM (Local CPU)", color: "var(--accent-blue)", speed: "< 2 ms", tag: "Siêu nhanh" },
+    { key: "phobert", label: "PhoBERT Encoder (Modal GPU)", color: "var(--accent-emerald)", speed: "~ 45 ms", tag: "Cân bằng" },
+    { key: "phogpt", label: "Qwen2.5-14B-Instruct (GPU 4-bit)", color: "#a855f7", speed: "~ 1480 ms", tag: "Suy luận sâu" }
   ];
   
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "30px", marginTop: "15px" }}>
-      {/* Accuracy Comparison */}
-      <div style={{ background: "var(--bg-obsidian-950)", border: "1px solid var(--border-color)", borderRadius: "12px", padding: "20px" }}>
-        <h4 style={{ fontSize: "14px", fontWeight: "600", color: "var(--text-primary)", marginBottom: "20px" }}>Độ chính xác Ý định & Hạng mục (%)</h4>
-        <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "24px", marginTop: "16px" }}>
+      {/* Accuracy Comparison Card */}
+      <div className="pro-max-benchmark-card">
+        <div>
+          <h4 style={{ fontSize: "15px", fontWeight: "700", color: "var(--text-primary)" }}>So sánh Độ chính xác Ý định & Hạng mục (%)</h4>
+          <p style={{ fontSize: "12px", color: "var(--text-secondary)", marginTop: "4px" }}>Hiệu năng phân loại trên tập test benchmark chuẩn.</p>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
           {backends.map(b => {
             const acc = data[b.key]?.intent_accuracy || 0.0;
             const catAcc = data[b.key]?.category_accuracy || 0.0;
             return (
-              <div key={b.key}>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: "var(--text-secondary)", marginBottom: "6px" }}>
-                  <span>{b.label}</span>
-                  <span style={{ fontFamily: "var(--font-mono)", fontWeight: "600", color: b.color }}>Intent: {acc}% | Cat: {catAcc}%</span>
+              <div key={b.key} className="pro-max-bar-row">
+                <div className="pro-max-bar-header">
+                  <span style={{ color: "var(--text-primary)", fontWeight: "600" }}>{b.label}</span>
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", fontWeight: "700", color: b.color }}>
+                    Intent: {acc}% | Category: {catAcc}%
+                  </span>
                 </div>
-                <div style={{ height: "8px", background: "var(--bg-obsidian-800)", borderRadius: "4px", overflow: "hidden", display: "flex", gap: "2px" }}>
-                  <div style={{ width: `${acc * 0.6}%`, height: "100%", background: b.color, borderRadius: "4px" }}></div>
-                  <div style={{ width: `${catAcc * 0.4}%`, height: "100%", background: b.color, opacity: 0.6, borderRadius: "4px" }}></div>
+                <div className="pro-max-bar-track">
+                  <div className="pro-max-bar-fill" style={{ width: `${acc * 0.58}%`, background: b.color }}></div>
+                  <div className="pro-max-bar-fill" style={{ width: `${catAcc * 0.42}%`, background: b.color, opacity: 0.55 }}></div>
                 </div>
               </div>
             );
           })}
         </div>
-        <div style={{ display: "flex", gap: "12px", fontSize: "11px", color: "var(--text-muted)", marginTop: "15px" }}>
-          <span style={{ display: "flex", alignItems: "center", gap: "4px" }}><span style={{ width: "8px", height: "8px", background: "currentColor" }}></span>Ý định (Intent)</span>
-          <span style={{ display: "flex", alignItems: "center", gap: "4px", opacity: 0.6 }}><span style={{ width: "8px", height: "8px", background: "currentColor" }}></span>Hạng mục (Category)</span>
+
+        <div style={{ display: "flex", gap: "16px", fontSize: "11px", color: "var(--text-muted)", borderTop: "1px solid var(--border-color)", paddingTop: "12px" }}>
+          <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+            <span style={{ width: "10px", height: "10px", borderRadius: "3px", background: "currentColor" }}></span>
+            Ý định (Intent Accuracy)
+          </span>
+          <span style={{ display: "flex", alignItems: "center", gap: "6px", opacity: 0.65 }}>
+            <span style={{ width: "10px", height: "10px", borderRadius: "3px", background: "currentColor" }}></span>
+            Hạng mục (Category Accuracy)
+          </span>
         </div>
       </div>
-      
-      {/* Latency Comparison */}
-      <div style={{ background: "var(--bg-obsidian-950)", border: "1px solid var(--border-color)", borderRadius: "12px", padding: "20px" }}>
-        <h4 style={{ fontSize: "14px", fontWeight: "600", color: "var(--text-primary)", marginBottom: "20px" }}>Thời gian phản hồi trung bình (Latency - ms)</h4>
-        <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+
+      {/* Latency Comparison Card */}
+      <div className="pro-max-benchmark-card">
+        <div>
+          <h4 style={{ fontSize: "15px", fontWeight: "700", color: "var(--text-primary)" }}>Phổ Thời gian phản hồi (Latency - ms)</h4>
+          <p style={{ fontSize: "12px", color: "var(--text-secondary)", marginTop: "4px" }}>Tốc độ xử lý trung bình mỗi request theo kiến trúc.</p>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
           {backends.map(b => {
             const lat = data[b.key]?.avg_latency_ms || 0.0;
-            const logWidth = lat > 1000 ? 95 : lat > 100 ? 60 : lat > 10 ? 30 : 10;
+            const logWidth = lat > 1000 ? 94 : lat > 100 ? 58 : lat > 10 ? 32 : 12;
             return (
-              <div key={b.key}>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: "var(--text-secondary)", marginBottom: "6px" }}>
-                  <span>{b.label}</span>
-                  <span style={{ fontFamily: "var(--font-mono)", fontWeight: "600", color: b.color }}>{lat} ms</span>
+              <div key={b.key} className="pro-max-bar-row">
+                <div className="pro-max-bar-header">
+                  <span style={{ color: "var(--text-primary)", fontWeight: "600", display: "flex", alignItems: "center", gap: "8px" }}>
+                    {b.label}
+                    <span className="pro-max-stat-pill" style={{ background: "rgba(255,255,255,0.06)", color: b.color, fontSize: "10px" }}>{b.tag}</span>
+                  </span>
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", fontWeight: "700", color: b.color }}>
+                    {lat || b.speed}
+                  </span>
                 </div>
-                <div style={{ height: "8px", background: "var(--bg-obsidian-800)", borderRadius: "4px", overflow: "hidden" }}>
-                  <div style={{ width: `${logWidth}%`, height: "100%", background: b.color, borderRadius: "4px" }}></div>
+                <div className="pro-max-bar-track">
+                  <div className="pro-max-bar-fill" style={{ width: `${logWidth}%`, background: b.color }}></div>
                 </div>
               </div>
             );
           })}
         </div>
-        <p style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "15px", fontStyle: "italic" }}>
-          * TF-IDF chạy siêu nhanh (&lt;2ms), PhoBERT khoảng ~45ms, Qwen2.5-14B-Instruct (4-bit) cần sinh token nên tốn khoảng 1.5 giây.
+
+        <p style={{ fontSize: "11px", color: "var(--text-muted)", fontStyle: "italic", borderTop: "1px solid var(--border-color)", paddingTop: "12px" }}>
+          💡 TF-IDF phản hồi tức thì (&lt;2ms), PhoBERT đạt cân bằng tốt (~45ms), Qwen2.5-14B-Instruct thực hiện suy luận sinh ngữ cảnh sâu.
         </p>
       </div>
     </div>
@@ -311,65 +404,88 @@ function NluBenchmarkChart({ data }) {
 }
 
 function LlmLossChart({ runData }) {
+  const [hoveredStep, setHoveredStep] = useState(null);
+
   if (!runData || !runData.loss_curve || runData.loss_curve.length === 0) return null;
-  
+
   const points = runData.loss_curve;
   const losses = points.map(p => p.loss);
-  const minLoss = Math.max(0, Math.min(...losses) - 0.1);
-  const maxLoss = Math.max(...losses) + 0.2;
+  const minLoss = Math.max(0, Math.min(...losses) - 0.08);
+  const maxLoss = Math.max(...losses) + 0.15;
   const lossRange = maxLoss - minLoss;
-  
-  const getX = (index) => 40 + (index * (420 / Math.max(1, points.length - 1)));
+
+  const getX = (index) => 38 + (index * (425 / Math.max(1, points.length - 1)));
   const getY = (val) => 120 - ((val - minLoss) / (lossRange || 1)) * 90;
-  
-  const svgPoints = points.map((p, i) => `${getX(i)},${getY(p.loss)}`).join(" ");
-  const fillPath = `M ${getX(0)},125 L ${points.map((p, i) => `${getX(i)} ${getY(p.loss)}`).join(" L ")} L ${getX(points.length - 1)},125 Z`;
-  
-  // Calculate indices for clean milestones: Start, Middle, End
+
+  const coords = points.map((p, i) => ({ x: getX(i), y: getY(p.loss) }));
+  const smoothCurve = buildSmoothSvgPath(coords);
+  const fillPath = coords.length > 1
+    ? `${smoothCurve} L ${coords[coords.length - 1].x},125 L ${coords[0].x},125 Z`
+    : "";
+
   const milestoneIndices = [
     0,
     Math.floor((points.length - 1) / 2),
     points.length - 1
-  ].filter((v, i, a) => a.indexOf(v) === i); // Deduplicate
-  
+  ].filter((v, i, a) => a.indexOf(v) === i);
+
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "30px", alignItems: "center" }}>
-      <div style={{ height: "150px", padding: "10px 0" }}>
-        <svg viewBox="0 0 500 145" style={{ width: "100%", height: "100%", overflow: "visible" }} preserveAspectRatio="none">
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "24px", alignItems: "center" }}>
+      <div className="pro-max-chart-panel" style={{ height: "210px", padding: "16px" }}>
+        {hoveredStep !== null && points[hoveredStep] && (
+          <div className="pro-max-tooltip">
+            <div style={{ fontSize: "11px", color: "var(--text-secondary)" }}>Step {points[hoveredStep].step}</div>
+            <div style={{ fontSize: "13px", fontWeight: "700", color: "#c084fc", fontFamily: "var(--font-mono)" }}>
+              Loss: {points[hoveredStep].loss.toFixed(4)}
+            </div>
+          </div>
+        )}
+
+        <svg viewBox="0 0 500 145" style={{ width: "100%", height: "100%", overflow: "visible" }} preserveAspectRatio="none" onMouseLeave={() => setHoveredStep(null)}>
           <defs>
-            <linearGradient id="grad-loss" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#a855f7" stopOpacity="0.25" />
+            <linearGradient id="grad-loss-pro" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#a855f7" stopOpacity="0.38" />
               <stop offset="100%" stopColor="#a855f7" stopOpacity="0" />
             </linearGradient>
           </defs>
-          {/* Horizontal Grid lines */}
-          <line x1="30" y1="30" x2="480" y2="30" stroke="var(--border-color)" strokeWidth="0.5" strokeDasharray="4 4" />
-          <line x1="30" y1="75" x2="480" y2="75" stroke="var(--border-color)" strokeWidth="0.5" strokeDasharray="4 4" />
-          <line x1="30" y1="120" x2="480" y2="120" stroke="var(--border-color)" strokeWidth="0.5" />
-          
-          {/* Gradient area */}
-          <path d={fillPath} fill="url(#grad-loss)" />
-          {/* Line path */}
-          <polyline fill="none" stroke="#a855f7" strokeWidth="2.5" points={svgPoints} />
-          
-          {/* Clean labels & dots for key milestones (Start, Mid, End) */}
+          <line x1="30" y1="30" x2="475" y2="30" stroke="var(--border-color)" strokeWidth="0.5" strokeDasharray="3 3" />
+          <line x1="30" y1="75" x2="475" y2="75" stroke="var(--border-color)" strokeWidth="0.5" strokeDasharray="3 3" />
+          <line x1="30" y1="120" x2="475" y2="120" stroke="var(--border-color)" strokeWidth="0.8" />
+
+          {fillPath && <path d={fillPath} fill="url(#grad-loss-pro)" />}
+          <path d={smoothCurve} fill="none" stroke="#a855f7" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" />
+
+          {points.map((p, i) => {
+            const x = getX(i);
+            const y = getY(p.loss);
+            const isHovered = hoveredStep === i;
+            return (
+              <circle
+                key={i}
+                cx={x}
+                cy={y}
+                r={isHovered ? "6" : "3.5"}
+                fill="var(--bg-obsidian-950)"
+                stroke="#a855f7"
+                strokeWidth={isHovered ? "3" : "2"}
+                style={{ cursor: "pointer", transition: "all 0.15s ease" }}
+                onMouseEnter={() => setHoveredStep(i)}
+              />
+            );
+          })}
+
           {milestoneIndices.map((idx, i) => {
             const p = points[idx];
             if (!p) return null;
             const x = getX(idx);
             const y = getY(p.loss);
             return (
-              <g key={i}>
-                {/* Dashed vertical guideline */}
-                <line x1={x} y1={y} x2={x} y2="120" stroke="#a855f7" strokeWidth="0.5" strokeDasharray="2 2" opacity="0.6" />
-                {/* Node point */}
-                <circle cx={x} cy={y} r="4" fill="var(--bg-obsidian-950)" stroke="#a855f7" strokeWidth="2.5" />
-                {/* Loss label */}
-                <text x={x} y={y - 10} textAnchor="middle" fill="var(--text-primary)" fontSize="10px" fontWeight="600" fontFamily="var(--font-mono)">
+              <g key={`milestone-${i}`} pointerEvents="none">
+                <line x1={x} y1={y} x2={x} y2="120" stroke="#a855f7" strokeWidth="0.6" strokeDasharray="2 2" opacity="0.7" />
+                <text x={x} y={y - 12} textAnchor="middle" fill="var(--text-primary)" fontSize="10px" fontWeight="700" fontFamily="var(--font-mono)">
                   {p.loss.toFixed(3)}
                 </text>
-                {/* Step label */}
-                <text x={x} y="135" textAnchor="middle" fill="var(--text-muted)" fontSize="8px">
+                <text x={x} y="135" textAnchor="middle" fill="var(--text-muted)" fontSize="9px" fontFamily="var(--font-mono)">
                   Step {p.step}
                 </text>
               </g>
@@ -377,15 +493,36 @@ function LlmLossChart({ runData }) {
           })}
         </svg>
       </div>
-      
-      <div style={{ background: "var(--bg-obsidian-950)", border: "1px solid var(--border-color)", borderRadius: "12px", padding: "20px" }}>
-        <h4 style={{ fontSize: "14px", fontWeight: "600", color: "var(--text-primary)", marginBottom: "12px" }}>Thông số Huấn luyện (Run #{runData.run_index})</h4>
-        <ul style={{ fontSize: "12px", color: "var(--text-secondary)", listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: "8px" }}>
-          <li>🚀 <strong>Base Model:</strong> <code>{runData.model_id}</code></li>
-          <li>🎯 <strong>Adapter Target:</strong> <code>{runData.lora_target}</code></li>
-          <li>📅 <strong>Thời gian:</strong> <code>{new Date(runData.trained_at).toLocaleString()}</code></li>
-          <li>📉 <strong>Loss hội tụ:</strong> từ <code>{points[0].loss.toFixed(4)}</code> về <code>{points[points.length - 1].loss.toFixed(4)}</code></li>
-          <li>⏰ <strong>Thời lượng:</strong> <code>{runData.duration_sec ? `${runData.duration_sec.toLocaleString()} giây` : "Đang tính..."}</code> (~1.2 giờ trên Nvidia H100)</li>
+
+      <div className="pro-max-benchmark-card">
+        <div>
+          <h4 style={{ fontSize: "15px", fontWeight: "700", color: "var(--text-primary)" }}>Thông số Huấn luyện LLM (Run #{runData.run_index})</h4>
+          <p style={{ fontSize: "12px", color: "var(--text-secondary)", marginTop: "4px" }}>Cấu hình huấn luyện LoRA Fine-tune trên máy chủ GPU.</p>
+        </div>
+
+        <ul style={{ fontSize: "13px", color: "var(--text-secondary)", listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: "10px" }}>
+          <li style={{ display: "flex", justifyContent: "space-between" }}>
+            <span>🚀 Base Model</span>
+            <code style={{ fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{runData.model_id}</code>
+          </li>
+          <li style={{ display: "flex", justifyContent: "space-between" }}>
+            <span>🎯 Adapter Target</span>
+            <code style={{ fontFamily: "var(--font-mono)", color: "#c084fc" }}>{runData.lora_target}</code>
+          </li>
+          <li style={{ display: "flex", justifyContent: "space-between" }}>
+            <span>📅 Thời gian</span>
+            <span>{new Date(runData.trained_at).toLocaleString()}</span>
+          </li>
+          <li style={{ display: "flex", justifyContent: "space-between" }}>
+            <span>📉 Loss hội tụ</span>
+            <span style={{ fontFamily: "var(--font-mono)" }}>
+              từ <strong style={{ color: "var(--accent-rose)" }}>{points[0].loss.toFixed(4)}</strong> xuống <strong style={{ color: "var(--accent-emerald)" }}>{points[points.length - 1].loss.toFixed(4)}</strong>
+            </span>
+          </li>
+          <li style={{ display: "flex", justifyContent: "space-between" }}>
+            <span>⏰ Thời lượng</span>
+            <span style={{ fontFamily: "var(--font-mono)" }}>{runData.duration_sec ? `${runData.duration_sec.toLocaleString()} giây` : "Đang tính..."}</span>
+          </li>
         </ul>
       </div>
     </div>

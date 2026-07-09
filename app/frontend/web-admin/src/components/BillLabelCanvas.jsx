@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 const ENTITY_COLORS = {
-  SELLER: "#3b82f6",
-  ADDRESS: "#94a3b8",
-  TIMESTAMP: "#f97316",
-  TOTAL_COST: "#10b981",
-  OTHER: "#eab308",
+  SELLER: "#2563eb",
+  ADDRESS: "#9333ea",
+  TIMESTAMP: "#ea580c",
+  TOTAL_COST: "#16a34a",
+  OTHER: "#94a3b8",
 };
 
 const HANDLE = 8;
@@ -47,15 +47,28 @@ export default function BillLabelCanvas({
     const img = imgRef.current;
     const wrap = wrapRef.current;
     if (!img || !wrap || !img.naturalWidth) return;
+    
     const maxW = wrap.clientWidth;
-    const ratio = img.naturalHeight / img.naturalWidth;
-    const w = Math.min(maxW, img.naturalWidth);
-    const h = w * ratio;
+    const maxH = wrap.clientHeight;
+    const imgW = img.naturalWidth;
+    const imgH = img.naturalHeight;
+    const ratio = imgH / imgW;
+    
+    // Fit by width first
+    let w = Math.min(maxW, imgW);
+    let h = w * ratio;
+    
+    // If it's still too tall, fit by height
+    if (h > maxH) {
+      h = Math.min(maxH, imgH);
+      w = h / ratio;
+    }
+    
     setScale({
       w,
       h,
-      sx: w / img.naturalWidth,
-      sy: h / img.naturalHeight,
+      sx: w / imgW,
+      sy: h / imgH,
     });
   }, []);
 
@@ -193,8 +206,9 @@ export default function BillLabelCanvas({
   }
 
   return (
-    <div className={`bill-label-canvas-wrap ${drawMode ? "draw-mode" : ""}`} ref={wrapRef}>
-      <div className="bill-label-canvas" style={{ width: scale.w || "100%", height: scale.h || "auto" }}>
+    <>
+      <div className={`bill-label-canvas-wrap ${drawMode ? "draw-mode" : ""}`} ref={wrapRef}>
+        <div className="bill-label-canvas" style={{ width: scale.w || "100%", height: scale.h || "auto" }}>
         <img
           ref={imgRef}
           src={imageUrl}
@@ -303,13 +317,14 @@ export default function BillLabelCanvas({
           )}
         </svg>
       </div>
-      <p className="muted canvas-hint">
+      </div>
+      <p className="muted canvas-hint" style={{ marginTop: 8, textAlign: "center" }}>
         {readOnly
           ? "Chỉ xem nhãn auto — bấm Gán nhãn auto để cập nhật từ model"
           : drawMode
             ? "Kéo trên ảnh để vẽ bbox mới (OTHER) · bấm Hủy vẽ để thoát"
             : "Kéo box để di chuyển · góc trắng để resize · Thêm bbox để vẽ vùng mới"}
       </p>
-    </div>
+    </>
   );
 }

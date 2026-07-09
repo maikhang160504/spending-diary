@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { getBotPrompts, saveBotPrompts, getSystemSettings, saveSystemSettings } from "../services/api";
+import { getBotPrompts, saveBotPrompts, getSystemSettings, saveSystemSettings, testSystemPrompt } from "../services/api";
 
 const PERSONA_LABELS = {
   vui: "Vui vẻ / Năng lượng cao",
@@ -35,6 +35,9 @@ function BotPromptsPage() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [testingPrompt, setTestingPrompt] = useState(false);
+  const [testText, setTestText] = useState("chi tiêu ăn sáng hết 45k");
+  const [testResult, setTestResult] = useState(null);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
 
@@ -98,6 +101,28 @@ function BotPromptsPage() {
         triggerToast("Lưu cấu hình thất bại: " + err.message);
         setSaving(false);
       });
+  };
+
+  const handleTestPrompt = async (e) => {
+    e.preventDefault();
+    if (!testText.trim()) {
+      triggerToast("Vui lòng nhập câu text để test");
+      return;
+    }
+    setTestingPrompt(true);
+    try {
+      const res = await testSystemPrompt({
+        text: testText,
+        override_prompt: customPrompt,
+        persona: persona
+      });
+      setTestResult(res);
+      triggerToast("Test thành công!");
+    } catch (err) {
+      triggerToast("Test thất bại: " + err.message);
+    } finally {
+      setTestingPrompt(false);
+    }
   };
 
   if (loading) {
@@ -234,7 +259,43 @@ function BotPromptsPage() {
 
             {/* AI Response Preview */}
             <div className="form-group">
-              <label className="form-label" style={{ color: "var(--text-primary)", fontWeight: "600", marginBottom: "8px" }}>Interactive Chat Preview (Kịch bản: "chi tiêu ăn sáng hết 45k")</label>
+              <label className="form-label" style={{ color: "var(--text-primary)", fontWeight: "600", marginBottom: "8px" }}>Interactive Chat Preview</label>
+              
+              <div style={{ display: "flex", gap: "10px", marginBottom: "16px" }}>
+                <input
+                  type="text"
+                  className="form-input"
+                  value={testText}
+                  onChange={(e) => setTestText(e.target.value)}
+                  placeholder="Nhập câu chi tiêu để test..."
+                  style={{
+                    flex: 1,
+                    background: "var(--bg-obsidian-950)",
+                    border: "1px solid var(--border-color)",
+                    borderRadius: "8px",
+                    padding: "10px 14px",
+                    color: "var(--text-primary)"
+                  }}
+                />
+                <button 
+                  type="button" 
+                  className="btn btn-secondary" 
+                  onClick={handleTestPrompt} 
+                  disabled={testingPrompt}
+                  style={{
+                    background: "rgba(26,115,232,0.1)",
+                    border: "1px solid rgba(26,115,232,0.3)",
+                    color: "var(--accent-blue-hover)",
+                    fontWeight: "600",
+                    padding: "0 16px",
+                    borderRadius: "8px",
+                    cursor: "pointer"
+                  }}
+                >
+                  {testingPrompt ? "Testing..." : "Test Live Prompt"}
+                </button>
+              </div>
+
               <div
                 style={{
                   background: "var(--bg-obsidian-950)",
@@ -259,21 +320,42 @@ function BotPromptsPage() {
                     marginLeft: "auto"
                   }}>{persona}</span>
                 </div>
-                <div style={{
-                  background: "var(--bg-obsidian-900)",
-                  border: "1px solid var(--border-color)",
-                  borderRadius: "12px",
-                  padding: "14px 16px",
-                  fontSize: "13px",
-                  color: "var(--text-primary)",
-                  position: "relative",
-                  display: "inline-block",
-                  lineHeight: "1.5",
-                  maxWidth: "85%",
-                  borderTopLeftRadius: "2px"
-                }}>
-                  "{MOCK_PREVIEWS[persona] || 'Generating...'}"
-                </div>
+                
+                {testResult ? (
+                  <div style={{
+                    background: "var(--bg-obsidian-900)",
+                    border: "1px solid var(--border-color)",
+                    borderRadius: "12px",
+                    padding: "14px 16px",
+                    fontSize: "13px",
+                    color: "var(--text-primary)",
+                    lineHeight: "1.5"
+                  }}>
+                    <div style={{ marginBottom: "8px", color: "var(--text-muted)" }}>
+                      <strong>Intent:</strong> {testResult.result?.intent} &nbsp;|&nbsp; 
+                      <strong>Emotion:</strong> {testResult.result?.emotion} &nbsp;|&nbsp; 
+                      <span style={{ fontSize: "11px" }}>{testResult.latency_ms}ms</span>
+                    </div>
+                    <div>"{testResult.result?.response || testResult.result?.note}"</div>
+                    {testResult.result?.amount !== undefined && (
+                      <div style={{ marginTop: "8px", fontSize: "12px", color: "var(--text-secondary)" }}>
+                        Amount: {testResult.result.amount} | Category: {testResult.result.category}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div style={{
+                    background: "var(--bg-obsidian-900)",
+                    border: "1px dashed var(--border-color)",
+                    borderRadius: "12px",
+                    padding: "14px 16px",
+                    fontSize: "13px",
+                    color: "var(--text-muted)",
+                    textAlign: "center"
+                  }}>
+                    Bấm Test Live Prompt để xem kết quả từ mô hình Qwen
+                  </div>
+                )}
               </div>
             </div>
 

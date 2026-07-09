@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import BillLabelCanvas from "../components/BillLabelCanvas";
 import BillHelpModal, { BillHelpTrigger } from "../components/BillHelpModal";
 import {
@@ -75,7 +75,6 @@ function PrelabelQueuePanel({ jobs }) {
       <section className="bill-surface bill-activity-panel">
         <div className="bill-surface-head">
           <div>
-            <p className="bill-surface-eyebrow">Background</p>
             <h2 className="bill-surface-title">Tiến trình OCR</h2>
           </div>
           {activeCount > 0 && <span className="bill-count-badge">{activeCount}</span>}
@@ -118,6 +117,9 @@ export default function BillRetrainPage() {
   const [toast, setToast] = useState(null);
   const [activeCategory, setActiveCategory] = useState("Others");
   const [prelabelJobs, setPrelabelJobs] = useState([]);
+  const [page, setPage] = useState(1);
+  const [filterStatus, setFilterStatus] = useState("all");
+  
   const handledJobsRef = useRef(new Set());
   const toastTimerRef = useRef(null);
   const prelabelTimersRef = useRef({});
@@ -125,6 +127,23 @@ export default function BillRetrainPage() {
   const upsertPrelabelJob = useCallback((id, patch) => {
     setPrelabelJobs((prev) => prev.map((j) => (j.id === id ? { ...j, ...patch } : j)));
   }, []);
+
+  const filteredSamples = useMemo(() => {
+    return samples.filter(s => {
+      if (s.status === "exported_archived") return false;
+      if (filterStatus !== "all" && s.status !== filterStatus) return false;
+      return true;
+    });
+  }, [samples, filterStatus]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredSamples.length / 10));
+  const paginatedSamples = useMemo(() => {
+    return filteredSamples.slice((page - 1) * 10, page * 10);
+  }, [filteredSamples, page]);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(1);
+  }, [totalPages, page]);
 
   const startPrelabelProgress = useCallback((jobId) => {
     if (prelabelTimersRef.current[jobId]) clearInterval(prelabelTimersRef.current[jobId]);
@@ -258,7 +277,8 @@ export default function BillRetrainPage() {
     try {
       upsertPrelabelJob(jobId, { phase: "upload", phaseLabel: "Upload ảnh", progress: 12 });
       const { sample } = await uploadBillSample(file);
-      upsertPrelabelJob(jobId, { phase: "ocr", phaseLabel: "OCR + KIE", progress: 35, sampleId: sample.id });
+      const label = ocrStatus?.kie_backend === "layoutlmv3" ? "OCR + LayoutLMv3" : "OCR + KIE";
+      upsertPrelabelJob(jobId, { phase: "ocr", phaseLabel: label, progress: 35, sampleId: sample.id });
       setActive(sample);
       await loadSamples();
       const { sample: updated, prelabel } = await rePrelabelBillSample(sample.id);
@@ -283,7 +303,8 @@ export default function BillRetrainPage() {
     setMessage("");
     setMessageIsError(false);
     try {
-      upsertPrelabelJob(jobId, { phase: "ocr", phaseLabel: "OCR + KIE", progress: 20 });
+      const label = ocrStatus?.kie_backend === "layoutlmv3" ? "OCR + LayoutLMv3" : "OCR + KIE";
+      upsertPrelabelJob(jobId, { phase: "ocr", phaseLabel: label, progress: 20 });
       const { sample, prelabel } = await rePrelabelBillSample(active.id);
       applyPrelabelResult(sample, prelabel);
       await loadSamples();
@@ -553,48 +574,6 @@ export default function BillRetrainPage() {
 
       <div className="bill-toolbar">
         <div className="bill-toolbar-group">
-          <span className="bill-toolbar-label">Label</span>
-          <div className="bill-toolbar-actions">
-            <label className="btn btn-primary">
-              Upload ảnh
-              <input type="file" accept="image/*" hidden onChange={onUpload} />
-            </label>
-            <button type="button" className="btn btn-primary" onClick={onAutoLabel} disabled={!active || isArchivedSample}>
-              Gán nhãn auto
-            </button>
-            <button type="button" className="btn btn-secondary" onClick={onSaveDraft} disabled={!active || loading || isArchivedSample}>
-              Lưu nháp
-            </button>
-            <button
-              type="button"
-              className={`btn btn-secondary ${drawMode ? "active" : ""}`}
-              onClick={() => setDrawMode((v) => !v)}
-              disabled={!active || loading || isArchivedSample || !imageUrl}
-              title="Kéo trên ảnh để vẽ bbox OTHER mới"
-            >
-              {drawMode ? "Hủy vẽ" : "Thêm bbox"}
-            </button>
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={onDeleteSelectedBox}
-              disabled={!active || selectedIdx == null || loading}
-              title="Xóa bbox đang chọn (Delete)"
-            >
-              Xóa nhãn
-            </button>
-            <button type="button" className="btn btn-secondary" onClick={onApprove} disabled={!active || loading || isArchivedSample}>
-              Duyệt
-            </button>
-            <button type="button" className="btn btn-ghost danger" onClick={() => onDelete()} disabled={!active || loading}>
-              Xóa
-            </button>
-          </div>
-        </div>
-
-        <div className="bill-toolbar-divider" aria-hidden="true" />
-
-        <div className="bill-toolbar-group">
           <span className="bill-toolbar-label">Category</span>
           <div className="bill-toolbar-actions">
             <select
@@ -637,23 +616,39 @@ export default function BillRetrainPage() {
         </div>
       </div>
 
-      <div className="grid-2 bill-retrain-grid">
+      <div className="grid-3 bill-retrain-grid">
         <section className="bill-surface bill-queue-panel">
-          <div className="bill-surface-head">
+          <div className="bill-surface-head" style={{ marginBottom: 12 }}>
             <div>
-              <p className="bill-surface-eyebrow">Samples</p>
               <h2 className="bill-surface-title">Hàng đợi</h2>
             </div>
-            <span className="bill-count-badge">{samples.length}</span>
+            <span className="bill-count-badge">{filteredSamples.length}</span>
           </div>
-          {samples.length === 0 && (
+
+          <div className="bill-queue-controls" style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
+            <select 
+              className="bill-select" 
+              value={filterStatus} 
+              onChange={e => { setFilterStatus(e.target.value); setPage(1); }}
+              style={{ flex: 1 }}
+            >
+              <option value="all">Tất cả trạng thái</option>
+              <option value="pending">Pending</option>
+              <option value="approved">Approved</option>
+            </select>
+          </div>
+
+          {filteredSamples.length === 0 && (
             <div className="bill-empty-state">
               <p>Chưa có sample</p>
-              <span className="muted">Upload ảnh hóa đơn để bắt đầu pipeline retrain.</span>
+              <span className="muted">Không tìm thấy hóa đơn nào phù hợp.</span>
             </div>
           )}
-          <ul className="sample-list">
-            {samples.filter((s) => s.status !== "exported_archived").map((s) => (
+          
+          <ul className="sample-list" style={{ maxHeight: 'none', overflow: 'visible' }}>
+            {paginatedSamples.map((s) => {
+              const hasLabels = s.adminLabels?.length > 0 || s.autoLabels?.boxes?.length > 0;
+              return (
               <li key={s.id} className="sample-list-row">
                 <button
                   type="button"
@@ -664,19 +659,43 @@ export default function BillRetrainPage() {
                   <span className={`sample-status ${s.status}`}>{sampleStatusLabel(s.status)}</span>
                   {s.imageArchived && <span className="sample-meta archived-tag">ảnh archived</span>}
                   {s.metadata?.category && <span className="sample-meta">{s.metadata.category}</span>}
+                  {!hasLabels && (
+                    <span className="sample-meta unlabeled-tag" title="Chưa có nhãn (bbox)">Chưa có nhãn</span>
+                  )}
                 </button>
                 <button type="button" className="btn-icon danger" title="Xóa khỏi hàng đợi" onClick={() => onDelete(s.id)} disabled={loading}>
                   ×
                 </button>
               </li>
-            ))}
+            )})}
           </ul>
+
+          {totalPages > 1 && (
+            <div className="bill-pagination" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 16, marginTop: 16 }}>
+              <button 
+                type="button" 
+                className="btn btn-secondary" 
+                disabled={page <= 1} 
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+              >
+                Trước
+              </button>
+              <span className="muted" style={{ fontSize: 13 }}>Trang {page} / {totalPages}</span>
+              <button 
+                type="button" 
+                className="btn btn-secondary" 
+                disabled={page >= totalPages} 
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+              >
+                Sau
+              </button>
+            </div>
+          )}
         </section>
 
         <section className="bill-surface bill-canvas-panel">
           <div className="bill-surface-head">
             <div>
-              <p className="bill-surface-eyebrow">Preview</p>
               <h2 className="bill-surface-title">Canvas nhãn</h2>
             </div>
             {active && boxes.length > 0 && (
@@ -715,73 +734,134 @@ export default function BillRetrainPage() {
               {boxes.length === 0 && (
                 <p className="muted bill-empty-boxes">Chưa có bbox — bấm Gán nhãn auto hoặc thêm sau khi có nhãn.</p>
               )}
-              {boxes.length > 0 && (
-                <div className="bill-box-detail-panel">
-                  {!imageUrl && (
-                    <div className="bill-box-picker">
-                      <label htmlFor="bill-box-select">Chọn nhãn</label>
-                      <select
-                        id="bill-box-select"
-                        className="bill-select"
-                        value={selectedIdx ?? ""}
-                        onChange={(e) => {
-                          const v = e.target.value;
-                          setSelectedIdx(v === "" ? null : Number(v));
-                        }}
-                      >
-                        <option value="">— Chọn —</option>
-                        {boxes.map((b, idx) => (
-                          <option key={idx} value={idx}>
-                            #{idx + 1} — {(b.text || "").slice(0, 48) || b.entity || "OTHER"}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
-                  {selectedIdx != null && boxes[selectedIdx] ? (
-                    <div className="bill-box-detail">
-                      <div className="bill-box-detail-head">
-                        <span className="bill-box-detail-title">
-                          Nhãn #{selectedIdx + 1} / {boxes.length}
-                        </span>
-                        <span className="bill-box-detail-entity">{boxes[selectedIdx].entity || "OTHER"}</span>
-                      </div>
-                      <div className="bill-box-detail-fields">
-                        <label className="bill-box-field">
-                          <span>Text</span>
-                          <input
-                            value={boxes[selectedIdx].text || ""}
-                            onChange={(e) => updateBox(selectedIdx, "text", e.target.value)}
-                            placeholder="Nội dung OCR / nhãn"
-                          />
-                        </label>
-                        <label className="bill-box-field">
-                          <span>Entity</span>
-                          <select
-                            value={boxes[selectedIdx].entity || "OTHER"}
-                            onChange={(e) => updateBox(selectedIdx, "entity", e.target.value)}
-                          >
-                            {ENTITIES.map((ent) => (
-                              <option key={ent} value={ent}>{ent}</option>
-                            ))}
-                          </select>
-                        </label>
-                        <div className="bill-box-field bill-box-field-bbox">
-                          <span>Bbox</span>
-                          <code className="mono">
-                            {boxes[selectedIdx].x1},{boxes[selectedIdx].y1},{boxes[selectedIdx].x2},{boxes[selectedIdx].y2}
-                          </code>
-                        </div>
-                      </div>
-                    </div>
-                  ) : imageUrl ? (
-                    <p className="muted canvas-hint bill-box-detail-hint">
-                      Chọn một bbox trên ảnh để xem và chỉnh sửa nhãn ({boxes.length} nhãn).
-                    </p>
-                  ) : null}
+            </>
+          )}
+        </section>
+
+        <section className="bill-surface bill-box-panel">
+          <div className="bill-surface-head" style={{ marginBottom: 12 }}>
+            <div>
+              <h2 className="bill-surface-title">Công cụ gán nhãn</h2>
+            </div>
+          </div>
+          <div className="bill-box-tools" style={{ display: "flex", flexWrap: "wrap", gap: 8, paddingBottom: 16, borderBottom: "1px solid var(--border-color)", marginBottom: 16 }}>
+            <label className="btn btn-primary btn-sm">
+              Upload ảnh
+              <input type="file" accept="image/*" hidden onChange={onUpload} />
+            </label>
+            <button type="button" className="btn btn-primary btn-sm" onClick={onAutoLabel} disabled={!active || isArchivedSample}>
+              Gán nhãn auto
+            </button>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={onSaveDraft} disabled={!active || loading || isArchivedSample}>
+              Lưu nháp
+            </button>
+            <button
+              type="button"
+              className={`btn btn-secondary btn-sm ${drawMode ? "active" : ""}`}
+              onClick={() => setDrawMode((v) => !v)}
+              disabled={!active || loading || isArchivedSample || !imageUrl}
+              title="Kéo trên ảnh để vẽ bbox OTHER mới"
+            >
+              {drawMode ? "Hủy vẽ" : "Thêm bbox"}
+            </button>
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={onDeleteSelectedBox}
+              disabled={!active || selectedIdx == null || loading}
+              title="Xóa bbox đang chọn (Delete)"
+            >
+              Xóa nhãn
+            </button>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={onApprove} disabled={!active || loading || isArchivedSample}>
+              Duyệt
+            </button>
+            <button type="button" className="btn btn-ghost danger btn-sm" onClick={() => onDelete()} disabled={!active || loading}>
+              Xóa
+            </button>
+          </div>
+
+          <div className="bill-surface-head">
+            <div>
+              <h2 className="bill-surface-title">Chỉnh sửa nhãn</h2>
+            </div>
+          </div>
+          {!active && (
+            <div className="bill-empty-state">
+              <p>Chưa chọn sample</p>
+              <span className="muted">Hãy chọn sample để chỉnh sửa nhãn.</span>
+            </div>
+          )}
+          {active && boxes.length === 0 && (
+            <div className="bill-empty-state">
+              <span className="muted">Chưa có bbox nào. Bấm Gán nhãn auto hoặc vẽ thêm.</span>
+            </div>
+          )}
+          {active && boxes.length > 0 && (
+            <div className="bill-box-detail-panel" style={{ marginTop: 0 }}>
+              {!imageUrl && (
+                <div className="bill-box-picker">
+                  <label htmlFor="bill-box-select">Chọn nhãn</label>
+                  <select
+                    id="bill-box-select"
+                    className="bill-select"
+                    value={selectedIdx ?? ""}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setSelectedIdx(v === "" ? null : Number(v));
+                    }}
+                  >
+                    <option value="">— Chọn —</option>
+                    {boxes.map((b, idx) => (
+                      <option key={idx} value={idx}>
+                        #{idx + 1} — {(b.text || "").slice(0, 48) || b.entity || "OTHER"}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               )}
-            </>
+              {selectedIdx != null && boxes[selectedIdx] ? (
+                <div className="bill-box-detail">
+                  <div className="bill-box-detail-head">
+                    <span className="bill-box-detail-title">
+                      Nhãn #{selectedIdx + 1} / {boxes.length}
+                    </span>
+                    <span className="bill-box-detail-entity">{boxes[selectedIdx].entity || "OTHER"}</span>
+                  </div>
+                  <div className="bill-box-detail-fields">
+                    <label className="bill-box-field">
+                      <span>Text</span>
+                      <input
+                        value={boxes[selectedIdx].text || ""}
+                        onChange={(e) => updateBox(selectedIdx, "text", e.target.value)}
+                        placeholder="Nội dung OCR / nhãn"
+                      />
+                    </label>
+                    <label className="bill-box-field">
+                      <span>Entity</span>
+                      <select
+                        value={boxes[selectedIdx].entity || "OTHER"}
+                        onChange={(e) => updateBox(selectedIdx, "entity", e.target.value)}
+                      >
+                        {ENTITIES.map((ent) => (
+                          <option key={ent} value={ent}>{ent}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <div className="bill-box-field bill-box-field-bbox">
+                      <span>Bbox</span>
+                      <code className="mono">
+                        {boxes[selectedIdx].x1},{boxes[selectedIdx].y1},{boxes[selectedIdx].x2},{boxes[selectedIdx].y2}
+                      </code>
+                    </div>
+                  </div>
+                </div>
+              ) : imageUrl ? (
+                <p className="muted canvas-hint bill-box-detail-hint">
+                  Chọn một bbox trên ảnh để xem và chỉnh sửa nhãn ({boxes.length} nhãn).
+                </p>
+              ) : null}
+            </div>
           )}
         </section>
       </div>

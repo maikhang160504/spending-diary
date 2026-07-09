@@ -177,7 +177,6 @@ function UserManagementPage() {
     <div className="page-container user-mgmt-page">
       <header className="user-mgmt-hero">
         <div className="user-mgmt-hero-copy">
-          <p className="bill-surface-eyebrow">Directory</p>
           <h1 className="user-mgmt-title">User Management</h1>
           <p className="user-mgmt-desc">
             Quản lý tài khoản, hồ sơ onboarding và cache NLU — lọc theo nhóm, duyệt có phân trang.
@@ -400,7 +399,6 @@ function UserManagementPage() {
 
         <aside className="user-mgmt-detail">
           <div className="user-mgmt-detail-head">
-            <p className="bill-surface-eyebrow">Profile</p>
             <h2 className="user-mgmt-detail-title">Chi tiết người dùng</h2>
           </div>
 

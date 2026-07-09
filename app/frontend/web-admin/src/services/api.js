@@ -142,6 +142,13 @@ export async function saveBotPrompts(prompts) {
   });
 }
 
+export async function testSystemPrompt(payload) {
+  return request("/api/admin/prompts/test", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
 export async function triggerNluTrain(target = "local") {
   return request("/api/admin/train", {
     method: "POST",
