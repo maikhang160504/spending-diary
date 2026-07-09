@@ -104,20 +104,40 @@ uvicorn src.api.app:app --host 0.0.0.0 --port 8000
 
 **Swagger API Docs:** http://localhost:8000/docs
 
-### 3.2 Chạy trên Cloud (Modal Serverless)
+### 3.2 Chạy trên Cloud (Modal Serverless GPU)
 
-Modal cho phép triển khai AI Service lên GPU Cloud cực nhanh và hỗ trợ auto-scale / tắt khi không dùng để tiết kiệm chi phí.
+Modal cho phép triển khai toàn bộ AI Service (bao gồm OCR, NLU PhoBERT và mô hình LLM Qwen2.5-14B) lên GPU Cloud với tốc độ cao.
 
 ```bash
-# 1. Chạy thử nghiệm tạm thời (Hot-reload, tự tắt khi tắt terminal)
+# 1. Chạy thử nghiệm tạm thời (Hot-reload, tự tắt ngay khi tắt terminal)
 modal serve modal_app.py
 
-# 2. Triển khai vĩnh viễn (Production Deployment - Luôn chạy 24/7)
+# 2. Triển khai lên cloud (Production Deployment)
 modal deploy modal_app.py
 
-# 3. Kích hoạt train / fine-tune PhoGPT LoRA trên GPU H100 Cloud
-modal run modal_app.py::train_phogpt_model --num-epochs=3 --learning-rate=2e-4 --batch-size=4
+# 3. Dừng ứng dụng hoàn toàn (Tắt toàn bộ container GPU để tránh tốn tiền khi không sử dụng)
+modal app stop expense-ocr-nlu
+
+# 4. Kích hoạt train / fine-tune Qwen LoRA trên GPU H100 Cloud
+modal run modal_app.py::train_qwen_model --num-epochs=3 --learning-rate=2e-4 --batch-size=4
 ```
+
+#### Quản lý chi phí GPU & Cơ chế hoạt động của LLM (`keep_warm` vs Auto Scale-to-Zero)
+
+Khi triển khai `modal_app.py`, ứng dụng khởi tạo **2 dịch vụ GPU song song**:
+1. **Web Service FastAPI (`fastapi_app`) trên GPU L4**: Chạy OCR (PaddleOCR + VietOCR + LayoutLMv3) và NLU PhoBERT Encoder.
+2. **LLM Worker (`QwenModel`) trên GPU A10G**: Nạp mô hình `Qwen/Qwen2.5-14B-Instruct` lượng tử hóa 4-bit (24GB VRAM) phục vụ phân tích tài chính sâu, fallback ý định và chitchat Gen Z.
+
+**Cấu hình giữ ấm / Tiết kiệm chi phí trong `modal_app.py`:**
+- **Chế độ Phản hồi tức thì 0ms (Hiện tại - `keep_warm=1`)**:
+  - Modal luôn giữ **1 container L4** và **1 container A10G** bật liên tục 24/7 trên VRAM.
+  - *Ưu điểm*: Không có độ trễ cold-start, gọi API là LLM Qwen và OCR phản hồi ngay lập tức.
+  - *Nhược điểm*: Tính phí giây GPU liên tục 24/7. **Khi không làm việc, bạn nên chạy `modal app stop expense-ocr-nlu` để dừng tính tiền.**
+- **Chế độ Tiết kiệm tự động (Serverless Auto-scale về 0đ)**:
+  - Nếu chuyển `keep_warm=0` và đặt `container_idle_timeout=300` (5 phút) trong `modal_app.py`:
+  - Khi có request đến, container bật lên nạp weights vào VRAM. Sau 5 phút không có request nào mới, Modal tự động hủy container GPU $\rightarrow$ **chi phí về 0đ**.
+- **Chế độ LLM qua Cloud API (Gemini / OpenAI fallback)**:
+  - Nếu không muốn chạy riêng container GPU A10G cho Qwen LLM, hệ thống tự động fallback sử dụng khóa API `GEMINI_API_KEY` (hoặc `gemini_API_v1` trong `.env`), giúp giảm hoàn toàn chi phí duy trì GPU cho LLM.
 
 ---
 

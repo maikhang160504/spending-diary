@@ -1,4 +1,4 @@
-###  I. phân tích ảnh giao diện Home với giao diện sáng từ đó đưa ra cách để Design lại cho đẹp hơn, gợi ý như sau(có thể hơn)
+#  I. phân tích ảnh giao diện Home với giao diện sáng từ đó đưa ra cách để Design lại cho đẹp hơn, gợi ý như sau(có thể hơn)
 ## 1. Nav bar Bottom 
 - đổi lại thành 5 thẻ: Home, Expenses, AI Assistant(từ add đổi thành Chat, Thay nút + bằng biểu tượng AI (sparkles) phát sáng ở chính giữa tạo ra điểm nhấn thị giác cực mạnh (Visual Anchor), nhấn mạnh rằng đây là một ứng dụng tài chính thông minh, khác biệt với các app truyền thống), Goal, Setting
 - bỏ botton Chat cũ và thay bằng luồng khi nhấn AI Assistant thì hiển thị popup:
@@ -29,7 +29,7 @@
 ## 5. Màn hình Lịch trình (Home_calender.jpg)
 Vấn đề 1: Khoảng cách giữa các Card story quá xa (Lãng phí không gian)
 Chi tiết: Khoảng cách (Margin-bottom) giữa card "ăn trưa 100k" và card "Đổ xăng 50k" quá rộng. Điều này khiến người dùng phải cuộn rất nhiều nếu có 5-7 giao dịch một ngày.
-- Nên bổ sung một thanh tuần (Weekly Calendar Strip) vuốt ngang ở ngay dưới cụm Tab để người dùng có thể ấn nhanh vào các ngày khác trong tuần (2, 3, 4, 5...), thay vì chỉ xem được một ngày hiện tại. và điều chỉnh để tránh bị lỗi UI UX với lịch tháng hiện tại
+- 
 
 ## 6. segment tab
 - Sự bất đồng bộ của cụm Tab "Story - Gallery - Calendar"
@@ -39,7 +39,7 @@ Vấn đề: Cụm tab điều hướng này đang nằm lơ lửng, một nửa
 Giải pháp: * Phương án 1: Đưa toàn bộ cụm Tab này xuống hẳn phía dưới dải nền xanh ngọc, đặt nó nằm trên nền xám nhạt của Body để làm ranh giới rõ ràng giữa "Thông tin tài khoản (Header)" và "Tính năng xem dữ liệu (Body)".
 Phương án 2 (Hiện đại hơn): Biến dải nền xanh ngọc thành một khối phẳng cố định, thu nhỏ cụm Tab lại và đặt gọn gàng hẳn bên trong phần nền xanh đó.
 ## 7. home header
-- thêm gradient
+- thêm gradient màu bạc hà thì sao
 Khoảng cách (Spacing/Padding) của cụm "Streak" bị lệch
 Vấn đề: Nút "3 ngày Streak" ở góc phải đang nằm quá sát mép trên và mép phải của dải nền màu xanh. Khoảng cách từ đỉnh nút lên mép trên nhỏ hơn rất nhiều so với khoảng cách từ chữ "Chào Mai Khang!" đến mép trên, tạo cảm giác cụm Streak này bị đẩy lệch lên trên.
 -  Độ tương phản của Text phụ (Ngày tháng) yếu
@@ -324,7 +324,7 @@ Vì đây là "Trái tim" của ứng dụng, chúng ta sẽ thiết kế nó n�
 
 Visual (Thị giác): Nút tròn lớn, sử dụng icon sparkles bản Material Icons (Bo tròn góc mềm mại). Nút có dải màu Gradient xanh ngọc phát sáng nhẹ (box-shadow: 0px 4px 20px rgba(0, 168, 150, 0.4)).
 
-Trạng thái bấm (Interaction): Khi người dùng chạm vào nút này, thay vì chuyển sang một trang chat trống rỗng, một Menu đa nhiệm thông minh sẽ bật lên ngay phía trên nút bấm (Dạng Bottom Sheet hoặc Pop-up Speed Dial) với 3 lối tắt rõ ràng:
+Trạng thái bấm (Interaction): Khi người dùng chạm vào nút này, thay vì chuyển sang một trang chat trống rỗng, một Menu đa nhiệm thông mìcnh sẽ bật lên ngay phía trên nút bấm (Dạng Bottom Sheet hoặc Pop-up Speed Dial) với 3 lối tắt rõ ràng:
 
 📱 Menu Pop-up khi bấm vào nút AI:
 Quét Hóa Đơn (Icon 📷 / photo_camera): Bật camera để quét và tự động bóc tách tiền.
@@ -431,7 +431,212 @@ Nếu chỉ là một khoản chi tiêu đơn lẻ không có danh mục con, h�
 3. Nút camera gốc phải thay bằng  AI Assistant popup
 
 ## 14. CHAT SCREEN
-1. tách text và emotion emoji thành 2 phần khác nhau không nằm chung 1 bong bong chat
-2. Header của màn hình Chat bị ngột ngạtVấn đề: Avatar của Mimo AI, Tên "Chat với Mimo" và dòng mô tả phụ "Phong cách Vui Vẻ..." đang bị dồn sát vào nút Back (<) bên trái. Khoảng cách giữa nút Back và Avatar quá hẹp. Ngoài ra, nút Lịch sử ở góc phải (icon đồng hồ) nằm quá sát mép trên.Giải pháp: Áp dụng quy tắc Spacing 8px: tăng margin-left của cụm tên AI cách nút Back $16px$. Hạ thấp icon đồng hồ xuống một chút để căn giữa hoàn toàn theo trục dọc (Vertical Center) với tiêu đề.
-2. Reponse Record 
+### 1. tách text và emotion emoji thành 2 phần khác nhau không nằm chung 1 bong bong chat
+### 2. Header của màn hình Chat bị ngột ngạt
+Vấn đề: Avatar của Mimo AI, Tên "Chat với Mimo" và dòng mô tả phụ "Phong cách Vui Vẻ..." đang bị dồn sát vào nút Back (<) bên trái. Khoảng cách giữa nút Back và Avatar quá hẹp. Ngoài ra, nút Lịch sử ở góc phải (icon đồng hồ) nằm quá sát mép trên.
+Giải pháp: Áp dụng quy tắc Spacing 8px: tăng margin-left của cụm tên AI cách nút Back $16px$. Hạ thấp icon đồng hồ xuống một chút để căn giữa hoàn toàn theo trục dọc (Vertical Center) với tiêu đề.
+### 3. Cụm Gợi ý tin nhắn (Quick Replies) sát đáy
+Vấn đề: Các nút gợi ý nhanh như "Gợi ý chi tiêu tháng sau", "Xem báo cáo chi tiêu hôm..." đang bị cắt cụt ở rìa màn hình. Hơn nữa, font chữ bên trong các nút này hơi nhỏ và thanh mảnh so với font chữ chung của app.
+Giải pháp: Tăng độ dày chữ (font-weight: 500) cho các nút gợi ý này. Để xử lý việc chữ bị cắt, hãy làm hiệu ứng mờ biên (fade gradient) ở cạnh phải để người dùng biết là có thể vuốt ngang (Swipe) để xem thêm các gợi ý khác.
+### 4. Reponse Record 
 - card xác nhận thiếu icon category 
+Vấn đề: Chiếc card này có viền màu xanh mint khá mỏng, font chữ số tiền -100.000 đ bị nhỏ và các nút bấm bên trong quá vụn vặt, khiến hành động chính bị phân tâm.
+Sử dụng nền xám nhẹ (đồng màu với bong bóng chat của AI liền kề phía trên để tạo tính liên kết khối).
+Thay đổi cặp nút: Bỏ nút "Đã lưu" (vì AI báo "đã ghi nhận" tức là đã lưu rồi). Chỉ giữ lại một nút "Chỉnh sửa" dạng khối phẳng, bo góc tròn hoàn toàn (Pill-shaped) nhỏ nhắn ở góc phải để người dùng bấm vào nếu AI nhận diện sai hạng mục.
+### 5. ở intent_action: bị đè text từ câu reponse của LLM:
+- câu hiển thị đầu tiên là câu mặc định, sau đó bị đè lên bởi câu reponse của LLM
+- kiểm tra lại action report, compare : gửi đi 2 lần LLM 1 lần nhận dạng 1 lần nhận phản hồi đúng không, nếu đúng tối ưu và thiết kế lại cách hiển thị hai tin nhắn reponse cho action này
+- (Khi AI đang hỏi): Xuất hiện Card "Tạo mục tiêu mới: Mua IP17 - 20.000.000đ". Phía dưới Card đính kèm cặp nút rõ ràng: [Hủy bỏ] và [Đồng ý tạo] ->  (Sau khi người dùng bấm Đồng ý tạo): Cặp nút biến mất, Card chuyển sang trạng thái phẳng, mờ nhẹ (Opacity 70%) hiển thị chữ ✓ Đã xác nhận như hình hiện tại, và AI trả về bong bóng chat chúc mừng: "Đã tạo mục tiêu...". CHO TƯƠNG TỰ CHO NHỮNG ACTION KHÁC
+### 6. Reponse REPORT_GENERAL
+- sử dụng sai icon category
+- Lỗi Logic nội dung (Content Bug)
+Vấn đề: Trong card ghi "0 khoản chi trong kỳ", nhưng ngay bên trên lại ghi tổng chi tiêu là 2.321.000 đ và bên dưới liệt kê một danh sách dài các hạng mục. Điều này gây bối rối cực độ cho người dùng.
+- Phân cấp thị giác trong danh sách hạng mục (Category List)
+Vấn đề:
+Các con số phần trăm (42%, 37%...) đang nằm lơ lửng phía trên thanh progress bar, tạo ra quá nhiều tầng chữ chồng chéo.
+Chữ "Khác" xuất hiện 2 lần (một cái 42%, một cái 3%). AI đang không gộp nhóm các khoản chi nhỏ vào cùng một chỗ.
+- Thiết kế thanh Progress Bar (Thanh tiến trình)
+Vấn đề: Các thanh này hiện tại quá mỏng (chỉ khoảng 4px), nhìn rất yếu ớt và khó thấy rõ màu sắc đại diện của Category.
+- Tương phản và khoảng cách (Contrast & Spacing)
+Vấn đề: Tiêu đề "Tháng này (01/07 - 06/07/2026)" và icon biểu đồ cột màu xanh đậm ở góc trái đang bị dính sát vào mép trên của card. Độ tương phản của chữ "Tổng chi tiêu" màu xám trên nền xanh mint là rất thấp, khó đọc.
+- Thêm so sánh nhanh: AI nên thêm một dòng nhỏ bên dưới tổng tiền: "Tăng 15% so với tuần trước" (chữ màu đỏ) hoặc "Giảm 5% so với tuần trước" (chữ màu xanh). Điều này mang lại giá trị phân tích (Insight) thực sự thay vì chỉ liệt kê số liệu.
+- Interactive Card: Khi người dùng bấm vào các thanh Progress Bar, AI có thể gửi tiếp một tin nhắn: "Bạn muốn xem chi tiết các khoản chi của mục Ăn uống không?".
+
+### 7. Reponse SET_LIMIT
+- Lỗi bất đồng bộ Ngôn ngữ (Language Consistency)
+Vấn đề: Trong cùng một luồng hội thoại, ngôn ngữ đang bị trộn lẫn một cách tùy ý.
+Người dùng nhập bằng tiếng Việt (đi lại).
+Card đề xuất ghi tiếng Việt (Di chuyển).
+Nhưng bong bóng kết quả của AI lại trả về tiếng Anh: "...vào hạn mức Transport (hạn mức mới: 2.500.000đ/tháng)".
+Giải pháp: Đồng bộ hóa toàn bộ tên danh mục sang tiếng Việt (Di chuyển) theo đúng dữ liệu hệ thống mà bạn đã hiển thị ở màn hình Báo cáo tổng quan. Tránh để AI tự dịch tên danh mục sang tiếng Anh khi người dùng đang chat tiếng Việt.
+- Trạng thái của Card Xác Nhận (State of Action Card)
+Vấn đề: Chiếc card viền cam "Tăng hạn mức Di chuyển - Đã xác nhận" đang hiển thị một tích xanh tròn. Ở luồng UX này, nếu hệ thống đã ghi nhận thành công và AI đã xuất hiện bong bóng chat xác nhận đã cộng tiền ở ngay dưới, thì chiếc card trung gian màu cam này nên có hai trạng thái rõ ràng:
+
+Trạng thái chờ: Có 2 nút [Xác nhận] và [Hủy].
+
+Trạng thái đã xong: Chiếc card này nên mờ đi (disabled/opacity 0.6) hoặc biến mất để người dùng biết hành động đã hoàn tất, tránh việc họ bấm lại nhiều lần.
+
+Giải pháp: Nếu đã hiển thị chữ Đã xác nhận kèm tích v, hãy biến chiếc card này thành dạng phẳng (Flat), không đổ bóng và giảm độ tương phản của viền cam xuống một chút. Điều này báo hiệu cho mắt người dùng rằng đây là "lịch sử hành động" chứ không phải nút bấm nữa.
+- bong bóng kết quả của AI lại trả về tiếng Anh: "...vào hạn mức Transport (hạn mức mới: 2.500.000đ/tháng)" sẽ biến mất sau khi người dùng ra và vào lại chat
+
+### 8. reponse SET_GOAL
+- Lỗi logic tính năng nghiêm trọng (Critical UX Bug)
+Vấn đề: Người dùng yêu cầu "Thêm mục tiêu" (Tức là tạo một mục tiêu mới tích lũy mua sắm). Nhưng chiếc Card trung gian màu cam của AI lại hiển thị tiêu đề là Tăng mục tiêu.
+"Thêm" và "Tăng" là hai hành động có bản chất database khác hẳn nhau. "Tăng" nghĩa là sửa đổi một mục tiêu đã có sẵn, còn ở đây rõ ràng người dùng đang tạo mới từ đầu.
+Điểm vô lý tiếp theo là bong bóng chat kết quả dưới đáy lại ghi đúng logic: "[x] Đã tạo mục tiêu 'Mua IP17' — 20.000.000đ."
+Giải pháp: Đổi ngay tiêu đề trên Card cam từ "Tăng mục tiêu" thành Tạo mục tiêu mới để tương thích hoàn toàn với kết quả bóc tách của AI phía dưới.
+- Sự "rập khuôn" thiết kế (Copy-Paste UI)Vấn đề: Chiếc Card cam xác nhận hành động đang copy y xì khuôn mẫu từ màn hình thiết lập hạn mức SET_LIMIT sang. Việc dùng chung một màu cam và kiểu dáng cho hai tính năng có thuộc tính hoàn toàn khác nhau khiến người dùng bị lẫn lộn trải nghiệm:Hạn mức (Limit): Mang tính chất kìm hãm, ranh giới, kiểm soát chi tiêu $\rightarrow$ Dùng màu Cam/Đỏ là hợp lý.Mục tiêu tích lũy (Goal): Mang tính chất phần thưởng, động lực, hướng tới tương lai $\rightarrow$ Dùng màu cam tạo cảm giác giống như một cảnh báo tiêu cực.Giải pháp: Chuyển tone màu chủ đạo của Card xác nhận mục tiêu và icon sang Màu Vàng Gold (Màu của chiếc cúp/huy chương) hoặc giữ màu Xanh ngọc thương hiệu để gợi cảm giác tích cực về mặt tâm lý tài chính (Tích lũy tài sản).
+- Đồng bộ hóa Icon theo đúng Tab "Goals" trên Bottom NavVấn đề: Icon lá cờ (flag) trên chiếc card cam hiện tại nhìn khá thanh mảnh và yếu. Nó chưa đồng bộ với tinh thần của tab "Goals" dưới thanh điều hướng đáy.Giải pháp: Thay bằng icon track_changes (Hình tâm bia mục tiêu) hoặc military_tech (Hình chiếc cúp rounded) bản Material Symbols để tạo sự nhất quán. Người dùng nhìn thấy icon cúp ở thanh điều hướng đáy sẽ hiểu ngay chiếc card này thuộc tính năng Goals.
+- (Khi AI đang hỏi): Xuất hiện Card "Tạo mục tiêu mới: Mua IP17 - 20.000.000đ". Phía dưới Card đính kèm cặp nút rõ ràng: [Hủy bỏ] và [Đồng ý tạo] ->  (Sau khi người dùng bấm Đồng ý tạo): Cặp nút biến mất, Card chuyển sang trạng thái phẳng, mờ nhẹ (Opacity 70%) hiển thị chữ ✓ Đã xác nhận như hình hiện tại, và AI trả về bong bóng chat chúc mừng: "Đã tạo mục tiêu...". Cho TƯƠNG TỰ CHO NHỮNG ACTION KHÁC
+- bong bóng chat "[x] Đã tạo mục tiêu 'Mua IP17' — 20.000.000đ. biến mất khi ra và vào lại chat
+### 9. reponse ADD_GOAL
+- Lỗi thuật ngữ tài chính (Semantic UX Error)
+Vấn đề: AI phản hồi: "Mimo đã cập nhật hạn mức cho mục tiêu 'Mua IP17'...".
+Trong tài chính cá nhân, "Hạn mức" (Limit) thường dùng cho chi tiêu (ngăn chặn việc tiêu quá số tiền cho phép).
+Trong khi đó, việc người dùng thêm 3tr vào mục tiêu là hành động "Tích lũy" (Saving/Contribution).
+Giải pháp: Thay đổi nội dung Chat thành: "Tuyệt vời! Mimo đã ghi nhận 3.000.000đ tích lũy vào mục tiêu 'Mua IP17' của bạn rồi nhé!". Tránh tuyệt đối dùng từ "hạn mức" trong phần Goals.
+- Sự nhầm lẫn trong Action Card (Card màu cam)
+Vấn đề: Tiêu đề Card ghi là "Tăng mục tiêu".
+Người dùng nói "Thêm 3tr vào mục tiêu" có nghĩa là họ nạp tiền vào.
+"Tăng mục tiêu" thường bị hiểu lầm là tăng giá trị món đồ (ví dụ từ 20tr lên 23tr).
+Giải pháp: Đổi tiêu đề Card thành "Nạp tiền mục tiêu" hoặc "Tích lũy mục tiêu".
+- Màu sắc và Cảm xúc (Color Psychology)
+Vấn đề: Bạn vẫn dùng màu Cam (Warning/Adjustment) cho hành động nạp tiền tiết kiệm. Tiết kiệm là một hành động tích cực, mang lại niềm vui.
+Giải pháp: Chuyển tone màu Card xác nhận nạp tiền sang Màu Xanh Ngọc (Mint Green) của App hoặc Màu Vàng Gold. Điều này giúp phân biệt rõ:
+Màu Cam: Thay đổi thiết lập (Sửa hạn mức, sửa mục tiêu).
+Màu Xanh/Vàng: Thực hiện hành động tích cực (Nạp tiền, hoàn thành mục tiêu).
+-  Thiếu thông tin tiến độ (Progress Feedback)
+Vấn đề: Sau khi nạp 3tr, người dùng không biết mình đã hoàn thành bao nhiêu % và còn thiếu bao nhiêu nữa.
+
+Giải pháp: Trong bong bóng chat kết quả, hãy bổ sung thông tin tiến độ. Ví dụ: "Hiện bạn đã tích lũy được 3.000.000đ / 20.000.000đ (15%). Cố gắng lên nhé! 🚀".
+
+### 10. reponse SET_TONE
+- thiếu card xác nhận
+- không thực hiện được hành động
+
+### 11. reponse SEARCH_RECORD
+-  không thực hiện được hành động
+- tìm giao dịch thì hiện thì như thế nào, thiết kế , 1 giao dịch thì sao, nhiều giao dịch thì sao
+
+### 12. reponse SUGGEST_BUDGET
+-  không nhận dạng được SUGGEST_BUDGET, nhẫn lẫn giữa SUGGEST_BUDGET và REPORT_GENERAL
+- thiết kế cách hiển thị gợi ý chi tiêu cho các category ở spendinglimit của user, cách xác nhận áp dụng cho từng category hoặc tất cả, hoặc chỉnh sửa tuỳ chỉnh
+
+### 13. reponse SYSTEM_SETTING
+- thiếu card xác nhận
+- không thể thực hiện hành động (bật tắt chế độ tối)
+
+### 14. reponse SET_USERNAME
+1. Lỗi ngữ pháp và lặp từ ngữ (Wording & Grammar Bug)
+Vấn đề: Bong bóng chat phản hồi cuối cùng của AI hiển thị nội dung:
+
+"Mimo sẽ gọi bạn là "là Mèo con" nhé!"
+
+Điểm bất hợp lý: * Lặp từ: Từ "là" bị lặp lại hai lần liên tiếp (gọi bạn là "là...). Nguyên nhân là do AI bóc tách nguyên cụm "là Mèo con" từ câu nói của người dùng thay vì chỉ lấy danh từ chính "Mèo con".
+
+Lỗi dấu câu: Có tới hai dấu chấm than đặt sát nhau ở cuối câu (nhé!!"), lỗi này khiến câu thoại nhìn giống như bị lỗi mã nguồn hoặc lỗi gõ phím của lập trình viên.
+
+Giải pháp: * Phía Backend/AI cần tối ưu bộ lọc Regex hoặc NLP để cắt bỏ các từ nối (như là, gọi là, tên là) trước khi lưu vào Database.
+
+Sửa nội dung bong bóng chat thành: "Mimo sẽ gọi bạn là "Mèo con" nhé! 🎉" (Bỏ chữ "là" thừa và xóa dấu chấm than lặp lại).
+
+2. Sự bất hợp lý khi sử dụng chung một "Khuôn mẫu Card" (UI Pattern Abuse)
+Vấn đề: Chiếc Action Card màu cam một lần nữa được mang nguyên si từ các tính năng tài chính (SET_LIMIT, SET_GOAL) sang tính năng cài đặt tài khoản.
+
+Việc dùng chung một màu cam và thiết kế bo góc khiến người dùng cảm giác hành động "Đổi tên" này có trọng số và tính chất nguy hiểm/ảnh hưởng ngang với việc "Thay đổi hạn mức chi tiêu tiền".
+
+Giải pháp: Đối với các hành động thuộc nhóm Cài đặt cá nhân/Hệ thống (Account Settings), chiếc Card trung gian nên đổi sang Màu Xám nhẹ (Neutral Slate) hoặc màu xanh dương pastel thay vì dùng sắc cam cảnh báo.
+### 15. reponse SET_ALERT
+- card xác nhận sai thông tin, phân biệt giữa thông báo app, và thông báo cảnh báo với từng category
+
+
+### 16. reponse CHitCHAT
+- tách emotion ra text riêng ra, text nằm ở bong chat, còn emotion nằm riêng như một emoji đính kèm
+1. Quy tắc thứ tự: Sticker xuất hiện TRƯỚC, Text xuất hiện SAU
+Cách hiển thị: Khi AI phản hồi, hình ảnh chú biểu tượng Mimo biểu cảm sẽ nằm ở một bong bóng độc lập (hoặc đứng tự do không cần viền bong bóng) phía trên, sau đó mới đến câu thoại dạng Text ở ngay phía dưới.
+
+2. Tách Sticker thành dạng "Không nền" (Transparent Element)
+Hiện tại: Sticker đang bị đóng khung trong chiếc bong bóng bo góc màu trắng cùng với text.
+
+Đề xuất: Hãy để Sticker của Mascot Mimo nằm ngoài bong bóng chat, hiển thị trực tiếp trên nền xám nhạt của phòng chat. Bong bóng chat màu trắng chỉ dành riêng để chứa Text.
+
+## 15. Report Screen
+1. Thêm Thẻ "Đọc Vị Chi Tiêu" (Mimo's Insight Card) ngay dưới Biểu đồ
+Thay vì chỉ liệt kê danh sách các món đồ đã mua, hãy để một chiếc Card lớn mang màu sắc thương hiệu (Xanh Mint) với tiêu đề: 💡 Mimo phân tích tuần này. Trong card này, AI sẽ chỉ ra những điểm bất thường (Anomalies) bằng ngôn ngữ tự nhiên:
+
+Cảnh báo chi tiêu vượt đỉnh: "Tuần này bạn đã chi cho Ăn uống nhiều hơn 35% so với trung bình tuần trước. Thủ phạm chính là 3 bữa lẩu nướng cuối tuần!"
+
+Phát hiện chi phí ẩn (Hidden costs): "Mimo phát hiện bạn có 3 giao dịch đăng ký gói dịch vụ tự động (Netflix, Spotify...) với tổng tiền 450k. Bạn có thực sự dùng hết không?"
+
+2. Biến số liệu thô thành Hành động cụ thể (Actionable Advice)
+Phân tích mà không có giải pháp thì chỉ làm người dùng thêm lo lắng. Đi kèm với phân tích, AI phải đưa ra nút bấm hành động (Action Button) ngay tại chỗ:
+
+Ví dụ: Nếu AI phân tích: "Với tốc độ tiêu xài hiện tại, bạn sẽ bị hụt quỹ Tiết kiệm mua IP17 khoảng 1.500.000đ vào cuối tháng." * UI Giải pháp: Ngay dưới câu thoại đó, xuất hiện một nút bấm phụ: [Thắt chặt hạn mức Ăn uống ngay] hoặc [Gợi ý cắt giảm chi tiêu]. Khi người dùng bấm vào, ứng dụng sẽ tự động kích hoạt luồng cài đặt hạn mức (như màn hình SET_LIMIT trước đó)
+
+3. Tối ưu lại biểu đồ ở màn hình Report (1), (2), (3) để phục vụ việc phân tích
+Interactive Chart (Biểu đồ tương tác): Khi người dùng chạm (Tap) vào một cột mốc bất kỳ trên biểu đồ đường hoặc biểu đồ cột, thay vì chỉ hiện số tiền thô, một bong bóng nhỏ của Mimo AI sẽ hiện ra: "Ngày 04/07 chi tiêu tăng vọt do phát sinh khoản sửa xe 800k".
+
+So sánh chu kỳ: Luôn phải có một đường mờ (Dotted line) đại diện cho tháng trước chạy song song với đường tháng này để người dùng nhìn thấy xu hướng tiêu dùng của mình đang tốt lên hay xấu đi.
+
+4. Gợi ý thiết kế "Phòng phân tích chuyên sâu" (Mimo's Deep Dive)
+Nếu người dùng muốn xem phân tích dài hạn (theo tháng hoặc quý), bạn có thể thiết kế một nút bấm chuyển tab dạng [Xem phân tích từ chuyên gia Mimo]. Khi bấm vào, màn hình sẽ mở ra một giao diện dạng "Story tổng kết tháng" giống như Spotify Wrapped hay Grab Thống kê năm:
+
+Trang 1: "Tháng này bạn thuộc nhóm 'Chi tiêu lý trí' hay 'Vung tay quá trán'?"
+
+Trang 2: "Đây là khung giờ bạn hay tiêu tiền nhất: 21:00 - 23:00 (Hội săn sale đêm muộn)!"
+
+Trang 3: "Món ăn yêu thích nhất của ví tiền bạn tháng này: Trà sữa (Tổng cộng 12 ly)."
+
+
+## 17. add screen
+- đổi flow : sau khi nhập text thì việc đợi trả về kết quả là quá lâu nên chuyển thành banner tiến độ gốc trên để người dùng làm việc khác, khi nào có kết quả thì thông báo và hiển thị mascot
+
+- ở bill, thì thêm khung dọc màu vàng có thanh ngang chạy dọc như quét mã qr vậy đó, đđể ng dùng đặt đúng bill vào đó
+
+## 18. Goal Màn hình Danh sách Mục tiêu (Goal.jpg)
+- Vấn đề 1: Trải nghiệm "Card lồng Card" gây rối mắtChi tiết: Bạn đang đặt các Card mục tiêu nhỏ (Mua IP17, Du lịch) lồng bên trong một chiếc Card cha màu trắng bo góc lớn. Cách làm này vô tình thu hẹp diện tích hiển thị của từng mục tiêu, làm chữ bị nhỏ và tạo ra quá nhiều đường viền (border) thừa thãi.Giải pháp: Phá bỏ chiếc Card cha màu trắng. Hãy để các Card mục tiêu (Mua IP17, Du lịch) đứng độc lập trực tiếp trên nền xám nhạt của app. Tách chúng ra bằng các khoảng Spacing $16px$. Điều này giúp thiết kế thoáng hơn và tăng diện tích để hiển thị thanh tiến trình rõ hơn.
+- Vấn đề 2: Dấu cộng Thêm mục tiêu (+) bị đặt sai vị tríChi tiết: Nút + để tạo mục tiêu mới đang nằm lọt thỏm ở góc phải của tiêu đề "Mục tiêu". Nó quá nhỏ và rất khó bấm (Low Fitts's Law rating) đối với ngón tay người dùng.Giải pháp: Như đã thống nhất ở luồng Bottom Nav mới, hành động tạo mới đã được tích hợp vào nút AI Assistant (sparkles) ở chính giữa thanh đáy. Do đó, bạn hãy xóa bỏ nút + nhỏ này đi. Nếu vẫn muốn có nút thêm riêng tại tab này, hãy làm một nút dạng thanh ngang dài (Pill button) đặt ở dưới cùng danh sách với chữ + Thêm mục tiêu mới.
+
+## 19. Màn hình Chi tiết Goal 
+- Vấn đề 1: Cụm nút bấm "Đóng góp - Chỉnh sửa - Xóa" thiếu đồng bộ.
+
+Chi tiết: Nút + Đóng góp là dạng khối đặc bo tròn hoàn toàn (Pill-shaped), nhưng nút Chỉnh sửa lại là hình chữ nhật bo góc nhẹ với viền mảnh. Nút Xóa (thùng rác) lại là một ô riêng lẻ màu đỏ. Sự kết hợp này làm giao diện nhìn bị vụn.
+
+Giải pháp: Quy chuẩn lại:
+
+Nút chính (Primary): Đóng góp giữ nguyên khối đặc màu xanh ngọc.
+
+Nút phụ (Secondary): Chỉnh sửa chuyển thành icon (cái bút) nằm cạnh nút Đóng góp hoặc đưa lên Header.
+
+Nút Xóa: Đưa vào menu "Ba chấm" ở góc trên cùng bên phải để tránh việc người dùng bấm nhầm xóa mất mục tiêu quan trọng.
+
+Vấn đề 2: Thanh tiến trình (Progress Bar) quá mảnh.
+
+Chi tiết: Thanh tiến trình hiện tại rất mỏng, không tương xứng với độ lớn của Card và tiêu đề.
+
+Giải pháp: Tăng độ dày (Height) của thanh lên khoảng 12px - 16px, bo tròn hai đầu. Sử dụng dải màu Gradient Xanh-Vàng để tạo cảm giác năng lượng.
+
+Vấn đề: Spacing lãng phí trong thẻ Thành viên.
+
+Chi tiết: Thẻ "Thành viên cùng đóng góp" có avatar "là Mèo con" đang nằm trong một cái khung trắng rất dày và dài, chiếm nhiều diện tích dọc không cần thiết.
+
+Giải pháp: Thu nhỏ chiều cao của thẻ này. Nếu chỉ có vài thành viên, hãy để dạng Avatar Stack (các vòng tròn avatar đè nhẹ lên nhau) nằm ngay dưới tiêu đề "Thành viên cùng đóng góp" để tiết kiệm diện tích.
+
+- Vấn đề: Phân cấp thông tin trong danh sách lịch sử.
+
+Chi tiết: Các dòng lịch sử đang dùng Layout của màn hình Calendar, điều này tốt cho tính đồng bộ. Tuy nhiên, màu xanh của số tiền +500.000 đ đang hơi sáng quá, khó đọc trên nền trắng (Low contrast).
+
+- Gợi ý nâng cấp (Nice-to-have)
+Hiệu ứng khao khát (Celebration Effect): Khi thanh tiến trình đạt mốc 80% hoặc 90%, hãy đổi màu thanh sang màu Vàng Gold phát sáng để kích thích người dùng nỗ lực hoàn thành nốt.
+
+Nút "Nhắc nhở" (Nudge): Nếu đây là ví chung, bên cạnh avatar của thành viên khác, hãy thêm một nút "Nhắc nhở" nhỏ (icon cái chuông). AI sẽ thay mặt bạn gửi một lời nhắn vui vẻ: "Mimo thấy chúng ta sắp đạt mục tiêu rồi, cùng cố gắng nhé!".
+
+Sticky Header: Khi cuộn xuống dưới xem lịch sử, hãy giữ dòng tiêu đề "Mua IP17 - 19.5%" cố định ở trên cùng (thu nhỏ lại) để người dùng luôn biết mình đang xem lịch sử của mục tiêu nào.
+
+
+# II. chế độ tối
+## 1.Lỗi tương phản văn bản nghiêm trọng (Accessibility / Contrast Bug)
+Vấn đề: Ở nửa dưới của màn hình (Phần lịch sử nạp tiền), nhiều dòng chữ hiển thị tên người dùng và mốc thời gian đang dùng màu xám tối / đen nhạt đè trực tiếp lên nền xám đen của ứng dụng. Điều này vi phạm nghiêm trọng tiêu chuẩn WCAG 2.1 về độ tương phản giao diện tối (Ít nhất phải đạt tỷ lệ $4.5:1$). Người dùng sẽ hoàn toàn không đọc được chữ này nếu dùng điện thoại ngoài trời hoặc trong môi trường ánh sáng mạnh. Giải pháp: Chuyển toàn bộ font chữ tên người dùng và mốc thời gian sang Màu trắng nguyên bản (#FFFFFF) hoặc Xám sáng (#E2E8F0).
+
+- nhiều màu của text do nền tối mà không nổi bật ở tất cả các screen khác
+- phân tích và điều chỉnh lại toàn bộ darkmode cho đẹp nhất

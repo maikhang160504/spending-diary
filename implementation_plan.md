@@ -1,185 +1,80 @@
-# Master Implementation Plan: NLU & OCR Enhancements, Web-Admin, Mobile, and Backend Fixes
+# Phase 7 & 8: Comprehensive Bug Fixes, AI Logic Enhancement, and UI Redesign
 
-This plan outlines the design, architecture, and step-by-step tasks to implement the remaining requirements outlined in `fix.md` across all four layers of the application. **No execution will take place until this plan is approved.**
+This plan consolidates the remaining requirements from `fix.md`, `fix_logic.md`, and `redesign_Mobile.md`. It addresses critical bugs, refines the AI interaction logic, and overhauls the Mobile UI to meet the "premium" standard requested.
 
----
+## User Review Required
 
-## 1. Web-Admin Panel (`webadmin`)
+> [!IMPORTANT]
+> **Priority Fixes Acknowledged**: We will prioritize the logout/crash bug ("văng tài khoản"), the UI text overwriting in chat, and the `REPORT_GENERAL` logic, as explicitly requested.
+> 
+> **Database / Backend**: Some logic changes (like Goal not linking to Wallets, new Budget Suggestion algorithms) will require backend updates and potentially database schema adjustments.
+> 
+> **AI Prompt Updates**: We will lift the restriction that `Action` intents must return empty responses and enhance prompts for dynamic, tone-aware responses.
 
-### Objectives:
-- Redesign and streamline the administrative interface.
-- Optimize the model switching settings and the Bot Prompts management page.
-- Remove deprecated features (e.g., legacy training triggers and Kaggle gold tests).
+## Open Questions
 
-### Proposed Changes:
+> [!WARNING]
+> 1. **Image Storage Flow**: Currently, images are saved to Cloudflare *before* OCR analysis. If OCR fails, the image remains. Should we upload to a temporary bucket first or just delay upload until the user confirms the transaction?
+> 2. **Goal Refactoring**: Decoupling Goals from Wallets completely means Goals track arbitrary progress independent of actual account balances. Is this correct?
+> 3. **Chat Interruptions**: When a user leaves the app while AI is typing, should we deliver the message via a Push Notification when it finishes?
 
-#### [MODIFY] [BotPromptsPage.jsx](file:///d:/Luan-Van/Project/app/frontend/web-admin/src/pages/BotPromptsPage.jsx)
-- Redesign the layout with modern glassmorphism aesthetic and smooth micro-animations.
-- Add system NLU settings: a dropdown component to toggle the active NLU backend (`tfidf`, `encoder`, `llm`).
-- Connect saving setting to backend endpoint `PUT /api/admin/settings/nlu-backend`.
-- Remove legacy options like triggering raw Kaggle OCR trainings and obsolete debug reports.
-
-#### Clean-up & Streamlining:
-- De-clutter administrative dashboards from legacy testing scripts and pages.
-- Ensure training configurations for Modal are clean and easily readable.
+## Proposed Changes
 
 ---
 
-## 2. NLU & OCR Serverless Services (`expense-ocr-nlu`)
+### Part 1: High Priority Bug Fixes
 
-### Objectives:
-- Implement rapid LLM fine-tuning flow on Modal using Nvidia H100.
-- Set up a testing flow for PhoGPT-7B (base/quantized) on an Nvidia A10 GPU.
-- Finalize and integrate OCR retraining and validation pipelines on Modal.
-- Restore the standard local/Kaggle NLU retrain flows to verify backward compatibility.
+#### Backend & Flutter Logic
+- **App Crash / Logout**: Investigate and fix the issue causing users to be suddenly logged out or crash on entry (likely token expiry handling or unhandled exceptions during initial load).
+- **Report Screen Crash**: Fix `NoSuchMethodError: Class 'ReportCategory' has no instance method '[]'` in `_MimoInsightCard` at `report_screen.dart:244`.
+- **Recurring Rules Layout**: Fix RenderFlex overflow in `recurring_rules_screen.dart` and add exact-time auto-add logic.
+- **Undeletable Transactions**: Fix the bug where erroneous transactions persist and cannot be deleted.
 
-### Proposed Changes:
+### Part 2: AI & Chat Logic Enhancements
 
-#### [NEW] `modal_llm_train.py` (or integrated in [modal_app.py](file:///d:/Luan-Van/Project/expense-ocr-nlu/modal_app.py))
-- Implement a serverless training task to fine-tune PhoGPT (4B or 7B) using `unsloth` or standard Hugging Face SFTTrainer on H100.
-- Load the newly optimized `phogpt_finetune.jsonl` from `/storage` volume.
-- Output checkpoint weights directly back to the Modal storage volume.
+#### AI Prompts & Capabilities
+- **Diverse Responses**: Remove the empty response rule for Actions. Ensure AI responds intelligently and adheres to the `verbal_style` (dui_de, dan_doi). Send full context data.
+- **Chit-chat & Personas**: Improve chit-chat prompts to guide users back to app features. Ensure relationships (parent, lover) and username are correctly applied.
+- **Action Overwrites**: Fix the issue where default loading text is overwritten by the LLM response. Differentiate between initial intent recognition and final execution response.
+- **Concurrent Messaging**: Handle cases where the user sends a message while the AI is still typing, and handle app-backgrounding during requests.
+- **Budget Suggestions (`SUGGEST_BUDGET`)**: Implement an economic algorithm separating Fixed Costs and Variable Costs. Suggest limits for new categories dynamically.
+- **Spelling**: Instruct the LLM to output perfect Vietnamese spelling.
 
-#### [NEW] `modal_llm_serve.py`
-- Set up a Modal container utilizing an Nvidia A10 GPU to load and run the un-fine-tuned (and later fine-tuned) PhoGPT-7B model using Ollama/vLLM/llama.cpp for inference latency benchmarking.
+#### Chat UI / UX
+- **Action Confirmations (Cards)**:
+  - `SET_LIMIT`, `ADD_GOAL`, `SET_GOAL`: Fix language (don't mix English/Vietnamese, use "Tạo mục tiêu" instead of "Tăng mục tiêu").
+  - **Color Psychology**: Use Gold/Mint for positive actions (Goals) and Neutral Slate for settings (`SET_USERNAME`), avoiding Orange (Warning) for everything.
+  - **Flat UI State**: After action confirmation, the card should turn into a flat, disabled log entry.
+- **Sticker / Emotion Separation**: Detach AI emotions (stickers) from the text bubble, displaying them floating above the text.
+- **Chat Header & Quick Replies**: Fix spacing in the chat header. Bold quick reply text and add a fade gradient for scrollability. Define 20 solid Chat suggestion prompts.
 
-#### [MODIFY] [modal_app.py](file:///d:/Luan-Van/Project/expense-ocr-nlu/modal_app.py)
-- Consolidate layoutlmv3 and PICK KIE retraining pipelines.
-- Verify that the Gemini financial advice/commentary generation function works flawlessly in the serverless Modal environment.
-- Clean up any unused files, dead code, or redundant dependencies.
+### Part 3: UI Redesign & "Premium" Polish
 
----
+#### Navigation & Core Structure
+- **Bottom Nav Bar**: Update to 5 tabs (Home, Expenses, AI Assistant 🌟, Goals, Settings). Remove the floating chat button. The AI Assistant button opens a Speed Dial popup (Scan Bill, Note/Photo, Chat).
+- **Google Material Symbols (Rounded)**: Update all icons across the app to be softer and more modern. Remove custom emoji (🔥, 👋) in favor of vector assets.
+- **Remove Error SizedBoxes**: Remove inline loading text above the nav bar; replace with a global top progress banner for background tasks (like OCR).
 
-## 3. Mobile Client (`mobile`)
+#### Home & Shared Components
+- **Home Header**: Align the Streak button. Increase date contrast. Ensure the Segment Tab (Story/Gallery/Calendar) sits cleanly below the header or is integrated into a solid block.
+- **Negative Balance**: Make negative balances bold and red/orange.
+- **Wallet Filter**: Add a fade-out gradient to indicate scrollability.
 
-### Objectives:
-- Fix Authentication lifecycle bugs.
-- Verify Action display and execution flows.
+#### Cards & Timelines
+- **Card Story (Image)**: Add padding and border-radius to the image itself. Move the amount tag above the image.
+- **Card Story (No Image)**: Shrink the Mimo AI chat bubble significantly; use a small inline text `🤖 Mimo: ...` instead of a massive card.
+- **Calendar Tab**: Drastically simplify cards to list items (Icon, Note, Time, Amount). Remove the horizontal weekly calendar strip as requested. Reduce vertical spacing.
+- **Gallery**: Increase border-radius to 24px. Ensure text on images has a readable gradient backdrop. Map category icons correctly instead of always showing "Other".
 
-### Proposed Tasks:
-1. **Forgot Password Verification**:
-   - Inspect and trace the authentication flow of the reset password process on mobile.
-   - Fix API request and token handling if there are any mismatches.
-2. **Google Sign-In Lifecycle Fix**:
-   - Update Google Sign-in to enforce account selection: when logging out and logging back in, the user must be prompted with the "Choose an account" dialog rather than automatically logging back into the previous session.
-3. **Action Display Validation**:
-   - Verify UI representation of complex action payloads (`SET_LIMIT`, `SET_GOAL`, `REPORT_GENERAL`).
-   - Ensure the Mimo mascot changes its sprite state based on the backend emotion metadata (`happy`, `sad`, `neutral`, `strict`, `alarmed`).
+#### Details, Reports, and Goals
+- **Detail Screen**: Implement full-screen image preview with pinch-to-zoom. Fix bottom button colors (match category). Clean up row layouts. Remove redundant list items for single-item transactions.
+- **Report Screen**: Add actionable "Mimo's Insight Card". Make charts interactive (tap for AI insights). Add month-over-month trend lines.
+- **Goal Screens**: Disconnect from Wallets. Remove nested cards. Fix the (+/Add) button logic. Enhance progress bar visuals (gradient, thickness, celebration effect at 90%). Add friend invites via link/code.
 
----
-
-## 4. Backend Service (`back end`)
-
-### Objectives:
-- Align NLU execution logic with the thesis guidelines outlined in `thesis_nlu_discussion.md`.
-- Implement local post-processing for personalization.
-- Refine action intents handling.
-
-### Proposed Changes:
-
-#### [MODIFY] Central NLU Service (e.g., `nlu.service.js` or `ai.service.js`)
-- **Backend Router Toggling**:
-  - Dynamically route user input parsing depending on the `NLU_BACKEND` database setting:
-    - `llm`: Call the PhoGPT container/Modal service.
-    - `encoder`: Call the local PyTorch encoder server.
-    - `tfidf`: Call the legacy TF-IDF service.
-- **Local Personalization Post-Processing**:
-  - Pass general classification outputs from the LLM through a local database check of the user's custom keywords/aliases before writing to the database (saving token usage).
-
-#### [MODIFY] Intent Action Handlers (e.g., `intentAction.controller.js` or equivalent)
-- **`REPORT_GENERAL` & `REPORT_COMPARE`**:
-  - Map `time_range` inputs dynamically.
-  - Implement double category parsing (`resolveMultipleCategoryCodes`) to enable direct comparative calculations.
-- **`SET_GOAL` / `ADD_GOAL`**:
-  - Implement Levenshtein Distance fuzzy comparison matching (>75% similarity) on target goal names.
-  - If a matching goal is found, update the target amount rather than duplicating the record.
-- **`SUGGEST_BUDGET`**:
-  - Constrain budget modification suggestions strictly to categories that already have explicit limits defined in the `budgets` table.
-
----
+#### Dark Mode
+- **System-wide Accessibility**: Fix severe contrast issues where dark text is rendering on dark backgrounds. Ensure all text meets WCAG standards for dark mode.
 
 ## Verification Plan
-
-### NLU & OCR
-- Run a benchmark test of PhoGPT-7B inference speed and verify the JSON extraction parser.
-- Execute a dry-run of the LayoutLMv3 training script to verify that paths resolve to the centralized root `data` folder.
-
-### Mobile & Authentication
-- Manually run forgot password flow.
-- Manually verify Google Sign-In account prompt selection on logout/login.
-- Run NLU parser and ensure mascot matches the emotion tags correctly.
-# Implementation Plan: PaddleOCR/VietOCR + LayoutLMv3 Billing Pipeline
-
-This plan outlines the design, architecture, and tasks to implement a complete LayoutLMv3 billing pipeline (inference, retraining, pre-labeling, and verified label exporting) alongside the existing PICK KIE pipeline, enabling full deployment and toggling between the two.
-
----
-
-## 1. Pipeline Overview & Architecture
-
-To achieve feature-parity with PICK KIE, we will introduce a new pipeline class `LayoutLMv3ReceiptPipeline` that wraps PaddleOCR, VietOCR, and the fine-tuned LayoutLMv3 Token Classification model.
-
-```
-[Raw Receipt Image]
-        │
-        ▼ (PaddleOCR Detector + VietOCR Recognizer)
-[Text Words & Bounding Boxes]
-        │
-        ▼ (LayoutLMv3 Token Classifier)
-[Labeled Tokens (SELLER, TOTAL_COST, etc.)]
-        │
-        ▼ (Heuristics / Post-Processing)
-[Unified Transaction Schema (amount, merchant, category)]
-```
-
----
-
-## 2. Proposed Changes
-
-### NLU & OCR Service (`expense-ocr-nlu`)
-
-#### [NEW] `layoutlmv3_pipeline.py` (under `bill_ocr/receipt_ocr/`)
-- Implement `LayoutLMv3ReceiptPipeline` extending `ReceiptOCRPipeline`.
-- Dynamically run PaddleOCR text detector to localize bounding boxes.
-- Run VietOCR to extract Vietnamese text from each box.
-- Format extracted text and normalized coordinate boxes into LayoutLMv3 features.
-- Load the fine-tuned LayoutLMv3 weights (`/storage/layoutlmv3/model_best.pth`).
-- Run classification to extract KIE fields: `SELLER` (merchant name), `TIMESTAMP` (transaction date), `TOTAL_COST` (transaction amount).
-- Implement `prelabel_for_admin` returning boxes, text lines, KIE fields, and suggested amount/category.
-
-#### [MODIFY] [ocr_service.py](file:///d:/Luan-Van/Project/expense-ocr-nlu/src/api/app/services/ocr_service.py) & [expense_ocr_nlu.py](file:///d:/Luan-Van/Project/expense-ocr-nlu/src/api/app/adapters/expense_ocr_nlu.py)
-- Support hot-switching between PICK and LayoutLMv3 backends using a configuration parameter or settings table (`OCR_BACKEND = "pick" | "layoutlmv3"`).
-- Initialize `LayoutLMv3ReceiptPipeline` if `layoutlmv3` is active.
-
-#### [MODIFY] [bill_retrain_service.py](file:///d:/Luan-Van/Project/expense-ocr-nlu/src/api/app/services/bill_retrain_service.py) & [bill_retrain.py](file:///d:/Luan-Van/Project/expense-ocr-nlu/src/api/app/routers/bill_retrain.py)
-- Expose training execution endpoint for LayoutLMv3: `/bill-retrain/train-layoutlmv3` which triggers the Modal `train_layoutlmv3_model` function in the background.
-- Support exporting verified annotations in both PICK format (polygons, boxes) and LayoutLMv3-compatible CSV formats.
-
----
-
-### Backend Service (`back end`)
-
-#### [MODIFY] Central AI settings controller
-- Add `ocrBackend` setting to system settings (`pick` or `layoutlmv3`).
-- Route receipt processing calls (`POST /api/ocr/image` and `POST /api/ocr/review`) depending on the selected active OCR backend.
-
----
-
-### Web-Admin Panel (`webadmin`)
-
-#### [MODIFY] Redesigned Administration Panel
-- Add an OCR settings section to select between **PICK KIE** and **LayoutLMv3**.
-- Display training metrics (F1-score, precision, recall) for LayoutLMv3.
-- Allow triggering LayoutLMv3 retraining directly on Modal.
-- Render the annotated image (SELLER, TOTAL_COST, etc.) returned by the selected backend and allow admins to re-assign labels or adjust bounding boxes.
-
----
-
-## 3. Verification Plan
-
-### Automated Tests
-- Run `visualize_layoutlmv3_test_predictions` to verify that the LayoutLMv3 model correctly predicts the entities on test images.
-- Verify API endpoint `/ocr/image` returns correct output under both `pick` and `layoutlmv3` mode.
-
-### Manual Verification
-- Deploy `expense-ocr-nlu` API on Modal.
-- Toggle backends from WebAdmin and verify successful transaction extraction.
+1. **Critical Bugs**: Verify app startup stability, Report screen rendering, and Recurring rules layout.
+2. **AI Logic**: Test all intents (`SET_LIMIT`, `SET_GOAL`, `REPORT_GENERAL`, `SUGGEST_BUDGET`) to ensure cards render correctly, text is not overwritten poorly, and responses are non-empty and formatted.
+3. **UI/UX**: Walk through Home, Chat, Gallery, Calendar, and Detail screens in both Light and Dark mode, matching against the redesign specifications.

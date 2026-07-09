@@ -1,43 +1,33 @@
-# Detailed Task Checklist
-
-## 1. Web-Admin Panel (`webadmin`)
-- [ ] Redesign `BotPromptsPage.jsx` with glassmorphism design and micro-animations
-- [ ] Add active model backend selection dropdown (TF-IDF vs Encoder vs LLM)
-- [ ] Connect selection dropdown to `PUT /api/admin/settings/nlu-backend`
-- [ ] Remove legacy debug buttons and obsolete OCR/Kaggle triggers
-
-## 2. NLU & OCR Services (`expense-ocr-nlu`)
-- [ ] Implement `modal_llm_train.py` / task function in `modal_app.py` for PhoGPT fine-tuning on H100 GPU
-- [ ] Implement container setup for PhoGPT-7B (base/quantized) inference testing on A10 GPU
-- [ ] Clean up redundant script references and verify pipeline integration
-- [ ] Ensure Gemini commentary generation works inside Modal container
-
-## 3. Mobile Client (`mobile`)
-- [ ] Debug and fix reset password flow
-- [ ] Update Google Sign-In sign-out/login flow to enforce account chooser
-- [ ] Verify actions rendering and Mascot sprite changes based on emotion tags
-
-## 4. Backend Service (`back end`)
-- [ ] Implement dynamic NLU backend routing based on settings table
-- [ ] Implement local personalization key mapping (caching/dictionary lookup)
-- [ ] Upgrade `REPORT_COMPARE` to handle dual categories and time ranges
-- [ ] Upgrade `SET_GOAL` using Levenshtein distance similarity matching (>75%)
-- [ ] Restrict `SUGGEST_BUDGET` adjustments to existing budgets
-
-# Detailed Tasks for PaddleOCR+VietOCR + LayoutLMv3 Billing Pipeline
-
-## 1. OCR Pipeline (`expense-ocr-nlu`)
-- [x] Implement LayoutLMv3 KIE Engine in `pick_kie.py` (replacing PICK)
-- [x] Update `expense_ocr_nlu.py` adapter to dynamically load and serve LayoutLMv3 instead of PICK
-- [x] Integrate KIE extraction using fine-tuned LayoutLMv3 weights
-- [x] Add `/bill-retrain/modal/trigger` endpoint to trigger LayoutLMv3 training on Modal
-- [x] Support PA1 (OCR-matched training with background O labels)
-- [x] Support PA2 (Rule-based post-processing heuristics for robust entity detection)
-
-## 2. Backend integration (`back end`)
-- [x] Support seamless LayoutLMv3 routing across `/ocr/image` and `/ocr/review` requests
-
-## 3. Web-Admin Panel (`webadmin`)
-- [x] Add active OCR backend selection label and status display (LayoutLMv3)
-- [x] Implement training trigger button to call LayoutLMv3 on Modal
-- [x] Enable bounding box visualization and label adjustments on WebAdmin UI using LayoutLMv3 predictions
+- `[x]` **Part 1: High Priority Bug Fixes**
+  - `[x]` Backend: Investigate and fix "văng tài khoản" (App Crash/Logout on entry)
+  - `[x]` Mobile: Fix Report Screen Crash (`ReportCategory` NoSuchMethodError)
+  - `[x]` Mobile: Fix Recurring Rules Screen Layout (RenderFlex overflow)
+  - `[x]` Backend: Recurring Rules: Implement auto-add at exact time logic
+  - `[x]` Backend: Fix Undeletable error transactions bug (Double click save -> transaction not loadable -> no delete button)
+- `[ ]` **Part 2: AI & Chat Logic Enhancements**
+  - `[x]` Backend: Remove empty response rule for Actions; ensure responses follow `verbal_style`
+  - `[x]` Backend: Improve Chit-chat prompts to guide users back to features and apply relationships/username
+  - `[x]` Backend: Implement `SUGGEST_BUDGET` algorithm (Fixed vs Variable costs) and dynamically suggest for new categories
+  - `[x]` Backend: Instruct LLM to output correct Vietnamese spelling
+  - `[x]` Backend: Enhance Context Data sent to LLM for more diverse responses
+  - `[x]` Mobile: Fix Action Overwrites (Initial default text overwritten by LLM)
+  - `[ ]` Mobile: Fix concurrent messaging (User typing while AI typing, app backgrounding)
+  - `[ ]` Mobile: Fix Action Confirmations UI (Cards for `SET_LIMIT`, `ADD_GOAL`, `SET_GOAL`, `SET_USERNAME` colors & text)
+  - `[ ]` Mobile: Make Action Confirmations Flat/Disabled after confirmation
+  - `[ ]` Mobile: Separate AI Sticker/Emotion from text bubble
+  - `[ ]` Mobile: Update Chat Header spacing and Quick Replies (fade gradient, bold, 20 solid prompts)
+- `[ ]` **Part 3: UI Redesign & Premium Polish**
+  - `[ ]` Mobile: Update Bottom Nav Bar (5 tabs, center AI button popup, remove floating chat)
+  - `[ ]` Mobile: Replace icons with Google Material Symbols Rounded; remove emoji (🔥, 👋)
+  - `[ ]` Mobile: Remove Error/Loading SizedBoxes above nav bar; implement global top progress banner
+  - `[ ]` Mobile: Update Home Header (Align Streak, Subtext contrast, integrate Segment Tabs)
+  - `[ ]` Mobile: Format negative balances in red/orange bold
+  - `[ ]` Mobile: Add fade-out gradient to Wallet Filter
+  - `[ ]` Mobile: Redesign Card Story (Image padding/border, amount placement)
+  - `[ ]` Mobile: Redesign Card Story No Image (Shrink chat bubble, use inline 🤖 text)
+  - `[ ]` Mobile: Redesign Calendar Tab (Simplify to list items, remove horizontal weekly strip, reduce spacing)
+  - `[ ]` Mobile: Redesign Gallery (24px border-radius, readable text gradient, correct category icons)
+  - `[ ]` Mobile: Update Detail Screen (Full-screen image pinch-to-zoom, button colors, row layout, remove duplicate lists)
+  - `[ ]` Mobile: Enhance Report Screen (Mimo's Insight Card, interactive charts, trend lines)
+  - `[ ]` Mobile & Backend: Refactor Goals (Disconnect from Wallets, remove nested cards, fix Add button, enhance progress bar, add friend invites)
+  - `[ ]` Mobile: Fix Dark Mode Accessibility (Contrast on text vs dark backgrounds system-wide)

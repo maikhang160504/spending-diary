@@ -73,7 +73,7 @@ Dưới đây là danh sách tất cả các hành động hệ thống (`INTENT
   - *"Tắt chế độ ban đêm"*
 
 ## 9. Đổi tên gọi người dùng (SET_USERNAME)
-* **Loại lệnh:** `SET_USERNAME`
+* **Loại lệnh:** ` `
 * **Tham số:**
   - `value`: Tên mới người dùng muốn gọi
 * **Ví dụ câu lệnh:**
