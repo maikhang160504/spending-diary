@@ -1,0 +1,1746 @@
+[
+  {
+    "utterance": "mua thỏi son dưỡng 50k",
+    "generated": {
+      "intent": "Record",
+      "record_type": "Expense",
+      "action_type": null,
+      "slots": {
+        "item": "Thỏi son dưỡng",
+        "category": "Shopping",
+        "amount": 50000,
+        "verb": null,
+        "goal_name": null,
+        "enabled": null,
+        "theme": null,
+        "verbal_style": null,
+        "time_range": null,
+        "query": null
+      },
+      "emotion": "Chill",
+      "response": "Ét ô ét, mua son dưỡng rồi à, đẹp ghê!"
+    }
+  },
+  {
+    "utterance": "mua gói tập gym 50k",
+    "generated": {
+      "intent": "Record",
+      "record_type": "Expense",
+      "action_type": null,
+      "slots": {
+        "item": "Gói tập gym",
+        "category": "Health",
+        "amount": 50000,
+        "verb": null,
+        "goal_name": null,
+        "enabled": null,
+        "theme": null,
+        "verbal_style": null,
+        "time_range": null,
+        "query": null
+      },
+      "emotion": "Chill",
+      "response": "Ét ô ét, lại đi tập gym đấy à?"
+    }
+  },
+  {
+    "utterance": "so sánh chi tiêu tuần này với tuần trước",
+    "error": "Expecting ',' delimiter: line 5 column 18 (char 89)",
+    "raw_json": "{\n  \"intent\": \"Action\",\n  \"action_type\": \"REPORT_COMPARE\",\n  \"slots\": {\n    \"verb\": \"GT\" | \"LT\" | null,\n    \"time_range\": \"tuần này | tuần trước\" | null,\n    \"query\": \"chi tiêu\" | null\n  },\n  \"emotion\": \"Thinking\",\n  \"response\": \"\"\n}"
+  },
+  {
+    "utterance": "chuyển 2tr đi ăn cưới",
+    "generated": {
+      "intent": "Record",
+      "record_type": "Expense",
+      "action_type": null,
+      "slots": {
+        "item": "Ăn cưới",
+        "category": "Social",
+        "amount": 2000000,
+        "verb": null,
+        "goal_name": null,
+        "enabled": null,
+        "theme": null,
+        "verbal_style": null,
+        "time_range": null,
+        "query": null
+      },
+      "emotion": "Happy",
+      "response": "Chúc mừng bạn đã có một bữa ăn cưới vui vẻ!"
+    }
+  },
+  {
+    "utterance": "tổng chi tiêu hôm nay thế nào",
+    "generated": {
+      "intent": "Action",
+      "action_type": "REPORT_GENERAL",
+      "slots": {
+        "verb": "SET",
+        "time_range": "today"
+      },
+      "emotion": "Approved",
+      "response": ""
+    }
+  },
+  {
+    "utterance": "đặt hạn mức cho ăn uống 20k",
+    "generated": {
+      "intent": "Action",
+      "action_type": "SET_LIMIT",
+      "slots": {
+        "verb": "SET",
+        "category": "Food",
+        "amount": 20000
+      },
+      "emotion": "Approved",
+      "response": "Chốt rồi, hạn mức ăn uống là 20k nhé."
+    }
+  },
+  {
+    "utterance": "cảnh báo khi tiêu quá 500k",
+    "generated": {
+      "intent": "Action",
+      "record_type": null,
+      "action_type": "SET_ALERT",
+      "slots": {
+        "item": null,
+        "category": null,
+        "amount": 500000,
+        "verb": "SET",
+        "goal_name": null,
+        "enabled": true,
+        "theme": null,
+        "verbal_style": null,
+        "time_range": null,
+        "query": null
+      },
+      "emotion": "Approved",
+      "response": ""
+    }
+  },
+  {
+    "utterance": "mua trà sữa hết 20k",
+    "generated": {
+      "intent": "Record",
+      "record_type": "Expense",
+      "action_type": null,
+      "slots": {
+        "item": "Trà sữa",
+        "category": "Food",
+        "amount": 20000,
+        "verb": null,
+        "goal_name": null,
+        "enabled": null,
+        "theme": null,
+        "verbal_style": null,
+        "time_range": null,
+        "query": null
+      },
+      "emotion": "Chill",
+      "response": "Ét ô ét, cup trà sữa yêu thích lại ra ngoài pocket rồi đấy!"
+    }
+  },
+  {
+    "utterance": "ăn cơm trưa bình dân 50k",
+    "generated": {
+      "intent": "Record",
+      "record_type": "Expense",
+      "action_type": null,
+      "slots": {
+        "item": " Cơm trưa bình dân",
+        "category": "Food",
+        "amount": 50000,
+        "verb": null,
+        "goal_name": null,
+        "enabled": null,
+        "theme": null,
+        "verbal_style": null,
+        "time_range": null,
+        "query": null
+      },
+      "emotion": "Chill",
+      "response": "Ét ô ét, bữa trưa bình dân thôi mà cũng ghi gõ phắt!"
+    }
+  },
+  {
+    "utterance": "mua gói tập gym 1.5 triệu",
+    "generated": {
+      "intent": "Record",
+      "record_type": "Expense",
+      "action_type": null,
+      "slots": {
+        "item": "Gói tập gym",
+        "category": "Health",
+        "amount": 1500000,
+        "verb": null,
+        "goal_name": null,
+        "enabled": null,
+        "theme": null,
+        "verbal_style": null,
+        "time_range": null,
+        "query": null
+      },
+      "emotion": "Chill",
+      "response": "Recorded, boss! Chill out and get fit."
+    }
+  },
+  {
+    "utterance": "báo cáo chi tiêu tháng này",
+    "generated": {
+      "intent": "Action",
+      "action_type": "REPORT_GENERAL",
+      "slots": {
+        "item": null,
+        "category": null,
+        "amount": null,
+        "verb": null,
+        "goal_name": null,
+        "enabled": null,
+        "theme": null,
+        "verbal_style": null,
+        "time_range": "tháng này",
+        "query": "chi tiêu"
+      },
+      "emotion": "Serious",
+      "response": ""
+    }
+  },
+  {
+    "utterance": "đặt hạn mức cho ăn uống 50k",
+    "generated": {
+      "intent": "Action",
+      "action_type": "SET_LIMIT",
+      "slots": {
+        "verb": "SET",
+        "category": "Food",
+        "amount": 50000
+      },
+      "emotion": "Approved",
+      "response": ""
+    }
+  },
+  {
+    "utterance": "trả tiền điện nước 50k",
+    "generated": {
+      "intent": "Record",
+      "record_type": "Expense",
+      "action_type": null,
+      "slots": {
+        "item": "Tiền điện nước",
+        "category": "Essentials",
+        "amount": 50000,
+        "verb": null,
+        "goal_name": null,
+        "enabled": null,
+        "theme": null,
+        "verbal_style": null,
+        "time_range": null,
+        "query": null
+      },
+      "emotion": "Chill",
+      "response": "Recorded, boss! (ét ô ét)"
+    }
+  },
+  {
+    "utterance": "mua thuốc cảm 1.5 triệu",
+    "generated": {
+      "intent": "Record",
+      "record_type": "Expense",
+      "action_type": null,
+      "slots": {
+        "item": "Thuốc cảm",
+        "category": "Essentials",
+        "amount": 1500000,
+        "verb": null,
+        "goal_name": null,
+        "enabled": null,
+        "theme": null,
+        "verbal_style": null,
+        "time_range": null,
+        "query": null
+      },
+      "emotion": "Chill",
+      "response": "Mimo ghi giao dịch mua thuốc cảm 1.5 triệu rồi nhé."
+    }
+  },
+  {
+    "utterance": "mua thỏi son dưỡng 10 triệu",
+    "generated": {
+      "intent": "Record",
+      "record_type": "Expense",
+      "action_type": null,
+      "slots": {
+        "item": "Thỏi son dưỡng",
+        "category": "Shopping",
+        "amount": 10000000,
+        "verb": null,
+        "goal_name": null,
+        "enabled": null,
+        "theme": null,
+        "verbal_style": null,
+        "time_range": null,
+        "query": null
+      },
+      "emotion": "Chill",
+      "response": "Ét ô ét, mua son dưỡng xịn thế ah?"
+    }
+  },
+  {
+    "utterance": "chuyển 10 triệu đi ăn cưới",
+    "generated": {
+      "intent": "Record",
+      "record_type": "Expense",
+      "action_type": null,
+      "slots": {
+        "item": "Tiền ăn cưới",
+        "category": "Social",
+        "amount": 10000000,
+        "verb": null,
+        "goal_name": null,
+        "enabled": null,
+        "theme": null,
+        "verbal_style": null,
+        "time_range": null,
+        "query": null
+      },
+      "emotion": "Chill",
+      "response": "Et ô ét, bữa ăn cưới hẳn là vui lắm phải không?"
+    }
+  },
+  {
+    "utterance": "hôm nay thời tiết đẹp quá nhỉ",
+    "generated": {
+      "intent": "Chitchat",
+      "record_type": null,
+      "action_type": null,
+      "slots": {
+        "item": null,
+        "category": null,
+        "amount": null,
+        "verb": null,
+        "goal_name": null,
+        "enabled": null,
+        "theme": null,
+        "verbal_style": "gentle",
+        "time_range": null,
+        "query": null
+      },
+      "emotion": "Happy",
+      "response": "Thật đấy, thời tiết đẹp làm người ta vui hẳn lên ấy."
+    }
+  },
+  {
+    "utterance": "đóng tiền nhà tháng này 100k",
+    "generated": {
+      "intent": "Record",
+      "record_type": "Expense",
+      "action_type": null,
+      "slots": {
+        "item": "Tiền nhà",
+        "category": "Essentials",
+        "amount": 100000,
+        "verb": null,
+        "goal_name": null,
+        "enabled": null,
+        "theme": null,
+        "verbal_style": null,
+        "time_range": null,
+        "query": null
+      },
+      "emotion": "Chill",
+      "response": "Recorded, boss!"
+    }
+  },
+  {
+    "utterance": "tiền thưởng cuối năm 50k",
+    "generated": {
+      "intent": "Record",
+      "record_type": "Income",
+      "action_type": null,
+      "slots": {
+        "item": "Tiền thưởng cuối năm",
+        "category": null,
+        "amount": 50000,
+        "verb": null,
+        "goal_name": null,
+        "enabled": null,
+        "theme": null,
+        "verbal_style": null,
+        "time_range": null,
+        "query": null
+      },
+      "emotion": "Happy",
+      "response": "Chúc mừng nhé, tiền thưởng cuối năm mlem mlem!"
+    }
+  },
+  {
+    "utterance": "mimo ơi tôi buồn quá",
+    "generated": {
+      "intent": "Chitchat",
+      "record_type": null,
+      "action_type": null,
+      "slots": {
+        "item": null,
+        "category": null,
+        "amount": null,
+        "verb": null,
+        "goal_name": null,
+        "enabled": null,
+        "theme": null,
+        "verbal_style": null,
+        "time_range": null,
+        "query": null
+      },
+      "emotion": "Sad",
+      "response": "Ui zai, sao mascot mascot buồn theo luôn vậy? Có chuyện gì buồn mascot mascot không?"
+    }
+  },
+  {
+    "utterance": "nhận lương tháng này 20k",
+    "generated": {
+      "intent": "Record",
+      "record_type": "Income",
+      "action_type": null,
+      "slots": {
+        "item": "Tiền lương",
+        "category": "Salary",
+        "amount": 20000000,
+        "verb": null,
+        "goal_name": null,
+        "enabled": null,
+        "theme": null,
+        "verbal_style": null,
+        "time_range": null,
+        "query": null
+      },
+      "emotion": "Happy",
+      "response": "Chào mascot, tháng này làm ăn phát đạt nhé!"
+    }
+  },
+  {
+    "utterance": "sửa xe máy hết 20k",
+    "generated": {
+      "intent": "Record",
+      "record_type": "Expense",
+      "action_type": null,
+      "slots": {
+        "item": "Sửa xe máy",
+        "category": "Transport",
+        "amount": 20000,
+        "verb": null,
+        "goal_name": null,
+        "enabled": null,
+        "theme": null,
+        "verbal_style": null,
+        "time_range": null,
+        "query": null
+      },
+      "emotion": "Chill",
+      "response": "Chỉ là tí tiền sửa xe thôi, cũng ổn mà."
+    }
+  },
+  {
+    "utterance": "mua cổ phiếu 10 triệu",
+    "generated": {
+      "intent": "Record",
+      "record_type": "Investment",
+      "action_type": null,
+      "slots": {
+        "item": "Cổ phiếu",
+        "category": "Investment",
+        "amount": 10000000,
+        "verb": null,
+        "goal_name": null,
+        "enabled": null,
+        "theme": null,
+        "verbal_style": null,
+        "time_range": null,
+        "query": null
+      },
+      "emotion": "Serious",
+      "response": "Recorded, boss!"
+    }
+  },
+  {
+    "utterance": "mua cổ phiếu 1.5 triệu",
+    "generated": {
+      "intent": "Record",
+      "record_type": "Expense",
+      "action_type": null,
+      "slots": {
+        "item": "Cổ phiếu",
+        "category": "Investment",
+        "amount": 1500000,
+        "verb": null,
+        "goal_name": null,
+        "enabled": null,
+        "theme": null,
+        "verbal_style": null,
+        "time_range": null,
+        "query": null
+      },
+      "emotion": "Chill",
+      "response": "Recorded, boss! Ét ô ét."
+    }
+  },
+  {
+    "utterance": "mua thỏi son dưỡng 10 triệu",
+    "generated": {
+      "intent": "Record",
+      "record_type": "Expense",
+      "action_type": null,
+      "slots": {
+        "item": "Thỏi son dưỡng",
+        "category": "Shopping",
+        "amount": 10000000,
+        "verb": null,
+        "goal_name": null,
+        "enabled": null,
+        "theme": null,
+        "verbal_style": null,
+        "time_range": null,
+        "query": null
+      },
+      "emotion": "Chill",
+      "response": "Ét ô ét, mua son dưỡng xịn thế ah?"
+    }
+  },
+  {
+    "utterance": "mua trà sữa hết 2tr",
+    "generated": {
+      "intent": "Record",
+      "record_type": "Expense",
+      "action_type": null,
+      "slots": {
+        "item": "Trà sữa",
+        "category": "Food",
+        "amount": 2000000,
+        "verb": null,
+        "goal_name": null,
+        "enabled": null,
+        "theme": null,
+        "verbal_style": null,
+        "time_range": null,
+        "query": null
+      },
+      "emotion": "Sad",
+      "response": "Oops, 2 triệu cho trà sữa là hơi nhiều đấy mascot à."
+    }
+  },
+  {
+    "utterance": "mua thuốc cảm 1.5 triệu",
+    "generated": {
+      "intent": "Record",
+      "record_type": "Expense",
+      "action_type": null,
+      "slots": {
+        "item": "Thuốc cảm",
+        "category": "Essentials",
+        "amount": 1500000,
+        "verb": null,
+        "goal_name": null,
+        "enabled": null,
+        "theme": null,
+        "verbal_style": null,
+        "time_range": null,
+        "query": null
+      },
+      "emotion": "Chill",
+      "response": "Mimo ghi giao dịch mua thuốc cảm 1.5 triệu rồi nhé."
+    }
+  },
+  {
+    "utterance": "nhận lương tháng này 500k",
+    "generated": {
+      "intent": "Record",
+      "record_type": "Income",
+      "action_type": null,
+      "slots": {
+        "item": "Tiền lương",
+        "category": "Salary",
+        "amount": 500000,
+        "verb": null,
+        "goal_name": null,
+        "enabled": null,
+        "theme": null,
+        "verbal_style": null,
+        "time_range": null,
+        "query": null
+      },
+      "emotion": "Happy",
+      "response": "Chúc mừng nhé, mascot! Tháng này làm việc chăm chỉ đấy."
+    }
+  },
+  {
+    "utterance": "ăn cơm trưa bình dân 1.5 triệu",
+    "generated": {
+      "intent": "Record",
+      "record_type": "Expense",
+      "action_type": null,
+      "slots": {
+        "item": "Cơm trưa bình dân",
+        "category": "Food",
+        "amount": 1500000,
+        "verb": null,
+        "goal_name": null,
+        "enabled": null,
+        "theme": null,
+        "verbal_style": null,
+        "time_range": null,
+        "query": null
+      },
+      "emotion": "Chill",
+      "response": "Ét ô ét, bữa trưa no nhé!"
+    }
+  },
+  {
+    "utterance": "đăng ký mạng Netflix 10 triệu",
+    "generated": {
+      "intent": "Record",
+      "record_type": "Expense",
+      "action_type": null,
+      "slots": {
+        "item": "Netflix",
+        "category": "Entertainment",
+        "amount": 10000000,
+        "verb": null,
+        "goal_name": null,
+        "enabled": null,
+        "theme": null,
+        "verbal_style": null,
+        "time_range": null,
+        "query": null
+      },
+      "emotion": "Chill",
+      "response": "Okay, đã ghi giao dịch mua gói Netflix 10 củ."
+    }
+  },
+  {
+    "utterance": "so sánh chi tiêu tuần này với tuần trước",
+    "error": "Expecting ',' delimiter: line 5 column 18 (char 89)",
+    "raw_json": "{\n  \"intent\": \"Action\",\n  \"action_type\": \"REPORT_COMPARE\",\n  \"slots\": {\n    \"verb\": \"GT\" | \"LT\" | null,\n    \"time_range\": \"tuần này | tuần trước\" | null,\n    \"query\": \"chi tiêu\" | null\n  },\n  \"emotion\": \"Thinking\",\n  \"response\": \"\"\n}"
+  },
+  {
+    "utterance": "mua cổ phiếu 1.5 triệu",
+    "generated": {
+      "intent": "Record",
+      "record_type": "Expense",
+      "action_type": null,
+      "slots": {
+        "item": "Cổ phiếu",
+        "category": "Investment",
+        "amount": 1500000,
+        "verb": null,
+        "goal_name": null,
+        "enabled": null,
+        "theme": null,
+        "verbal_style": null,
+        "time_range": null,
+        "query": null
+      },
+      "emotion": "Chill",
+      "response": "Recorded, boss! Ét ô ét."
+    }
+  },
+  {
+    "utterance": "nộp học phí kỳ này 2tr",
+    "generated": {
+      "intent": "Record",
+      "record_type": "Expense",
+      "action_type": null,
+      "slots": {
+        "item": "Học phí kỳ này",
+        "category": "Education",
+        "amount": 2000000,
+        "verb": null,
+        "goal_name": null,
+        "enabled": null,
+        "theme": null,
+        "verbal_style": null,
+        "time_range": null,
+        "query": null
+      },
+      "emotion": "Chill",
+      "response": "Okay, đã ghi giao dịch học phí kỳ này 2 triệu rồi nhé."
+    }
+  },
+  {
+    "utterance": "ăn cơm trưa bình dân 20k",
+    "generated": {
+      "intent": "Record",
+      "record_type": "Expense",
+      "action_type": null,
+      "slots": {
+        "item": " Cơm trưa bình dân",
+        "category": "Food",
+        "amount": 20000,
+        "verb": null,
+        "goal_name": null,
+        "enabled": null,
+        "theme": null,
+        "verbal_style": null,
+        "time_range": null,
+        "query": null
+      },
+      "emotion": "Chill",
+      "response": "Ét ô ét, bữa trưa bình dân mà no căng rồi!"
+    }
+  },
+  {
+    "utterance": "tổng chi tiêu hôm nay thế nào",
+    "generated": {
+      "intent": "Action",
+      "action_type": "REPORT_GENERAL",
+      "slots": {
+        "verb": "SET",
+        "time_range": "today"
+      },
+      "emotion": "Approved",
+      "response": ""
+    }
+  },
+  {
+    "utterance": "mimo ơi tôi buồn quá",
+    "generated": {
+      "intent": "Chitchat",
+      "record_type": null,
+      "action_type": null,
+      "slots": {
+        "item": null,
+        "category": null,
+        "amount": null,
+        "verb": null,
+        "goal_name": null,
+        "enabled": null,
+        "theme": null,
+        "verbal_style": null,
+        "time_range": null,
+        "query": null
+      },
+      "emotion": "Sad",
+      "response": "Ui zai, sao mascot mascot buồn theo luôn vậy? Có chuyện gì buồn mascot mascot không?"
+    }
+  },
+  {
+    "utterance": "ăn cơm trưa bình dân 10 triệu",
+    "generated": {
+      "intent": "Record",
+      "record_type": "Expense",
+      "action_type": null,
+      "slots": {
+        "item": "Ăn cơm trưa bình dân",
+        "category": "Food",
+        "amount": 10000000,
+        "verb": null,
+        "goal_name": null,
+        "enabled": null,
+        "theme": null,
+        "verbal_style": null,
+        "time_range": null,
+        "query": null
+      },
+      "emotion": "Chill",
+      "response": "Et ô ét, bữa trưa hôm nay hơi phung phí nhỉ!"
+    }
+  },
+  {
+    "utterance": "mua gói tập gym 10 triệu",
+    "generated": {
+      "intent": "Record",
+      "record_type": "Expense",
+      "action_type": null,
+      "slots": {
+        "item": "Gói tập gym",
+        "category": "Health",
+        "amount": 10000000,
+        "verb": null,
+        "goal_name": null,
+        "enabled": null,
+        "theme": null,
+        "verbal_style": null,
+        "time_range": null,
+        "query": null
+      },
+      "emotion": "Chill",
+      "response": "Okay, đã ghi giao dịch mua gói tập gym 10 triệu."
+    }
+  },
+  {
+    "utterance": "nhận lương tháng này 500k",
+    "generated": {
+      "intent": "Record",
+      "record_type": "Income",
+      "action_type": null,
+      "slots": {
+        "item": "Tiền lương",
+        "category": "Salary",
+        "amount": 500000,
+        "verb": null,
+        "goal_name": null,
+        "enabled": null,
+        "theme": null,
+        "verbal_style": null,
+        "time_range": null,
+        "query": null
+      },
+      "emotion": "Happy",
+      "response": "Chúc mừng nhé, mascot! Tháng này làm việc chăm chỉ đấy."
+    }
+  },
+  {
+    "utterance": "mua thỏi son dưỡng 500k",
+    "generated": {
+      "intent": "Record",
+      "record_type": "Expense",
+      "action_type": null,
+      "slots": {
+        "item": "Thỏi son dưỡng",
+        "category": "Shopping",
+        "amount": 500000,
+        "verb": null,
+        "goal_name": null,
+        "enabled": null,
+        "theme": null,
+        "verbal_style": null,
+        "time_range": null,
+        "query": null
+      },
+      "emotion": "Chill",
+      "response": "Ét ô ét, mua son dưỡng rồi à, đẹp ghê!"
+    }
+  },
+  {
+    "utterance": "so sánh chi tiêu tuần này với tuần trước",
+    "error": "Expecting ',' delimiter: line 5 column 18 (char 89)",
+    "raw_json": "{\n  \"intent\": \"Action\",\n  \"action_type\": \"REPORT_COMPARE\",\n  \"slots\": {\n    \"verb\": \"GT\" | \"LT\" | null,\n    \"time_range\": \"tuần này | tuần trước\" | null,\n    \"query\": \"chi tiêu\" | null\n  },\n  \"emotion\": \"Thinking\",\n  \"response\": \"\"\n}"
+  },
+  {
+    "utterance": "nộp học phí kỳ này 2tr",
+    "generated": {
+      "intent": "Record",
+      "record_type": "Expense",
+      "action_type": null,
+      "slots": {
+        "item": "Học phí kỳ này",
+        "category": "Education",
+        "amount": 2000000,
+        "verb": null,
+        "goal_name": null,
+        "enabled": null,
+        "theme": null,
+        "verbal_style": null,
+        "time_range": null,
+        "query": null
+      },
+      "emotion": "Chill",
+      "response": "Okay, đã ghi giao dịch học phí kỳ này 2 triệu rồi nhé."
+    }
+  },
+  {
+    "utterance": "mua thỏi son dưỡng 2tr",
+    "generated": {
+      "intent": "Record",
+      "record_type": "Expense",
+      "action_type": null,
+      "slots": {
+        "item": "Thỏi son dưỡng",
+        "category": "Shopping",
+        "amount": 2000000,
+        "verb": null,
+        "goal_name": null,
+        "enabled": null,
+        "theme": null,
+        "verbal_style": null,
+        "time_range": null,
+        "query": null
+      },
+      "emotion": "Chill",
+      "response": "Ét ô ét, mua son dưỡng hẳn hoi đấy!"
+    }
+  },
+  {
+    "utterance": "tổng chi tiêu hôm nay thế nào",
+    "generated": {
+      "intent": "Action",
+      "action_type": "REPORT_GENERAL",
+      "slots": {
+        "verb": "SET",
+        "time_range": "today"
+      },
+      "emotion": "Approved",
+      "response": ""
+    }
+  },
+  {
+    "utterance": "ăn cơm trưa bình dân 1.5 triệu",
+    "generated": {
+      "intent": "Record",
+      "record_type": "Expense",
+      "action_type": null,
+      "slots": {
+        "item": "Cơm trưa bình dân",
+        "category": "Food",
+        "amount": 1500000,
+        "verb": null,
+        "goal_name": null,
+        "enabled": null,
+        "theme": null,
+        "verbal_style": null,
+        "time_range": null,
+        "query": null
+      },
+      "emotion": "Chill",
+      "response": "Ét ô ét, bữa trưa no nhé!"
+    }
+  },
+  {
+    "utterance": "so sánh chi tiêu tuần này với tuần trước",
+    "error": "Expecting ',' delimiter: line 5 column 18 (char 89)",
+    "raw_json": "{\n  \"intent\": \"Action\",\n  \"action_type\": \"REPORT_COMPARE\",\n  \"slots\": {\n    \"verb\": \"GT\" | \"LT\" | null,\n    \"time_range\": \"tuần này | tuần trước\" | null,\n    \"query\": \"chi tiêu\" | null\n  },\n  \"emotion\": \"Thinking\",\n  \"response\": \"\"\n}"
+  },
+  {
+    "utterance": "đặt hạn mức cho ăn uống 2tr",
+    "generated": {
+      "intent": "Action",
+      "action_type": "SET_LIMIT",
+      "slots": {
+        "verb": "SET",
+        "category": "Food",
+        "amount": 2000000
+      },
+      "emotion": "Approved",
+      "response": ""
+    }
+  },
+  {
+    "utterance": "mua gói tập gym 50k",
+    "generated": {
+      "intent": "Record",
+      "record_type": "Expense",
+      "action_type": null,
+      "slots": {
+        "item": "Gói tập gym",
+        "category": "Health",
+        "amount": 50000,
+        "verb": null,
+        "goal_name": null,
+        "enabled": null,
+        "theme": null,
+        "verbal_style": null,
+        "time_range": null,
+        "query": null
+      },
+      "emotion": "Chill",
+      "response": "Ét ô ét, lại đi tập gym đấy à?"
+    }
+  },
+  {
+    "utterance": "mua thuốc cảm 500k",
+    "generated": {
+      "intent": "Record",
+      "record_type": "Expense",
+      "action_type": null,
+      "slots": {
+        "item": "Thuốc cảm",
+        "category": "Essentials",
+        "amount": 500000,
+        "verb": null,
+        "goal_name": null,
+        "enabled": null,
+        "theme": null,
+        "verbal_style": null,
+        "time_range": null,
+        "query": null
+      },
+      "emotion": "Chill",
+      "response": "Mua thuốc cảm rồi à, cẩn thận sức khỏe nhé."
+    }
+  },
+  {
+    "utterance": "mua thỏi son dưỡng 2tr",
+    "generated": {
+      "intent": "Record",
+      "record_type": "Expense",
+      "action_type": null,
+      "slots": {
+        "item": "Thỏi son dưỡng",
+        "category": "Shopping",
+        "amount": 2000000,
+        "verb": null,
+        "goal_name": null,
+        "enabled": null,
+        "theme": null,
+        "verbal_style": null,
+        "time_range": null,
+        "query": null
+      },
+      "emotion": "Chill",
+      "response": "Ét ô ét, mua son dưỡng hẳn hoi đấy!"
+    }
+  },
+  {
+    "utterance": "mua gói tập gym 2tr",
+    "generated": {
+      "intent": "Record",
+      "record_type": "Expense",
+      "action_type": null,
+      "slots": {
+        "item": "Gói tập gym",
+        "category": "Health",
+        "amount": 2000000,
+        "verb": null,
+        "goal_name": null,
+        "enabled": null,
+        "theme": null,
+        "verbal_style": null,
+        "time_range": null,
+        "query": null
+      },
+      "emotion": "Chill",
+      "response": "Recorded, boss! Chill out and get fit."
+    }
+  },
+  {
+    "utterance": "đóng tiền nhà tháng này 10 triệu",
+    "generated": {
+      "intent": "Record",
+      "record_type": "Expense",
+      "action_type": null,
+      "slots": {
+        "item": "Tiền nhà",
+        "category": "Essentials",
+        "amount": 10000000,
+        "verb": null,
+        "goal_name": null,
+        "enabled": null,
+        "theme": null,
+        "verbal_style": null,
+        "time_range": null,
+        "query": null
+      },
+      "emotion": "Chill",
+      "response": "OK boss, đã ghi giao dịch đóng tiền nhà 10 củ rồi."
+    }
+  },
+  {
+    "utterance": "mimo ơi tôi buồn quá",
+    "generated": {
+      "intent": "Chitchat",
+      "record_type": null,
+      "action_type": null,
+      "slots": {
+        "item": null,
+        "category": null,
+        "amount": null,
+        "verb": null,
+        "goal_name": null,
+        "enabled": null,
+        "theme": null,
+        "verbal_style": null,
+        "time_range": null,
+        "query": null
+      },
+      "emotion": "Sad",
+      "response": "Ui zai, sao mascot mascot buồn theo luôn vậy? Có chuyện gì buồn mascot mascot không?"
+    }
+  },
+  {
+    "utterance": "mua trà sữa hết 50k",
+    "generated": {
+      "intent": "Record",
+      "record_type": "Expense",
+      "action_type": null,
+      "slots": {
+        "item": "Trà sữa",
+        "category": "Food",
+        "amount": 50000,
+        "verb": null,
+        "goal_name": null,
+        "enabled": null,
+        "theme": null,
+        "verbal_style": null,
+        "time_range": null,
+        "query": null
+      },
+      "emotion": "Chill",
+      "response": "Ét ô ét, cup trà sữa yêu thích lại hết 50k đấy."
+    }
+  },
+  {
+    "utterance": "cảm ơn mimo nhé",
+    "generated": {
+      "intent": "Chitchat",
+      "record_type": null,
+      "action_type": null,
+      "slots": {
+        "item": null,
+        "category": null,
+        "amount": null,
+        "verb": null,
+        "goal_name": null,
+        "enabled": null,
+        "theme": null,
+        "verbal_style": null,
+        "time_range": null,
+        "query": null
+      },
+      "emotion": "Thankful",
+      "response": "Không có gì mà mascot thân thiện của mascot thân thiện này không làm được cho mascot thân thiện của nó mascot thân thiện đâu ét!"
+    }
+  },
+  {
+    "utterance": "hôm nay thời tiết đẹp quá nhỉ",
+    "generated": {
+      "intent": "Chitchat",
+      "record_type": null,
+      "action_type": null,
+      "slots": {
+        "item": null,
+        "category": null,
+        "amount": null,
+        "verb": null,
+        "goal_name": null,
+        "enabled": null,
+        "theme": null,
+        "verbal_style": "gentle",
+        "time_range": null,
+        "query": null
+      },
+      "emotion": "Happy",
+      "response": "Thật đấy, thời tiết đẹp làm người ta vui hẳn lên ấy."
+    }
+  },
+  {
+    "utterance": "sửa xe máy hết 100k",
+    "generated": {
+      "intent": "Record",
+      "record_type": "Expense",
+      "action_type": null,
+      "slots": {
+        "item": "Sửa xe máy",
+        "category": "Transport",
+        "amount": 100000,
+        "verb": null,
+        "goal_name": null,
+        "enabled": null,
+        "theme": null,
+        "verbal_style": null,
+        "time_range": null,
+        "query": null
+      },
+      "emotion": "Chill",
+      "response": "Xe máy đã ổn rồi nhé, chỉ cần chú ý bảo dưỡng thường xuyên."
+    }
+  },
+  {
+    "utterance": "ăn cơm trưa bình dân 50k",
+    "generated": {
+      "intent": "Record",
+      "record_type": "Expense",
+      "action_type": null,
+      "slots": {
+        "item": " Cơm trưa bình dân",
+        "category": "Food",
+        "amount": 50000,
+        "verb": null,
+        "goal_name": null,
+        "enabled": null,
+        "theme": null,
+        "verbal_style": null,
+        "time_range": null,
+        "query": null
+      },
+      "emotion": "Chill",
+      "response": "Ét ô ét, bữa trưa bình dân thôi mà cũng ghi gõ phắt!"
+    }
+  },
+  {
+    "utterance": "cảnh báo khi tiêu quá 2tr",
+    "generated": {
+      "intent": "Action",
+      "action_type": "SET_ALERT",
+      "slots": {
+        "verb": "SET",
+        "enabled": true,
+        "theme": "dark",
+        "verbal_style": "serious",
+        "time_range": "global",
+        "query": "tiêu quá 2 triệu"
+      },
+      "emotion": "Alert",
+      "response": ""
+    }
+  },
+  {
+    "utterance": "đóng tiền nhà tháng này 50k",
+    "generated": {
+      "intent": "Record",
+      "record_type": "Expense",
+      "action_type": null,
+      "slots": {
+        "item": "Tiền nhà",
+        "category": "Essentials",
+        "amount": 50000,
+        "verb": null,
+        "goal_name": null,
+        "enabled": null,
+        "theme": null,
+        "verbal_style": null,
+        "time_range": null,
+        "query": null
+      },
+      "emotion": "Chill",
+      "response": "Recorded, boss!"
+    }
+  },
+  {
+    "utterance": "so sánh chi tiêu tuần này với tuần trước",
+    "error": "Expecting ',' delimiter: line 5 column 18 (char 89)",
+    "raw_json": "{\n  \"intent\": \"Action\",\n  \"action_type\": \"REPORT_COMPARE\",\n  \"slots\": {\n    \"verb\": \"GT\" | \"LT\" | null,\n    \"time_range\": \"tuần này | tuần trước\" | null,\n    \"query\": \"chi tiêu\" | null\n  },\n  \"emotion\": \"Thinking\",\n  \"response\": \"\"\n}"
+  },
+  {
+    "utterance": "mua thuốc cảm 50k",
+    "generated": {
+      "intent": "Record",
+      "record_type": "Expense",
+      "action_type": null,
+      "slots": {
+        "item": "Thuốc cảm",
+        "category": "Essentials",
+        "amount": 50000,
+        "verb": null,
+        "goal_name": null,
+        "enabled": null,
+        "theme": null,
+        "verbal_style": null,
+        "time_range": null,
+        "query": null
+      },
+      "emotion": "Chill",
+      "response": "Mua thuốc cảm rồi à, cẩn thận sức khỏe nhé."
+    }
+  },
+  {
+    "utterance": "mua thỏi son dưỡng 50k",
+    "generated": {
+      "intent": "Record",
+      "record_type": "Expense",
+      "action_type": null,
+      "slots": {
+        "item": "Thỏi son dưỡng",
+        "category": "Shopping",
+        "amount": 50000,
+        "verb": null,
+        "goal_name": null,
+        "enabled": null,
+        "theme": null,
+        "verbal_style": null,
+        "time_range": null,
+        "query": null
+      },
+      "emotion": "Chill",
+      "response": "Ét ô ét, mua son dưỡng rồi à, đẹp ghê!"
+    }
+  },
+  {
+    "utterance": "mua gói tập gym 2tr",
+    "generated": {
+      "intent": "Record",
+      "record_type": "Expense",
+      "action_type": null,
+      "slots": {
+        "item": "Gói tập gym",
+        "category": "Health",
+        "amount": 2000000,
+        "verb": null,
+        "goal_name": null,
+        "enabled": null,
+        "theme": null,
+        "verbal_style": null,
+        "time_range": null,
+        "query": null
+      },
+      "emotion": "Chill",
+      "response": "Recorded, boss! Chill out and get fit."
+    }
+  },
+  {
+    "utterance": "đặt hạn mức cho ăn uống 1.5 triệu",
+    "generated": {
+      "intent": "Action",
+      "action_type": "SET_LIMIT",
+      "slots": {
+        "verb": "SET",
+        "category": "Food",
+        "amount": 1500000,
+        "enabled": true
+      },
+      "emotion": "Approved",
+      "response": ""
+    }
+  },
+  {
+    "utterance": "mua thỏi son dưỡng 2tr",
+    "generated": {
+      "intent": "Record",
+      "record_type": "Expense",
+      "action_type": null,
+      "slots": {
+        "item": "Thỏi son dưỡng",
+        "category": "Shopping",
+        "amount": 2000000,
+        "verb": null,
+        "goal_name": null,
+        "enabled": null,
+        "theme": null,
+        "verbal_style": null,
+        "time_range": null,
+        "query": null
+      },
+      "emotion": "Chill",
+      "response": "Ét ô ét, mua son dưỡng hẳn hoi đấy!"
+    }
+  },
+  {
+    "utterance": "cảnh báo khi tiêu quá 500k",
+    "generated": {
+      "intent": "Action",
+      "record_type": null,
+      "action_type": "SET_ALERT",
+      "slots": {
+        "item": null,
+        "category": null,
+        "amount": 500000,
+        "verb": "SET",
+        "goal_name": null,
+        "enabled": true,
+        "theme": null,
+        "verbal_style": null,
+        "time_range": null,
+        "query": null
+      },
+      "emotion": "Approved",
+      "response": ""
+    }
+  },
+  {
+    "utterance": "cảnh báo khi tiêu quá 500k",
+    "generated": {
+      "intent": "Action",
+      "record_type": null,
+      "action_type": "SET_ALERT",
+      "slots": {
+        "item": null,
+        "category": null,
+        "amount": 500000,
+        "verb": "SET",
+        "goal_name": null,
+        "enabled": true,
+        "theme": null,
+        "verbal_style": null,
+        "time_range": null,
+        "query": null
+      },
+      "emotion": "Approved",
+      "response": ""
+    }
+  },
+  {
+    "utterance": "tiền thưởng cuối năm 1.5 triệu",
+    "generated": {
+      "intent": "Record",
+      "record_type": "Income",
+      "action_type": null,
+      "slots": {
+        "item": "Tiền thưởng cuối năm",
+        "category": "Bonus",
+        "amount": 1500000,
+        "verb": null,
+        "goal_name": null,
+        "enabled": null,
+        "theme": null,
+        "verbal_style": null,
+        "time_range": null,
+        "query": null
+      },
+      "emotion": "Happy",
+      "response": "Chúc mừng nhé, tiền thưởng cuối năm về rồi!"
+    }
+  },
+  {
+    "utterance": "đi chợ mua đồ ăn hết 20k",
+    "generated": {
+      "intent": "Record",
+      "record_type": "Expense",
+      "action_type": null,
+      "slots": {
+        "item": "Đồ ăn chợ",
+        "category": "Essentials",
+        "amount": 20000,
+        "verb": null,
+        "goal_name": null,
+        "enabled": null,
+        "theme": null,
+        "verbal_style": null,
+        "time_range": null,
+        "query": null
+      },
+      "emotion": "Chill",
+      "response": "Ét ô ét, đi chợ về rồi à. Hơi mệt tí nhưng mà rẻ quá!"
+    }
+  },
+  {
+    "utterance": "mimo ơi tôi buồn quá",
+    "generated": {
+      "intent": "Chitchat",
+      "record_type": null,
+      "action_type": null,
+      "slots": {
+        "item": null,
+        "category": null,
+        "amount": null,
+        "verb": null,
+        "goal_name": null,
+        "enabled": null,
+        "theme": null,
+        "verbal_style": null,
+        "time_range": null,
+        "query": null
+      },
+      "emotion": "Sad",
+      "response": "Ui zai, sao mascot mascot buồn theo luôn vậy? Có chuyện gì buồn mascot mascot không?"
+    }
+  },
+  {
+    "utterance": "nhận lương tháng này 50k",
+    "generated": {
+      "intent": "Record",
+      "record_type": "Income",
+      "action_type": null,
+      "slots": {
+        "item": "Tiền lương",
+        "category": "Salary",
+        "amount": 50000000,
+        "verb": null,
+        "goal_name": null,
+        "enabled": null,
+        "theme": null,
+        "verbal_style": null,
+        "time_range": null,
+        "query": null
+      },
+      "emotion": "Happy",
+      "response": "Chào mascot, tháng này làm ăn phát đạt nhé ét ô ét!"
+    }
+  },
+  {
+    "utterance": "so sánh chi tiêu tuần này với tuần trước",
+    "error": "Expecting ',' delimiter: line 5 column 18 (char 89)",
+    "raw_json": "{\n  \"intent\": \"Action\",\n  \"action_type\": \"REPORT_COMPARE\",\n  \"slots\": {\n    \"verb\": \"GT\" | \"LT\" | null,\n    \"time_range\": \"tuần này | tuần trước\" | null,\n    \"query\": \"chi tiêu\" | null\n  },\n  \"emotion\": \"Thinking\",\n  \"response\": \"\"\n}"
+  },
+  {
+    "utterance": "hôm nay thời tiết đẹp quá nhỉ",
+    "generated": {
+      "intent": "Chitchat",
+      "record_type": null,
+      "action_type": null,
+      "slots": {
+        "item": null,
+        "category": null,
+        "amount": null,
+        "verb": null,
+        "goal_name": null,
+        "enabled": null,
+        "theme": null,
+        "verbal_style": "gentle",
+        "time_range": null,
+        "query": null
+      },
+      "emotion": "Happy",
+      "response": "Thật đấy, thời tiết đẹp làm người ta vui hẳn lên ấy."
+    }
+  },
+  {
+    "utterance": "trả tiền điện nước 1.5 triệu",
+    "error": "Extra data: line 21 column 1 (char 416)",
+    "raw_json": "{\n  \"intent\": \"Record\",\n  \"record_type\": \"Expense\",\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": \"Tiền điện nước\",\n    \"category\": \"Essentials\",\n    \"amount\": 1500000,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Chill\",\n  \"response\": \"Recorded, boss!SYSTEM_SETTING \\\"theme\\\": \\\"dark\\\"\"\n}\n\nNote: The system setting part in the response is incorrect and should not be included since the intent is \"Record\" and not \"Action\". Here's the corrected version:\n\n{\n  \"intent\": \"Record\",\n  \"record_type\": \"Expense\",\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": \"Tiền điện nước\",\n    \"category\": \"Essentials\",\n    \"amount\": 1500000,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Chill\",\n  \"response\": \"Recorded, boss!\"\n}"
+  },
+  {
+    "utterance": "ăn cơm trưa bình dân 500k",
+    "generated": {
+      "intent": "Record",
+      "record_type": "Expense",
+      "action_type": null,
+      "slots": {
+        "item": " Cơm trưa bình dân",
+        "category": "Food",
+        "amount": 500000,
+        "verb": null,
+        "goal_name": null,
+        "enabled": null,
+        "theme": null,
+        "verbal_style": null,
+        "time_range": null,
+        "query": null
+      },
+      "emotion": "Chill",
+      "response": "Ét ô ét, bữa trưa bình dân mà cũng hết 500k à?"
+    }
+  },
+  {
+    "utterance": "mua thuốc cảm 1.5 triệu",
+    "generated": {
+      "intent": "Record",
+      "record_type": "Expense",
+      "action_type": null,
+      "slots": {
+        "item": "Thuốc cảm",
+        "category": "Essentials",
+        "amount": 1500000,
+        "verb": null,
+        "goal_name": null,
+        "enabled": null,
+        "theme": null,
+        "verbal_style": null,
+        "time_range": null,
+        "query": null
+      },
+      "emotion": "Chill",
+      "response": "Mimo ghi giao dịch mua thuốc cảm 1.5 triệu rồi nhé."
+    }
+  },
+  {
+    "utterance": "mua thỏi son dưỡng 1.5 triệu",
+    "generated": {
+      "intent": "Record",
+      "record_type": "Expense",
+      "action_type": null,
+      "slots": {
+        "item": "Thỏi son dưỡng",
+        "category": "Shopping",
+        "amount": 1500000,
+        "verb": null,
+        "goal_name": null,
+        "enabled": null,
+        "theme": null,
+        "verbal_style": null,
+        "time_range": null,
+        "query": null
+      },
+      "emotion": "Chill",
+      "response": "Ét ô ét, mua son dưỡng xịn thế!"
+    }
+  },
+  {
+    "utterance": "chuyển 2tr đi ăn cưới",
+    "generated": {
+      "intent": "Record",
+      "record_type": "Expense",
+      "action_type": null,
+      "slots": {
+        "item": "Ăn cưới",
+        "category": "Social",
+        "amount": 2000000,
+        "verb": null,
+        "goal_name": null,
+        "enabled": null,
+        "theme": null,
+        "verbal_style": null,
+        "time_range": null,
+        "query": null
+      },
+      "emotion": "Happy",
+      "response": "Chúc mừng bạn đã có một bữa ăn cưới vui vẻ!"
+    }
+  },
+  {
+    "utterance": "tổng chi tiêu hôm nay thế nào",
+    "generated": {
+      "intent": "Action",
+      "action_type": "REPORT_GENERAL",
+      "slots": {
+        "verb": "SET",
+        "time_range": "today"
+      },
+      "emotion": "Approved",
+      "response": ""
+    }
+  },
+  {
+    "utterance": "mimo ơi tôi buồn quá",
+    "generated": {
+      "intent": "Chitchat",
+      "record_type": null,
+      "action_type": null,
+      "slots": {
+        "item": null,
+        "category": null,
+        "amount": null,
+        "verb": null,
+        "goal_name": null,
+        "enabled": null,
+        "theme": null,
+        "verbal_style": null,
+        "time_range": null,
+        "query": null
+      },
+      "emotion": "Sad",
+      "response": "Ui zai, sao mascot mascot buồn theo luôn vậy? Có chuyện gì buồn mascot mascot không?"
+    }
+  },
+  {
+    "utterance": "mimo ơi tôi buồn quá",
+    "generated": {
+      "intent": "Chitchat",
+      "record_type": null,
+      "action_type": null,
+      "slots": {
+        "item": null,
+        "category": null,
+        "amount": null,
+        "verb": null,
+        "goal_name": null,
+        "enabled": null,
+        "theme": null,
+        "verbal_style": null,
+        "time_range": null,
+        "query": null
+      },
+      "emotion": "Sad",
+      "response": "Ui zai, sao mascot mascot buồn theo luôn vậy? Có chuyện gì buồn mascot mascot không?"
+    }
+  },
+  {
+    "utterance": "đóng tiền nhà tháng này 20k",
+    "generated": {
+      "intent": "Record",
+      "record_type": "Expense",
+      "action_type": null,
+      "slots": {
+        "item": "Tiền nhà",
+        "category": "Essentials",
+        "amount": 20000000,
+        "verb": null,
+        "goal_name": null,
+        "enabled": null,
+        "theme": null,
+        "verbal_style": null,
+        "time_range": null,
+        "query": null
+      },
+      "emotion": "Chill",
+      "response": "Đã ghi giao dịch đóng tiền nhà 20k rồi nhé."
+    }
+  },
+  {
+    "utterance": "đăng ký mạng Netflix 500k",
+    "generated": {
+      "intent": "Record",
+      "record_type": "Expense",
+      "action_type": null,
+      "slots": {
+        "item": "Netflix",
+        "category": "Entertainment",
+        "amount": 500000,
+        "verb": null,
+        "goal_name": null,
+        "enabled": null,
+        "theme": null,
+        "verbal_style": null,
+        "time_range": null,
+        "query": null
+      },
+      "emotion": "Chill",
+      "response": "Okay, đã ghi giao dịch mua gói Netflix 500k rồi nhé."
+    }
+  },
+  {
+    "utterance": "đổ xăng xe máy 500k",
+    "generated": {
+      "intent": "Record",
+      "record_type": "Expense",
+      "action_type": null,
+      "slots": {
+        "item": "Tiền xăng",
+        "category": "Transport",
+        "amount": 500000,
+        "verb": null,
+        "goal_name": null,
+        "enabled": null,
+        "theme": null,
+        "verbal_style": null,
+        "time_range": null,
+        "query": null
+      },
+      "emotion": "Chill",
+      "response": "Ét ô ét, đổ xăng xe máy hết 500k à, câu nói tiếp nhé!"
+    }
+  },
+  {
+    "utterance": "chuyển 2tr đi ăn cưới",
+    "generated": {
+      "intent": "Record",
+      "record_type": "Expense",
+      "action_type": null,
+      "slots": {
+        "item": "Ăn cưới",
+        "category": "Social",
+        "amount": 2000000,
+        "verb": null,
+        "goal_name": null,
+        "enabled": null,
+        "theme": null,
+        "verbal_style": null,
+        "time_range": null,
+        "query": null
+      },
+      "emotion": "Happy",
+      "response": "Chúc mừng bạn đã có một bữa ăn cưới vui vẻ!"
+    }
+  },
+  {
+    "utterance": "mua cái áo phông 10 triệu",
+    "generated": {
+      "intent": "Record",
+      "record_type": "Expense",
+      "action_type": null,
+      "slots": {
+        "item": "Áo phông",
+        "category": "Shopping",
+        "amount": 10000000,
+        "verb": null,
+        "goal_name": null,
+        "enabled": null,
+        "theme": null,
+        "verbal_style": null,
+        "time_range": null,
+        "query": null
+      },
+      "emotion": "Sad",
+      "response": "Oops, một món hàng khá đắt nhé. Chắc phải cân nhắc kỹ hơn trong shopping."
+    }
+  },
+  {
+    "utterance": "đổ xăng xe máy 1.5 triệu",
+    "generated": {
+      "intent": "Record",
+      "record_type": "Expense",
+      "action_type": null,
+      "slots": {
+        "item": "Tiền xăng",
+        "category": "Transport",
+        "amount": 1500000,
+        "verb": null,
+        "goal_name": null,
+        "enabled": null,
+        "theme": null,
+        "verbal_style": null,
+        "time_range": null,
+        "query": null
+      },
+      "emotion": "Chill",
+      "response": "Ét ô ét, đổ xăng xe máy hết 1.5 củ nhé."
+    }
+  }
+]

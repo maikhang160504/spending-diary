@@ -1,0 +1,402 @@
+[
+  {
+    "user_utterance": "chuyển 2tr đi ăn cưới",
+    "qwen_generated": "{\n  \"intent\": \"Record\",\n  \"record_type\": \"Expense\",\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": \"Chuyển đi ăn cưới\",\n    \"category\": \"Social\",\n    \"amount\": 2000000,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Happy\",\n  \"response\": \"Chúc mừng bạn đã tham dự bữa tiệc ăn cưới vui vẻ!\"\n}"
+  },
+  {
+    "user_utterance": "mua thỏi son dưỡng 50k",
+    "qwen_generated": "{\n  \"intent\": \"Record\",\n  \"record_type\": \"Expense\",\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": \"Thỏi son dưỡng\",\n    \"category\": \"Beauty\",\n    \"amount\": 50000,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Chill\",\n  \"response\": \"Mua son dưỡng rồi à, hợp gu nhé!\"\n}"
+  },
+  {
+    "user_utterance": "mua son môi hết 20k",
+    "qwen_generated": "{\n  \"intent\": \"Record\",\n  \"record_type\": \"Expense\",\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": \"Son môi\",\n    \"category\": \"Beauty\",\n    \"amount\": 20000,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Chill\",\n  \"response\": \"Mua son môi rồi à, hợp với bạn đấy!\"\n}"
+  },
+  {
+    "user_utterance": "mua gói tập gym 50k",
+    "qwen_generated": "{\n  \"intent\": \"Record\",\n  \"record_type\": \"Expense\",\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": \"Gói tập gym\",\n    \"category\": \"Health\",\n    \"amount\": 50000,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Chill\",\n  \"response\": \"Một buổi tập gym bổ ích nhé, giữ sức khỏe là quan trọng nhất!\"\n}"
+  },
+  {
+    "user_utterance": "báo cáo chi tiêu tháng này",
+    "qwen_generated": "{\n  \"intent\": \"Action\",\n  \"record_type\": null,\n  \"action_type\": \"REPORT_GENERAL\",\n  \"slots\": {\n    \"item\": null,\n    \"category\": null,\n    \"amount\": null,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": \"tháng này\",\n    \"query\": null\n  },\n  \"emotion\": \"Serious\",\n  \"response\": \"Tháng này bạn đã花费了本月的预算，系统严肃地记录了支出，并用越南语回应：\n\n{\n  \"intent\": \"Action\",\n  \"action_type\": \"REPORT_GENERAL\",\n  \"emotion\": \"Serious\",\n  \"response\": \"Tháng này bạn đã花费了这个月的预算，系统严肃地记录了支出，并用越南语回应：\n\n{\n  \"intent\": \"Action\",\n  \"action_type\": \"REPORT_GENERAL\",\n  \"emotion\": \"Serious\",\n  \"response\": \"Tháng này bạn đã花费了这个月的预算，纠正回答：\n\n{\n  \"intent\": \"Action\",\n  \"action_type\": \"REPORT_GENERAL\",\n  \"emotion\": \"Serious\",\n  \"response\": \"Tháng này bạn đã chi khoảng <amount> đồng. Chắc hẳn có nhiều khoản支出。系统严肃地记录了用户的总支出，并用越南语回应：\n\n{\n  \"intent\": \"Action\",\n  \"action_type\": \"REPORT_GENERAL\",\n  \"emotion\": \"Serious\",\n  \"response\": \"Tháng này bạn đã chi khoảng <amount> đồng. Chắc hẳn có nhiều khoản支出。纠正回答：\n\n{\n  \"intent\": \"Action\",\n  \"action_type\": \"REPORT_GENERAL\",\n  \"emotion\": \"Serious\",\n  \"response\": \"Tháng này bạn đã chi khoảng <amount> đồng. Chắc hẳn có nhiều khoản支出记录。用正确的金额回答：\n\n{\n  \"intent\": \"Action\",\n  \"action_type\": \"REPORT_GENERAL\",\n  \"emotion\": \"Serious\",\n  \"response\": \"Tháng này bạn đã chi khoảng 5 triệu đồng. Chắc hẳn có nhiều khoản支出记录。\n\n注意：系统返回的JSON中 `<amount>` 需要替换为实际金额（例如5,000,000）。完整的正确回答：\n\n{\n  \"intent\": \"Action\",\n  \"action_type\": \"REPORT_GENERAL\",\n  \"emotion\":"
+  },
+  {
+    "user_utterance": "đặt hạn mức cho ăn uống 2tr",
+    "qwen_generated": "{\n  \"intent\": \"Action\",\n  \"action_type\": \"SET_LIMIT\",\n  \"slots\": {\n    \"verb\": \"SET\",\n    \"category\": \"Food\",\n    \"amount\": 2000000\n  },\n  \"emotion\": \"Approved\",\n  \"response\": \"\"\n}"
+  },
+  {
+    "user_utterance": "mimo ơi tôi buồn quá",
+    "qwen_generated": "{\n  \"intent\": \"Chitchat\",\n  \"record_type\": null,\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": null,\n    \"category\": null,\n    \"amount\": null,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Sad\",\n  \"response\": \"Buồn vậy à, mascot mascot thân thiệt, có chuyện gì buồn không? mascot nói câu nói thân thiện và động viên bằng câu nói bằng tiếng Việt.\"\n}"
+  },
+  {
+    "user_utterance": "ăn cơm trưa bình dân 1.5 triệu",
+    "qwen_generated": "{\n  \"intent\": \"Record\",\n  \"record_type\": \"Expense\",\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": \"Cơm trưa bình dân\",\n    \"category\": \"Food\",\n    \"amount\": 1500000,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Sad\",\n  \"response\": \"Mimo thấy câu nói này hơi bất thường về một bữa cơm trưa bình dân đấy. Có vẻ như bữa ăn hôm nay khá đắt!\"\n}"
+  },
+  {
+    "user_utterance": "trả tiền điện nước 20k",
+    "qwen_generated": "{\n  \"intent\": \"Record\",\n  \"record_type\": \"Expense\",\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": \"Tiền điện nước\",\n    \"category\": \"Housing\",\n    \"amount\": 20000,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Chill\",\n  \"response\": \"Phí điện nước cũng đều đều vậy, hãy chú ý sử dụng hợp lý nhé!\"\n}"
+  },
+  {
+    "user_utterance": "chuyển 20k đi ăn cưới",
+    "qwen_generated": "{\n  \"intent\": \"Record\",\n  \"record_type\": \"Expense\",\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": \"Chuyển đi ăn cưới\",\n    \"category\": \"Social\",\n    \"amount\": 20000,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Happy\",\n  \"response\": \"Chúc mừng bạn đã tham gia bữa tiệc ăn cưới vui vẻ!\"\n}"
+  },
+  {
+    "user_utterance": "nộp học phí kỳ này 50k",
+    "qwen_generated": "{\n  \"intent\": \"Record\",\n  \"record_type\": \"Expense\",\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": \"Học phí kỳ này\",\n    \"category\": \"Education\",\n    \"amount\": 50000,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Chill\",\n  \"response\": \"Học phí kỳ này 50k à, giao dịch giao dịch cho biết.\"\n}"
+  },
+  {
+    "user_utterance": "mua cái áo phông 1.5 triệu",
+    "qwen_generated": "{\n  \"intent\": \"Record\",\n  \"record_type\": \"Expense\",\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": \"Áo phông\",\n    \"category\": \"Shopping\",\n    \"amount\": 1500000,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Sassy\",\n  \"response\": \"Mua áo phông mà hết cả triệu à? Chắc đẹp lắm nhỉ!\"\n}"
+  },
+  {
+    "user_utterance": "chuyển 1.5 triệu đi ăn cưới",
+    "qwen_generated": "{\n  \"intent\": \"Record\",\n  \"record_type\": \"Expense\",\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": \"Chuyển tiền đi ăn cưới\",\n    \"category\": \"Social\",\n    \"amount\": 1500000,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Happy\",\n  \"response\": \"Chúc mừng bạn đã tham dự bữa tiệc ăn cưới vui vẻ!\"\n}"
+  },
+  {
+    "user_utterance": "nộp học phí kỳ này 2tr",
+    "qwen_generated": "{\n  \"intent\": \"Record\",\n  \"record_type\": \"Expense\",\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": \"Học phí kỳ này\",\n    \"category\": \"Education\",\n    \"amount\": 2000000,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Chill\",\n  \"response\": \"Học phí kỳ này khá cao đấy, cố gắng học tốt nhé!\"\n}"
+  },
+  {
+    "user_utterance": "mua son môi hết 2tr",
+    "qwen_generated": "{\n  \"intent\": \"Record\",\n  \"record_type\": \"Expense\",\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": \"Son môi\",\n    \"category\": \"Beauty\",\n    \"amount\": 2000000,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Chill\",\n  \"response\": \"Hình như bạn đã mua một cây son khá đắt nhé!\"\n}"
+  },
+  {
+    "user_utterance": "mua chai dầu gội hết 500k",
+    "qwen_generated": "{\n  \"intent\": \"Record\",\n  \"record_type\": \"Expense\",\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": \"Chai dầu gội\",\n    \"category\": \"Essentials\",\n    \"amount\": 500000,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Sad\",\n  \"response\": \"Mimo thấy rằng 500k cho một chai dầu gội hơi mắc đấy, bạn có chắc là mình đã chọn đúng sản phẩm không?\"\n}"
+  },
+  {
+    "user_utterance": "mua gói tập gym 500k",
+    "qwen_generated": "{\n  \"intent\": \"Record\",\n  \"record_type\": \"Expense\",\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": \"Gói tập gym\",\n    \"category\": \"Health\",\n    \"amount\": 500000,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Approved\",\n  \"response\": \"Mua gói tập gym rồi à? Rất tốt cho sức khỏe đấy!\"\n}"
+  },
+  {
+    "user_utterance": "đổi bình GAS hết 100k",
+    "qwen_generated": "{\n  \"intent\": \"Record\",\n  \"record_type\": \"Expense\",\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": \"Bình GAS\",\n    \"category\": \"Essentials\",\n    \"amount\": 100000,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Chill\",\n  \"response\": \"Hóa ra là tiền đổi bình GAS đấy, cần thiết thật!\"\n}"
+  },
+  {
+    "user_utterance": "tổng chi tiêu hôm nay thế nào",
+    "qwen_generated": "{\n  \"intent\": \"Action\",\n  \"action_type\": \"REPORT_GENERAL\",\n  \"slots\": {\n    \"verb\": \"SET\",\n    \"time_range\": \"today\",\n    \"query\": \"general expense\"\n  },\n  \"emotion\": \"Chill\",\n  \"response\": \"Hôm nay bạn đã花费了多少钱今天花了多少钱BitFields"
+  },
+  {
+    "user_utterance": "chuyển 10 triệu đi ăn cưới",
+    "qwen_generated": "{\n  \"intent\": \"Record\",\n  \"record_type\": \"Expense\",\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": \"Chuyển tiền đi ăn cưới\",\n    \"category\": \"Social\",\n    \"amount\": 10000000,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Happy\",\n  \"response\": \"Chúc mừng bạn đã có một bữa ăn vui vẻ tại đám cưới!\"\n}"
+  },
+  {
+    "user_utterance": "tổng chi tiêu hôm nay thế nào",
+    "qwen_generated": "{\n  \"intent\": \"Action\",\n  \"action_type\": \"REPORT_GENERAL\",\n  \"slots\": {\n    \"verb\": \"SET\",\n    \"time_range\": \"today\",\n    \"query\": \"general expense\"\n  },\n  \"emotion\": \"Chill\",\n  \"response\": \"Hôm nay bạn đã花费了多少钱今天花了多少钱BitFields"
+  },
+  {
+    "user_utterance": "cảnh báo khi tiêu quá 500k",
+    "qwen_generated": "{\n  \"intent\": \"Action\",\n  \"record_type\": null,\n  \"action_type\": \"SET_ALERT\",\n  \"slots\": {\n    \"item\": null,\n    \"category\": null,\n    \"amount\": 500000,\n    \"verb\": \"SET\",\n    \"goal_name\": null,\n    \"enabled\": true,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Alert\",\n  \"response\": \"\"\n}"
+  },
+  {
+    "user_utterance": "đóng tiền nhà tháng này 100k",
+    "qwen_generated": "{\n  \"intent\": \"Record\",\n  \"record_type\": \"Expense\",\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": \"Tiền nhà\",\n    \"category\": \"Housing\",\n    \"amount\": 100000,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Chill\",\n  \"response\": \"Một trăm nghìn cho tiền nhà cũng ổn đấy!\"\n}"
+  },
+  {
+    "user_utterance": "tiền thưởng cuối năm 50k",
+    "qwen_generated": "{\n  \"intent\": \"Record\",\n  \"record_type\": \"Income\",\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": \"Tiền thưởng cuối năm\",\n    \"category\": \"Bonus\",\n    \"amount\": 50000,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Happy\",\n  \"response\": \"Hay quá, một món奖金返回的是一个JSON格式的字符串，而不是中文解释。根据指令和规则，正确的JSON响应应为：\n\n{\n  \"intent\": \"Record\",\n  \"record_type\": \"Income\",\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": \"Tiền thưởng cuối năm\",\n    \"category\": \"Bonus\",\n    \"amount\": 50000,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Happy\",\n  \"response\": \"Một món tiền thưởng đáng kể!\"\n}"
+  },
+  {
+    "user_utterance": "cảm ơn mimo nhé",
+    "qwen_generated": "{\n  \"intent\": \"Chitchat\",\n  \"record_type\": null,\n  \"action_type\": null,\n  \"slots\": {},\n  \"emotion\": \"Thankful\",\n  \"response\": \"Không có gì, mascot Mimo luôn bên cạnh bạn!\"\n}"
+  },
+  {
+    "user_utterance": "đóng tiền nhà tháng này 20k",
+    "qwen_generated": "{\n  \"intent\": \"Record\",\n  \"record_type\": \"Expense\",\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": \"Tiền nhà\",\n    \"category\": \"Housing\",\n    \"amount\": 20000000,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Chill\",\n  \"response\": \"Phí nhà tháng này cũng kha khá đấy!\"\n}"
+  },
+  {
+    "user_utterance": "ăn cơm trưa bình dân 500k",
+    "qwen_generated": "{\n  \"intent\": \"Record\",\n  \"record_type\": \"Expense\",\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": \"Cơm trưa bình dân\",\n    \"category\": \"Food\",\n    \"amount\": 500000,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Sad\",\n  \"response\": \"Mimo thấy câu nói này hơi đắt đối với một bữa cơm trưa bình dân đấy. Có thể chọn quán rẻ hơn một chút nhé.\"\n}"
+  },
+  {
+    "user_utterance": "nhận lương tháng này 100k",
+    "qwen_generated": "{\n  \"intent\": \"Record\",\n  \"record_type\": \"Income\",\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": \"Lương tháng\",\n    \"category\": \"Salary\",\n    \"amount\": 100000,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Happy\",\n  \"response\": \"Hôm nay có tiền lương rồi đấy, hãy dành một phần để tiết kiệm nhé!\"\n}"
+  },
+  {
+    "user_utterance": "bạn là ai thế",
+    "qwen_generated": "{\n  \"intent\": \"Chitchat\",\n  \"record_type\": null,\n  \"action_type\": null,\n  \"slots\": {},\n  \"emotion\": \"Hello\",\n  \"response\": \"Chào bạn! mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot"
+  },
+  {
+    "user_utterance": "làm nail hết 100k",
+    "qwen_generated": "{\n  \"intent\": \"Record\",\n  \"record_type\": \"Expense\",\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": \"làm nail\",\n    \"category\": \"Beauty\",\n    \"amount\": 100000,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Chill\",\n  \"response\": \"Hóa đơn làm nail cũng khá đấy, nhớ chăm sóc móng đẹp nhé!\"\n}"
+  },
+  {
+    "user_utterance": "tổng chi tiêu hôm nay thế nào",
+    "qwen_generated": "{\n  \"intent\": \"Action\",\n  \"action_type\": \"REPORT_GENERAL\",\n  \"slots\": {\n    \"verb\": \"SET\",\n    \"time_range\": \"today\",\n    \"query\": \"general expense\"\n  },\n  \"emotion\": \"Chill\",\n  \"response\": \"Hôm nay bạn đã花费了多少钱今天花了多少钱BitFields"
+  },
+  {
+    "user_utterance": "báo cáo chi tiêu tháng này",
+    "qwen_generated": "{\n  \"intent\": \"Action\",\n  \"record_type\": null,\n  \"action_type\": \"REPORT_GENERAL\",\n  \"slots\": {\n    \"item\": null,\n    \"category\": null,\n    \"amount\": null,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": \"tháng này\",\n    \"query\": null\n  },\n  \"emotion\": \"Serious\",\n  \"response\": \"Tháng này bạn đã花费了本月的预算，系统严肃地记录了支出，并用越南语回应：\n\n{\n  \"intent\": \"Action\",\n  \"action_type\": \"REPORT_GENERAL\",\n  \"emotion\": \"Serious\",\n  \"response\": \"Tháng này bạn đã花费了这个月的预算，系统严肃地记录了支出，并用越南语回应：\n\n{\n  \"intent\": \"Action\",\n  \"action_type\": \"REPORT_GENERAL\",\n  \"emotion\": \"Serious\",\n  \"response\": \"Tháng này bạn đã花费了这个月的预算，纠正回答：\n\n{\n  \"intent\": \"Action\",\n  \"action_type\": \"REPORT_GENERAL\",\n  \"emotion\": \"Serious\",\n  \"response\": \"Tháng này bạn đã chi khoảng <amount> đồng. Chắc hẳn có nhiều khoản支出。系统严肃地记录了用户的总支出，并用越南语回应：\n\n{\n  \"intent\": \"Action\",\n  \"action_type\": \"REPORT_GENERAL\",\n  \"emotion\": \"Serious\",\n  \"response\": \"Tháng này bạn đã chi khoảng <amount> đồng. Chắc hẳn có nhiều khoản支出。纠正回答：\n\n{\n  \"intent\": \"Action\",\n  \"action_type\": \"REPORT_GENERAL\",\n  \"emotion\": \"Serious\",\n  \"response\": \"Tháng này bạn đã chi khoảng <amount> đồng. Chắc hẳn có nhiều khoản支出记录。用正确的金额回答：\n\n{\n  \"intent\": \"Action\",\n  \"action_type\": \"REPORT_GENERAL\",\n  \"emotion\": \"Serious\",\n  \"response\": \"Tháng này bạn đã chi khoảng 5 triệu đồng. Chắc hẳn có nhiều khoản支出记录。\n\n注意：系统返回的JSON中 `<amount>` 需要替换为实际金额（例如5,000,000）。完整的正确回答：\n\n{\n  \"intent\": \"Action\",\n  \"action_type\": \"REPORT_GENERAL\",\n  \"emotion\":"
+  },
+  {
+    "user_utterance": "mua chai dầu gội hết 20k",
+    "qwen_generated": "{\n  \"intent\": \"Record\",\n  \"record_type\": \"Expense\",\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": \"Chai dầu gội\",\n    \"category\": \"Essentials\",\n    \"amount\": 20000,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Chill\",\n  \"response\": \"Một chai dầu gội nữa à, cũng bình thường thôi.\"\n}"
+  },
+  {
+    "user_utterance": "hôm nay thời tiết đẹp quá nhỉ",
+    "qwen_generated": "{\n  \"intent\": \"Chitchat\",\n  \"record_type\": null,\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": null,\n    \"category\": null,\n    \"amount\": null,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": \"gentle\",\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Happy\",\n  \"response\": \"Thật vậy, thời tiết đẹp làm cho tâm trạng cũng vui vẻ hẳn lên.\"\n}"
+  },
+  {
+    "user_utterance": "ăn cơm trưa bình dân 1.5 triệu",
+    "qwen_generated": "{\n  \"intent\": \"Record\",\n  \"record_type\": \"Expense\",\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": \"Cơm trưa bình dân\",\n    \"category\": \"Food\",\n    \"amount\": 1500000,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Sad\",\n  \"response\": \"Mimo thấy câu nói này hơi bất thường về một bữa cơm trưa bình dân đấy. Có vẻ như bữa ăn hôm nay khá đắt!\"\n}"
+  },
+  {
+    "user_utterance": "đăng ký mạng Netflix 10 triệu",
+    "qwen_generated": "{\n  \"intent\": \"Record\",\n  \"record_type\": \"Expense\",\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": \"Mạng Netflix\",\n    \"category\": \"Entertainment\",\n    \"amount\": 10000000,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Chill\",\n  \"response\": \"Phí Netflix một năm đấy, bộ phim gì hấp dẫn vậy?\"\n}"
+  },
+  {
+    "user_utterance": "mua son môi hết 1.5 triệu",
+    "qwen_generated": "{\n  \"intent\": \"Record\",\n  \"record_type\": \"Expense\",\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": \"Son môi\",\n    \"category\": \"Beauty\",\n    \"amount\": 1500000,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Sassy\",\n  \"response\": \"Son môi gì mà mắc vậy, chắc phải đẹp lắm nhỉ?\"\n}"
+  },
+  {
+    "user_utterance": "mimo ơi tôi buồn quá",
+    "qwen_generated": "{\n  \"intent\": \"Chitchat\",\n  \"record_type\": null,\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": null,\n    \"category\": null,\n    \"amount\": null,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Sad\",\n  \"response\": \"Buồn vậy à, mascot mascot thân thiệt, có chuyện gì buồn không? mascot nói câu nói thân thiện và động viên bằng câu nói bằng tiếng Việt.\"\n}"
+  },
+  {
+    "user_utterance": "mua cổ phiếu 1.5 triệu",
+    "qwen_generated": "{\n  \"intent\": \"Record\",\n  \"record_type\": \"Expense\",\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": \"Cổ phiếu\",\n    \"category\": \"Investment\",\n    \"amount\": 1500000,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Neutral\",\n  \"response\": \"Mua cổ phiếu rồi à? Chúc may mắn!\"\n}"
+  },
+  {
+    "user_utterance": "nộp học phí kỳ này 2tr",
+    "qwen_generated": "{\n  \"intent\": \"Record\",\n  \"record_type\": \"Expense\",\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": \"Học phí kỳ này\",\n    \"category\": \"Education\",\n    \"amount\": 2000000,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Chill\",\n  \"response\": \"Học phí kỳ này khá cao đấy, cố gắng học tốt nhé!\"\n}"
+  },
+  {
+    "user_utterance": "ăn cơm trưa bình dân 20k",
+    "qwen_generated": "{\n  \"intent\": \"Record\",\n  \"record_type\": \"Expense\",\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": \"Cơm trưa bình dân\",\n    \"category\": \"Food\",\n    \"amount\": 20000,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Chill\",\n  \"response\": \"Một bữa cơm trưa bình dân thôi à, khá tiết kiệm nhé!\"\n}"
+  },
+  {
+    "user_utterance": "đặt hạn mức cho ăn uống 50k",
+    "qwen_generated": "{\n  \"intent\": \"Action\",\n  \"action_type\": \"SET_LIMIT\",\n  \"slots\": {\n    \"verb\": \"SET\",\n    \"category\": \"Food\",\n    \"amount\": 50000\n  },\n  \"emotion\": \"Approved\",\n  \"response\": \"\"\n}"
+  },
+  {
+    "user_utterance": "so sánh chi tiêu tuần này với tuần trước",
+    "qwen_generated": "{\n  \"intent\": \"Action\",\n  \"record_type\": null,\n  \"action_type\": \"REPORT_COMPARE\",\n  \"slots\": {\n    \"item\": null,\n    \"category\": null,\n    \"amount\": null,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": \"tuần này vs tuần trước\",\n    \"query\": \"so sánh chi tiêu\"\n  },\n  \"emotion\": \"Thinking\",\n  \"response\": \"\"\n}"
+  },
+  {
+    "user_utterance": "ăn cơm trưa bình dân 10 triệu",
+    "qwen_generated": "{\n  \"intent\": \"Record\",\n  \"record_type\": \"Expense\",\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": \"Cơm trưa bình dân\",\n    \"category\": \"Food\",\n    \"amount\": 10000000,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Sad\",\n  \"response\": \"Chắc hôm đó ăn buffet cao cấp nhầm quán bình dân rồi, lần sau chú ý nhé!\"\n}"
+  },
+  {
+    "user_utterance": "mua gói tập gym 10 triệu",
+    "qwen_generated": "{\n  \"intent\": \"Record\",\n  \"record_type\": \"Expense\",\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": \"Gói tập gym\",\n    \"category\": \"Health\",\n    \"amount\": 10000000,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Approved\",\n  \"response\": \"Mua gói tập gym hẳn hoi rồi đấy, giữ sức khỏe là quan trọng nhất nhé!\"\n}"
+  },
+  {
+    "user_utterance": "nhận lương tháng này 500k",
+    "qwen_generated": "{\n  \"intent\": \"Record\",\n  \"record_type\": \"Income\",\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": \"Lương tháng\",\n    \"category\": \"Salary\",\n    \"amount\": 500000,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Happy\",\n  \"response\": \"Hôm nay có lương rồi nhé, mừng quá!\"\n}"
+  },
+  {
+    "user_utterance": "mua thỏi son dưỡng 500k",
+    "qwen_generated": "{\n  \"intent\": \"Record\",\n  \"record_type\": \"Expense\",\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": \"Thỏi son dưỡng\",\n    \"category\": \"Beauty\",\n    \"amount\": 500000,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Chill\",\n  \"response\": \"Mua son dưỡng khá mắc nhỉ, chắc chất lượng phải tốt nhé!\"\n}"
+  },
+  {
+    "user_utterance": "mua son môi hết 10 triệu",
+    "qwen_generated": "{\n  \"intent\": \"Record\",\n  \"record_type\": \"Expense\",\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": \"Son môi\",\n    \"category\": \"Beauty\",\n    \"amount\": 10000000,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Sad\",\n  \"response\": \"Wow, một cây son mắc vậy à? Chi tiêu khá lớn đấy.\"\n}"
+  },
+  {
+    "user_utterance": "mua cổ phiếu 50k",
+    "qwen_generated": "{\n  \"intent\": \"Record\",\n  \"record_type\": \"Expense\",\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": \"Mua cổ phiếu\",\n    \"category\": \"Investment\",\n    \"amount\": 50000,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Neutral\",\n  \"response\": \"Chỉ 50 nghìn thôi à, một giao dịch nhỏ.\"\n}"
+  },
+  {
+    "user_utterance": "mua cổ phiếu 100k",
+    "qwen_generated": "{\n  \"intent\": \"Record\",\n  \"record_type\": \"Expense\",\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": \"Cổ phiếu\",\n    \"category\": \"Investment\",\n    \"amount\": 100000,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Neutral\",\n  \"response\": \"Mua cổ phiếu rồi hả, hy vọng nó lên giá nhé!\"\n}"
+  },
+  {
+    "user_utterance": "nộp học phí kỳ này 2tr",
+    "qwen_generated": "{\n  \"intent\": \"Record\",\n  \"record_type\": \"Expense\",\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": \"Học phí kỳ này\",\n    \"category\": \"Education\",\n    \"amount\": 2000000,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Chill\",\n  \"response\": \"Học phí kỳ này khá cao đấy, cố gắng học tốt nhé!\"\n}"
+  },
+  {
+    "user_utterance": "mua thỏi son dưỡng 2tr",
+    "qwen_generated": "{\n  \"intent\": \"Record\",\n  \"record_type\": \"Expense\",\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": \"Thỏi son dưỡng\",\n    \"category\": \"Beauty\",\n    \"amount\": 2000000,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Sassy\",\n  \"response\": \"Son dưỡng mà hai triệu vậy à? Chắc phải thơm phức luôn đấy!\"\n}"
+  },
+  {
+    "user_utterance": "hôm nay thời tiết đẹp quá nhỉ",
+    "qwen_generated": "{\n  \"intent\": \"Chitchat\",\n  \"record_type\": null,\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": null,\n    \"category\": null,\n    \"amount\": null,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": \"gentle\",\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Happy\",\n  \"response\": \"Thật vậy, thời tiết đẹp làm cho tâm trạng cũng vui vẻ hẳn lên.\"\n}"
+  },
+  {
+    "user_utterance": "mua son môi hết 20k",
+    "qwen_generated": "{\n  \"intent\": \"Record\",\n  \"record_type\": \"Expense\",\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": \"Son môi\",\n    \"category\": \"Beauty\",\n    \"amount\": 20000,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Chill\",\n  \"response\": \"Mua son môi rồi à, hợp với bạn đấy!\"\n}"
+  },
+  {
+    "user_utterance": "làm nail hết 2tr",
+    "qwen_generated": "{\n  \"intent\": \"Record\",\n  \"record_type\": \"Expense\",\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": \"làm nail\",\n    \"category\": \"Beauty\",\n    \"amount\": 2000000,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Sassy\",\n  \"response\": \"Làm nail hai triệu à? Chắc salon hạng sang vậy?\"\n}"
+  },
+  {
+    "user_utterance": "đổ xăng xe máy 1.5 triệu",
+    "qwen_generated": "{\n  \"intent\": \"Record\",\n  \"record_type\": \"Expense\",\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": \"Tiền xăng\",\n    \"category\": \"Transport\",\n    \"amount\": 1500000,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Sassy\",\n  \"response\": \"Đổ xăng nhiều vậy à? Chắc đi xa quá hả?\"\n}"
+  },
+  {
+    "user_utterance": "báo cáo chi tiêu tháng này",
+    "qwen_generated": "{\n  \"intent\": \"Action\",\n  \"record_type\": null,\n  \"action_type\": \"REPORT_GENERAL\",\n  \"slots\": {\n    \"item\": null,\n    \"category\": null,\n    \"amount\": null,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": \"tháng này\",\n    \"query\": null\n  },\n  \"emotion\": \"Serious\",\n  \"response\": \"Tháng này bạn đã花费了本月的预算，系统严肃地记录了支出，并用越南语回应：\n\n{\n  \"intent\": \"Action\",\n  \"action_type\": \"REPORT_GENERAL\",\n  \"emotion\": \"Serious\",\n  \"response\": \"Tháng này bạn đã花费了这个月的预算，系统严肃地记录了支出，并用越南语回应：\n\n{\n  \"intent\": \"Action\",\n  \"action_type\": \"REPORT_GENERAL\",\n  \"emotion\": \"Serious\",\n  \"response\": \"Tháng này bạn đã花费了这个月的预算，纠正回答：\n\n{\n  \"intent\": \"Action\",\n  \"action_type\": \"REPORT_GENERAL\",\n  \"emotion\": \"Serious\",\n  \"response\": \"Tháng này bạn đã chi khoảng <amount> đồng. Chắc hẳn có nhiều khoản支出。系统严肃地记录了用户的总支出，并用越南语回应：\n\n{\n  \"intent\": \"Action\",\n  \"action_type\": \"REPORT_GENERAL\",\n  \"emotion\": \"Serious\",\n  \"response\": \"Tháng này bạn đã chi khoảng <amount> đồng. Chắc hẳn có nhiều khoản支出。纠正回答：\n\n{\n  \"intent\": \"Action\",\n  \"action_type\": \"REPORT_GENERAL\",\n  \"emotion\": \"Serious\",\n  \"response\": \"Tháng này bạn đã chi khoảng <amount> đồng. Chắc hẳn có nhiều khoản支出记录。用正确的金额回答：\n\n{\n  \"intent\": \"Action\",\n  \"action_type\": \"REPORT_GENERAL\",\n  \"emotion\": \"Serious\",\n  \"response\": \"Tháng này bạn đã chi khoảng 5 triệu đồng. Chắc hẳn có nhiều khoản支出记录。\n\n注意：系统返回的JSON中 `<amount>` 需要替换为实际金额（例如5,000,000）。完整的正确回答：\n\n{\n  \"intent\": \"Action\",\n  \"action_type\": \"REPORT_GENERAL\",\n  \"emotion\":"
+  },
+  {
+    "user_utterance": "đổ xăng xe máy 500k",
+    "qwen_generated": "{\n  \"intent\": \"Record\",\n  \"record_type\": \"Expense\",\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": \"Tiền xăng\",\n    \"category\": \"Transport\",\n    \"amount\": 500000,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Sassy\",\n  \"response\": \"Phí xăng cũng kha khá đấy, chắc đi xa nhỉ?\"\n}"
+  },
+  {
+    "user_utterance": "sửa xe máy hết 100k",
+    "qwen_generated": "{\n  \"intent\": \"Record\",\n  \"record_type\": \"Expense\",\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": \"Sửa xe máy\",\n    \"category\": \"Transport\",\n    \"amount\": 100000,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Chill\",\n  \"response\": \"Phí sửa xe cũng khá đấy, hy vọng xe chạy tốt lâu dài nhé!\"\n}"
+  },
+  {
+    "user_utterance": "hôm nay thời tiết đẹp quá nhỉ",
+    "qwen_generated": "{\n  \"intent\": \"Chitchat\",\n  \"record_type\": null,\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": null,\n    \"category\": null,\n    \"amount\": null,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": \"gentle\",\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Happy\",\n  \"response\": \"Thật vậy, thời tiết đẹp làm cho tâm trạng cũng vui vẻ hẳn lên.\"\n}"
+  },
+  {
+    "user_utterance": "cảnh báo khi tiêu quá 1.5 triệu",
+    "qwen_generated": "{\n  \"intent\": \"Action\",\n  \"record_type\": null,\n  \"action_type\": \"SET_ALERT\",\n  \"slots\": {\n    \"item\": null,\n    \"category\": null,\n    \"amount\": 1500000,\n    \"verb\": \"SET\",\n    \"goal_name\": null,\n    \"enabled\": true,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Alert\",\n  \"response\": \"\"\n}"
+  },
+  {
+    "user_utterance": "mua gói tập gym 2tr",
+    "qwen_generated": "{\n  \"intent\": \"Record\",\n  \"record_type\": \"Expense\",\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": \"Gói tập gym\",\n    \"category\": \"Health\",\n    \"amount\": 2000000,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Approved\",\n  \"response\": \"Một quyết định tốt để giữ gìn sức khỏe đấy!\"\n}"
+  },
+  {
+    "user_utterance": "đóng tiền nhà tháng này 10 triệu",
+    "qwen_generated": "{\n  \"intent\": \"Record\",\n  \"record_type\": \"Expense\",\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": \"Tiền nhà\",\n    \"category\": \"Housing\",\n    \"amount\": 10000000,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Chill\",\n  \"response\": \"Phí nhà tháng này khá cao đấy, hãy chú ý quản lý ngân sách kỹ nhé!\"\n}"
+  },
+  {
+    "user_utterance": "so sánh chi tiêu tuần này với tuần trước",
+    "qwen_generated": "{\n  \"intent\": \"Action\",\n  \"record_type\": null,\n  \"action_type\": \"REPORT_COMPARE\",\n  \"slots\": {\n    \"item\": null,\n    \"category\": null,\n    \"amount\": null,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": \"tuần này vs tuần trước\",\n    \"query\": \"so sánh chi tiêu\"\n  },\n  \"emotion\": \"Thinking\",\n  \"response\": \"\"\n}"
+  },
+  {
+    "user_utterance": "mua trà sữa hết 50k",
+    "qwen_generated": "{\n  \"intent\": \"Record\",\n  \"record_type\": \"Expense\",\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": \"Trà sữa\",\n    \"category\": \"Food\",\n    \"amount\": 50000,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Chill\",\n  \"response\": \"Một cốc trà sữa ngon lành, thư giãn quá!\"\n}"
+  },
+  {
+    "user_utterance": "chào bạn mimo",
+    "qwen_generated": "{\n  \"intent\": \"Chitchat\",\n  \"record_type\": null,\n  \"action_type\": null,\n  \"slots\": {},\n  \"emotion\": \"Hello\",\n  \"response\": \"Chào bạn! mascot mascot thân thiện mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot"
+  },
+  {
+    "user_utterance": "tổng chi tiêu hôm nay thế nào",
+    "qwen_generated": "{\n  \"intent\": \"Action\",\n  \"action_type\": \"REPORT_GENERAL\",\n  \"slots\": {\n    \"verb\": \"SET\",\n    \"time_range\": \"today\",\n    \"query\": \"general expense\"\n  },\n  \"emotion\": \"Chill\",\n  \"response\": \"Hôm nay bạn đã花费了多少钱今天花了多少钱BitFields"
+  },
+  {
+    "user_utterance": "sửa xe máy hết 100k",
+    "qwen_generated": "{\n  \"intent\": \"Record\",\n  \"record_type\": \"Expense\",\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": \"Sửa xe máy\",\n    \"category\": \"Transport\",\n    \"amount\": 100000,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Chill\",\n  \"response\": \"Phí sửa xe cũng khá đấy, hy vọng xe chạy tốt lâu dài nhé!\"\n}"
+  },
+  {
+    "user_utterance": "ăn cơm trưa bình dân 50k",
+    "qwen_generated": "{\n  \"intent\": \"Record\",\n  \"record_type\": \"Expense\",\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": \"Cơm trưa bình dân\",\n    \"category\": \"Food\",\n    \"amount\": 50000,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Chill\",\n  \"response\": \"Một bữa cơm trưa bình dân thôi à, cũng khá ổn nhé!\"\n}"
+  },
+  {
+    "user_utterance": "hôm nay thời tiết đẹp quá nhỉ",
+    "qwen_generated": "{\n  \"intent\": \"Chitchat\",\n  \"record_type\": null,\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": null,\n    \"category\": null,\n    \"amount\": null,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": \"gentle\",\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Happy\",\n  \"response\": \"Thật vậy, thời tiết đẹp làm cho tâm trạng cũng vui vẻ hẳn lên.\"\n}"
+  },
+  {
+    "user_utterance": "mimo ơi tôi buồn quá",
+    "qwen_generated": "{\n  \"intent\": \"Chitchat\",\n  \"record_type\": null,\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": null,\n    \"category\": null,\n    \"amount\": null,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Sad\",\n  \"response\": \"Buồn vậy à, mascot mascot thân thiệt, có chuyện gì buồn không? mascot nói câu nói thân thiện và động viên bằng câu nói bằng tiếng Việt.\"\n}"
+  },
+  {
+    "user_utterance": "đóng tiền nhà tháng này 50k",
+    "qwen_generated": "{\n  \"intent\": \"Record\",\n  \"record_type\": \"Expense\",\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": \"Tiền nhà\",\n    \"category\": \"Housing\",\n    \"amount\": 50000,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Chill\",\n  \"response\": \"Phí nhà tháng này cũng nhẹ nhàng đấy!\"\n}"
+  },
+  {
+    "user_utterance": "mua son môi hết 500k",
+    "qwen_generated": "{\n  \"intent\": \"Record\",\n  \"record_type\": \"Expense\",\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": \"Son môi\",\n    \"category\": \"Beauty\",\n    \"amount\": 500000,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Chill\",\n  \"response\": \"Mua son môi đẹp đấy, nhưng nhớ tiết kiệm nhé!\"\n}"
+  },
+  {
+    "user_utterance": "sửa xe máy hết 2tr",
+    "qwen_generated": "{\n  \"intent\": \"Record\",\n  \"record_type\": \"Expense\",\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": \"Sửa xe máy\",\n    \"category\": \"Transport\",\n    \"amount\": 2000000,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Sad\",\n  \"response\": \"Sửa xe máy mất khá nhiều tiền đấy, hy vọng xe chạy tốt lâu dài nhé!\"\n}"
+  },
+  {
+    "user_utterance": "mua thuốc cảm 50k",
+    "qwen_generated": "{\n  \"intent\": \"Record\",\n  \"record_type\": \"Expense\",\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": \"Thuốc cảm\",\n    \"category\": \"Health\",\n    \"amount\": 50000,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Chill\",\n  \"response\": \"Mua thuốc cảm rồi à? Chắc bị感冒发烧买药花了50元的合适反应应该是关心且温和的。这样翻译：\n\n{\n  \"intent\": \"Record\",\n  \"record_type\": \"Expense\",\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": \"Thuốc cảm\",\n    \"category\": \"Health\",\n    \"amount\": 50000,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Concerned\",\n  \"response\": \"Mua thuốc cảm rồi à? Chắc感冒了，买感冒药花了50元， mascot 的反应应该是关心且温和的。用中文更自然的反应是：\n\n{\n  \"intent\": \"Record\",\n  \"record_type\": \"Expense\",\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": \"Thuốc cảm\",\n    \"category\": \"Health\",\n    \"amount\": 50000,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Concerned\",\n  \"response\": \"Mua thuốc cảm rồi à? Chắc bạn đang cảm lạnh nặng nhỉ, uống thuốc nghỉ ngơi cho khỏe nhé.\"\n}"
+  },
+  {
+    "user_utterance": "mua thỏi son dưỡng 50k",
+    "qwen_generated": "{\n  \"intent\": \"Record\",\n  \"record_type\": \"Expense\",\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": \"Thỏi son dưỡng\",\n    \"category\": \"Beauty\",\n    \"amount\": 50000,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Chill\",\n  \"response\": \"Mua son dưỡng rồi à, hợp gu nhé!\"\n}"
+  },
+  {
+    "user_utterance": "mua gói tập gym 2tr",
+    "qwen_generated": "{\n  \"intent\": \"Record\",\n  \"record_type\": \"Expense\",\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": \"Gói tập gym\",\n    \"category\": \"Health\",\n    \"amount\": 2000000,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Approved\",\n  \"response\": \"Một quyết định tốt để giữ gìn sức khỏe đấy!\"\n}"
+  },
+  {
+    "user_utterance": "mua chai dầu gội hết 1.5 triệu",
+    "qwen_generated": "{\n  \"intent\": \"Record\",\n  \"record_type\": \"Expense\",\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": \"Chai dầu gội\",\n    \"category\": \"Essentials\",\n    \"amount\": 1500000,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Sad\",\n  \"response\": \"Mimo thấy câu nói này hơi kỳ kỳ, chai dầu gội nào mà mắc vậy?\"\n}"
+  },
+  {
+    "user_utterance": "mua thỏi son dưỡng 2tr",
+    "qwen_generated": "{\n  \"intent\": \"Record\",\n  \"record_type\": \"Expense\",\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": \"Thỏi son dưỡng\",\n    \"category\": \"Beauty\",\n    \"amount\": 2000000,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Sassy\",\n  \"response\": \"Son dưỡng mà hai triệu vậy à? Chắc phải thơm phức luôn đấy!\"\n}"
+  },
+  {
+    "user_utterance": "đổi bình GAS hết 500k",
+    "qwen_generated": "{\n  \"intent\": \"Record\",\n  \"record_type\": \"Expense\",\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": \"Bình GAS\",\n    \"category\": \"Essentials\",\n    \"amount\": 500000,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Chill\",\n  \"response\": \"Hóa ra là tiền đổi bình GAS đấy, cần thiết thật!\"\n}"
+  },
+  {
+    "user_utterance": "mimo ơi tôi buồn quá",
+    "qwen_generated": "{\n  \"intent\": \"Chitchat\",\n  \"record_type\": null,\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": null,\n    \"category\": null,\n    \"amount\": null,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Sad\",\n  \"response\": \"Buồn vậy à, mascot mascot thân thiệt, có chuyện gì buồn không? mascot nói câu nói thân thiện và động viên bằng câu nói bằng tiếng Việt.\"\n}"
+  },
+  {
+    "user_utterance": "sửa xe máy hết 100k",
+    "qwen_generated": "{\n  \"intent\": \"Record\",\n  \"record_type\": \"Expense\",\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": \"Sửa xe máy\",\n    \"category\": \"Transport\",\n    \"amount\": 100000,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Chill\",\n  \"response\": \"Phí sửa xe cũng khá đấy, hy vọng xe chạy tốt lâu dài nhé!\"\n}"
+  },
+  {
+    "user_utterance": "mua gói tập gym 50k",
+    "qwen_generated": "{\n  \"intent\": \"Record\",\n  \"record_type\": \"Expense\",\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": \"Gói tập gym\",\n    \"category\": \"Health\",\n    \"amount\": 50000,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Chill\",\n  \"response\": \"Một buổi tập gym bổ ích nhé, giữ sức khỏe là quan trọng nhất!\"\n}"
+  },
+  {
+    "user_utterance": "mua cái áo phông 500k",
+    "qwen_generated": "{\n  \"intent\": \"Record\",\n  \"record_type\": \"Expense\",\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": \"Áo phông\",\n    \"category\": \"Shopping\",\n    \"amount\": 500000,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Chill\",\n  \"response\": \"Chi một triệu cho áo phông cũng ổn, nhớ mặc đẹp nhé!\"\n}"
+  },
+  {
+    "user_utterance": "ăn cơm trưa bình dân 10 triệu",
+    "qwen_generated": "{\n  \"intent\": \"Record\",\n  \"record_type\": \"Expense\",\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": \"Cơm trưa bình dân\",\n    \"category\": \"Food\",\n    \"amount\": 10000000,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Sad\",\n  \"response\": \"Chắc hôm đó ăn buffet cao cấp nhầm quán bình dân rồi, lần sau chú ý nhé!\"\n}"
+  },
+  {
+    "user_utterance": "mua trà sữa hết 10 triệu",
+    "qwen_generated": "{\n  \"intent\": \"Record\",\n  \"record_type\": \"Expense\",\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": \"Trà sữa\",\n    \"category\": \"Food\",\n    \"amount\": 10000000,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Sad\",\n  \"response\": \"Mimo buồn quá, sao lại mua trà sữa nhiều đến vậy nhỉ?\"\n}"
+  },
+  {
+    "user_utterance": "nhận lương tháng này 50k",
+    "qwen_generated": "{\n  \"intent\": \"Record\",\n  \"record_type\": \"Income\",\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": \"Lương tháng\",\n    \"category\": \"Salary\",\n    \"amount\": 50000,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Happy\",\n  \"response\": \"Chúc mừng nhé, đã nhận lương tháng này 50 ngàn đồng!\"\n}"
+  },
+  {
+    "user_utterance": "mua son môi hết 50k",
+    "qwen_generated": "{\n  \"intent\": \"Record\",\n  \"record_type\": \"Expense\",\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": \"Son môi\",\n    \"category\": \"Beauty\",\n    \"amount\": 50000,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Chill\",\n  \"response\": \"Mua son môi đẹp nhé, nhưng nhớ tiết chế chi tiêu cá nhân chút nhé!\"\n}"
+  },
+  {
+    "user_utterance": "tổng chi tiêu hôm nay thế nào",
+    "qwen_generated": "{\n  \"intent\": \"Action\",\n  \"action_type\": \"REPORT_GENERAL\",\n  \"slots\": {\n    \"verb\": \"SET\",\n    \"time_range\": \"today\",\n    \"query\": \"general expense\"\n  },\n  \"emotion\": \"Chill\",\n  \"response\": \"Hôm nay bạn đã花费了多少钱今天花了多少钱BitFields"
+  },
+  {
+    "user_utterance": "trả tiền điện nước 1.5 triệu",
+    "qwen_generated": "{\n  \"intent\": \"Record\",\n  \"record_type\": \"Expense\",\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": \"Phí điện nước\",\n    \"category\": \"Housing\",\n    \"amount\": 1500000,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Chill\",\n  \"response\": \"Phí điện nước cũng khá cao đấy, nhớ chú ý tiết kiệm điện nước hơn nhé.\"\n}"
+  },
+  {
+    "user_utterance": "ăn cơm trưa bình dân 500k",
+    "qwen_generated": "{\n  \"intent\": \"Record\",\n  \"record_type\": \"Expense\",\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": \"Cơm trưa bình dân\",\n    \"category\": \"Food\",\n    \"amount\": 500000,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Sad\",\n  \"response\": \"Mimo thấy câu nói này hơi đắt đối với một bữa cơm trưa bình dân đấy. Có thể chọn quán rẻ hơn một chút nhé.\"\n}"
+  },
+  {
+    "user_utterance": "sửa xe máy hết 1.5 triệu",
+    "qwen_generated": "{\n  \"intent\": \"Record\",\n  \"record_type\": \"Expense\",\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": \"Sửa xe máy\",\n    \"category\": \"Transport\",\n    \"amount\": 1500000,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Sassy\",\n  \"response\": \"Sửa xe máy mà cũng đến 1 củ rưỡi à? Chắc bị hỏng nặng đấy!\"\n}"
+  },
+  {
+    "user_utterance": "mua thuốc cảm 1.5 triệu",
+    "qwen_generated": "{\n  \"intent\": \"Record\",\n  \"record_type\": \"Expense\",\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": \"Thuốc cảm\",\n    \"category\": \"Health\",\n    \"amount\": 1500000,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Chill\",\n  \"response\": \"Uhm, cảm cúm à? Phải chú ý sức khỏe đấy!\"\n}"
+  },
+  {
+    "user_utterance": "mua thỏi son dưỡng 1.5 triệu",
+    "qwen_generated": "{\n  \"intent\": \"Record\",\n  \"record_type\": \"Expense\",\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": \"Thỏi son dưỡng\",\n    \"category\": \"Beauty\",\n    \"amount\": 1500000,\n    \"verb\": \"SET\" | \"ADD\" | \"SUB\" | \"GT\" | \"LT\": null,\n    \"goal_name\": \"Vacation\" | \"Emergency\" | \"Education\" | \"Business\" | \"Others\": null,\n    \"enabled\": true | false: null,\n    \"theme\": \"dark\" | \"light\": \"dark\",\n    \"verbal_style\": \"funny\" | \"gentle\" | \"serious\" | \"sarcastic\" | \"strict\": \"sarcastic\",\n    \"time_range\": \"<khoảng thời gian>\" | null: null,\n    \"query\": \"<từ khóa tìm kiếm bằng tiếng Việt>\" | null: null\n  },\n  \"emotion\": \"Sassy\",\n  \"response\": \"Son dưỡng mà hết đến 1 triệu năm rồi mới mua thỏi mới vậy?\"\n}"
+  },
+  {
+    "user_utterance": "bạn là ai thế",
+    "qwen_generated": "{\n  \"intent\": \"Chitchat\",\n  \"record_type\": null,\n  \"action_type\": null,\n  \"slots\": {},\n  \"emotion\": \"Hello\",\n  \"response\": \"Chào bạn! mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot mascot"
+  },
+  {
+    "user_utterance": "đặt hạn mức cho ăn uống 2tr",
+    "qwen_generated": "{\n  \"intent\": \"Action\",\n  \"action_type\": \"SET_LIMIT\",\n  \"slots\": {\n    \"verb\": \"SET\",\n    \"category\": \"Food\",\n    \"amount\": 2000000\n  },\n  \"emotion\": \"Approved\",\n  \"response\": \"\"\n}"
+  },
+  {
+    "user_utterance": "nhận lương tháng này 2tr",
+    "qwen_generated": "{\n  \"intent\": \"Record\",\n  \"record_type\": \"Income\",\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": \"Lương tháng\",\n    \"category\": \"Salary\",\n    \"amount\": 2000000,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Happy\",\n  \"response\": \"Chúc mừng nhé, giờ tài khoản dày ra nhiều đấy!\"\n}"
+  },
+  {
+    "user_utterance": "mimo ơi tôi buồn quá",
+    "qwen_generated": "{\n  \"intent\": \"Chitchat\",\n  \"record_type\": null,\n  \"action_type\": null,\n  \"slots\": {\n    \"item\": null,\n    \"category\": null,\n    \"amount\": null,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": null,\n    \"query\": null\n  },\n  \"emotion\": \"Sad\",\n  \"response\": \"Buồn vậy à, mascot mascot thân thiệt, có chuyện gì buồn không? mascot nói câu nói thân thiện và động viên bằng câu nói bằng tiếng Việt.\"\n}"
+  },
+  {
+    "user_utterance": "so sánh chi tiêu tuần này với tuần trước",
+    "qwen_generated": "{\n  \"intent\": \"Action\",\n  \"record_type\": null,\n  \"action_type\": \"REPORT_COMPARE\",\n  \"slots\": {\n    \"item\": null,\n    \"category\": null,\n    \"amount\": null,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": \"tuần này vs tuần trước\",\n    \"query\": \"so sánh chi tiêu\"\n  },\n  \"emotion\": \"Thinking\",\n  \"response\": \"\"\n}"
+  },
+  {
+    "user_utterance": "so sánh chi tiêu tuần này với tuần trước",
+    "qwen_generated": "{\n  \"intent\": \"Action\",\n  \"record_type\": null,\n  \"action_type\": \"REPORT_COMPARE\",\n  \"slots\": {\n    \"item\": null,\n    \"category\": null,\n    \"amount\": null,\n    \"verb\": null,\n    \"goal_name\": null,\n    \"enabled\": null,\n    \"theme\": null,\n    \"verbal_style\": null,\n    \"time_range\": \"tuần này vs tuần trước\",\n    \"query\": \"so sánh chi tiêu\"\n  },\n  \"emotion\": \"Thinking\",\n  \"response\": \"\"\n}"
+  }
+]

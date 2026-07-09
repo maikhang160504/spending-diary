@@ -1,0 +1,4199 @@
+
+Jul 04  22:40:01.217
+Note: Environment variable`HF_TOKEN` is set and is the current active token independently from the token you've just configured.
+Jul 04  22:40:01.217
+✅ Logged in to Hugging Face Hub.
+📥 Loading base model and tokenizer: Qwen/Qwen2.5-14B-Instruct
+Jul 04  22:40:02.093
+📄 Loading dataset: /workspace/text_nlu/datasets/vistral_finetune.jsonl
+Jul 04  22:40:02.284
+Generating train split: 4300 examples [00:00, 138571.58 examples/s]
+Jul 04  22:40:02.287
+📊 Dataset loaded. Total samples: 4300
+Jul 04  22:40:04.388
+Map: 100%|██████████| 4085/4085 [00:00<00:00, 4581.40 examples/s]
+Jul 04  22:40:05.694
+Map:   0%|          | 0/215 [00:00<?, ? examples/s]
+Jul 04  22:40:05.749
+🚀 Loading base model in bfloat16...
+Jul 04  22:40:05.749
+Map: 100%|██████████| 215/215 [00:00<00:00, 3973.86 examples/s]
+Jul 04  22:40:05.808
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+Jul 04  22:40:46.018
+Fetching 8 files: 100%|██████████| 8/8 [00:40<00:00,  5.00s/it]
+Jul 04  22:40:57.186
+Loading weights:  36%|███▌      | 207/579 [00:10<00:14, 25.92it/s]
+Jul 04  22:41:09.874
+Loading weights: 100%|██████████| 579/579 [00:22<00:00, 25.22it/s]
+Jul 04  22:41:12.689
+trainable params: 68,812,800 || all params: 14,838,846,464 || trainable%: 0.4637
+Jul 04  22:41:12.730
+[RANK 0] Detected kernel version 4.19.0, which is below the recommended minimum of 5.5.0; this can cause the process to hang. It is recommended to upgrade the kernel to the minimum version or higher.
+Jul 04  22:41:12.747
+🔥 Starting training...
+Jul 04  22:41:33.035
+Jul 04  22:41:33.036
+{'loss': '1.344', 'grad_norm': '0.803', 'learning_rate': '9e-05', 'epoch': '0.03914'}
+Jul 04  22:41:50.054
+  3%|▎         | 20/768 [00:37<21:13,  1.70s/it]
+Jul 04  22:41:50.054
+{'loss': '0.2845', 'grad_norm': '0.08089', 'learning_rate': '0.00019', 'epoch': '0.07828'}
+Jul 04  22:42:07.055
+  4%|▍         | 30/768 [00:54<20:54,  1.70s/it]
+Jul 04  22:42:07.055
+{'loss': '0.0006384', 'grad_norm': '0.01185', 'learning_rate': '0.0001976', 'epoch': '0.1174'}
+Jul 04  22:42:12.152
+  4%|▍         | 33/768 [00:59<20:49,  1.70s/it]
+Jul 04  22:42:24.053
+Jul 04  22:42:24.055
+{'loss': '0.0001138', 'grad_norm': '0.001663', 'learning_rate': '0.0001949', 'epoch': '0.1566'}
+Jul 04  22:42:41.040
+  7%|▋         | 50/768 [01:28<20:19,  1.70s/it]
+Jul 04  22:42:41.040
+{'loss': '4.194e-05', 'grad_norm': '0.0006278', 'learning_rate': '0.0001922', 'epoch': '0.1957'}
+Jul 04  22:42:58.024
+Jul 04  22:42:58.024
+{'loss': '2.44e-05', 'grad_norm': '0.0003456', 'learning_rate': '0.0001896', 'epoch': '0.2348'}
+Jul 04  22:43:15.014
+Jul 04  22:43:15.015
+{'loss': '1.744e-05', 'grad_norm': '0.0002428', 'learning_rate': '0.0001869', 'epoch': '0.274'}
+Jul 04  22:43:32.009
+ 10%|█         | 80/768 [02:19<19:27,  1.70s/it]
+Jul 04  22:43:32.009
+{'loss': '1.387e-05', 'grad_norm': '0.0001881', 'learning_rate': '0.0001842', 'epoch': '0.3131'}
+Jul 04  22:43:48.994
+Jul 04  22:43:48.995
+{'loss': '1.175e-05', 'grad_norm': '0.0001577', 'learning_rate': '0.0001816', 'epoch': '0.3523'}
+Jul 04  22:44:05.974
+Jul 04  22:44:05.974
+{'loss': '1.038e-05', 'grad_norm': '0.0001361', 'learning_rate': '0.0001789', 'epoch': '0.3914'}
+Jul 04  22:44:22.961
+Jul 04  22:44:22.962
+{'loss': '9.32e-06', 'grad_norm': '0.0001196', 'learning_rate': '0.0001762', 'epoch': '0.4305'}
+Jul 04  22:44:24.662
+ 14%|█▍        | 111/768 [03:11<18:36,  1.70s/it]
+Jul 04  22:44:39.951
+ 16%|█▌        | 120/768 [03:26<18:20,  1.70s/it]
+Jul 04  22:44:39.952
+{'loss': '8.507e-06', 'grad_norm': '0.0001084', 'learning_rate': '0.0001735', 'epoch': '0.4697'}
+Jul 04  22:44:56.940
+Jul 04  22:44:56.941
+{'loss': '7.838e-06', 'grad_norm': '9.771e-05', 'learning_rate': '0.0001709', 'epoch': '0.5088'}
+Jul 04  22:53:18.468
+ 55%|█████▍    | 420/768 [12:05<09:51,  1.70s/it]
+Jul 04  22:53:18.468
+{'loss': '2.66e-06', 'grad_norm': '2.892e-05', 'learning_rate': '9.332e-05', 'epoch': '1.642'}
+Jul 04  22:53:35.468
+Jul 04  22:53:35.468
+{'loss': '2.608e-06', 'grad_norm': '2.838e-05', 'learning_rate': '9.064e-05', 'epoch': '1.681'}
+Jul 04  22:53:52.465
+Jul 04  22:53:52.466
+{'loss': '2.562e-06', 'grad_norm': '2.793e-05', 'learning_rate': '8.797e-05', 'epoch': '1.72'}
+Jul 04  22:54:09.457
+ 59%|█████▊    | 450/768 [12:56<09:00,  1.70s/it]
+Jul 04  22:54:09.457
+{'loss': '2.52e-06', 'grad_norm': '2.735e-05', 'learning_rate': '8.529e-05', 'epoch': '1.759'}
+Jul 04  22:54:26.444
+Jul 04  22:54:26.444
+{'loss': '2.476e-06', 'grad_norm': '2.676e-05', 'learning_rate': '8.262e-05', 'epoch': '1.798'}
+Jul 04  22:54:43.433
+Jul 04  22:54:43.434
+{'loss': '2.44e-06', 'grad_norm': '2.644e-05', 'learning_rate': '7.995e-05', 'epoch': '1.838'}
+Jul 04  22:55:00.427
+ 62%|██████▎   | 480/768 [13:47<08:09,  1.70s/it]
+Jul 04  22:55:00.427
+{'loss': '2.401e-06', 'grad_norm': '2.56e-05', 'learning_rate': '7.727e-05', 'epoch': '1.877'}
+Jul 04  22:55:03.821
+ 63%|██████▎   | 482/768 [13:50<08:05,  1.70s/it]
+Jul 04  22:55:17.413
+ 64%|██████▍   | 490/768 [14:04<07:52,  1.70s/it]
+Jul 04  22:55:17.413
+{'loss': '2.37e-06', 'grad_norm': '2.564e-05', 'learning_rate': '7.46e-05', 'epoch': '1.916'}
+Jul 04  22:55:34.536
+Jul 04  22:55:34.536
+{'loss': '2.337e-06', 'grad_norm': '2.5e-05', 'learning_rate': '7.193e-05', 'epoch': '1.955'}
+Jul 04  22:55:34.537
+ 65%|██████▌   | 500/768 [14:21<07:42,  1.73s/it]
+Jul 04  22:55:34.537
+
+Jul 04  22:55:51.543
+Jul 04  22:55:51.544
+{'loss': '2.307e-06', 'grad_norm': '2.478e-05', 'learning_rate': '6.925e-05', 'epoch': '1.994'}
+Jul 04  22:55:54.098
+ 67%|██████▋   | 512/768 [14:40<05:50,  1.37s/it]
+Jul 04  22:55:54.417
+  0%|          | 0/27 [00:00<?, ?it/s]
+Jul 04  22:55:54.737
+  7%|▋         | 2/27 [00:00<00:03,  6.27it/s]
+Jul 04  22:55:55.060
+ 11%|█         | 3/27 [00:00<00:05,  4.42it/s]
+Jul 04  22:55:55.699
+ 15%|█▍        | 4/27 [00:00<00:06,  3.82it/s]
+ 19%|█▊        | 5/27 [00:01<00:06,  3.55it/s]
+Jul 04  22:55:56.021
+ 22%|██▏       | 6/27 [00:01<00:06,  3.39it/s]
+Jul 04  22:55:56.342
+ 26%|██▌       | 7/27 [00:01<00:06,  3.29it/s]
+Jul 04  22:55:56.661
+ 30%|██▉       | 8/27 [00:02<00:05,  3.24it/s]
+Jul 04  22:55:56.981
+ 33%|███▎      | 9/27 [00:02<00:05,  3.20it/s]
+Jul 04  22:55:57.301
+ 37%|███▋      | 10/27 [00:02<00:05,  3.18it/s]
+Jul 04  22:55:57.620
+ 41%|████      | 11/27 [00:03<00:05,  3.16it/s]
+Jul 04  22:55:57.939
+ 44%|████▍     | 12/27 [00:03<00:04,  3.15it/s]
+Jul 04  22:55:58.259
+ 48%|████▊     | 13/27 [00:03<00:04,  3.15it/s]
+Jul 04  22:55:58.579
+ 52%|█████▏    | 14/27 [00:04<00:04,  3.14it/s]
+Jul 04  22:55:58.899
+ 56%|█████▌    | 15/27 [00:04<00:03,  3.14it/s]
+Jul 04  22:55:59.219
+ 59%|█████▉    | 16/27 [00:04<00:03,  3.13it/s]
+Jul 04  22:55:59.540
+ 63%|██████▎   | 17/27 [00:05<00:03,  3.13it/s]
+Jul 04  22:55:59.860
+ 67%|██████▋   | 18/27 [00:05<00:02,  3.13it/s]
+Jul 04  22:56:00.179
+ 70%|███████   | 19/27 [00:05<00:02,  3.13it/s]
+Jul 04  22:56:00.499
+ 74%|███████▍  | 20/27 [00:06<00:02,  3.13it/s]
+Jul 04  22:56:00.820
+ 78%|███████▊  | 21/27 [00:06<00:01,  3.13it/s]
+Jul 04  22:56:01.140
+ 81%|████████▏ | 22/27 [00:06<00:01,  3.13it/s]
+Jul 04  22:56:01.459
+ 85%|████████▌ | 23/27 [00:07<00:01,  3.12it/s]
+Jul 04  22:56:01.779
+ 89%|████████▉ | 24/27 [00:07<00:00,  3.13it/s]
+Jul 04  22:56:02.391
+ 93%|█████████▎| 25/27 [00:07<00:00,  3.13it/s]
+ 96%|█████████▋| 26/27 [00:08<00:00,  3.13it/s]
+Jul 04  22:56:02.457
+                                                 
+Jul 04  22:56:02.458
+ 67%|██████▋   | 512/768 [14:49<05:50,  1.37s/it]
+100%|██████████| 27/27 [00:08<00:00,  3.21it/s]
+Jul 04  22:56:02.458
+                                               
+Jul 04  22:56:02.458
+{'eval_loss': '2.268e-06', 'eval_runtime': '8.62', 'eval_samples_per_second': '24.94', 'eval_steps_per_second': '3.132', 'epoch': '2'}
+Jul 04  22:56:16.053
+ 68%|██████▊   | 520/768 [15:03<07:49,  1.89s/it]
+Jul 04  22:56:16.054
+{'loss': '2.278e-06', 'grad_norm': '2.445e-05', 'learning_rate': '6.658e-05', 'epoch': '2.031'}
+Jul 04  22:56:27.959
+ 69%|██████▊   | 527/768 [15:14<06:53,  1.72s/it]
+Jul 04  22:56:33.064
+Jul 04  22:56:33.064
+{'loss': '2.25e-06', 'grad_norm': '2.402e-05', 'learning_rate': '6.39e-05', 'epoch': '2.07'}
+Jul 04  22:56:50.073
+Jul 04  22:56:50.074
+{'loss': '2.223e-06', 'grad_norm': '2.38e-05', 'learning_rate': '6.123e-05', 'epoch': '2.11'}
+Jul 04  22:57:07.068
+Jul 04  22:57:07.069
+{'loss': '2.195e-06', 'grad_norm': '2.343e-05', 'learning_rate': '5.856e-05', 'epoch': '2.149'}
+Jul 04  22:57:24.059
+Jul 04  22:57:24.060
+{'loss': '2.171e-06', 'grad_norm': '2.32e-05', 'learning_rate': '5.588e-05', 'epoch': '2.188'}
+Jul 04  22:57:41.052
+ 74%|███████▍  | 570/768 [16:28<05:36,  1.70s/it]
+Jul 04  22:57:41.052
+{'loss': '2.15e-06', 'grad_norm': '2.297e-05', 'learning_rate': '5.321e-05', 'epoch': '2.227'}
+Jul 04  22:57:58.040
+Jul 04  22:57:58.040
+{'loss': '2.132e-06', 'grad_norm': '2.275e-05', 'learning_rate': '5.053e-05', 'epoch': '2.266'}
+Jul 04  22:58:15.031
+Jul 04  22:58:15.032
+{'loss': '2.111e-06', 'grad_norm': '2.243e-05', 'learning_rate': '4.786e-05', 'epoch': '2.305'}
+Jul 04  22:58:15.032
+ 77%|███████▋  | 590/768 [17:02<05:02,  1.70s/it]
+Jul 04  22:58:15.032
+
+Jul 04  22:58:32.017
+Jul 04  22:58:32.017
+{'loss': '2.091e-06', 'grad_norm': '2.214e-05', 'learning_rate': '4.519e-05', 'epoch': '2.344'}
+Jul 04  22:58:42.213
+ 79%|███████▉  | 606/768 [17:29<04:35,  1.70s/it]
+Jul 04  22:58:49.015
+Jul 04  22:58:49.015
+{'loss': '2.075e-06', 'grad_norm': '2.218e-05', 'learning_rate': '4.251e-05', 'epoch': '2.384'}
+Jul 04  22:59:06.010
+Jul 04  22:59:06.011
+{'loss': '2.055e-06', 'grad_norm': '2.179e-05', 'learning_rate': '3.984e-05', 'epoch': '2.423'}
+Jul 04  22:59:22.996
+ 82%|████████▏ | 630/768 [18:10<03:54,  1.70s/it]
+Jul 04  22:59:22.996
+{'loss': '2.04e-06', 'grad_norm': '2.163e-05', 'learning_rate': '3.717e-05', 'epoch': '2.462'}
+Jul 04  22:59:39.990
+ 83%|████████▎ | 640/768 [18:27<03:37,  1.70s/it]
+Jul 04  22:59:39.991
+{'loss': '2.025e-06', 'grad_norm': '2.145e-05', 'learning_rate': '3.449e-05', 'epoch': '2.501'}
+Jul 04  22:59:56.982
+Jul 04  22:59:56.982
+{'loss': '2.016e-06', 'grad_norm': '2.134e-05', 'learning_rate': '3.182e-05', 'epoch': '2.54'}
+Jul 04  22:59:58.688
+ 85%|████████▍ | 651/768 [18:45<03:19,  1.70s/it]
+Jul 04  23:00:03.791
+ 85%|████████▌ | 654/768 [18:50<03:13,  1.70s/it]
+Jul 04  23:00:13.982
+Jul 04  23:00:13.983
+{'loss': '2.003e-06', 'grad_norm': '2.125e-05', 'learning_rate': '2.914e-05', 'epoch': '2.579'}
+Jul 04  23:00:13.983
+ 86%|████████▌ | 660/768 [19:00<03:03,  1.70s/it]
+Jul 04  23:00:13.983
+
+Jul 04  23:00:30.976
+ 87%|████████▋ | 670/768 [19:17<02:46,  1.70s/it]
+Jul 04  23:00:30.976
+{'loss': '1.99e-06', 'grad_norm': '2.09e-05', 'learning_rate': '2.647e-05', 'epoch': '2.618'}
+Jul 04  23:00:47.973
+Jul 04  23:00:47.973
+{'loss': '1.983e-06', 'grad_norm': '2.081e-05', 'learning_rate': '2.38e-05', 'epoch': '2.658'}
+Jul 04  23:01:04.964
+Jul 04  23:01:04.965
+{'loss': '1.972e-06', 'grad_norm': '2.081e-05', 'learning_rate': '2.112e-05', 'epoch': '2.697'}
+Jul 04  23:01:21.965
+ 91%|█████████ | 700/768 [20:08<01:55,  1.70s/it]
+Jul 04  23:01:21.965
+{'loss': '1.964e-06', 'grad_norm': '2.067e-05', 'learning_rate': '1.845e-05', 'epoch': '2.736'}
+Jul 04  23:01:38.961
+ 92%|█████████▏| 710/768 [20:25<01:38,  1.70s/it]
+Jul 04  23:01:38.961
+{'loss': '1.956e-06', 'grad_norm': '2.051e-05', 'learning_rate': '1.578e-05', 'epoch': '2.775'}
+Jul 04  23:01:55.960
+Jul 04  23:01:55.960
+{'loss': '1.952e-06', 'grad_norm': '2.069e-05', 'learning_rate': '1.31e-05', 'epoch': '2.814'}
+Jul 04  23:02:12.959
+Jul 04  23:02:12.960
+{'loss': '1.945e-06', 'grad_norm': '2.063e-05', 'learning_rate': '1.043e-05', 'epoch': '2.853'}
+Jul 04  23:02:12.960
+ 95%|█████████▌| 730/768 [20:59<01:04,  1.70s/it]
+Jul 04  23:02:12.961
+
+Jul 04  23:02:19.756
+ 96%|█████████▌| 734/768 [21:06<00:57,  1.70s/it]
+Jul 04  23:02:29.954
+ 96%|█████████▋| 740/768 [21:16<00:47,  1.70s/it]
+Jul 04  23:02:29.955
+{'loss': '1.945e-06', 'grad_norm': '2.056e-05', 'learning_rate': '7.754e-06', 'epoch': '2.892'}
+Jul 04  23:02:46.951
+Jul 04  23:02:46.952
+{'loss': '1.938e-06', 'grad_norm': '2.031e-05', 'learning_rate': '5.08e-06', 'epoch': '2.932'}
+Jul 04  23:03:03.939
+ 99%|█████████▉| 760/768 [21:50<00:13,  1.70s/it]
+Jul 04  23:03:03.940
+{'loss': '1.94e-06', 'grad_norm': '2.046e-05', 'learning_rate': '2.406e-06', 'epoch': '2.971'}
+Jul 04  23:03:16.684
+100%|██████████| 768/768 [22:03<00:00,  1.37s/it]
+Jul 04  23:03:17.003
+  0%|          | 0/27 [00:00<?, ?it/s]
+Jul 04  23:03:17.322
+  7%|▋         | 2/27 [00:00<00:03,  6.28it/s]
+Jul 04  23:03:17.643
+ 11%|█         | 3/27 [00:00<00:05,  4.43it/s]
+Jul 04  23:03:17.963
+ 15%|█▍        | 4/27 [00:00<00:06,  3.83it/s]
+Jul 04  23:03:18.283
+ 19%|█▊        | 5/27 [00:01<00:06,  3.55it/s]
+Jul 04  23:03:18.602
+ 22%|██▏       | 6/27 [00:01<00:06,  3.40it/s]
+Jul 04  23:03:18.922
+ 26%|██▌       | 7/27 [00:01<00:06,  3.31it/s]
+Jul 04  23:03:19.242
+ 30%|██▉       | 8/27 [00:02<00:05,  3.25it/s]
+Jul 04  23:03:19.562
+ 33%|███▎      | 9/27 [00:02<00:05,  3.21it/s]
+Jul 04  23:03:19.882
+ 37%|███▋      | 10/27 [00:02<00:05,  3.18it/s]
+Jul 04  23:03:20.202
+ 41%|████      | 11/27 [00:03<00:05,  3.16it/s]
+Jul 04  23:03:20.522
+ 44%|████▍     | 12/27 [00:03<00:04,  3.15it/s]
+ 48%|████▊     | 13/27 [00:03<00:04,  3.14it/s]
+Jul 04  23:03:20.842
+
+Jul 04  23:03:21.162
+ 52%|█████▏    | 14/27 [00:04<00:04,  3.14it/s]
+Jul 04  23:03:21.482
+ 56%|█████▌    | 15/27 [00:04<00:03,  3.13it/s]
+Jul 04  23:03:21.802
+ 59%|█████▉    | 16/27 [00:04<00:03,  3.13it/s]
+Jul 04  23:03:22.122
+ 63%|██████▎   | 17/27 [00:05<00:03,  3.13it/s]
+Jul 04  23:03:22.442
+ 67%|██████▋   | 18/27 [00:05<00:02,  3.13it/s]
+Jul 04  23:03:22.762
+ 70%|███████   | 19/27 [00:05<00:02,  3.13it/s]
+Jul 04  23:03:23.083
+ 74%|███████▍  | 20/27 [00:06<00:02,  3.13it/s]
+Jul 04  23:03:23.403
+ 78%|███████▊  | 21/27 [00:06<00:01,  3.12it/s]
+Jul 04  23:03:23.723
+ 81%|████████▏ | 22/27 [00:06<00:01,  3.12it/s]
+Jul 04  23:03:24.043
+ 85%|████████▌ | 23/27 [00:07<00:01,  3.12it/s]
+Jul 04  23:03:24.363
+ 89%|████████▉ | 24/27 [00:07<00:00,  3.12it/s]
+Jul 04  23:03:24.683
+ 93%|█████████▎| 25/27 [00:07<00:00,  3.13it/s]
+Jul 04  23:03:24.975
+ 96%|█████████▋| 26/27 [00:07<00:00,  3.13it/s]
+Jul 04  23:03:25.039
+100%|██████████| 768/768 [22:12<00:00,  1.37s/it]
+Jul 04  23:03:25.039
+100%|██████████| 27/27 [00:08<00:00,  3.21it/s]
+Jul 04  23:03:25.039
+{'eval_loss': '1.963e-06', 'eval_runtime': '8.618', 'eval_samples_per_second': '24.95', 'eval_steps_per_second': '3.133', 'epoch': '3'}
+Jul 04  23:03:25.039
+{'train_runtime': '1332', 'train_samples_per_second': '9.2', 'train_steps_per_second': '0.577', 'train_loss': '0.02122', 'epoch': '3'}
+Jul 04  23:03:25.042
+100%|██████████| 768/768 [22:12<00:00,  1.73s/it]
+                                               
+Jul 04  23:03:25.043
+💾 Saving LoRA adapter weights...
+Jul 04  23:03:26.492
+💾 Merging LoRA weights and saving merged model locally to persistent volume...
+Jul 04  23:04:33.153
+Writing model shards: 100%|██████████| 1/1 [01:06<00:00, 66.42s/it]
+Jul 04  23:04:33.237
+🎉 Success: Fine-tuned model saved to /storage/qwen_vismimo
+Jul 04  23:04:33.259
+💾 Saved fine-tune metrics to history: /storage/llm_finetune/finetune_history.json
+Jul 04  23:04:33.260
+☁️ Hugging Face write token found. Commencing push to Hugging Face Hub...
+Jul 04  23:04:33.314
+🚀 Pushing LoRA adapter to Maikhang/qwen-vismimo-lora...
+Jul 04  23:04:33.314
+Note: Environment variable`HF_TOKEN` is set and is the current active token independently from the token you've just configured.
+Jul 04  23:04:33.893
+Processing Files (0 / 0)      : |          |  0.00B /  0.00B            
+Jul 04  23:04:34.371
+New Data Upload               : |          |  0.00B /  0.00B            
+
+Jul 04  23:04:34.373
+  ...adapter_model.safetensors: 100%|██████████|  40.0B /  40.0B            
+
+Jul 04  23:04:34.474
+Processing Files (1 / 1)      : 100%|██████████|  40.0B /  40.0B,   ???B/s  
+
+Jul 04  23:04:34.576
+  ...adapter_model.safetensors: 100%|██████████|  40.0B /  40.0B            
+
+Jul 04  23:04:34.603
+  ...adapter_model.safetensors: 100%|██████████|  40.0B /  40.0B            
+
+Jul 04  23:04:34.604
+Processing Files (1 / 1)      : 100%|██████████|  40.0B /  40.0B,  3.90B/s  
+Jul 04  23:04:34.604
+New Data Upload               : |          |  0.00B /  0.00B,  0.00B/s  
+Jul 04  23:04:34.605
+  ...adapter_model.safetensors: 100%|██████████|  40.0B /  40.0B            
+Jul 04  23:04:35.209
+Processing Files (0 / 0)      : |          |  0.00B /  0.00B            
+Jul 04  23:04:35.502
+New Data Upload               : |          |  0.00B /  0.00B            
+
+  ...mpz74j1h_a/tokenizer.json: 100%|██████████| 11.4MB / 11.4MB            
+Jul 04  23:04:35.648
+Processing Files (1 / 1)      : 100%|██████████| 11.4MB / 11.4MB, 1.12MB/s  
+New Data Upload               : |          |  0.00B /  0.00B,  0.00B/s  
+  ...mpz74j1h_a/tokenizer.json: 100%|██████████| 11.4MB / 11.4MB            
+Jul 04  23:04:35.649
+  ...mpz74j1h_a/tokenizer.json: 100%|██████████| 11.4MB / 11.4MB            
+Jul 04  23:04:36.104
+🚀 Pushing merged model to Maikhang/qwen-vismimo...
+Jul 04  23:05:02.107
+Writing model shards: 100%|██████████| 1/1 [00:25<00:00, 25.60s/it]
+Jul 04  23:05:02.213
+Processing Files (0 / 0)      : |          |  0.00B /  0.00B            
+Jul 04  23:05:03.023
+New Data Upload               : |          |  0.00B /  0.00B            
+
+Jul 04  23:05:03.023
+  ...8b57gpx/model.safetensors:   0%|          | 37.5MB / 29.5GB            
+
+Jul 04  23:05:03.123
+Processing Files (0 / 1)      :   0%|          | 37.5MB / 29.5GB, 3.69MB/s  
+
+Jul 04  23:05:03.225
+Processing Files (0 / 1)      :   0%|          | 75.7MB / 29.5GB, 7.39MB/s  
+
+Jul 04  23:05:03.326
+Processing Files (0 / 1)      :   0%|          |  121MB / 29.5GB, 11.8MB/s  
+
+Jul 04  23:05:03.426
+Processing Files (0 / 1)      :   1%|          |  167MB / 29.5GB, 16.1MB/s  
+
+Jul 04  23:05:03.427
+  ...8b57gpx/model.safetensors:   1%|          |  205MB / 29.5GB            
+Jul 04  23:05:03.528
+Processing Files (0 / 1)      :   1%|          |  205MB / 29.5GB, 19.7MB/s  
+
+Jul 04  23:05:03.628
+Processing Files (0 / 1)      :   1%|          |  250MB / 29.5GB, 23.8MB/s  
+
+Jul 04  23:05:03.730
+Processing Files (0 / 1)      :   1%|          |  288MB / 29.5GB, 27.2MB/s  
+
+Jul 04  23:05:03.831
+Processing Files (0 / 1)      :   1%|          |  333MB / 29.5GB, 31.3MB/s  
+
+Jul 04  23:05:03.932
+Processing Files (0 / 1)      :   1%|▏         |  379MB / 29.5GB, 35.4MB/s  
+
+Jul 04  23:05:04.032
+Processing Files (0 / 1)      :   1%|▏         |  424MB / 29.5GB, 39.4MB/s  
+
+Jul 04  23:05:04.134
+Processing Files (0 / 1)      :   2%|▏         |  462MB / 29.5GB, 42.6MB/s  
+
+Jul 04  23:05:04.235
+Processing Files (0 / 1)      :   2%|▏         |  507MB / 29.5GB, 46.5MB/s  
+
+Jul 04  23:05:04.336
+Processing Files (0 / 1)      :   2%|▏         |  544MB / 29.5GB, 49.6MB/s  
+
+Jul 04  23:05:04.438
+Processing Files (0 / 1)      :   2%|▏         |  590MB / 29.5GB, 53.4MB/s  
+
+Jul 04  23:05:04.538
+Processing Files (0 / 1)      :   2%|▏         |  634MB / 29.5GB, 57.1MB/s  
+
+Jul 04  23:05:04.639
+Processing Files (0 / 1)      :   2%|▏         |  680MB / 29.5GB, 60.9MB/s  
+
+Jul 04  23:05:04.740
+Processing Files (0 / 1)      :   2%|▏         |  726MB / 29.5GB, 64.6MB/s  
+
+Jul 04  23:05:04.841
+Processing Files (0 / 1)      :   3%|▎         |  779MB / 29.5GB, 69.0MB/s  
+
+Jul 04  23:05:04.942
+Processing Files (0 / 1)      :   3%|▎         |  824MB / 29.5GB, 72.6MB/s  
+
+Jul 04  23:05:05.043
+Processing Files (0 / 1)      :   3%|▎         |  888MB / 29.5GB, 77.9MB/s  
+
+Jul 04  23:05:05.348
+Processing Files (0 / 1)      :   4%|▎         | 1.06GB / 29.5GB, 91.5MB/s  
+
+  ...8b57gpx/model.safetensors:   4%|▎         | 1.06GB / 29.5GB            
+Jul 04  23:05:05.449
+Processing Files (0 / 1)      :   4%|▍         | 1.12GB / 29.5GB, 96.3MB/s  
+
+Jul 04  23:05:05.551
+Processing Files (0 / 1)      :   4%|▍         | 1.17GB / 29.5GB,  100MB/s  
+
+Jul 04  23:05:05.652
+Processing Files (0 / 1)      :   4%|▍         | 1.23GB / 29.5GB,  104MB/s  
+
+Jul 04  23:05:05.753
+Processing Files (0 / 1)      :   4%|▍         | 1.27GB / 29.5GB,  107MB/s  
+
+Jul 04  23:05:05.855
+Processing Files (0 / 1)      :   4%|▍         | 1.32GB / 29.5GB,  110MB/s  
+
+Jul 04  23:05:05.956
+Processing Files (0 / 1)      :   4%|▍         | 1.33GB / 29.5GB,  110MB/s  
+
+Jul 04  23:05:06.057
+  ...8b57gpx/model.safetensors:   4%|▍         | 1.33GB / 29.5GB            
+
+Jul 04  23:05:06.057
+Processing Files (0 / 1)      :   5%|▍         | 1.37GB / 29.5GB,  112MB/s  
+Jul 04  23:05:06.158
+New Data Upload               :   1%|          |  612kB / 67.0MB, 55.7kB/s  
+
+Jul 04  23:05:06.159
+Processing Files (0 / 1)      :   5%|▍         | 1.41GB / 29.5GB,  115MB/s  
+Jul 04  23:05:06.259
+New Data Upload               :   3%|▎         | 1.84MB / 67.0MB,  166kB/s  
+
+Jul 04  23:05:06.260
+Processing Files (0 / 1)      :   5%|▍         | 1.46GB / 29.5GB,  118MB/s  
+Jul 04  23:05:06.360
+New Data Upload               :   4%|▎         | 2.45MB / 67.0MB,  220kB/s  
+
+Jul 04  23:05:06.360
+Processing Files (0 / 1)      :   5%|▌         | 1.48GB / 29.5GB,  119MB/s  
+Jul 04  23:05:06.461
+New Data Upload               :   5%|▍         | 3.06MB / 67.0MB,  273kB/s  
+
+Jul 04  23:05:06.462
+Processing Files (0 / 1)      :   5%|▌         | 1.48GB / 29.5GB,  118MB/s  
+Jul 04  23:05:06.563
+New Data Upload               :   3%|▎         | 3.67MB /  134MB,  326kB/s  
+
+Jul 04  23:05:06.563
+Processing Files (0 / 1)      :   5%|▌         | 1.48GB / 29.5GB,  117MB/s  
+Jul 04  23:05:06.664
+New Data Upload               :   4%|▎         | 4.90MB /  134MB,  433kB/s  
+
+Jul 04  23:05:06.667
+Processing Files (0 / 1)      :   5%|▌         | 1.48GB / 29.5GB,  116MB/s  
+Jul 04  23:05:06.667
+New Data Upload               :   4%|▍         | 5.51MB /  134MB,  484kB/s  
+Jul 04  23:05:06.768
+
+
+Jul 04  23:05:06.768
+Processing Files (0 / 1)      :   5%|▌         | 1.48GB / 29.5GB,  115MB/s  
+Jul 04  23:05:06.869
+New Data Upload               :   6%|▌         | 8.06MB /  134MB,  708kB/s  
+
+Jul 04  23:05:06.869
+Processing Files (0 / 1)      :   5%|▌         | 1.48GB / 29.5GB,  114MB/s  
+Jul 04  23:05:06.969
+New Data Upload               :   8%|▊         | 10.6MB /  134MB,  927kB/s  
+
+Jul 04  23:05:06.969
+Processing Files (0 / 1)      :   5%|▌         | 1.49GB / 29.5GB,  113MB/s  
+Jul 04  23:05:07.070
+New Data Upload               :   8%|▊         | 11.2MB /  134MB,  976kB/s  
+
+Jul 04  23:05:07.070
+Processing Files (0 / 1)      :   5%|▌         | 1.55GB / 29.5GB,  118MB/s  
+Jul 04  23:05:07.171
+New Data Upload               :  10%|█         | 13.7MB /  134MB, 1.19MB/s  
+
+Jul 04  23:05:07.172
+Processing Files (0 / 1)      :   5%|▌         | 1.59GB / 29.5GB,  121MB/s  
+Jul 04  23:05:07.272
+New Data Upload               :  11%|█         | 15.0MB /  134MB, 1.29MB/s  
+
+Jul 04  23:05:07.272
+Processing Files (0 / 1)      :   6%|▌         | 1.64GB / 29.5GB,  124MB/s  
+Jul 04  23:05:07.373
+New Data Upload               :  13%|█▎        | 16.9MB /  134MB, 1.45MB/s  
+
+Jul 04  23:05:07.374
+Processing Files (0 / 1)      :   6%|▌         | 1.69GB / 29.5GB,  127MB/s  
+Jul 04  23:05:07.474
+New Data Upload               :  14%|█▍        | 18.8MB /  134MB, 1.60MB/s  
+
+Jul 04  23:05:07.474
+Processing Files (0 / 1)      :   6%|▌         | 1.74GB / 29.5GB,  131MB/s  
+Jul 04  23:05:07.575
+New Data Upload               :  16%|█▌        | 21.3MB /  134MB, 1.81MB/s  
+
+Jul 04  23:05:07.575
+Processing Files (0 / 1)      :   6%|▌         | 1.80GB / 29.5GB,  134MB/s  
+Jul 04  23:05:07.676
+New Data Upload               :  19%|█▊        | 25.1MB /  134MB, 2.13MB/s  
+
+Jul 04  23:05:07.676
+Processing Files (0 / 1)      :   6%|▋         | 1.85GB / 29.5GB,  138MB/s  
+Jul 04  23:05:07.776
+New Data Upload               :  23%|██▎       | 31.3MB /  134MB, 2.66MB/s  
+
+Jul 04  23:05:07.776
+Processing Files (0 / 1)      :   6%|▋         | 1.91GB / 29.5GB,  141MB/s  
+Jul 04  23:05:07.877
+New Data Upload               :  29%|██▉       | 39.5MB /  134MB, 3.35MB/s  
+
+Jul 04  23:05:07.877
+Processing Files (0 / 1)      :   7%|▋         | 1.97GB / 29.5GB,  145MB/s  
+Jul 04  23:05:07.977
+New Data Upload               :  38%|███▊      | 51.5MB /  134MB, 4.37MB/s  
+
+Jul 04  23:05:07.978
+Processing Files (0 / 1)      :   7%|▋         | 2.04GB / 29.5GB,  150MB/s  
+Jul 04  23:05:08.078
+New Data Upload               :  49%|████▉     | 66.0MB /  134MB, 5.60MB/s  
+
+Jul 04  23:05:08.078
+Processing Files (0 / 1)      :   7%|▋         | 2.10GB / 29.5GB,  155MB/s  
+Jul 04  23:05:08.179
+New Data Upload               :  63%|██████▎   | 84.2MB /  134MB, 7.15MB/s  
+
+Jul 04  23:05:08.179
+Processing Files (0 / 1)      :   7%|▋         | 2.19GB / 29.5GB,  161MB/s  
+Jul 04  23:05:08.381
+Processing Files (0 / 1)      :   8%|▊         | 2.27GB / 29.5GB,  166MB/s  
+New Data Upload               :  97%|█████████▋|  130MB /  134MB, 11.0MB/s  
+  ...8b57gpx/model.safetensors:   8%|▊         | 2.27GB / 29.5GB            
+Jul 04  23:05:08.382
+Processing Files (0 / 1)      :   8%|▊         | 2.34GB / 29.5GB,  171MB/s  
+Jul 04  23:05:08.483
+New Data Upload               : 100%|█████████▉|  133MB /  134MB, 11.2MB/s  
+
+Jul 04  23:05:08.585
+Processing Files (0 / 1)      :   8%|▊         | 2.40GB / 29.5GB,  175MB/s  
+
+Jul 04  23:05:08.687
+Processing Files (0 / 1)      :   8%|▊         | 2.46GB / 29.5GB,  178MB/s  
+
+Jul 04  23:05:08.788
+Processing Files (0 / 1)      :   9%|▊         | 2.52GB / 29.5GB,  182MB/s  
+
+Jul 04  23:05:08.889
+Processing Files (0 / 1)      :   9%|▊         | 2.57GB / 29.5GB,  185MB/s  
+
+Jul 04  23:05:08.992
+Processing Files (0 / 1)      :   9%|▉         | 2.62GB / 29.5GB,  187MB/s  
+
+Jul 04  23:05:09.093
+Processing Files (0 / 1)      :   9%|▉         | 2.66GB / 29.5GB,  190MB/s  
+
+Jul 04  23:05:09.196
+Processing Files (0 / 1)      :   9%|▉         | 2.71GB / 29.5GB,  192MB/s  
+
+Jul 04  23:05:09.297
+Processing Files (0 / 1)      :   9%|▉         | 2.76GB / 29.5GB,  194MB/s  
+
+Jul 04  23:05:09.297
+Processing Files (0 / 1)      :  10%|▉         | 2.81GB / 29.5GB,  197MB/s  
+Jul 04  23:05:09.398
+
+
+Jul 04  23:05:09.499
+Processing Files (0 / 1)      :  10%|▉         | 2.85GB / 29.5GB,  199MB/s  
+
+Jul 04  23:05:09.600
+Processing Files (0 / 1)      :  10%|▉         | 2.89GB / 29.5GB,  200MB/s  
+
+Jul 04  23:05:09.701
+Processing Files (0 / 1)      :  10%|▉         | 2.94GB / 29.5GB,  203MB/s  
+
+Jul 04  23:05:09.803
+Processing Files (0 / 1)      :  10%|█         | 2.98GB / 29.5GB,  205MB/s  
+
+Jul 04  23:05:09.904
+Processing Files (0 / 1)      :  10%|█         | 3.03GB / 29.5GB,  207MB/s  
+
+Jul 04  23:05:10.005
+Processing Files (0 / 1)      :  10%|█         | 3.07GB / 29.5GB,  209MB/s  
+
+Jul 04  23:05:10.107
+Processing Files (0 / 1)      :  10%|█         | 3.09GB / 29.5GB,  209MB/s  
+
+Jul 04  23:05:10.207
+  ...8b57gpx/model.safetensors:  10%|█         | 3.09GB / 29.5GB            
+
+Jul 04  23:05:10.308
+  ...8b57gpx/model.safetensors:  10%|█         | 3.09GB / 29.5GB            
+
+Jul 04  23:05:10.408
+  ...8b57gpx/model.safetensors:  10%|█         | 3.09GB / 29.5GB            
+
+Jul 04  23:05:10.509
+  ...8b57gpx/model.safetensors:  10%|█         | 3.09GB / 29.5GB            
+
+Jul 04  23:05:10.509
+Processing Files (0 / 1)      :  10%|█         | 3.09GB / 29.5GB,  200MB/s  
+Jul 04  23:05:10.610
+New Data Upload               :  67%|██████▋   |  134MB /  201MB, 9.39MB/s  
+
+Jul 04  23:05:10.610
+Processing Files (0 / 1)      :  10%|█         | 3.09GB / 29.5GB,  199MB/s  
+Jul 04  23:05:10.711
+New Data Upload               :  51%|█████     |  136MB /  268MB, 9.45MB/s  
+
+Jul 04  23:05:10.712
+Processing Files (0 / 1)      :  10%|█         | 3.09GB / 29.5GB,  197MB/s  
+Jul 04  23:05:10.712
+New Data Upload               :  51%|█████     |  137MB /  268MB, 9.47MB/s  
+Jul 04  23:05:10.813
+
+
+Jul 04  23:05:10.813
+Processing Files (0 / 1)      :  10%|█         | 3.09GB / 29.5GB,  195MB/s  
+Jul 04  23:05:10.913
+New Data Upload               :  52%|█████▏    |  138MB /  268MB, 9.49MB/s  
+
+Jul 04  23:05:10.914
+Processing Files (0 / 1)      :  10%|█         | 3.10GB / 29.5GB,  194MB/s  
+Jul 04  23:05:11.014
+New Data Upload               :  53%|█████▎    |  142MB /  268MB, 9.77MB/s  
+
+Jul 04  23:05:11.014
+Processing Files (0 / 1)      :  11%|█         | 3.10GB / 29.5GB,  193MB/s  
+Jul 04  23:05:11.115
+New Data Upload               :  55%|█████▍    |  147MB /  268MB, 10.1MB/s  
+
+Jul 04  23:05:11.115
+Processing Files (0 / 1)      :  11%|█         | 3.11GB / 29.5GB,  192MB/s  
+Jul 04  23:05:11.216
+New Data Upload               :  45%|████▍     |  150MB /  335MB, 10.3MB/s  
+
+Jul 04  23:05:11.217
+Processing Files (0 / 1)      :  11%|█         | 3.11GB / 29.5GB,  190MB/s  
+Jul 04  23:05:11.317
+New Data Upload               :  46%|████▌     |  153MB /  335MB, 10.4MB/s  
+
+Jul 04  23:05:11.318
+Processing Files (0 / 1)      :  11%|█         | 3.11GB / 29.5GB,  189MB/s  
+Jul 04  23:05:11.418
+New Data Upload               :  46%|████▌     |  155MB /  335MB, 10.4MB/s  
+
+Jul 04  23:05:11.418
+Processing Files (0 / 1)      :  11%|█         | 3.11GB / 29.5GB,  187MB/s  
+Jul 04  23:05:11.519
+New Data Upload               :  47%|████▋     |  156MB /  335MB, 10.5MB/s  
+
+Jul 04  23:05:11.519
+Processing Files (0 / 1)      :  11%|█         | 3.12GB / 29.5GB,  186MB/s  
+Jul 04  23:05:11.619
+New Data Upload               :  40%|███▉      |  159MB /  402MB, 10.7MB/s  
+
+Jul 04  23:05:11.620
+Processing Files (0 / 1)      :  11%|█         | 3.12GB / 29.5GB,  185MB/s  
+Jul 04  23:05:11.720
+New Data Upload               :  40%|████      |  162MB /  402MB, 10.8MB/s  
+
+Jul 04  23:05:11.821
+Processing Files (0 / 1)      :  11%|█         | 3.12GB / 29.5GB,  183MB/s  
+New Data Upload               :  41%|████      |  166MB /  402MB, 11.0MB/s  
+Jul 04  23:05:11.821
+Processing Files (0 / 1)      :  11%|█         | 3.13GB / 29.5GB,  182MB/s  
+Jul 04  23:05:11.921
+New Data Upload               :  37%|███▋      |  173MB /  469MB, 11.5MB/s  
+
+Jul 04  23:05:11.922
+Processing Files (0 / 1)      :  11%|█         | 3.13GB / 29.5GB,  181MB/s  
+Jul 04  23:05:12.022
+New Data Upload               :  38%|███▊      |  178MB /  469MB, 11.8MB/s  
+
+Jul 04  23:05:12.022
+Processing Files (0 / 1)      :  11%|█         | 3.14GB / 29.5GB,  180MB/s  
+Jul 04  23:05:12.123
+New Data Upload               :  39%|███▉      |  182MB /  469MB, 12.1MB/s  
+
+Jul 04  23:05:12.123
+Processing Files (0 / 1)      :  11%|█         | 3.15GB / 29.5GB,  179MB/s  
+Jul 04  23:05:12.223
+New Data Upload               :  35%|███▌      |  189MB /  536MB, 12.5MB/s  
+
+Jul 04  23:05:12.224
+Processing Files (0 / 1)      :  11%|█         | 3.15GB / 29.5GB,  178MB/s  
+Jul 04  23:05:12.324
+New Data Upload               :  36%|███▋      |  195MB /  536MB, 12.9MB/s  
+
+Jul 04  23:05:12.324
+Processing Files (0 / 1)      :  11%|█         | 3.16GB / 29.5GB,  177MB/s  
+Jul 04  23:05:12.424
+New Data Upload               :  38%|███▊      |  203MB /  536MB, 13.5MB/s  
+
+Jul 04  23:05:12.526
+Processing Files (0 / 1)      :  11%|█         | 3.18GB / 29.5GB,  178MB/s  
+New Data Upload               :  42%|████▏     |  225MB /  536MB, 15.1MB/s  
+Jul 04  23:05:12.526
+Processing Files (0 / 1)      :  11%|█         | 3.19GB / 29.5GB,  177MB/s  
+Jul 04  23:05:12.626
+New Data Upload               :  39%|███▊      |  233MB /  603MB, 15.7MB/s  
+
+Jul 04  23:05:12.627
+Processing Files (0 / 1)      :  11%|█         | 3.20GB / 29.5GB,  176MB/s  
+Jul 04  23:05:12.728
+New Data Upload               :  40%|███▉      |  239MB /  603MB, 16.0MB/s  
+
+Jul 04  23:05:12.829
+Processing Files (0 / 1)      :  11%|█         | 3.25GB / 29.5GB,  179MB/s  
+New Data Upload               :  48%|████▊     |  289MB /  603MB, 20.0MB/s  
+Jul 04  23:05:12.829
+Processing Files (0 / 1)      :  11%|█▏        | 3.34GB / 29.5GB,  185MB/s  
+Jul 04  23:05:12.930
+Processing Files (0 / 1)      :  12%|█▏        | 3.40GB / 29.5GB,  188MB/s  
+
+  ...8b57gpx/model.safetensors:  12%|█▏        | 3.40GB / 29.5GB            
+Jul 04  23:05:13.231
+Processing Files (0 / 1)      :  12%|█▏        | 3.53GB / 29.5GB,  194MB/s  
+New Data Upload               :  79%|███████▉  |  531MB /  670MB, 38.7MB/s  
+  ...8b57gpx/model.safetensors:  12%|█▏        | 3.53GB / 29.5GB            
+Jul 04  23:05:13.331
+New Data Upload               :  85%|████████▌ |  572MB /  670MB, 41.7MB/s  
+
+Jul 04  23:05:13.332
+Processing Files (0 / 1)      :  12%|█▏        | 3.56GB / 29.5GB,  195MB/s  
+Jul 04  23:05:13.332
+
+Jul 04  23:05:13.432
+New Data Upload               :  91%|█████████ |  608MB /  670MB, 44.2MB/s  
+
+Jul 04  23:05:13.433
+Processing Files (0 / 1)      :  12%|█▏        | 3.60GB / 29.5GB,  197MB/s  
+Jul 04  23:05:13.534
+New Data Upload               :  88%|████████▊ |  647MB /  737MB, 47.1MB/s  
+
+Jul 04  23:05:13.535
+Processing Files (0 / 1)      :  12%|█▏        | 3.62GB / 29.5GB,  197MB/s  
+Jul 04  23:05:13.636
+New Data Upload               :  91%|█████████ |  668MB /  737MB, 48.4MB/s  
+
+Jul 04  23:05:13.637
+Processing Files (0 / 1)      :  12%|█▏        | 3.63GB / 29.5GB,  195MB/s  
+Jul 04  23:05:13.838
+Processing Files (0 / 1)      :  12%|█▏        | 3.69GB / 29.5GB,  197MB/s  
+New Data Upload               :  87%|████████▋ |  699MB /  805MB, 50.0MB/s  
+  ...8b57gpx/model.safetensors:  12%|█▏        | 3.69GB / 29.5GB            
+Jul 04  23:05:13.938
+New Data Upload               :  91%|█████████ |  731MB /  805MB, 52.2MB/s  
+
+Jul 04  23:05:13.939
+Processing Files (0 / 1)      :  13%|█▎        | 3.71GB / 29.5GB,  197MB/s  
+Jul 04  23:05:14.140
+Processing Files (0 / 1)      :  13%|█▎        | 3.74GB / 29.5GB,  199MB/s  
+New Data Upload               :  90%|█████████ |  787MB /  872MB, 55.9MB/s  
+  ...8b57gpx/model.safetensors:  13%|█▎        | 3.74GB / 29.5GB            
+Jul 04  23:05:14.243
+Processing Files (0 / 1)      :  13%|█▎        | 3.76GB / 29.5GB,  198MB/s  
+New Data Upload               :  92%|█████████▏|  803MB /  872MB, 56.7MB/s  
+Jul 04  23:05:14.244
+Processing Files (0 / 1)      :  13%|█▎        | 3.76GB / 29.5GB,  197MB/s  
+Jul 04  23:05:14.346
+New Data Upload               :  86%|████████▌ |  804MB /  939MB, 56.3MB/s  
+
+Jul 04  23:05:14.448
+Processing Files (0 / 1)      :  13%|█▎        | 3.76GB / 29.5GB,  195MB/s  
+New Data Upload               :  86%|████████▌ |  807MB /  939MB, 56.1MB/s  
+Jul 04  23:05:14.448
+Processing Files (0 / 1)      :  13%|█▎        | 3.80GB / 29.5GB,  197MB/s  
+Jul 04  23:05:14.549
+New Data Upload               :  84%|████████▍ |  842MB / 1.01GB, 58.4MB/s  
+
+Jul 04  23:05:14.549
+Processing Files (0 / 1)      :  13%|█▎        | 3.84GB / 29.5GB,  198MB/s  
+Jul 04  23:05:14.649
+New Data Upload               :  88%|████████▊ |  881MB / 1.01GB, 61.0MB/s  
+
+Jul 04  23:05:14.650
+Processing Files (0 / 1)      :  13%|█▎        | 3.85GB / 29.5GB,  197MB/s  
+Jul 04  23:05:14.750
+New Data Upload               :  83%|████████▎ |  893MB / 1.07GB, 61.5MB/s  
+
+Jul 04  23:05:14.750
+Processing Files (0 / 1)      :  13%|█▎        | 3.89GB / 29.5GB,  199MB/s  
+Jul 04  23:05:14.951
+Processing Files (0 / 1)      :  13%|█▎        | 3.97GB / 29.5GB,  202MB/s  
+New Data Upload               :  91%|█████████ |  975MB / 1.07GB, 67.0MB/s  
+  ...8b57gpx/model.safetensors:  13%|█▎        | 3.97GB / 29.5GB            
+Jul 04  23:05:15.052
+New Data Upload               :  89%|████████▉ | 1.01GB / 1.14GB, 69.4MB/s  
+
+Jul 04  23:05:15.052
+Processing Files (0 / 1)      :  14%|█▎        | 4.01GB / 29.5GB,  204MB/s  
+Jul 04  23:05:15.153
+New Data Upload               :  92%|█████████▏| 1.05GB / 1.14GB, 72.0MB/s  
+
+Jul 04  23:05:15.154
+Processing Files (0 / 1)      :  14%|█▎        | 4.02GB / 29.5GB,  203MB/s  
+Jul 04  23:05:15.255
+New Data Upload               :  88%|████████▊ | 1.07GB / 1.21GB, 72.7MB/s  
+
+Jul 04  23:05:15.255
+Processing Files (0 / 1)      :  14%|█▎        | 4.03GB / 29.5GB,  202MB/s  
+Jul 04  23:05:15.356
+New Data Upload               :  89%|████████▉ | 1.08GB / 1.21GB, 72.9MB/s  
+
+Jul 04  23:05:15.357
+Processing Files (0 / 1)      :  14%|█▎        | 4.04GB / 29.5GB,  201MB/s  
+Jul 04  23:05:15.458
+New Data Upload               :  85%|████████▌ | 1.08GB / 1.27GB, 72.9MB/s  
+
+Jul 04  23:05:15.559
+Processing Files (0 / 1)      :  14%|█▎        | 4.05GB / 29.5GB,  201MB/s  
+New Data Upload               :  86%|████████▌ | 1.10GB / 1.27GB, 73.3MB/s  
+Jul 04  23:05:15.659
+Processing Files (0 / 1)      :  14%|█▍        | 4.08GB / 29.5GB,  201MB/s  
+New Data Upload               :  88%|████████▊ | 1.13GB / 1.27GB, 75.1MB/s  
+Jul 04  23:05:15.661
+Processing Files (0 / 1)      :  14%|█▍        | 4.10GB / 29.5GB,  201MB/s  
+Jul 04  23:05:15.863
+Processing Files (0 / 1)      :  14%|█▍        | 4.12GB / 29.5GB,  201MB/s  
+New Data Upload               :  87%|████████▋ | 1.17GB / 1.34GB, 76.9MB/s  
+  ...8b57gpx/model.safetensors:  14%|█▍        | 4.12GB / 29.5GB            
+Jul 04  23:05:15.863
+Processing Files (0 / 1)      :  14%|█▍        | 4.21GB / 29.5GB,  206MB/s  
+Jul 04  23:05:15.963
+New Data Upload               :  89%|████████▉ | 1.25GB / 1.41GB, 83.1MB/s  
+
+Jul 04  23:05:15.963
+Processing Files (0 / 1)      :  14%|█▍        | 4.27GB / 29.5GB,  210MB/s  
+Jul 04  23:05:16.064
+New Data Upload               :  93%|█████████▎| 1.31GB / 1.41GB, 87.3MB/s  
+
+Jul 04  23:05:16.065
+Processing Files (0 / 1)      :  15%|█▍        | 4.30GB / 29.5GB,  210MB/s  
+Jul 04  23:05:16.168
+New Data Upload               :  95%|█████████▌| 1.34GB / 1.41GB, 88.6MB/s  
+
+Jul 04  23:05:16.169
+Processing Files (0 / 1)      :  15%|█▍        | 4.30GB / 29.5GB,  209MB/s  
+Jul 04  23:05:16.271
+New Data Upload               :  91%|█████████ | 1.34GB / 1.48GB, 88.1MB/s  
+
+Jul 04  23:05:16.271
+  ...8b57gpx/model.safetensors:  15%|█▍        | 4.30GB / 29.5GB            
+Jul 04  23:05:16.271
+Processing Files (0 / 1)      :  15%|█▍        | 4.30GB / 29.5GB,  207MB/s  
+Jul 04  23:05:16.473
+Processing Files (0 / 1)      :  15%|█▍        | 4.32GB / 29.5GB,  207MB/s  
+New Data Upload               :  88%|████████▊ | 1.36GB / 1.54GB, 88.5MB/s  
+  ...8b57gpx/model.safetensors:  15%|█▍        | 4.32GB / 29.5GB            
+Jul 04  23:05:16.473
+Processing Files (0 / 1)      :  15%|█▍        | 4.36GB / 29.5GB,  209MB/s  
+Jul 04  23:05:16.574
+New Data Upload               :  91%|█████████ | 1.41GB / 1.54GB, 91.0MB/s  
+
+Jul 04  23:05:16.675
+Processing Files (0 / 1)      :  15%|█▍        | 4.38GB / 29.5GB,  208MB/s  
+New Data Upload               :  92%|█████████▏| 1.43GB / 1.54GB, 91.8MB/s  
+Jul 04  23:05:16.675
+Processing Files (0 / 1)      :  15%|█▍        | 4.39GB / 29.5GB,  208MB/s  
+Jul 04  23:05:16.777
+New Data Upload               :  89%|████████▉ | 1.44GB / 1.61GB, 91.9MB/s  
+
+Jul 04  23:05:16.777
+Processing Files (0 / 1)      :  15%|█▍        | 4.41GB / 29.5GB,  207MB/s  
+Jul 04  23:05:16.879
+Processing Files (0 / 1)      :  15%|█▍        | 4.42GB / 29.5GB,  207MB/s  
+
+  ...8b57gpx/model.safetensors:  15%|█▍        | 4.42GB / 29.5GB            
+Jul 04  23:05:16.980
+New Data Upload               :  88%|████████▊ | 1.47GB / 1.68GB, 92.9MB/s  
+
+Jul 04  23:05:16.980
+Processing Files (0 / 1)      :  15%|█▌        | 4.45GB / 29.5GB,  207MB/s  
+Jul 04  23:05:17.080
+New Data Upload               :  89%|████████▉ | 1.49GB / 1.68GB, 93.9MB/s  
+
+Jul 04  23:05:17.081
+Processing Files (0 / 1)      :  15%|█▌        | 4.47GB / 29.5GB,  207MB/s  
+Jul 04  23:05:17.181
+New Data Upload               :  90%|█████████ | 1.52GB / 1.68GB, 95.2MB/s  
+
+Jul 04  23:05:17.181
+Processing Files (0 / 1)      :  15%|█▌        | 4.52GB / 29.5GB,  209MB/s  
+Jul 04  23:05:17.382
+Processing Files (0 / 1)      :  15%|█▌        | 4.57GB / 29.5GB,  212MB/s  
+New Data Upload               :  93%|█████████▎| 1.61GB / 1.74GB,  101MB/s  
+  ...8b57gpx/model.safetensors:  15%|█▌        | 4.57GB / 29.5GB            
+Jul 04  23:05:17.383
+Processing Files (0 / 1)      :  16%|█▌        | 4.59GB / 29.5GB,  212MB/s  
+Jul 04  23:05:17.484
+New Data Upload               :  90%|█████████ | 1.64GB / 1.81GB,  102MB/s  
+
+Jul 04  23:05:17.485
+Processing Files (0 / 1)      :  16%|█▌        | 4.61GB / 29.5GB,  211MB/s  
+Jul 04  23:05:17.586
+New Data Upload               :  91%|█████████ | 1.65GB / 1.81GB,  102MB/s  
+
+Jul 04  23:05:17.989
+Processing Files (0 / 1)      :  16%|█▌        | 4.73GB / 29.5GB,  214MB/s  
+New Data Upload               :  94%|█████████▍| 1.77GB / 1.88GB,  108MB/s  
+  ...8b57gpx/model.safetensors:  16%|█▌        | 4.73GB / 29.5GB            
+Jul 04  23:05:17.989
+Processing Files (0 / 1)      :  16%|█▌        | 4.74GB / 29.5GB,  213MB/s  
+Jul 04  23:05:17.989
+
+Jul 04  23:05:18.090
+New Data Upload               :  92%|█████████▏| 1.78GB / 1.94GB,  108MB/s  
+
+Jul 04  23:05:18.090
+Processing Files (0 / 1)      :  16%|█▌        | 4.75GB / 29.5GB,  212MB/s  
+Jul 04  23:05:18.190
+New Data Upload               :  92%|█████████▏| 1.79GB / 1.94GB,  109MB/s  
+
+Jul 04  23:05:18.191
+Processing Files (0 / 1)      :  16%|█▌        | 4.77GB / 29.5GB,  212MB/s  
+Jul 04  23:05:18.291
+New Data Upload               :  90%|████████▉ | 1.81GB / 2.01GB,  109MB/s  
+
+Jul 04  23:05:18.392
+Processing Files (0 / 1)      :  16%|█▌        | 4.79GB / 29.5GB,  212MB/s  
+New Data Upload               :  91%|█████████ | 1.83GB / 2.01GB,  110MB/s  
+Jul 04  23:05:18.795
+Processing Files (0 / 1)      :  17%|█▋        | 4.94GB / 29.5GB,  217MB/s  
+New Data Upload               :  92%|█████████▏| 1.98GB / 2.15GB,  118MB/s  
+  ...8b57gpx/model.safetensors:  17%|█▋        | 4.94GB / 29.5GB            
+Jul 04  23:05:18.895
+Processing Files (0 / 1)      :  17%|█▋        | 5.00GB / 29.5GB,  220MB/s  
+New Data Upload               :  95%|█████████▌| 2.04GB / 2.15GB,  121MB/s  
+Jul 04  23:05:18.896
+Processing Files (0 / 1)      :  17%|█▋        | 5.03GB / 29.5GB,  221MB/s  
+Jul 04  23:05:19.299
+Processing Files (0 / 1)      :  17%|█▋        | 5.05GB / 29.5GB,  216MB/s  
+New Data Upload               :  92%|█████████▏| 2.09GB / 2.28GB,  121MB/s  
+  ...8b57gpx/model.safetensors:  17%|█▋        | 5.05GB / 29.5GB            
+Jul 04  23:05:19.400
+New Data Upload               :  92%|█████████▏| 2.10GB / 2.28GB,  121MB/s  
+
+Jul 04  23:05:19.501
+Processing Files (0 / 1)      :  17%|█▋        | 5.07GB / 29.5GB,  215MB/s  
+New Data Upload               :  93%|█████████▎| 2.11GB / 2.28GB,  121MB/s  
+Jul 04  23:05:19.501
+Processing Files (0 / 1)      :  17%|█▋        | 5.11GB / 29.5GB,  216MB/s  
+Jul 04  23:05:19.601
+New Data Upload               :  92%|█████████▏| 2.15GB / 2.35GB,  123MB/s  
+
+Jul 04  23:05:19.602
+Processing Files (0 / 1)      :  17%|█▋        | 5.15GB / 29.5GB,  218MB/s  
+Jul 04  23:05:19.702
+New Data Upload               :  94%|█████████▎| 2.20GB / 2.35GB,  126MB/s  
+
+Jul 04  23:05:19.702
+Processing Files (0 / 1)      :  18%|█▊        | 5.18GB / 29.5GB,  219MB/s  
+Jul 04  23:05:19.803
+New Data Upload               :  95%|█████████▍| 2.23GB / 2.35GB,  127MB/s  
+
+Jul 04  23:05:19.803
+Processing Files (0 / 1)      :  18%|█▊        | 5.21GB / 29.5GB,  219MB/s  
+Jul 04  23:05:19.905
+New Data Upload               :  93%|█████████▎| 2.25GB / 2.41GB,  128MB/s  
+
+Jul 04  23:05:19.905
+Processing Files (0 / 1)      :  18%|█▊        | 5.22GB / 29.5GB,  218MB/s  
+Jul 04  23:05:20.006
+New Data Upload               :  94%|█████████▍| 2.27GB / 2.41GB,  128MB/s  
+
+Jul 04  23:05:20.006
+Processing Files (0 / 1)      :  18%|█▊        | 5.26GB / 29.5GB,  220MB/s  
+Jul 04  23:05:20.107
+New Data Upload               :  93%|█████████▎| 2.31GB / 2.48GB,  130MB/s  
+
+Jul 04  23:05:20.107
+Processing Files (0 / 1)      :  18%|█▊        | 5.32GB / 29.5GB,  223MB/s  
+Jul 04  23:05:20.208
+New Data Upload               :  95%|█████████▌| 2.36GB / 2.48GB,  134MB/s  
+
+Jul 04  23:05:20.209
+Processing Files (0 / 1)      :  18%|█▊        | 5.34GB / 29.5GB,  222MB/s  
+Jul 04  23:05:20.411
+Processing Files (0 / 1)      :  18%|█▊        | 5.35GB / 29.5GB,  222MB/s  
+New Data Upload               :  94%|█████████▍| 2.40GB / 2.55GB,  134MB/s  
+  ...8b57gpx/model.safetensors:  18%|█▊        | 5.35GB / 29.5GB            
+Jul 04  23:05:20.411
+Processing Files (0 / 1)      :  18%|█▊        | 5.37GB / 29.5GB,  221MB/s  
+Jul 04  23:05:20.612
+Processing Files (0 / 1)      :  18%|█▊        | 5.44GB / 29.5GB,  223MB/s  
+New Data Upload               :  93%|█████████▎| 2.44GB / 2.62GB,  136MB/s  
+  ...8b57gpx/model.safetensors:  18%|█▊        | 5.44GB / 29.5GB            
+Jul 04  23:05:20.713
+New Data Upload               :  95%|█████████▍| 2.48GB / 2.62GB,  137MB/s  
+
+Jul 04  23:05:20.714
+Processing Files (0 / 1)      :  18%|█▊        | 5.46GB / 29.5GB,  223MB/s  
+Jul 04  23:05:20.916
+Processing Files (0 / 1)      :  19%|█▊        | 5.48GB / 29.5GB,  221MB/s  
+New Data Upload               :  94%|█████████▎| 2.51GB / 2.68GB,  138MB/s  
+  ...8b57gpx/model.safetensors:  19%|█▊        | 5.48GB / 29.5GB            
+Jul 04  23:05:21.117
+Processing Files (0 / 1)      :  19%|█▊        | 5.50GB / 29.5GB,  221MB/s  
+New Data Upload               :  92%|█████████▏| 2.54GB / 2.75GB,  138MB/s  
+  ...8b57gpx/model.safetensors:  19%|█▊        | 5.50GB / 29.5GB            
+Jul 04  23:05:21.117
+Processing Files (0 / 1)      :  19%|█▊        | 5.52GB / 29.5GB,  221MB/s  
+Jul 04  23:05:21.218
+Processing Files (0 / 1)      :  19%|█▉        | 5.54GB / 29.5GB,  221MB/s  
+New Data Upload               :  94%|█████████▍| 2.59GB / 2.75GB,  139MB/s  
+  ...8b57gpx/model.safetensors:  19%|█▉        | 5.54GB / 29.5GB            
+Jul 04  23:05:21.319
+
+
+Jul 04  23:05:21.520
+Processing Files (0 / 1)      :  19%|█▉        | 5.58GB / 29.5GB,  220MB/s  
+New Data Upload               :  93%|█████████▎| 2.63GB / 2.82GB,  140MB/s  
+  ...8b57gpx/model.safetensors:  19%|█▉        | 5.58GB / 29.5GB            
+Jul 04  23:05:21.521
+Processing Files (0 / 1)      :  19%|█▉        | 5.62GB / 29.5GB,  222MB/s  
+Jul 04  23:05:21.723
+Processing Files (0 / 1)      :  19%|█▉        | 5.68GB / 29.5GB,  224MB/s  
+New Data Upload               :  94%|█████████▍| 2.72GB / 2.88GB,  145MB/s  
+  ...8b57gpx/model.safetensors:  19%|█▉        | 5.68GB / 29.5GB            
+Jul 04  23:05:21.824
+Processing Files (0 / 1)      :  20%|█▉        | 5.78GB / 29.5GB,  228MB/s  
+New Data Upload               :  96%|█████████▌| 2.76GB / 2.88GB,  147MB/s  
+  ...8b57gpx/model.safetensors:  20%|█▉        | 5.78GB / 29.5GB            
+Jul 04  23:05:21.924
+New Data Upload               :  96%|█████████▌| 2.82GB / 2.95GB,  150MB/s  
+
+Jul 04  23:05:21.925
+Processing Files (0 / 1)      :  20%|█▉        | 5.83GB / 29.5GB,  230MB/s  
+Jul 04  23:05:22.026
+New Data Upload               :  97%|█████████▋| 2.87GB / 2.95GB,  153MB/s  
+
+Jul 04  23:05:22.126
+Processing Files (0 / 1)      :  20%|█▉        | 5.84GB / 29.5GB,  228MB/s  
+New Data Upload               :  96%|█████████▌| 2.88GB / 3.02GB,  153MB/s  
+  ...8b57gpx/model.safetensors:  20%|█▉        | 5.84GB / 29.5GB            
+Jul 04  23:05:22.227
+New Data Upload               :  96%|█████████▌| 2.88GB / 3.02GB,  152MB/s  
+
+Jul 04  23:05:22.228
+Processing Files (0 / 1)      :  20%|█▉        | 5.84GB / 29.5GB,  226MB/s  
+Jul 04  23:05:22.429
+Processing Files (0 / 1)      :  20%|█▉        | 5.86GB / 29.5GB,  224MB/s  
+New Data Upload               :  94%|█████████▍| 2.89GB / 3.08GB,  150MB/s  
+  ...8b57gpx/model.safetensors:  20%|█▉        | 5.86GB / 29.5GB            
+Jul 04  23:05:22.529
+New Data Upload               :  94%|█████████▍| 2.90GB / 3.08GB,  150MB/s  
+
+Jul 04  23:05:22.530
+Processing Files (0 / 1)      :  20%|█▉        | 5.88GB / 29.5GB,  224MB/s  
+Jul 04  23:05:22.631
+New Data Upload               :  95%|█████████▍| 2.92GB / 3.08GB,  150MB/s  
+
+Jul 04  23:05:22.631
+Processing Files (0 / 1)      :  20%|██        | 5.92GB / 29.5GB,  225MB/s  
+Jul 04  23:05:22.731
+New Data Upload               :  94%|█████████▍| 2.96GB / 3.15GB,  152MB/s  
+
+Jul 04  23:05:22.732
+Processing Files (0 / 1)      :  20%|██        | 5.96GB / 29.5GB,  227MB/s  
+Jul 04  23:05:22.832
+New Data Upload               :  95%|█████████▌| 3.00GB / 3.15GB,  154MB/s  
+
+Jul 04  23:05:22.833
+Processing Files (0 / 1)      :  20%|██        | 5.99GB / 29.5GB,  227MB/s  
+Jul 04  23:05:22.933
+New Data Upload               :  94%|█████████▍| 3.03GB / 3.22GB,  155MB/s  
+
+Jul 04  23:05:23.034
+Processing Files (0 / 1)      :  20%|██        | 6.01GB / 29.5GB,  227MB/s  
+New Data Upload               :  95%|█████████▍| 3.06GB / 3.22GB,  155MB/s  
+Jul 04  23:05:23.135
+Processing Files (0 / 1)      :  20%|██        | 6.04GB / 29.5GB,  227MB/s  
+New Data Upload               :  96%|█████████▌| 3.08GB / 3.22GB,  156MB/s  
+Jul 04  23:05:23.135
+Processing Files (0 / 1)      :  21%|██        | 6.06GB / 29.5GB,  227MB/s  
+Jul 04  23:05:23.237
+New Data Upload               :  94%|█████████▍| 3.10GB / 3.29GB,  156MB/s  
+
+Jul 04  23:05:23.237
+Processing Files (0 / 1)      :  21%|██        | 6.07GB / 29.5GB,  226MB/s  
+Jul 04  23:05:23.337
+New Data Upload               :  95%|█████████▍| 3.11GB / 3.29GB,  156MB/s  
+
+Jul 04  23:05:23.338
+Processing Files (0 / 1)      :  21%|██        | 6.10GB / 29.5GB,  227MB/s  
+Jul 04  23:05:23.438
+New Data Upload               :  94%|█████████▎| 3.14GB / 3.35GB,  157MB/s  
+
+Jul 04  23:05:23.641
+Processing Files (0 / 1)      :  21%|██        | 6.18GB / 29.5GB,  229MB/s  
+New Data Upload               :  96%|█████████▌| 3.22GB / 3.35GB,  161MB/s  
+  ...8b57gpx/model.safetensors:  21%|██        | 6.18GB / 29.5GB            
+Jul 04  23:05:23.741
+Processing Files (0 / 1)      :  21%|██        | 6.20GB / 29.5GB,  229MB/s  
+New Data Upload               :  95%|█████████▍| 3.24GB / 3.42GB,  161MB/s  
+Jul 04  23:05:23.742
+Processing Files (0 / 1)      :  21%|██        | 6.22GB / 29.5GB,  229MB/s  
+Jul 04  23:05:23.842
+New Data Upload               :  96%|█████████▌| 3.27GB / 3.42GB,  161MB/s  
+
+Jul 04  23:05:23.843
+Processing Files (0 / 1)      :  21%|██        | 6.24GB / 29.5GB,  228MB/s  
+Jul 04  23:05:23.944
+New Data Upload               :  94%|█████████▍| 3.28GB / 3.49GB,  161MB/s  
+
+Jul 04  23:05:24.044
+Processing Files (0 / 1)      :  21%|██        | 6.26GB / 29.5GB,  228MB/s  
+New Data Upload               :  95%|█████████▍| 3.30GB / 3.49GB,  162MB/s  
+Jul 04  23:05:24.045
+Processing Files (0 / 1)      :  21%|██▏       | 6.29GB / 29.5GB,  228MB/s  
+Jul 04  23:05:24.146
+New Data Upload               :  95%|█████████▌| 3.33GB / 3.49GB,  162MB/s  
+
+Jul 04  23:05:24.146
+Processing Files (0 / 1)      :  21%|██▏       | 6.30GB / 29.5GB,  228MB/s  
+Jul 04  23:05:24.246
+New Data Upload               :  94%|█████████▍| 3.35GB / 3.55GB,  163MB/s  
+
+Jul 04  23:05:24.247
+Processing Files (0 / 1)      :  21%|██▏       | 6.33GB / 29.5GB,  228MB/s  
+Jul 04  23:05:24.348
+New Data Upload               :  95%|█████████▍| 3.37GB / 3.55GB,  163MB/s  
+
+Jul 04  23:05:24.348
+Processing Files (0 / 1)      :  22%|██▏       | 6.35GB / 29.5GB,  228MB/s  
+Jul 04  23:05:24.550
+Processing Files (0 / 1)      :  22%|██▏       | 6.39GB / 29.5GB,  229MB/s  
+New Data Upload               :  95%|█████████▍| 3.43GB / 3.62GB,  165MB/s  
+  ...8b57gpx/model.safetensors:  22%|██▏       | 6.39GB / 29.5GB            
+Jul 04  23:05:24.551
+Processing Files (0 / 1)      :  22%|██▏       | 6.42GB / 29.5GB,  230MB/s  
+Jul 04  23:05:24.652
+Processing Files (0 / 1)      :  22%|██▏       | 6.45GB / 29.5GB,  231MB/s  
+
+  ...8b57gpx/model.safetensors:  22%|██▏       | 6.45GB / 29.5GB            
+Jul 04  23:05:24.852
+Processing Files (0 / 1)      :  22%|██▏       | 6.48GB / 29.5GB,  231MB/s  
+New Data Upload               :  95%|█████████▌| 3.52GB / 3.69GB,  168MB/s  
+  ...8b57gpx/model.safetensors:  22%|██▏       | 6.48GB / 29.5GB            
+Jul 04  23:05:24.953
+Processing Files (0 / 1)      :  22%|██▏       | 6.50GB / 29.5GB,  231MB/s  
+New Data Upload               :  96%|█████████▌| 3.55GB / 3.69GB,  169MB/s  
+Jul 04  23:05:24.954
+  ...8b57gpx/model.safetensors:  22%|██▏       | 6.52GB / 29.5GB            
+Jul 04  23:05:24.954
+Processing Files (0 / 1)      :  22%|██▏       | 6.52GB / 29.5GB,  231MB/s  
+Jul 04  23:05:25.055
+New Data Upload               :  95%|█████████▌| 3.57GB / 3.76GB,  169MB/s  
+
+Jul 04  23:05:25.055
+Processing Files (0 / 1)      :  22%|██▏       | 6.54GB / 29.5GB,  230MB/s  
+Jul 04  23:05:25.156
+Processing Files (0 / 1)      :  22%|██▏       | 6.56GB / 29.5GB,  230MB/s  
+
+  ...8b57gpx/model.safetensors:  22%|██▏       | 6.56GB / 29.5GB            
+Jul 04  23:05:25.256
+New Data Upload               :  96%|█████████▌| 3.60GB / 3.76GB,  169MB/s  
+
+Jul 04  23:05:25.257
+Processing Files (0 / 1)      :  22%|██▏       | 6.58GB / 29.5GB,  230MB/s  
+Jul 04  23:05:25.357
+New Data Upload               :  95%|█████████▍| 3.62GB / 3.82GB,  169MB/s  
+
+Jul 04  23:05:25.358
+Processing Files (0 / 1)      :  22%|██▏       | 6.60GB / 29.5GB,  229MB/s  
+Jul 04  23:05:25.459
+New Data Upload               :  95%|█████████▌| 3.64GB / 3.82GB,  169MB/s  
+
+Jul 04  23:05:25.459
+Processing Files (0 / 1)      :  22%|██▏       | 6.60GB / 29.5GB,  228MB/s  
+Jul 04  23:05:25.559
+New Data Upload               :  95%|█████████▌| 3.64GB / 3.82GB,  168MB/s  
+
+Jul 04  23:05:25.559
+Processing Files (0 / 1)      :  22%|██▏       | 6.61GB / 29.5GB,  226MB/s  
+Jul 04  23:05:25.660
+New Data Upload               :  95%|█████████▌| 3.65GB / 3.82GB,  167MB/s  
+
+Jul 04  23:05:25.660
+Processing Files (0 / 1)      :  22%|██▏       | 6.61GB / 29.5GB,  225MB/s  
+Jul 04  23:05:25.761
+New Data Upload               :  94%|█████████▍| 3.65GB / 3.89GB,  166MB/s  
+
+Jul 04  23:05:25.761
+Processing Files (0 / 1)      :  22%|██▏       | 6.61GB / 29.5GB,  223MB/s  
+Jul 04  23:05:25.862
+New Data Upload               :  94%|█████████▍| 3.65GB / 3.89GB,  165MB/s  
+
+Jul 04  23:05:25.862
+Processing Files (0 / 1)      :  22%|██▏       | 6.62GB / 29.5GB,  222MB/s  
+Jul 04  23:05:25.963
+New Data Upload               :  94%|█████████▍| 3.66GB / 3.89GB,  165MB/s  
+
+Jul 04  23:05:25.963
+Processing Files (0 / 1)      :  22%|██▏       | 6.62GB / 29.5GB,  221MB/s  
+Jul 04  23:05:26.064
+New Data Upload               :  93%|█████████▎| 3.66GB / 3.96GB,  164MB/s  
+
+Jul 04  23:05:26.064
+Processing Files (0 / 1)      :  22%|██▏       | 6.62GB / 29.5GB,  219MB/s  
+Jul 04  23:05:26.164
+New Data Upload               :  93%|█████████▎| 3.67GB / 3.96GB,  163MB/s  
+
+Jul 04  23:05:26.165
+Processing Files (0 / 1)      :  22%|██▏       | 6.62GB / 29.5GB,  218MB/s  
+Jul 04  23:05:26.265
+New Data Upload               :  93%|█████████▎| 3.67GB / 3.96GB,  161MB/s  
+
+Jul 04  23:05:26.265
+Processing Files (0 / 1)      :  22%|██▏       | 6.63GB / 29.5GB,  217MB/s  
+Jul 04  23:05:26.265
+New Data Upload               :  91%|█████████▏| 3.67GB / 4.02GB,  161MB/s  
+Jul 04  23:05:26.366
+
+
+Jul 04  23:05:26.366
+Processing Files (0 / 1)      :  22%|██▏       | 6.63GB / 29.5GB,  215MB/s  
+Jul 04  23:05:26.467
+New Data Upload               :  91%|█████████▏| 3.68GB / 4.02GB,  160MB/s  
+
+Jul 04  23:05:26.567
+Processing Files (0 / 1)      :  22%|██▏       | 6.64GB / 29.5GB,  214MB/s  
+New Data Upload               :  92%|█████████▏| 3.68GB / 4.02GB,  159MB/s  
+Jul 04  23:05:26.567
+Processing Files (0 / 1)      :  23%|██▎       | 6.65GB / 29.5GB,  213MB/s  
+Jul 04  23:05:26.668
+New Data Upload               :  92%|█████████▏| 3.69GB / 4.02GB,  159MB/s  
+
+Jul 04  23:05:26.668
+Processing Files (0 / 1)      :  23%|██▎       | 6.66GB / 29.5GB,  212MB/s  
+Jul 04  23:05:26.768
+New Data Upload               :  90%|█████████ | 3.70GB / 4.09GB,  158MB/s  
+
+Jul 04  23:05:26.769
+Processing Files (0 / 1)      :  23%|██▎       | 6.67GB / 29.5GB,  211MB/s  
+Jul 04  23:05:26.869
+New Data Upload               :  91%|█████████ | 3.71GB / 4.09GB,  157MB/s  
+
+Jul 04  23:05:26.869
+Processing Files (0 / 1)      :  23%|██▎       | 6.68GB / 29.5GB,  211MB/s  
+Jul 04  23:05:26.969
+New Data Upload               :  91%|█████████ | 3.72GB / 4.09GB,  157MB/s  
+
+Jul 04  23:05:26.971
+Processing Files (0 / 1)      :  23%|██▎       | 6.70GB / 29.5GB,  211MB/s  
+Jul 04  23:05:27.071
+New Data Upload               :  90%|████████▉ | 3.74GB / 4.16GB,  157MB/s  
+
+Jul 04  23:05:27.072
+Processing Files (0 / 1)      :  23%|██▎       | 6.73GB / 29.5GB,  211MB/s  
+Jul 04  23:05:27.173
+New Data Upload               :  91%|█████████ | 3.77GB / 4.16GB,  159MB/s  
+
+Jul 04  23:05:27.173
+Processing Files (0 / 1)      :  23%|██▎       | 6.76GB / 29.5GB,  212MB/s  
+Jul 04  23:05:27.273
+New Data Upload               :  92%|█████████▏| 3.81GB / 4.16GB,  160MB/s  
+
+Jul 04  23:05:27.274
+Processing Files (0 / 1)      :  23%|██▎       | 6.82GB / 29.5GB,  215MB/s  
+Jul 04  23:05:27.374
+New Data Upload               :  91%|█████████▏| 3.86GB / 4.22GB,  163MB/s  
+
+Jul 04  23:05:27.374
+Processing Files (0 / 1)      :  23%|██▎       | 6.86GB / 29.5GB,  216MB/s  
+Jul 04  23:05:27.475
+New Data Upload               :  92%|█████████▏| 3.90GB / 4.22GB,  165MB/s  
+
+Jul 04  23:05:27.576
+Processing Files (0 / 1)      :  23%|██▎       | 6.87GB / 29.5GB,  215MB/s  
+New Data Upload               :  93%|█████████▎| 3.91GB / 4.22GB,  164MB/s  
+Jul 04  23:05:27.576
+Processing Files (0 / 1)      :  23%|██▎       | 6.89GB / 29.5GB,  215MB/s  
+Jul 04  23:05:27.676
+New Data Upload               :  93%|█████████▎| 3.93GB / 4.22GB,  164MB/s  
+
+Jul 04  23:05:27.676
+Processing Files (0 / 1)      :  23%|██▎       | 6.90GB / 29.5GB,  214MB/s  
+Jul 04  23:05:27.777
+New Data Upload               :  92%|█████████▏| 3.94GB / 4.29GB,  164MB/s  
+
+Jul 04  23:05:27.777
+Processing Files (0 / 1)      :  23%|██▎       | 6.91GB / 29.5GB,  213MB/s  
+Jul 04  23:05:27.877
+New Data Upload               :  92%|█████████▏| 3.95GB / 4.29GB,  163MB/s  
+
+Jul 04  23:05:27.878
+Processing Files (0 / 1)      :  23%|██▎       | 6.93GB / 29.5GB,  214MB/s  
+Jul 04  23:05:27.979
+New Data Upload               :  93%|█████████▎| 3.97GB / 4.29GB,  164MB/s  
+
+Jul 04  23:05:27.979
+Processing Files (0 / 1)      :  24%|██▎       | 6.97GB / 29.5GB,  215MB/s  
+Jul 04  23:05:28.079
+New Data Upload               :  92%|█████████▏| 4.01GB / 4.36GB,  165MB/s  
+
+Jul 04  23:05:28.079
+Processing Files (0 / 1)      :  24%|██▎       | 7.01GB / 29.5GB,  216MB/s  
+Jul 04  23:05:28.180
+Processing Files (0 / 1)      :  24%|██▍       | 7.07GB / 29.5GB,  219MB/s  
+
+  ...8b57gpx/model.safetensors:  24%|██▍       | 7.07GB / 29.5GB            
+Jul 04  23:05:28.281
+Processing Files (0 / 1)      :  24%|██▍       | 7.12GB / 29.5GB,  221MB/s  
+
+  ...8b57gpx/model.safetensors:  24%|██▍       | 7.12GB / 29.5GB            
+Jul 04  23:05:28.381
+Processing Files (0 / 1)      :  24%|██▍       | 7.17GB / 29.5GB,  223MB/s  
+
+  ...8b57gpx/model.safetensors:  24%|██▍       | 7.17GB / 29.5GB            
+Jul 04  23:05:28.683
+Processing Files (0 / 1)      :  25%|██▍       | 7.31GB / 29.5GB,  230MB/s  
+New Data Upload               :  97%|█████████▋| 4.36GB / 4.49GB,  183MB/s  
+  ...8b57gpx/model.safetensors:  25%|██▍       | 7.31GB / 29.5GB            
+Jul 04  23:05:28.684
+Processing Files (0 / 1)      :  25%|██▍       | 7.35GB / 29.5GB,  231MB/s  
+Jul 04  23:05:28.785
+Processing Files (0 / 1)      :  25%|██▍       | 7.36GB / 29.5GB,  230MB/s  
+
+  ...8b57gpx/model.safetensors:  25%|██▍       | 7.36GB / 29.5GB            
+Jul 04  23:05:28.886
+New Data Upload               :  97%|█████████▋| 4.41GB / 4.56GB,  184MB/s  
+
+Jul 04  23:05:28.886
+  ...8b57gpx/model.safetensors:  25%|██▍       | 7.38GB / 29.5GB            
+Jul 04  23:05:28.886
+Processing Files (0 / 1)      :  25%|██▍       | 7.38GB / 29.5GB,  230MB/s  
+Jul 04  23:05:28.986
+New Data Upload               :  97%|█████████▋| 4.43GB / 4.56GB,  184MB/s  
+
+Jul 04  23:05:29.087
+Processing Files (0 / 1)      :  25%|██▌       | 7.41GB / 29.5GB,  228MB/s  
+New Data Upload               :  96%|█████████▌| 4.44GB / 4.63GB,  183MB/s  
+  ...8b57gpx/model.safetensors:  25%|██▌       | 7.41GB / 29.5GB            
+Jul 04  23:05:29.187
+New Data Upload               :  96%|█████████▌| 4.45GB / 4.63GB,  183MB/s  
+
+Jul 04  23:05:29.388
+Processing Files (0 / 1)      :  25%|██▌       | 7.47GB / 29.5GB,  228MB/s  
+New Data Upload               :  96%|█████████▌| 4.48GB / 4.69GB,  183MB/s  
+  ...8b57gpx/model.safetensors:  25%|██▌       | 7.47GB / 29.5GB            
+Jul 04  23:05:29.791
+Processing Files (0 / 1)      :  26%|██▌       | 7.55GB / 29.5GB,  229MB/s  
+New Data Upload               :  97%|█████████▋| 4.59GB / 4.76GB,  185MB/s  
+  ...8b57gpx/model.safetensors:  26%|██▌       | 7.55GB / 29.5GB            
+Jul 04  23:05:29.892
+Processing Files (0 / 1)      :  26%|██▌       | 7.57GB / 29.5GB,  229MB/s  
+New Data Upload               :  96%|█████████▌| 4.62GB / 4.83GB,  186MB/s  
+Jul 04  23:05:29.892
+Processing Files (0 / 1)      :  26%|██▌       | 7.60GB / 29.5GB,  229MB/s  
+Jul 04  23:05:29.993
+Processing Files (0 / 1)      :  26%|██▌       | 7.62GB / 29.5GB,  229MB/s  
+
+  ...8b57gpx/model.safetensors:  26%|██▌       | 7.62GB / 29.5GB            
+Jul 04  23:05:30.194
+Processing Files (0 / 1)      :  26%|██▌       | 7.65GB / 29.5GB,  229MB/s  
+New Data Upload               :  96%|█████████▌| 4.69GB / 4.90GB,  187MB/s  
+  ...8b57gpx/model.safetensors:  26%|██▌       | 7.65GB / 29.5GB            
+Jul 04  23:05:30.195
+Processing Files (0 / 1)      :  26%|██▌       | 7.67GB / 29.5GB,  229MB/s  
+Jul 04  23:05:30.397
+Processing Files (0 / 1)      :  26%|██▌       | 7.72GB / 29.5GB,  229MB/s  
+New Data Upload               :  96%|█████████▌| 4.74GB / 4.96GB,  188MB/s  
+  ...8b57gpx/model.safetensors:  26%|██▌       | 7.72GB / 29.5GB            
+Jul 04  23:05:30.497
+New Data Upload               :  96%|█████████▌| 4.76GB / 4.96GB,  188MB/s  
+
+Jul 04  23:05:30.497
+Processing Files (0 / 1)      :  26%|██▌       | 7.75GB / 29.5GB,  230MB/s  
+Jul 04  23:05:30.699
+Processing Files (0 / 1)      :  26%|██▋       | 7.80GB / 29.5GB,  230MB/s  
+New Data Upload               :  96%|█████████▌| 4.82GB / 5.03GB,  189MB/s  
+  ...8b57gpx/model.safetensors:  26%|██▋       | 7.80GB / 29.5GB            
+Jul 04  23:05:30.799
+Processing Files (0 / 1)      :  27%|██▋       | 7.83GB / 29.5GB,  231MB/s  
+
+  ...8b57gpx/model.safetensors:  27%|██▋       | 7.83GB / 29.5GB            
+Jul 04  23:05:30.900
+New Data Upload               :  96%|█████████▌| 4.88GB / 5.10GB,  191MB/s  
+
+Jul 04  23:05:30.900
+Processing Files (0 / 1)      :  27%|██▋       | 7.87GB / 29.5GB,  232MB/s  
+Jul 04  23:05:31.000
+New Data Upload               :  96%|█████████▋| 4.91GB / 5.10GB,  192MB/s  
+
+Jul 04  23:05:31.002
+Processing Files (0 / 1)      :  27%|██▋       | 7.90GB / 29.5GB,  232MB/s  
+Jul 04  23:05:31.102
+Processing Files (0 / 1)      :  27%|██▋       | 7.92GB / 29.5GB,  232MB/s  
+
+  ...8b57gpx/model.safetensors:  27%|██▋       | 7.92GB / 29.5GB            
+Jul 04  23:05:31.205
+Processing Files (0 / 1)      :  27%|██▋       | 7.94GB / 29.5GB,  232MB/s  
+
+  ...8b57gpx/model.safetensors:  27%|██▋       | 7.94GB / 29.5GB            
+Jul 04  23:05:31.305
+New Data Upload               :  97%|█████████▋| 4.99GB / 5.16GB,  193MB/s  
+
+Jul 04  23:05:31.305
+Processing Files (0 / 1)      :  27%|██▋       | 7.97GB / 29.5GB,  233MB/s  
+Jul 04  23:05:31.406
+New Data Upload               :  96%|█████████▌| 5.02GB / 5.23GB,  194MB/s  
+
+Jul 04  23:05:31.406
+Processing Files (0 / 1)      :  27%|██▋       | 8.00GB / 29.5GB,  233MB/s  
+Jul 04  23:05:31.607
+Processing Files (0 / 1)      :  27%|██▋       | 8.03GB / 29.5GB,  233MB/s  
+New Data Upload               :  97%|█████████▋| 5.07GB / 5.23GB,  195MB/s  
+  ...8b57gpx/model.safetensors:  27%|██▋       | 8.03GB / 29.5GB            
+Jul 04  23:05:31.607
+Processing Files (0 / 1)      :  27%|██▋       | 8.05GB / 29.5GB,  233MB/s  
+Jul 04  23:05:31.707
+New Data Upload               :  96%|█████████▌| 5.09GB / 5.30GB,  195MB/s  
+
+Jul 04  23:05:31.708
+Processing Files (0 / 1)      :  27%|██▋       | 8.07GB / 29.5GB,  233MB/s  
+Jul 04  23:05:31.808
+Processing Files (0 / 1)      :  27%|██▋       | 8.10GB / 29.5GB,  233MB/s  
+
+  ...8b57gpx/model.safetensors:  27%|██▋       | 8.10GB / 29.5GB            
+Jul 04  23:05:31.909
+New Data Upload               :  97%|█████████▋| 5.14GB / 5.30GB,  196MB/s  
+
+Jul 04  23:05:31.909
+Processing Files (0 / 1)      :  27%|██▋       | 8.12GB / 29.5GB,  233MB/s  
+Jul 04  23:05:32.010
+New Data Upload               :  96%|█████████▋| 5.16GB / 5.36GB,  196MB/s  
+
+Jul 04  23:05:32.111
+Processing Files (0 / 1)      :  28%|██▊       | 8.15GB / 29.5GB,  233MB/s  
+New Data Upload               :  97%|█████████▋| 5.19GB / 5.36GB,  196MB/s  
+Jul 04  23:05:32.111
+Processing Files (0 / 1)      :  28%|██▊       | 8.18GB / 29.5GB,  234MB/s  
+Jul 04  23:05:32.212
+New Data Upload               :  96%|█████████▌| 5.22GB / 5.43GB,  197MB/s  
+
+Jul 04  23:05:32.313
+Processing Files (0 / 1)      :  28%|██▊       | 8.20GB / 29.5GB,  234MB/s  
+New Data Upload               :  97%|█████████▋| 5.25GB / 5.43GB,  198MB/s  
+Jul 04  23:05:32.313
+Processing Files (0 / 1)      :  28%|██▊       | 8.24GB / 29.5GB,  235MB/s  
+Jul 04  23:05:32.313
+
+Jul 04  23:05:32.414
+Processing Files (0 / 1)      :  28%|██▊       | 8.26GB / 29.5GB,  234MB/s  
+
+  ...8b57gpx/model.safetensors:  28%|██▊       | 8.26GB / 29.5GB            
+Jul 04  23:05:32.514
+Processing Files (0 / 1)      :  28%|██▊       | 8.28GB / 29.5GB,  235MB/s  
+
+  ...8b57gpx/model.safetensors:  28%|██▊       | 8.28GB / 29.5GB            
+Jul 04  23:05:32.615
+New Data Upload               :  97%|█████████▋| 5.33GB / 5.50GB,  199MB/s  
+
+Jul 04  23:05:32.615
+Processing Files (0 / 1)      :  28%|██▊       | 8.30GB / 29.5GB,  234MB/s  
+Jul 04  23:05:32.816
+Processing Files (0 / 1)      :  28%|██▊       | 8.35GB / 29.5GB,  234MB/s  
+New Data Upload               :  96%|█████████▋| 5.37GB / 5.57GB,  199MB/s  
+  ...8b57gpx/model.safetensors:  28%|██▊       | 8.35GB / 29.5GB            
+Jul 04  23:05:32.917
+New Data Upload               :  97%|█████████▋| 5.40GB / 5.57GB,  200MB/s  
+
+Jul 04  23:05:33.017
+Processing Files (0 / 1)      :  28%|██▊       | 8.38GB / 29.5GB,  235MB/s  
+New Data Upload               :  96%|█████████▋| 5.43GB / 5.63GB,  201MB/s  
+Jul 04  23:05:33.119
+Processing Files (0 / 1)      :  28%|██▊       | 8.41GB / 29.5GB,  236MB/s  
+New Data Upload               :  97%|█████████▋| 5.46GB / 5.63GB,  201MB/s  
+Jul 04  23:05:33.120
+Processing Files (0 / 1)      :  29%|██▊       | 8.44GB / 29.5GB,  236MB/s  
+Jul 04  23:05:33.220
+New Data Upload               :  96%|█████████▋| 5.49GB / 5.70GB,  202MB/s  
+
+Jul 04  23:05:33.220
+Processing Files (0 / 1)      :  29%|██▊       | 8.47GB / 29.5GB,  236MB/s  
+Jul 04  23:05:33.320
+New Data Upload               :  97%|█████████▋| 5.51GB / 5.70GB,  202MB/s  
+
+Jul 04  23:05:33.321
+Processing Files (0 / 1)      :  29%|██▊       | 8.49GB / 29.5GB,  236MB/s  
+Jul 04  23:05:33.421
+New Data Upload               :  97%|█████████▋| 5.54GB / 5.70GB,  203MB/s  
+
+Jul 04  23:05:33.421
+Processing Files (0 / 1)      :  29%|██▉       | 8.52GB / 29.5GB,  236MB/s  
+Jul 04  23:05:33.521
+New Data Upload               :  96%|█████████▋| 5.56GB / 5.77GB,  203MB/s  
+
+Jul 04  23:05:33.723
+Processing Files (0 / 1)      :  29%|██▉       | 8.59GB / 29.5GB,  236MB/s  
+New Data Upload               :  96%|█████████▌| 5.62GB / 5.83GB,  204MB/s  
+  ...8b57gpx/model.safetensors:  29%|██▉       | 8.59GB / 29.5GB            
+Jul 04  23:05:33.823
+New Data Upload               :  97%|█████████▋| 5.63GB / 5.83GB,  204MB/s  
+
+Jul 04  23:05:33.924
+Processing Files (0 / 1)      :  29%|██▉       | 8.62GB / 29.5GB,  237MB/s  
+New Data Upload               :  97%|█████████▋| 5.67GB / 5.83GB,  205MB/s  
+Jul 04  23:05:33.924
+Processing Files (0 / 1)      :  29%|██▉       | 8.65GB / 29.5GB,  237MB/s  
+Jul 04  23:05:34.026
+New Data Upload               :  97%|█████████▋| 5.70GB / 5.90GB,  205MB/s  
+
+Jul 04  23:05:34.127
+Processing Files (0 / 1)      :  29%|██▉       | 8.68GB / 29.5GB,  238MB/s  
+New Data Upload               :  97%|█████████▋| 5.73GB / 5.90GB,  206MB/s  
+Jul 04  23:05:34.229
+Processing Files (0 / 1)      :  30%|██▉       | 8.73GB / 29.5GB,  238MB/s  
+New Data Upload               :  96%|█████████▋| 5.75GB / 5.97GB,  206MB/s  
+  ...8b57gpx/model.safetensors:  30%|██▉       | 8.73GB / 29.5GB            
+Jul 04  23:05:34.330
+New Data Upload               :  97%|█████████▋| 5.77GB / 5.97GB,  206MB/s  
+
+Jul 04  23:05:34.331
+Processing Files (0 / 1)      :  30%|██▉       | 8.76GB / 29.5GB,  238MB/s  
+Jul 04  23:05:34.532
+Processing Files (0 / 1)      :  30%|██▉       | 8.78GB / 29.5GB,  238MB/s  
+New Data Upload               :  97%|█████████▋| 5.83GB / 6.04GB,  207MB/s  
+  ...8b57gpx/model.safetensors:  30%|██▉       | 8.78GB / 29.5GB            
+Jul 04  23:05:34.735
+Processing Files (0 / 1)      :  30%|███       | 8.86GB / 29.5GB,  239MB/s  
+New Data Upload               :  96%|█████████▋| 5.88GB / 6.10GB,  208MB/s  
+  ...8b57gpx/model.safetensors:  30%|███       | 8.86GB / 29.5GB            
+Jul 04  23:05:34.835
+New Data Upload               :  97%|█████████▋| 5.91GB / 6.10GB,  208MB/s  
+
+Jul 04  23:05:34.937
+Processing Files (0 / 1)      :  30%|███       | 8.89GB / 29.5GB,  239MB/s  
+New Data Upload               :  97%|█████████▋| 5.93GB / 6.10GB,  209MB/s  
+Jul 04  23:05:34.938
+Processing Files (0 / 1)      :  30%|███       | 8.91GB / 29.5GB,  239MB/s  
+Jul 04  23:05:35.240
+Processing Files (0 / 1)      :  30%|███       | 8.99GB / 29.5GB,  239MB/s  
+New Data Upload               :  96%|█████████▋| 6.01GB / 6.24GB,  210MB/s  
+  ...8b57gpx/model.safetensors:  30%|███       | 8.99GB / 29.5GB            
+Jul 04  23:05:35.241
+New Data Upload               :  97%|█████████▋| 6.04GB / 6.24GB,  210MB/s  
+Jul 04  23:05:35.341
+
+
+Jul 04  23:05:35.341
+Processing Files (0 / 1)      :  31%|███       | 9.02GB / 29.5GB,  240MB/s  
+Jul 04  23:05:35.543
+Processing Files (0 / 1)      :  31%|███       | 9.05GB / 29.5GB,  240MB/s  
+New Data Upload               :  97%|█████████▋| 6.10GB / 6.30GB,  211MB/s  
+  ...8b57gpx/model.safetensors:  31%|███       | 9.05GB / 29.5GB            
+Jul 04  23:05:35.543
+Processing Files (0 / 1)      :  31%|███       | 9.09GB / 29.5GB,  241MB/s  
+Jul 04  23:05:35.745
+Processing Files (0 / 1)      :  31%|███       | 9.14GB / 29.5GB,  241MB/s  
+New Data Upload               :  97%|█████████▋| 6.16GB / 6.37GB,  213MB/s  
+  ...8b57gpx/model.safetensors:  31%|███       | 9.14GB / 29.5GB            
+Jul 04  23:05:36.248
+Processing Files (0 / 1)      :  31%|███▏      | 9.25GB / 29.5GB,  242MB/s  
+New Data Upload               :  97%|█████████▋| 6.29GB / 6.50GB,  215MB/s  
+  ...8b57gpx/model.safetensors:  31%|███▏      | 9.25GB / 29.5GB            
+Jul 04  23:05:36.248
+Processing Files (0 / 1)      :  31%|███▏      | 9.27GB / 29.5GB,  242MB/s  
+Jul 04  23:05:36.349
+New Data Upload               :  97%|█████████▋| 6.32GB / 6.50GB,  215MB/s  
+
+Jul 04  23:05:36.349
+Processing Files (0 / 1)      :  31%|███▏      | 9.30GB / 29.5GB,  242MB/s  
+Jul 04  23:05:36.450
+Processing Files (0 / 1)      :  32%|███▏      | 9.32GB / 29.5GB,  242MB/s  
+
+  ...8b57gpx/model.safetensors:  32%|███▏      | 9.32GB / 29.5GB            
+Jul 04  23:05:36.550
+New Data Upload               :  97%|█████████▋| 6.36GB / 6.57GB,  215MB/s  
+
+Jul 04  23:05:36.550
+Processing Files (0 / 1)      :  32%|███▏      | 9.35GB / 29.5GB,  242MB/s  
+Jul 04  23:05:36.751
+Processing Files (0 / 1)      :  32%|███▏      | 9.40GB / 29.5GB,  242MB/s  
+New Data Upload               :  97%|█████████▋| 6.42GB / 6.64GB,  216MB/s  
+  ...8b57gpx/model.safetensors:  32%|███▏      | 9.40GB / 29.5GB            
+Jul 04  23:05:36.952
+Processing Files (0 / 1)      :  32%|███▏      | 9.46GB / 29.5GB,  243MB/s  
+New Data Upload               :  97%|█████████▋| 6.47GB / 6.64GB,  216MB/s  
+  ...8b57gpx/model.safetensors:  32%|███▏      | 9.46GB / 29.5GB            
+Jul 04  23:05:37.053
+New Data Upload               :  97%|█████████▋| 6.50GB / 6.71GB,  217MB/s  
+
+Jul 04  23:05:37.154
+Processing Files (0 / 1)      :  32%|███▏      | 9.48GB / 29.5GB,  243MB/s  
+New Data Upload               :  97%|█████████▋| 6.52GB / 6.71GB,  217MB/s  
+Jul 04  23:05:37.155
+Processing Files (0 / 1)      :  32%|███▏      | 9.50GB / 29.5GB,  243MB/s  
+Jul 04  23:05:37.356
+Processing Files (0 / 1)      :  32%|███▏      | 9.52GB / 29.5GB,  242MB/s  
+New Data Upload               :  97%|█████████▋| 6.57GB / 6.77GB,  217MB/s  
+  ...8b57gpx/model.safetensors:  32%|███▏      | 9.52GB / 29.5GB            
+Jul 04  23:05:37.356
+Processing Files (0 / 1)      :  32%|███▏      | 9.55GB / 29.5GB,  243MB/s  
+Jul 04  23:05:37.658
+Processing Files (0 / 1)      :  33%|███▎      | 9.62GB / 29.5GB,  244MB/s  
+New Data Upload               :  97%|█████████▋| 6.66GB / 6.84GB,  219MB/s  
+  ...8b57gpx/model.safetensors:  33%|███▎      | 9.62GB / 29.5GB            
+Jul 04  23:05:37.758
+Processing Files (0 / 1)      :  33%|███▎      | 9.65GB / 29.5GB,  245MB/s  
+New Data Upload               :  97%|█████████▋| 6.70GB / 6.91GB,  220MB/s  
+Jul 04  23:05:37.759
+Processing Files (0 / 1)      :  33%|███▎      | 9.68GB / 29.5GB,  245MB/s  
+Jul 04  23:05:37.859
+New Data Upload               :  97%|█████████▋| 6.72GB / 6.91GB,  220MB/s  
+
+Jul 04  23:05:37.860
+Processing Files (0 / 1)      :  33%|███▎      | 9.71GB / 29.5GB,  245MB/s  
+Jul 04  23:05:37.960
+New Data Upload               :  97%|█████████▋| 6.75GB / 6.97GB,  221MB/s  
+
+Jul 04  23:05:37.961
+Processing Files (0 / 1)      :  33%|███▎      | 9.73GB / 29.5GB,  245MB/s  
+Jul 04  23:05:38.061
+Processing Files (0 / 1)      :  33%|███▎      | 9.75GB / 29.5GB,  245MB/s  
+
+  ...8b57gpx/model.safetensors:  33%|███▎      | 9.75GB / 29.5GB            
+Jul 04  23:05:38.263
+Processing Files (0 / 1)      :  33%|███▎      | 9.78GB / 29.5GB,  245MB/s  
+New Data Upload               :  97%|█████████▋| 6.83GB / 7.04GB,  221MB/s  
+  ...8b57gpx/model.safetensors:  33%|███▎      | 9.78GB / 29.5GB            
+Jul 04  23:05:38.464
+Processing Files (0 / 1)      :  33%|███▎      | 9.83GB / 29.5GB,  245MB/s  
+New Data Upload               :  97%|█████████▋| 6.88GB / 7.11GB,  222MB/s  
+  ...8b57gpx/model.safetensors:  33%|███▎      | 9.83GB / 29.5GB            
+Jul 04  23:05:38.464
+Processing Files (0 / 1)      :  33%|███▎      | 9.87GB / 29.5GB,  246MB/s  
+Jul 04  23:05:38.464
+New Data Upload               :  97%|█████████▋| 6.91GB / 7.11GB,  223MB/s  
+Jul 04  23:05:38.565
+
+
+Jul 04  23:05:38.867
+Processing Files (0 / 1)      :  34%|███▎      | 9.96GB / 29.5GB,  247MB/s  
+New Data Upload               :  98%|█████████▊| 7.00GB / 7.18GB,  224MB/s  
+  ...8b57gpx/model.safetensors:  34%|███▎      | 9.96GB / 29.5GB            
+Jul 04  23:05:38.968
+Processing Files (0 / 1)      :  34%|███▍      | 9.98GB / 29.5GB,  247MB/s  
+New Data Upload               :  97%|█████████▋| 7.02GB / 7.24GB,  224MB/s  
+Jul 04  23:05:38.969
+Processing Files (0 / 1)      :  34%|███▍      | 10.0GB / 29.5GB,  247MB/s  
+Jul 04  23:05:39.070
+Processing Files (0 / 1)      :  34%|███▍      | 10.0GB / 29.5GB,  247MB/s  
+
+  ...8b57gpx/model.safetensors:  34%|███▍      | 10.0GB / 29.5GB            
+Jul 04  23:05:39.170
+New Data Upload               :  97%|█████████▋| 7.08GB / 7.31GB,  225MB/s  
+
+Jul 04  23:05:39.271
+Processing Files (0 / 1)      :  34%|███▍      | 10.1GB / 29.5GB,  248MB/s  
+New Data Upload               :  97%|█████████▋| 7.11GB / 7.31GB,  225MB/s  
+Jul 04  23:05:39.371
+Processing Files (0 / 1)      :  34%|███▍      | 10.1GB / 29.5GB,  248MB/s  
+New Data Upload               :  97%|█████████▋| 7.15GB / 7.38GB,  226MB/s  
+Jul 04  23:05:39.372
+Processing Files (0 / 1)      :  34%|███▍      | 10.1GB / 29.5GB,  249MB/s  
+Jul 04  23:05:39.472
+New Data Upload               :  97%|█████████▋| 7.18GB / 7.38GB,  227MB/s  
+
+Jul 04  23:05:39.976
+Processing Files (0 / 1)      :  35%|███▍      | 10.3GB / 29.5GB,  249MB/s  
+New Data Upload               :  97%|█████████▋| 7.30GB / 7.51GB,  228MB/s  
+  ...8b57gpx/model.safetensors:  35%|███▍      | 10.3GB / 29.5GB            
+Jul 04  23:05:39.976
+Processing Files (0 / 1)      :  35%|███▍      | 10.3GB / 29.5GB,  249MB/s  
+Jul 04  23:05:40.077
+New Data Upload               :  98%|█████████▊| 7.33GB / 7.51GB,  228MB/s  
+
+Jul 04  23:05:40.078
+Processing Files (0 / 1)      :  35%|███▍      | 10.3GB / 29.5GB,  249MB/s  
+Jul 04  23:05:40.178
+New Data Upload               :  97%|█████████▋| 7.36GB / 7.58GB,  229MB/s  
+
+Jul 04  23:05:40.279
+Processing Files (0 / 1)      :  35%|███▌      | 10.4GB / 29.5GB,  250MB/s  
+New Data Upload               :  98%|█████████▊| 7.39GB / 7.58GB,  229MB/s  
+Jul 04  23:05:40.281
+Processing Files (0 / 1)      :  35%|███▌      | 10.4GB / 29.5GB,  250MB/s  
+Jul 04  23:05:40.383
+New Data Upload               :  98%|█████████▊| 7.43GB / 7.58GB,  230MB/s  
+
+Jul 04  23:05:40.384
+Processing Files (0 / 1)      :  35%|███▌      | 10.4GB / 29.5GB,  250MB/s  
+Jul 04  23:05:40.586
+Processing Files (0 / 1)      :  35%|███▌      | 10.4GB / 29.5GB,  250MB/s  
+New Data Upload               :  98%|█████████▊| 7.48GB / 7.64GB,  230MB/s  
+  ...8b57gpx/model.safetensors:  35%|███▌      | 10.4GB / 29.5GB            
+Jul 04  23:05:40.587
+Processing Files (0 / 1)      :  35%|███▌      | 10.5GB / 29.5GB,  250MB/s  
+Jul 04  23:05:40.688
+New Data Upload               :  97%|█████████▋| 7.50GB / 7.71GB,  230MB/s  
+
+Jul 04  23:05:40.689
+Processing Files (0 / 1)      :  35%|███▌      | 10.5GB / 29.5GB,  250MB/s  
+Jul 04  23:05:40.790
+New Data Upload               :  98%|█████████▊| 7.52GB / 7.71GB,  230MB/s  
+
+Jul 04  23:05:40.790
+Processing Files (0 / 1)      :  36%|███▌      | 10.5GB / 29.5GB,  250MB/s  
+Jul 04  23:05:40.890
+New Data Upload               :  97%|█████████▋| 7.55GB / 7.78GB,  231MB/s  
+
+Jul 04  23:05:40.890
+Processing Files (0 / 1)      :  36%|███▌      | 10.5GB / 29.5GB,  250MB/s  
+Jul 04  23:05:40.991
+New Data Upload               :  97%|█████████▋| 7.58GB / 7.78GB,  231MB/s  
+
+Jul 04  23:05:40.991
+Processing Files (0 / 1)      :  36%|███▌      | 10.6GB / 29.5GB,  251MB/s  
+Jul 04  23:05:41.091
+New Data Upload               :  98%|█████████▊| 7.61GB / 7.78GB,  231MB/s  
+
+Jul 04  23:05:41.092
+Processing Files (0 / 1)      :  36%|███▌      | 10.6GB / 29.5GB,  251MB/s  
+Jul 04  23:05:41.192
+New Data Upload               :  97%|█████████▋| 7.64GB / 7.85GB,  232MB/s  
+
+Jul 04  23:05:41.293
+Processing Files (0 / 1)      :  36%|███▌      | 10.7GB / 29.5GB,  252MB/s  
+New Data Upload               :  98%|█████████▊| 7.67GB / 7.85GB,  232MB/s  
+  ...8b57gpx/model.safetensors:  36%|███▌      | 10.7GB / 29.5GB            
+Jul 04  23:05:41.393
+New Data Upload               :  97%|█████████▋| 7.70GB / 7.91GB,  233MB/s  
+
+Jul 04  23:05:41.394
+Processing Files (0 / 1)      :  36%|███▌      | 10.7GB / 29.5GB,  251MB/s  
+Jul 04  23:05:41.494
+New Data Upload               :  97%|█████████▋| 7.71GB / 7.91GB,  232MB/s  
+
+Jul 04  23:05:41.595
+Processing Files (0 / 1)      :  36%|███▌      | 10.7GB / 29.5GB,  251MB/s  
+New Data Upload               :  98%|█████████▊| 7.74GB / 7.91GB,  233MB/s  
+Jul 04  23:05:41.595
+Processing Files (0 / 1)      :  36%|███▋      | 10.7GB / 29.5GB,  251MB/s  
+Jul 04  23:05:41.595
+
+Jul 04  23:05:41.696
+Processing Files (0 / 1)      :  36%|███▋      | 10.7GB / 29.5GB,  251MB/s  
+
+  ...8b57gpx/model.safetensors:  36%|███▋      | 10.7GB / 29.5GB            
+Jul 04  23:05:41.896
+Processing Files (0 / 1)      :  36%|███▋      | 10.8GB / 29.5GB,  252MB/s  
+New Data Upload               :  97%|█████████▋| 7.82GB / 8.05GB,  233MB/s  
+  ...8b57gpx/model.safetensors:  36%|███▋      | 10.8GB / 29.5GB            
+Jul 04  23:05:41.897
+Processing Files (0 / 1)      :  37%|███▋      | 10.8GB / 29.5GB,  251MB/s  
+Jul 04  23:05:41.997
+New Data Upload               :  98%|█████████▊| 7.85GB / 8.05GB,  233MB/s  
+
+Jul 04  23:05:41.997
+Processing Files (0 / 1)      :  37%|███▋      | 10.8GB / 29.5GB,  252MB/s  
+Jul 04  23:05:42.097
+New Data Upload               :  98%|█████████▊| 7.88GB / 8.05GB,  234MB/s  
+
+Jul 04  23:05:42.098
+Processing Files (0 / 1)      :  37%|███▋      | 10.9GB / 29.5GB,  252MB/s  
+Jul 04  23:05:42.198
+New Data Upload               :  97%|█████████▋| 7.91GB / 8.11GB,  234MB/s  
+
+Jul 04  23:05:42.198
+Processing Files (0 / 1)      :  37%|███▋      | 10.9GB / 29.5GB,  252MB/s  
+Jul 04  23:05:42.299
+New Data Upload               :  98%|█████████▊| 7.94GB / 8.11GB,  235MB/s  
+
+Jul 04  23:05:42.501
+Processing Files (0 / 1)      :  37%|███▋      | 10.9GB / 29.5GB,  253MB/s  
+New Data Upload               :  98%|█████████▊| 7.99GB / 8.18GB,  235MB/s  
+  ...8b57gpx/model.safetensors:  37%|███▋      | 10.9GB / 29.5GB            
+Jul 04  23:05:42.501
+Processing Files (0 / 1)      :  37%|███▋      | 11.0GB / 29.5GB,  253MB/s  
+Jul 04  23:05:42.702
+Processing Files (0 / 1)      :  37%|███▋      | 11.0GB / 29.5GB,  253MB/s  
+New Data Upload               :  97%|█████████▋| 8.04GB / 8.25GB,  235MB/s  
+  ...8b57gpx/model.safetensors:  37%|███▋      | 11.0GB / 29.5GB            
+Jul 04  23:05:42.905
+Processing Files (0 / 1)      :  37%|███▋      | 11.0GB / 29.5GB,  253MB/s  
+New Data Upload               :  97%|█████████▋| 8.09GB / 8.32GB,  235MB/s  
+  ...8b57gpx/model.safetensors:  37%|███▋      | 11.0GB / 29.5GB            
+Jul 04  23:05:42.905
+Processing Files (0 / 1)      :  37%|███▋      | 11.1GB / 29.5GB,  252MB/s  
+Jul 04  23:05:43.106
+Processing Files (0 / 1)      :  38%|███▊      | 11.1GB / 29.5GB,  252MB/s  
+New Data Upload               :  98%|█████████▊| 8.14GB / 8.32GB,  235MB/s  
+  ...8b57gpx/model.safetensors:  38%|███▊      | 11.1GB / 29.5GB            
+Jul 04  23:05:43.409
+Processing Files (0 / 1)      :  38%|███▊      | 11.2GB / 29.5GB,  253MB/s  
+New Data Upload               :  97%|█████████▋| 8.23GB / 8.45GB,  237MB/s  
+  ...8b57gpx/model.safetensors:  38%|███▊      | 11.2GB / 29.5GB            
+Jul 04  23:05:43.511
+Processing Files (0 / 1)      :  38%|███▊      | 11.2GB / 29.5GB,  253MB/s  
+New Data Upload               :  98%|█████████▊| 8.25GB / 8.45GB,  237MB/s  
+Jul 04  23:05:43.512
+Processing Files (0 / 1)      :  38%|███▊      | 11.2GB / 29.5GB,  253MB/s  
+Jul 04  23:05:43.713
+Processing Files (0 / 1)      :  38%|███▊      | 11.3GB / 29.5GB,  254MB/s  
+New Data Upload               :  98%|█████████▊| 8.31GB / 8.52GB,  237MB/s  
+  ...8b57gpx/model.safetensors:  38%|███▊      | 11.3GB / 29.5GB            
+Jul 04  23:05:43.813
+New Data Upload               :  98%|█████████▊| 8.34GB / 8.52GB,  238MB/s  
+
+Jul 04  23:05:43.813
+Processing Files (0 / 1)      :  38%|███▊      | 11.3GB / 29.5GB,  253MB/s  
+Jul 04  23:05:43.914
+Processing Files (0 / 1)      :  38%|███▊      | 11.3GB / 29.5GB,  253MB/s  
+
+  ...8b57gpx/model.safetensors:  38%|███▊      | 11.3GB / 29.5GB            
+Jul 04  23:05:44.015
+Processing Files (0 / 1)      :  38%|███▊      | 11.4GB / 29.5GB,  253MB/s  
+
+  ...8b57gpx/model.safetensors:  38%|███▊      | 11.4GB / 29.5GB            
+Jul 04  23:05:44.216
+Processing Files (0 / 1)      :  39%|███▊      | 11.4GB / 29.5GB,  252MB/s  
+New Data Upload               :  97%|█████████▋| 8.42GB / 8.65GB,  237MB/s  
+  ...8b57gpx/model.safetensors:  39%|███▊      | 11.4GB / 29.5GB            
+Jul 04  23:05:44.316
+New Data Upload               :  98%|█████████▊| 8.45GB / 8.65GB,  237MB/s  
+
+Jul 04  23:05:44.316
+Processing Files (0 / 1)      :  39%|███▊      | 11.4GB / 29.5GB,  252MB/s  
+Jul 04  23:05:44.417
+Processing Files (0 / 1)      :  39%|███▉      | 11.5GB / 29.5GB,  253MB/s  
+
+  ...8b57gpx/model.safetensors:  39%|███▉      | 11.5GB / 29.5GB            
+Jul 04  23:05:44.518
+Processing Files (0 / 1)      :  39%|███▉      | 11.5GB / 29.5GB,  253MB/s  
+
+  ...8b57gpx/model.safetensors:  39%|███▉      | 11.5GB / 29.5GB            
+Jul 04  23:05:44.819
+Processing Files (0 / 1)      :  39%|███▉      | 11.5GB / 29.5GB,  253MB/s  
+New Data Upload               :  98%|█████████▊| 8.59GB / 8.78GB,  239MB/s  
+  ...8b57gpx/model.safetensors:  39%|███▉      | 11.5GB / 29.5GB            
+Jul 04  23:05:44.920
+Processing Files (0 / 1)      :  39%|███▉      | 11.6GB / 29.5GB,  254MB/s  
+New Data Upload               :  97%|█████████▋| 8.62GB / 8.85GB,  239MB/s  
+  ...8b57gpx/model.safetensors:  39%|███▉      | 11.6GB / 29.5GB            
+Jul 04  23:05:45.020
+New Data Upload               :  98%|█████████▊| 8.65GB / 8.85GB,  240MB/s  
+
+Jul 04  23:05:45.020
+  ...8b57gpx/model.safetensors:  39%|███▉      | 11.6GB / 29.5GB            
+Jul 04  23:05:45.020
+Processing Files (0 / 1)      :  39%|███▉      | 11.6GB / 29.5GB,  255MB/s  
+Jul 04  23:05:45.020
+
+Jul 04  23:05:45.121
+Processing Files (0 / 1)      :  40%|███▉      | 11.7GB / 29.5GB,  255MB/s  
+
+  ...8b57gpx/model.safetensors:  40%|███▉      | 11.7GB / 29.5GB            
+Jul 04  23:05:45.221
+New Data Upload               :  98%|█████████▊| 8.72GB / 8.92GB,  241MB/s  
+
+Jul 04  23:05:45.221
+Processing Files (0 / 1)      :  40%|███▉      | 11.7GB / 29.5GB,  255MB/s  
+Jul 04  23:05:45.423
+Processing Files (0 / 1)      :  40%|███▉      | 11.8GB / 29.5GB,  255MB/s  
+New Data Upload               :  98%|█████████▊| 8.77GB / 8.92GB,  241MB/s  
+  ...8b57gpx/model.safetensors:  40%|███▉      | 11.8GB / 29.5GB            
+Jul 04  23:05:45.825
+Processing Files (0 / 1)      :  40%|████      | 11.8GB / 29.5GB,  257MB/s  
+New Data Upload               :  98%|█████████▊| 8.89GB / 9.05GB,  243MB/s  
+  ...8b57gpx/model.safetensors:  40%|████      | 11.8GB / 29.5GB            
+Jul 04  23:05:45.926
+Processing Files (0 / 1)      :  40%|████      | 11.9GB / 29.5GB,  257MB/s  
+New Data Upload               :  99%|█████████▊| 8.93GB / 9.05GB,  244MB/s  
+  ...8b57gpx/model.safetensors:  40%|████      | 11.9GB / 29.5GB            
+Jul 04  23:05:46.027
+Processing Files (0 / 1)      :  40%|████      | 11.9GB / 29.5GB,  256MB/s  
+
+  ...8b57gpx/model.safetensors:  40%|████      | 11.9GB / 29.5GB            
+Jul 04  23:05:46.328
+Processing Files (0 / 1)      :  40%|████      | 12.0GB / 29.5GB,  256MB/s  
+New Data Upload               :  98%|█████████▊| 9.01GB / 9.19GB,  242MB/s  
+  ...8b57gpx/model.safetensors:  40%|████      | 12.0GB / 29.5GB            
+Jul 04  23:05:46.329
+Processing Files (0 / 1)      :  41%|████      | 12.0GB / 29.5GB,  256MB/s  
+Jul 04  23:05:46.429
+Processing Files (0 / 1)      :  41%|████      | 12.0GB / 29.5GB,  257MB/s  
+
+  ...8b57gpx/model.safetensors:  41%|████      | 12.0GB / 29.5GB            
+Jul 04  23:05:46.530
+Processing Files (0 / 1)      :  41%|████      | 12.1GB / 29.5GB,  259MB/s  
+
+  ...8b57gpx/model.safetensors:  41%|████      | 12.1GB / 29.5GB            
+Jul 04  23:05:46.631
+Processing Files (0 / 1)      :  41%|████      | 12.1GB / 29.5GB,  259MB/s  
+
+  ...8b57gpx/model.safetensors:  41%|████      | 12.1GB / 29.5GB            
+Jul 04  23:05:46.731
+New Data Upload               :  98%|█████████▊| 9.15GB / 9.32GB,  246MB/s  
+
+Jul 04  23:05:46.832
+Processing Files (0 / 1)      :  41%|████      | 12.1GB / 29.5GB,  258MB/s  
+New Data Upload               :  98%|█████████▊| 9.17GB / 9.32GB,  245MB/s  
+Jul 04  23:05:47.134
+Processing Files (0 / 1)      :  41%|████▏     | 12.2GB / 29.5GB,  257MB/s  
+New Data Upload               :  98%|█████████▊| 9.23GB / 9.39GB,  244MB/s  
+  ...8b57gpx/model.safetensors:  41%|████▏     | 12.2GB / 29.5GB            
+Jul 04  23:05:47.235
+Processing Files (0 / 1)      :  41%|████▏     | 12.2GB / 29.5GB,  257MB/s  
+New Data Upload               :  98%|█████████▊| 9.26GB / 9.46GB,  244MB/s  
+Jul 04  23:05:47.437
+Processing Files (0 / 1)      :  42%|████▏     | 12.3GB / 29.5GB,  258MB/s  
+New Data Upload               :  99%|█████████▊| 9.32GB / 9.46GB,  245MB/s  
+  ...8b57gpx/model.safetensors:  42%|████▏     | 12.3GB / 29.5GB            
+Jul 04  23:05:47.638
+Processing Files (0 / 1)      :  42%|████▏     | 12.3GB / 29.5GB,  257MB/s  
+New Data Upload               :  98%|█████████▊| 9.36GB / 9.52GB,  245MB/s  
+  ...8b57gpx/model.safetensors:  42%|████▏     | 12.3GB / 29.5GB            
+Jul 04  23:05:47.840
+Processing Files (0 / 1)      :  42%|████▏     | 12.4GB / 29.5GB,  261MB/s  
+New Data Upload               :  98%|█████████▊| 9.44GB / 9.59GB,  247MB/s  
+  ...8b57gpx/model.safetensors:  42%|████▏     | 12.4GB / 29.5GB            
+Jul 04  23:05:47.940
+New Data Upload               :  99%|█████████▉| 9.49GB / 9.59GB,  249MB/s  
+
+Jul 04  23:05:47.940
+Processing Files (0 / 1)      :  42%|████▏     | 12.5GB / 29.5GB,  260MB/s  
+Jul 04  23:05:48.142
+Processing Files (0 / 1)      :  42%|████▏     | 12.5GB / 29.5GB,  259MB/s  
+New Data Upload               :  99%|█████████▊| 9.52GB / 9.66GB,  247MB/s  
+  ...8b57gpx/model.safetensors:  42%|████▏     | 12.5GB / 29.5GB            
+Jul 04  23:05:48.143
+Processing Files (0 / 1)      :  42%|████▏     | 12.5GB / 29.5GB,  258MB/s  
+Jul 04  23:05:48.345
+Processing Files (0 / 1)      :  42%|████▏     | 12.5GB / 29.5GB,  257MB/s  
+New Data Upload               :  98%|█████████▊| 9.54GB / 9.72GB,  245MB/s  
+  ...8b57gpx/model.safetensors:  42%|████▏     | 12.5GB / 29.5GB            
+Jul 04  23:05:48.345
+  ...8b57gpx/model.safetensors:  42%|████▏     | 12.5GB / 29.5GB            
+Jul 04  23:05:48.345
+Processing Files (0 / 1)      :  42%|████▏     | 12.5GB / 29.5GB,  256MB/s  
+Jul 04  23:05:48.446
+Processing Files (0 / 1)      :  42%|████▏     | 12.5GB / 29.5GB,  256MB/s  
+
+  ...8b57gpx/model.safetensors:  42%|████▏     | 12.5GB / 29.5GB            
+Jul 04  23:05:48.547
+New Data Upload               :  98%|█████████▊| 9.58GB / 9.79GB,  244MB/s  
+
+Jul 04  23:05:48.647
+Processing Files (0 / 1)      :  43%|████▎     | 12.6GB / 29.5GB,  256MB/s  
+New Data Upload               :  98%|█████████▊| 9.60GB / 9.79GB,  244MB/s  
+Jul 04  23:05:48.748
+Processing Files (0 / 1)      :  43%|████▎     | 12.6GB / 29.5GB,  257MB/s  
+New Data Upload               :  98%|█████████▊| 9.63GB / 9.86GB,  245MB/s  
+  ...8b57gpx/model.safetensors:  43%|████▎     | 12.6GB / 29.5GB            
+Jul 04  23:05:48.849
+Processing Files (0 / 1)      :  43%|████▎     | 12.7GB / 29.5GB,  257MB/s  
+
+  ...8b57gpx/model.safetensors:  43%|████▎     | 12.7GB / 29.5GB            
+Jul 04  23:05:48.949
+New Data Upload               :  98%|█████████▊| 9.70GB / 9.86GB,  246MB/s  
+
+Jul 04  23:05:49.050
+Processing Files (0 / 1)      :  43%|████▎     | 12.7GB / 29.5GB,  257MB/s  
+New Data Upload               :  98%|█████████▊| 9.72GB / 9.92GB,  246MB/s  
+Jul 04  23:05:49.050
+Processing Files (0 / 1)      :  43%|████▎     | 12.7GB / 29.5GB,  257MB/s  
+Jul 04  23:05:49.151
+New Data Upload               :  98%|█████████▊| 9.75GB / 9.92GB,  246MB/s  
+
+Jul 04  23:05:49.352
+Processing Files (0 / 1)      :  43%|████▎     | 12.8GB / 29.5GB,  260MB/s  
+New Data Upload               :  98%|█████████▊| 9.84GB / 9.99GB,  249MB/s  
+  ...8b57gpx/model.safetensors:  43%|████▎     | 12.8GB / 29.5GB            
+Jul 04  23:05:49.352
+Processing Files (0 / 1)      :  43%|████▎     | 12.8GB / 29.5GB,  261MB/s  
+Jul 04  23:05:49.453
+New Data Upload               :  99%|█████████▉| 9.89GB / 9.99GB,  250MB/s  
+
+Jul 04  23:05:49.554
+Processing Files (0 / 1)      :  44%|████▎     | 12.9GB / 29.5GB,  261MB/s  
+New Data Upload               :  98%|█████████▊| 9.91GB / 10.1GB,  250MB/s  
+Jul 04  23:05:49.655
+Processing Files (0 / 1)      :  44%|████▎     | 12.9GB / 29.5GB,  260MB/s  
+New Data Upload               :  99%|█████████▊| 9.92GB / 10.1GB,  249MB/s  
+Jul 04  23:05:49.757
+Processing Files (0 / 1)      :  44%|████▎     | 12.9GB / 29.5GB,  259MB/s  
+New Data Upload               :  98%|█████████▊| 9.95GB / 10.1GB,  249MB/s  
+  ...8b57gpx/model.safetensors:  44%|████▎     | 12.9GB / 29.5GB            
+Jul 04  23:05:49.858
+New Data Upload               :  98%|█████████▊| 9.97GB / 10.1GB,  249MB/s  
+
+Jul 04  23:05:49.858
+Processing Files (0 / 1)      :  44%|████▍     | 12.9GB / 29.5GB,  259MB/s  
+Jul 04  23:05:50.061
+Processing Files (0 / 1)      :  44%|████▍     | 13.0GB / 29.5GB,  259MB/s  
+New Data Upload               :  98%|█████████▊| 10.0GB / 10.2GB,  248MB/s  
+  ...8b57gpx/model.safetensors:  44%|████▍     | 13.0GB / 29.5GB            
+Jul 04  23:05:50.063
+Processing Files (0 / 1)      :  44%|████▍     | 13.0GB / 29.5GB,  258MB/s  
+Jul 04  23:05:50.164
+Processing Files (0 / 1)      :  44%|████▍     | 13.0GB / 29.5GB,  257MB/s  
+
+  ...8b57gpx/model.safetensors:  44%|████▍     | 13.0GB / 29.5GB            
+Jul 04  23:05:50.265
+Processing Files (0 / 1)      :  44%|████▍     | 13.0GB / 29.5GB,  257MB/s  
+
+  ...8b57gpx/model.safetensors:  44%|████▍     | 13.0GB / 29.5GB            
+Jul 04  23:05:50.365
+New Data Upload               :  98%|█████████▊| 10.1GB / 10.3GB,  247MB/s  
+
+Jul 04  23:05:50.366
+Processing Files (0 / 1)      :  44%|████▍     | 13.0GB / 29.5GB,  257MB/s  
+Jul 04  23:05:50.466
+New Data Upload               :  98%|█████████▊| 10.1GB / 10.3GB,  247MB/s  
+
+Jul 04  23:05:50.567
+Processing Files (0 / 1)      :  44%|████▍     | 13.1GB / 29.5GB,  257MB/s  
+New Data Upload               :  98%|█████████▊| 10.1GB / 10.3GB,  247MB/s  
+Jul 04  23:05:50.668
+Processing Files (0 / 1)      :  44%|████▍     | 13.1GB / 29.5GB,  256MB/s  
+New Data Upload               :  98%|█████████▊| 10.1GB / 10.3GB,  246MB/s  
+Jul 04  23:05:50.769
+Processing Files (0 / 1)      :  45%|████▍     | 13.2GB / 29.5GB,  257MB/s  
+New Data Upload               :  98%|█████████▊| 10.2GB / 10.3GB,  247MB/s  
+  ...8b57gpx/model.safetensors:  45%|████▍     | 13.2GB / 29.5GB            
+Jul 04  23:05:50.869
+New Data Upload               :  98%|█████████▊| 10.2GB / 10.4GB,  247MB/s  
+
+Jul 04  23:05:50.869
+Processing Files (0 / 1)      :  45%|████▍     | 13.2GB / 29.5GB,  258MB/s  
+Jul 04  23:05:50.970
+New Data Upload               :  98%|█████████▊| 10.2GB / 10.4GB,  248MB/s  
+
+Jul 04  23:05:51.070
+Processing Files (0 / 1)      :  45%|████▍     | 13.2GB / 29.5GB,  258MB/s  
+New Data Upload               :  98%|█████████▊| 10.3GB / 10.5GB,  248MB/s  
+Jul 04  23:05:51.070
+Processing Files (0 / 1)      :  45%|████▍     | 13.2GB / 29.5GB,  258MB/s  
+Jul 04  23:05:51.171
+New Data Upload               :  98%|█████████▊| 10.3GB / 10.5GB,  248MB/s  
+
+Jul 04  23:05:51.272
+Processing Files (0 / 1)      :  45%|████▌     | 13.3GB / 29.5GB,  258MB/s  
+New Data Upload               :  99%|█████████▊| 10.3GB / 10.5GB,  249MB/s  
+  ...8b57gpx/model.safetensors:  45%|████▌     | 13.3GB / 29.5GB            
+Jul 04  23:05:51.674
+Processing Files (0 / 1)      :  45%|████▌     | 13.4GB / 29.5GB,  259MB/s  
+New Data Upload               :  98%|█████████▊| 10.4GB / 10.6GB,  249MB/s  
+  ...8b57gpx/model.safetensors:  45%|████▌     | 13.4GB / 29.5GB            
+Jul 04  23:05:51.875
+Processing Files (0 / 1)      :  45%|████▌     | 13.4GB / 29.5GB,  257MB/s  
+New Data Upload               :  98%|█████████▊| 10.5GB / 10.7GB,  248MB/s  
+  ...8b57gpx/model.safetensors:  45%|████▌     | 13.4GB / 29.5GB            
+Jul 04  23:05:52.178
+Processing Files (0 / 1)      :  46%|████▌     | 13.5GB / 29.5GB,  256MB/s  
+New Data Upload               :  98%|█████████▊| 10.5GB / 10.7GB,  248MB/s  
+  ...8b57gpx/model.safetensors:  46%|████▌     | 13.5GB / 29.5GB            
+Jul 04  23:05:52.178
+Processing Files (0 / 1)      :  46%|████▌     | 13.5GB / 29.5GB,  257MB/s  
+Jul 04  23:05:52.279
+Processing Files (0 / 1)      :  46%|████▌     | 13.5GB / 29.5GB,  257MB/s  
+
+  ...8b57gpx/model.safetensors:  46%|████▌     | 13.5GB / 29.5GB            
+Jul 04  23:05:52.479
+Processing Files (0 / 1)      :  46%|████▌     | 13.6GB / 29.5GB,  257MB/s  
+New Data Upload               :  98%|█████████▊| 10.6GB / 10.8GB,  248MB/s  
+  ...8b57gpx/model.safetensors:  46%|████▌     | 13.6GB / 29.5GB            
+Jul 04  23:05:52.480
+Processing Files (0 / 1)      :  46%|████▌     | 13.6GB / 29.5GB,  257MB/s  
+Jul 04  23:05:52.783
+Processing Files (0 / 1)      :  46%|████▋     | 13.7GB / 29.5GB,  259MB/s  
+New Data Upload               :  99%|█████████▊| 10.7GB / 10.9GB,  250MB/s  
+  ...8b57gpx/model.safetensors:  46%|████▋     | 13.7GB / 29.5GB            
+Jul 04  23:05:52.885
+New Data Upload               :  98%|█████████▊| 10.7GB / 10.9GB,  250MB/s  
+
+Jul 04  23:05:52.885
+Processing Files (0 / 1)      :  46%|████▋     | 13.7GB / 29.5GB,  259MB/s  
+Jul 04  23:05:52.985
+New Data Upload               :  99%|█████████▊| 10.8GB / 10.9GB,  250MB/s  
+
+Jul 04  23:05:52.986
+Processing Files (0 / 1)      :  47%|████▋     | 13.8GB / 29.5GB,  260MB/s  
+Jul 04  23:05:53.086
+Processing Files (0 / 1)      :  47%|████▋     | 13.8GB / 29.5GB,  259MB/s  
+
+  ...8b57gpx/model.safetensors:  47%|████▋     | 13.8GB / 29.5GB            
+Jul 04  23:05:53.287
+Processing Files (0 / 1)      :  47%|████▋     | 13.8GB / 29.5GB,  260MB/s  
+New Data Upload               :  99%|█████████▊| 10.8GB / 11.0GB,  251MB/s  
+  ...8b57gpx/model.safetensors:  47%|████▋     | 13.8GB / 29.5GB            
+Jul 04  23:05:53.389
+Processing Files (0 / 1)      :  47%|████▋     | 13.9GB / 29.5GB,  262MB/s  
+
+  ...8b57gpx/model.safetensors:  47%|████▋     | 13.9GB / 29.5GB            
+Jul 04  23:05:53.489
+New Data Upload               :  99%|█████████▉| 10.9GB / 11.1GB,  254MB/s  
+
+Jul 04  23:05:53.490
+Processing Files (0 / 1)      :  47%|████▋     | 13.9GB / 29.5GB,  262MB/s  
+Jul 04  23:05:53.591
+Processing Files (0 / 1)      :  47%|████▋     | 13.9GB / 29.5GB,  262MB/s  
+
+  ...8b57gpx/model.safetensors:  47%|████▋     | 13.9GB / 29.5GB            
+Jul 04  23:05:53.691
+New Data Upload               :  99%|█████████▊| 11.0GB / 11.1GB,  254MB/s  
+
+Jul 04  23:05:53.691
+Processing Files (0 / 1)      :  47%|████▋     | 14.0GB / 29.5GB,  261MB/s  
+Jul 04  23:05:53.893
+Processing Files (0 / 1)      :  47%|████▋     | 14.0GB / 29.5GB,  260MB/s  
+New Data Upload               :  98%|█████████▊| 11.0GB / 11.2GB,  252MB/s  
+  ...8b57gpx/model.safetensors:  47%|████▋     | 14.0GB / 29.5GB            
+Jul 04  23:05:54.095
+Processing Files (0 / 1)      :  47%|████▋     | 14.0GB / 29.5GB,  259MB/s  
+New Data Upload               :  98%|█████████▊| 11.1GB / 11.3GB,  251MB/s  
+  ...8b57gpx/model.safetensors:  47%|████▋     | 14.0GB / 29.5GB            
+Jul 04  23:05:54.095
+Processing Files (0 / 1)      :  48%|████▊     | 14.0GB / 29.5GB,  259MB/s  
+Jul 04  23:05:54.196
+New Data Upload               :  98%|█████████▊| 11.1GB / 11.3GB,  251MB/s  
+
+Jul 04  23:05:54.198
+Processing Files (0 / 1)      :  48%|████▊     | 14.1GB / 29.5GB,  259MB/s  
+Jul 04  23:05:54.299
+New Data Upload               :  99%|█████████▊| 11.1GB / 11.3GB,  252MB/s  
+
+Jul 04  23:05:54.299
+Processing Files (0 / 1)      :  48%|████▊     | 14.1GB / 29.5GB,  259MB/s  
+Jul 04  23:05:54.600
+Processing Files (0 / 1)      :  48%|████▊     | 14.2GB / 29.5GB,  261MB/s  
+New Data Upload               :  98%|█████████▊| 11.2GB / 11.4GB,  253MB/s  
+  ...8b57gpx/model.safetensors:  48%|████▊     | 14.2GB / 29.5GB            
+Jul 04  23:05:54.701
+Processing Files (0 / 1)      :  48%|████▊     | 14.2GB / 29.5GB,  261MB/s  
+
+  ...8b57gpx/model.safetensors:  48%|████▊     | 14.2GB / 29.5GB            
+Jul 04  23:05:54.802
+New Data Upload               :  99%|█████████▉| 11.3GB / 11.4GB,  254MB/s  
+
+Jul 04  23:05:54.802
+Processing Files (0 / 1)      :  48%|████▊     | 14.3GB / 29.5GB,  261MB/s  
+Jul 04  23:05:54.903
+New Data Upload               :  99%|█████████▊| 11.3GB / 11.5GB,  254MB/s  
+
+Jul 04  23:05:55.004
+Processing Files (0 / 1)      :  48%|████▊     | 14.3GB / 29.5GB,  262MB/s  
+New Data Upload               :  99%|█████████▉| 11.3GB / 11.5GB,  254MB/s  
+Jul 04  23:05:55.004
+Processing Files (0 / 1)      :  48%|████▊     | 14.3GB / 29.5GB,  261MB/s  
+Jul 04  23:05:55.104
+Processing Files (0 / 1)      :  48%|████▊     | 14.3GB / 29.5GB,  260MB/s  
+
+  ...8b57gpx/model.safetensors:  48%|████▊     | 14.3GB / 29.5GB            
+Jul 04  23:05:55.205
+New Data Upload               :  99%|█████████▊| 11.4GB / 11.5GB,  253MB/s  
+
+Jul 04  23:05:55.205
+Processing Files (0 / 1)      :  49%|████▊     | 14.3GB / 29.5GB,  259MB/s  
+Jul 04  23:05:55.306
+New Data Upload               :  99%|█████████▊| 11.4GB / 11.5GB,  252MB/s  
+
+Jul 04  23:05:55.306
+Processing Files (0 / 1)      :  49%|████▊     | 14.4GB / 29.5GB,  259MB/s  
+Jul 04  23:05:55.406
+Processing Files (0 / 1)      :  49%|████▊     | 14.4GB / 29.5GB,  259MB/s  
+
+  ...8b57gpx/model.safetensors:  49%|████▊     | 14.4GB / 29.5GB            
+Jul 04  23:05:55.507
+New Data Upload               :  98%|█████████▊| 11.4GB / 11.6GB,  252MB/s  
+
+Jul 04  23:05:55.507
+  ...8b57gpx/model.safetensors:  49%|████▉     | 14.4GB / 29.5GB            
+Jul 04  23:05:55.608
+Processing Files (0 / 1)      :  49%|████▉     | 14.4GB / 29.5GB,  259MB/s  
+New Data Upload               :  99%|█████████▊| 11.5GB / 11.6GB,  252MB/s  
+Jul 04  23:05:55.609
+Processing Files (0 / 1)      :  49%|████▉     | 14.4GB / 29.5GB,  259MB/s  
+Jul 04  23:05:55.709
+New Data Upload               :  98%|█████████▊| 11.5GB / 11.7GB,  252MB/s  
+
+Jul 04  23:05:55.710
+Processing Files (0 / 1)      :  49%|████▉     | 14.5GB / 29.5GB,  259MB/s  
+Jul 04  23:05:55.710
+New Data Upload               :  99%|█████████▊| 11.5GB / 11.7GB,  252MB/s  
+Jul 04  23:05:55.810
+
+
+Jul 04  23:05:55.810
+Processing Files (0 / 1)      :  49%|████▉     | 14.5GB / 29.5GB,  258MB/s  
+Jul 04  23:05:55.911
+Processing Files (0 / 1)      :  49%|████▉     | 14.5GB / 29.5GB,  258MB/s  
+
+  ...8b57gpx/model.safetensors:  49%|████▉     | 14.5GB / 29.5GB            
+Jul 04  23:05:56.011
+Processing Files (0 / 1)      :  49%|████▉     | 14.5GB / 29.5GB,  258MB/s  
+
+  ...8b57gpx/model.safetensors:  49%|████▉     | 14.5GB / 29.5GB            
+Jul 04  23:05:56.313
+Processing Files (0 / 1)      :  50%|████▉     | 14.7GB / 29.5GB,  262MB/s  
+New Data Upload               :  99%|█████████▊| 11.7GB / 11.8GB,  254MB/s  
+  ...8b57gpx/model.safetensors:  50%|████▉     | 14.7GB / 29.5GB            
+Jul 04  23:05:56.515
+Processing Files (0 / 1)      :  50%|████▉     | 14.7GB / 29.5GB,  262MB/s  
+New Data Upload               :  99%|█████████▉| 11.7GB / 11.9GB,  256MB/s  
+  ...8b57gpx/model.safetensors:  50%|████▉     | 14.7GB / 29.5GB            
+Jul 04  23:05:56.616
+Processing Files (0 / 1)      :  50%|████▉     | 14.7GB / 29.5GB,  262MB/s  
+New Data Upload               :  99%|█████████▉| 11.8GB / 11.9GB,  256MB/s  
+Jul 04  23:05:56.616
+Processing Files (0 / 1)      :  50%|████▉     | 14.7GB / 29.5GB,  261MB/s  
+Jul 04  23:05:56.717
+Processing Files (0 / 1)      :  50%|████▉     | 14.7GB / 29.5GB,  261MB/s  
+
+  ...8b57gpx/model.safetensors:  50%|████▉     | 14.7GB / 29.5GB            
+Jul 04  23:05:56.818
+New Data Upload               :  99%|█████████▉| 11.8GB / 11.9GB,  254MB/s  
+
+Jul 04  23:05:56.819
+Processing Files (0 / 1)      :  50%|█████     | 14.8GB / 29.5GB,  261MB/s  
+Jul 04  23:05:56.920
+New Data Upload               :  98%|█████████▊| 11.8GB / 12.0GB,  254MB/s  
+
+Jul 04  23:05:56.922
+Processing Files (0 / 1)      :  50%|█████     | 14.8GB / 29.5GB,  260MB/s  
+Jul 04  23:05:57.224
+Processing Files (0 / 1)      :  50%|█████     | 14.9GB / 29.5GB,  259MB/s  
+New Data Upload               :  98%|█████████▊| 11.9GB / 12.1GB,  253MB/s  
+  ...8b57gpx/model.safetensors:  50%|█████     | 14.9GB / 29.5GB            
+Jul 04  23:05:57.425
+Processing Files (0 / 1)      :  50%|█████     | 14.9GB / 29.5GB,  259MB/s  
+New Data Upload               :  98%|█████████▊| 11.9GB / 12.1GB,  253MB/s  
+  ...8b57gpx/model.safetensors:  50%|█████     | 14.9GB / 29.5GB            
+Jul 04  23:05:57.527
+Processing Files (0 / 1)      :  51%|█████     | 14.9GB / 29.5GB,  259MB/s  
+New Data Upload               :  98%|█████████▊| 11.9GB / 12.1GB,  253MB/s  
+  ...8b57gpx/model.safetensors:  51%|█████     | 14.9GB / 29.5GB            
+Jul 04  23:05:57.628
+New Data Upload               :  99%|█████████▊| 12.0GB / 12.1GB,  253MB/s  
+
+Jul 04  23:05:57.829
+Processing Files (0 / 1)      :  51%|█████     | 15.0GB / 29.5GB,  260MB/s  
+New Data Upload               :  99%|█████████▊| 12.0GB / 12.2GB,  254MB/s  
+  ...8b57gpx/model.safetensors:  51%|█████     | 15.0GB / 29.5GB            
+Jul 04  23:05:57.829
+Processing Files (0 / 1)      :  51%|█████     | 15.0GB / 29.5GB,  261MB/s  
+Jul 04  23:05:57.930
+Processing Files (0 / 1)      :  51%|█████     | 15.1GB / 29.5GB,  263MB/s  
+
+  ...8b57gpx/model.safetensors:  51%|█████     | 15.1GB / 29.5GB            
+Jul 04  23:05:58.030
+New Data Upload               :  99%|█████████▉| 12.1GB / 12.3GB,  257MB/s  
+
+Jul 04  23:05:58.031
+Processing Files (0 / 1)      :  51%|█████     | 15.1GB / 29.5GB,  263MB/s  
+Jul 04  23:05:58.131
+New Data Upload               :  99%|█████████▉| 12.2GB / 12.3GB,  257MB/s  
+
+Jul 04  23:05:58.132
+Processing Files (0 / 1)      :  51%|█████     | 15.1GB / 29.5GB,  262MB/s  
+New Data Upload               :  99%|█████████▊| 12.2GB / 12.3GB,  256MB/s  
+Jul 04  23:05:58.333
+Processing Files (0 / 1)      :  51%|█████▏    | 15.1GB / 29.5GB,  261MB/s  
+New Data Upload               :  99%|█████████▉| 12.2GB / 12.3GB,  256MB/s  
+  ...8b57gpx/model.safetensors:  51%|█████▏    | 15.1GB / 29.5GB            
+Jul 04  23:05:58.333
+Processing Files (0 / 1)      :  51%|█████▏    | 15.2GB / 29.5GB,  261MB/s  
+Jul 04  23:05:58.433
+Processing Files (0 / 1)      :  51%|█████▏    | 15.2GB / 29.5GB,  261MB/s  
+
+  ...8b57gpx/model.safetensors:  51%|█████▏    | 15.2GB / 29.5GB            
+Jul 04  23:05:58.735
+Processing Files (0 / 1)      :  52%|█████▏    | 15.3GB / 29.5GB,  260MB/s  
+New Data Upload               :  98%|█████████▊| 12.3GB / 12.5GB,  254MB/s  
+  ...8b57gpx/model.safetensors:  52%|█████▏    | 15.3GB / 29.5GB            
+Jul 04  23:05:58.836
+New Data Upload               :  99%|█████████▊| 12.3GB / 12.5GB,  254MB/s  
+
+Jul 04  23:05:58.836
+Processing Files (0 / 1)      :  52%|█████▏    | 15.3GB / 29.5GB,  260MB/s  
+Jul 04  23:05:58.937
+New Data Upload               :  98%|█████████▊| 12.3GB / 12.5GB,  255MB/s  
+
+Jul 04  23:05:58.938
+Processing Files (0 / 1)      :  52%|█████▏    | 15.3GB / 29.5GB,  260MB/s  
+Jul 04  23:05:59.039
+New Data Upload               :  99%|█████████▊| 12.4GB / 12.5GB,  254MB/s  
+
+Jul 04  23:05:59.039
+Processing Files (0 / 1)      :  52%|█████▏    | 15.3GB / 29.5GB,  259MB/s  
+Jul 04  23:05:59.341
+Processing Files (0 / 1)      :  52%|█████▏    | 15.4GB / 29.5GB,  260MB/s  
+New Data Upload               :  99%|█████████▊| 12.4GB / 12.6GB,  255MB/s  
+  ...8b57gpx/model.safetensors:  52%|█████▏    | 15.4GB / 29.5GB            
+Jul 04  23:05:59.542
+Processing Files (0 / 1)      :  52%|█████▏    | 15.5GB / 29.5GB,  262MB/s  
+New Data Upload               :  99%|█████████▉| 12.5GB / 12.7GB,  257MB/s  
+  ...8b57gpx/model.safetensors:  52%|█████▏    | 15.5GB / 29.5GB            
+Jul 04  23:05:59.543
+Processing Files (0 / 1)      :  52%|█████▏    | 15.5GB / 29.5GB,  262MB/s  
+Jul 04  23:05:59.643
+New Data Upload               :  99%|█████████▉| 12.5GB / 12.7GB,  257MB/s  
+
+Jul 04  23:05:59.744
+Processing Files (0 / 1)      :  53%|█████▎    | 15.5GB / 29.5GB,  262MB/s  
+New Data Upload               :  99%|█████████▊| 12.6GB / 12.7GB,  257MB/s  
+Jul 04  23:05:59.845
+Processing Files (0 / 1)      :  53%|█████▎    | 15.5GB / 29.5GB,  262MB/s  
+New Data Upload               :  99%|█████████▉| 12.6GB / 12.7GB,  257MB/s  
+Jul 04  23:05:59.946
+Processing Files (0 / 1)      :  53%|█████▎    | 15.6GB / 29.5GB,  262MB/s  
+New Data Upload               :  99%|█████████▊| 12.6GB / 12.8GB,  256MB/s  
+  ...8b57gpx/model.safetensors:  53%|█████▎    | 15.6GB / 29.5GB            
+Jul 04  23:06:00.147
+Processing Files (0 / 1)      :  53%|█████▎    | 15.7GB / 29.5GB,  262MB/s  
+New Data Upload               :  99%|█████████▉| 12.7GB / 12.8GB,  256MB/s  
+  ...8b57gpx/model.safetensors:  53%|█████▎    | 15.7GB / 29.5GB            
+Jul 04  23:06:00.247
+New Data Upload               :  99%|█████████▊| 12.7GB / 12.9GB,  256MB/s  
+
+Jul 04  23:06:00.248
+Processing Files (0 / 1)      :  53%|█████▎    | 15.7GB / 29.5GB,  262MB/s  
+Jul 04  23:06:00.348
+New Data Upload               :  99%|█████████▉| 12.7GB / 12.9GB,  257MB/s  
+
+Jul 04  23:06:00.550
+Processing Files (0 / 1)      :  53%|█████▎    | 15.7GB / 29.5GB,  262MB/s  
+New Data Upload               :  99%|█████████▊| 12.8GB / 12.9GB,  257MB/s  
+  ...8b57gpx/model.safetensors:  53%|█████▎    | 15.7GB / 29.5GB            
+Jul 04  23:06:00.852
+Processing Files (0 / 1)      :  54%|█████▎    | 15.8GB / 29.5GB,  262MB/s  
+New Data Upload               :  98%|█████████▊| 12.8GB / 13.1GB,  256MB/s  
+  ...8b57gpx/model.safetensors:  54%|█████▎    | 15.8GB / 29.5GB            
+Jul 04  23:06:01.355
+Processing Files (0 / 1)      :  54%|█████▍    | 16.0GB / 29.5GB,  265MB/s  
+New Data Upload               :  99%|█████████▊| 13.0GB / 13.2GB,  259MB/s  
+  ...8b57gpx/model.safetensors:  54%|█████▍    | 16.0GB / 29.5GB            
+Jul 04  23:06:01.456
+New Data Upload               :  99%|█████████▉| 13.1GB / 13.2GB,  261MB/s  
+
+Jul 04  23:06:01.557
+Processing Files (0 / 1)      :  54%|█████▍    | 16.1GB / 29.5GB,  266MB/s  
+New Data Upload               :  99%|█████████▊| 13.1GB / 13.3GB,  261MB/s  
+Jul 04  23:06:01.557
+Processing Files (0 / 1)      :  54%|█████▍    | 16.1GB / 29.5GB,  265MB/s  
+Jul 04  23:06:01.658
+New Data Upload               :  99%|█████████▉| 13.1GB / 13.3GB,  261MB/s  
+
+Jul 04  23:06:01.658
+Processing Files (0 / 1)      :  55%|█████▍    | 16.1GB / 29.5GB,  265MB/s  
+Jul 04  23:06:01.759
+New Data Upload               :  99%|█████████▉| 13.1GB / 13.3GB,  261MB/s  
+
+Jul 04  23:06:01.759
+Processing Files (0 / 1)      :  55%|█████▍    | 16.1GB / 29.5GB,  265MB/s  
+Jul 04  23:06:01.960
+Processing Files (0 / 1)      :  55%|█████▍    | 16.1GB / 29.5GB,  264MB/s  
+New Data Upload               :  99%|█████████▉| 13.2GB / 13.3GB,  260MB/s  
+  ...8b57gpx/model.safetensors:  55%|█████▍    | 16.1GB / 29.5GB            
+Jul 04  23:06:01.960
+Processing Files (0 / 1)      :  55%|█████▍    | 16.2GB / 29.5GB,  264MB/s  
+Jul 04  23:06:02.060
+New Data Upload               :  98%|█████████▊| 13.2GB / 13.4GB,  259MB/s  
+
+Jul 04  23:06:02.161
+Processing Files (0 / 1)      :  55%|█████▍    | 16.2GB / 29.5GB,  264MB/s  
+New Data Upload               :  99%|█████████▊| 13.2GB / 13.4GB,  259MB/s  
+  ...8b57gpx/model.safetensors:  55%|█████▍    | 16.2GB / 29.5GB            
+Jul 04  23:06:02.262
+New Data Upload               :  99%|█████████▉| 13.3GB / 13.4GB,  260MB/s  
+
+Jul 04  23:06:02.262
+Processing Files (0 / 1)      :  55%|█████▍    | 16.2GB / 29.5GB,  264MB/s  
+Jul 04  23:06:02.362
+New Data Upload               :  99%|█████████▊| 13.3GB / 13.5GB,  260MB/s  
+
+Jul 04  23:06:02.362
+Processing Files (0 / 1)      :  55%|█████▌    | 16.3GB / 29.5GB,  264MB/s  
+Jul 04  23:06:02.362
+
+Jul 04  23:06:02.463
+New Data Upload               :  99%|█████████▉| 13.3GB / 13.5GB,  260MB/s  
+
+Jul 04  23:06:02.463
+Processing Files (0 / 1)      :  55%|█████▌    | 16.3GB / 29.5GB,  264MB/s  
+Jul 04  23:06:02.563
+New Data Upload               :  99%|█████████▊| 13.3GB / 13.5GB,  260MB/s  
+
+Jul 04  23:06:02.564
+Processing Files (0 / 1)      :  55%|█████▌    | 16.3GB / 29.5GB,  265MB/s  
+Jul 04  23:06:02.765
+Processing Files (0 / 1)      :  55%|█████▌    | 16.4GB / 29.5GB,  265MB/s  
+New Data Upload               :  99%|█████████▉| 13.4GB / 13.5GB,  261MB/s  
+  ...8b57gpx/model.safetensors:  55%|█████▌    | 16.4GB / 29.5GB            
+Jul 04  23:06:02.866
+New Data Upload               :  99%|█████████▊| 13.4GB / 13.6GB,  261MB/s  
+
+Jul 04  23:06:02.866
+Processing Files (0 / 1)      :  56%|█████▌    | 16.4GB / 29.5GB,  264MB/s  
+Jul 04  23:06:03.067
+Processing Files (0 / 1)      :  56%|█████▌    | 16.5GB / 29.5GB,  264MB/s  
+New Data Upload               :  98%|█████████▊| 13.5GB / 13.7GB,  260MB/s  
+  ...8b57gpx/model.safetensors:  56%|█████▌    | 16.5GB / 29.5GB            
+Jul 04  23:06:03.168
+New Data Upload               :  99%|█████████▊| 13.5GB / 13.7GB,  260MB/s  
+
+Jul 04  23:06:03.369
+Processing Files (0 / 1)      :  56%|█████▌    | 16.5GB / 29.5GB,  265MB/s  
+New Data Upload               :  99%|█████████▊| 13.6GB / 13.7GB,  261MB/s  
+  ...8b57gpx/model.safetensors:  56%|█████▌    | 16.5GB / 29.5GB            
+Jul 04  23:06:03.469
+Processing Files (0 / 1)      :  56%|█████▌    | 16.6GB / 29.5GB,  267MB/s  
+New Data Upload               :  99%|█████████▉| 13.6GB / 13.7GB,  263MB/s  
+Jul 04  23:06:03.469
+Processing Files (0 / 1)      :  56%|█████▌    | 16.6GB / 29.5GB,  267MB/s  
+Jul 04  23:06:03.670
+Processing Files (0 / 1)      :  56%|█████▋    | 16.6GB / 29.5GB,  267MB/s  
+New Data Upload               :  99%|█████████▉| 13.7GB / 13.8GB,  263MB/s  
+  ...8b57gpx/model.safetensors:  56%|█████▋    | 16.6GB / 29.5GB            
+Jul 04  23:06:03.771
+Processing Files (0 / 1)      :  56%|█████▋    | 16.7GB / 29.5GB,  266MB/s  
+New Data Upload               :  99%|█████████▉| 13.7GB / 13.8GB,  263MB/s  
+  ...8b57gpx/model.safetensors:  56%|█████▋    | 16.7GB / 29.5GB            
+Jul 04  23:06:03.872
+New Data Upload               :  99%|█████████▉| 13.7GB / 13.9GB,  263MB/s  
+
+Jul 04  23:06:03.972
+Processing Files (0 / 1)      :  57%|█████▋    | 16.7GB / 29.5GB,  266MB/s  
+New Data Upload               :  99%|█████████▉| 13.7GB / 13.9GB,  262MB/s  
+Jul 04  23:06:03.973
+Processing Files (0 / 1)      :  57%|█████▋    | 16.7GB / 29.5GB,  266MB/s  
+Jul 04  23:06:04.073
+New Data Upload               :  99%|█████████▊| 13.8GB / 13.9GB,  262MB/s  
+
+Jul 04  23:06:04.174
+Processing Files (0 / 1)      :  57%|█████▋    | 16.8GB / 29.5GB,  266MB/s  
+New Data Upload               :  99%|█████████▉| 13.8GB / 13.9GB,  262MB/s  
+Jul 04  23:06:04.176
+Processing Files (0 / 1)      :  57%|█████▋    | 16.8GB / 29.5GB,  266MB/s  
+Jul 04  23:06:04.277
+Processing Files (0 / 1)      :  57%|█████▋    | 16.8GB / 29.5GB,  266MB/s  
+
+  ...8b57gpx/model.safetensors:  57%|█████▋    | 16.8GB / 29.5GB            
+Jul 04  23:06:04.479
+Processing Files (0 / 1)      :  57%|█████▋    | 16.8GB / 29.5GB,  265MB/s  
+New Data Upload               :  99%|█████████▉| 13.9GB / 14.0GB,  261MB/s  
+  ...8b57gpx/model.safetensors:  57%|█████▋    | 16.8GB / 29.5GB            
+Jul 04  23:06:04.480
+Processing Files (0 / 1)      :  57%|█████▋    | 16.8GB / 29.5GB,  265MB/s  
+Jul 04  23:06:04.581
+Processing Files (0 / 1)      :  57%|█████▋    | 16.9GB / 29.5GB,  264MB/s  
+
+  ...8b57gpx/model.safetensors:  57%|█████▋    | 16.9GB / 29.5GB            
+Jul 04  23:06:04.681
+New Data Upload               :  99%|█████████▊| 13.9GB / 14.1GB,  261MB/s  
+
+Jul 04  23:06:04.983
+Processing Files (0 / 1)      :  57%|█████▋    | 17.0GB / 29.5GB,  264MB/s  
+New Data Upload               :  99%|█████████▊| 14.0GB / 14.2GB,  260MB/s  
+  ...8b57gpx/model.safetensors:  57%|█████▋    | 17.0GB / 29.5GB            
+Jul 04  23:06:05.184
+Processing Files (0 / 1)      :  58%|█████▊    | 17.0GB / 29.5GB,  265MB/s  
+New Data Upload               :  99%|█████████▉| 14.1GB / 14.2GB,  262MB/s  
+  ...8b57gpx/model.safetensors:  58%|█████▊    | 17.0GB / 29.5GB            
+Jul 04  23:06:05.184
+Processing Files (0 / 1)      :  58%|█████▊    | 17.0GB / 29.5GB,  266MB/s  
+Jul 04  23:06:05.285
+New Data Upload               :  99%|█████████▉| 14.1GB / 14.2GB,  263MB/s  
+
+Jul 04  23:06:05.486
+Processing Files (0 / 1)      :  58%|█████▊    | 17.1GB / 29.5GB,  266MB/s  
+New Data Upload               :  99%|█████████▉| 14.1GB / 14.3GB,  262MB/s  
+  ...8b57gpx/model.safetensors:  58%|█████▊    | 17.1GB / 29.5GB            
+Jul 04  23:06:05.487
+Processing Files (0 / 1)      :  58%|█████▊    | 17.1GB / 29.5GB,  266MB/s  
+Jul 04  23:06:05.688
+Processing Files (0 / 1)      :  58%|█████▊    | 17.2GB / 29.5GB,  267MB/s  
+New Data Upload               :  99%|█████████▉| 14.2GB / 14.4GB,  264MB/s  
+  ...8b57gpx/model.safetensors:  58%|█████▊    | 17.2GB / 29.5GB            
+Jul 04  23:06:05.688
+Processing Files (0 / 1)      :  58%|█████▊    | 17.2GB / 29.5GB,  267MB/s  
+Jul 04  23:06:05.789
+New Data Upload               :  99%|█████████▉| 14.2GB / 14.4GB,  264MB/s  
+
+Jul 04  23:06:05.789
+Processing Files (0 / 1)      :  58%|█████▊    | 17.2GB / 29.5GB,  267MB/s  
+Jul 04  23:06:05.990
+Processing Files (0 / 1)      :  58%|█████▊    | 17.3GB / 29.5GB,  267MB/s  
+New Data Upload               :  99%|█████████▉| 14.3GB / 14.4GB,  264MB/s  
+  ...8b57gpx/model.safetensors:  58%|█████▊    | 17.3GB / 29.5GB            
+Jul 04  23:06:06.090
+Processing Files (0 / 1)      :  59%|█████▊    | 17.3GB / 29.5GB,  266MB/s  
+New Data Upload               :  99%|█████████▉| 14.3GB / 14.5GB,  263MB/s  
+  ...8b57gpx/model.safetensors:  59%|█████▊    | 17.3GB / 29.5GB            
+Jul 04  23:06:06.393
+Processing Files (0 / 1)      :  59%|█████▊    | 17.3GB / 29.5GB,  265MB/s  
+New Data Upload               :  99%|█████████▉| 14.4GB / 14.6GB,  262MB/s  
+  ...8b57gpx/model.safetensors:  59%|█████▊    | 17.3GB / 29.5GB            
+Jul 04  23:06:06.393
+Processing Files (0 / 1)      :  59%|█████▉    | 17.4GB / 29.5GB,  265MB/s  
+Jul 04  23:06:06.494
+Processing Files (0 / 1)      :  59%|█████▉    | 17.4GB / 29.5GB,  265MB/s  
+
+  ...8b57gpx/model.safetensors:  59%|█████▉    | 17.4GB / 29.5GB            
+Jul 04  23:06:06.594
+Processing Files (0 / 1)      :  59%|█████▉    | 17.4GB / 29.5GB,  266MB/s  
+
+  ...8b57gpx/model.safetensors:  59%|█████▉    | 17.4GB / 29.5GB            
+Jul 04  23:06:06.795
+Processing Files (0 / 1)      :  59%|█████▉    | 17.5GB / 29.5GB,  267MB/s  
+New Data Upload               :  99%|█████████▉| 14.5GB / 14.6GB,  263MB/s  
+  ...8b57gpx/model.safetensors:  59%|█████▉    | 17.5GB / 29.5GB            
+Jul 04  23:06:06.896
+Processing Files (0 / 1)      :  59%|█████▉    | 17.5GB / 29.5GB,  266MB/s  
+New Data Upload               :  99%|█████████▉| 14.5GB / 14.7GB,  263MB/s  
+Jul 04  23:06:06.896
+Processing Files (0 / 1)      :  59%|█████▉    | 17.5GB / 29.5GB,  266MB/s  
+Jul 04  23:06:06.996
+New Data Upload               :  99%|█████████▉| 14.5GB / 14.7GB,  263MB/s  
+
+Jul 04  23:06:06.997
+Processing Files (0 / 1)      :  59%|█████▉    | 17.5GB / 29.5GB,  267MB/s  
+Jul 04  23:06:07.097
+New Data Upload               :  99%|█████████▉| 14.6GB / 14.8GB,  263MB/s  
+
+Jul 04  23:06:07.097
+Processing Files (0 / 1)      :  59%|█████▉    | 17.6GB / 29.5GB,  267MB/s  
+Jul 04  23:06:07.198
+New Data Upload               :  99%|█████████▉| 14.6GB / 14.8GB,  264MB/s  
+
+Jul 04  23:06:07.198
+Processing Files (0 / 1)      :  60%|█████▉    | 17.6GB / 29.5GB,  267MB/s  
+Jul 04  23:06:07.298
+New Data Upload               :  99%|█████████▉| 14.6GB / 14.8GB,  264MB/s  
+
+Jul 04  23:06:07.298
+Processing Files (0 / 1)      :  60%|█████▉    | 17.6GB / 29.5GB,  267MB/s  
+Jul 04  23:06:07.399
+New Data Upload               :  99%|█████████▉| 14.7GB / 14.8GB,  264MB/s  
+
+Jul 04  23:06:07.601
+Processing Files (0 / 1)      :  60%|█████▉    | 17.7GB / 29.5GB,  266MB/s  
+New Data Upload               :  99%|█████████▉| 14.7GB / 14.9GB,  264MB/s  
+  ...8b57gpx/model.safetensors:  60%|█████▉    | 17.7GB / 29.5GB            
+Jul 04  23:06:08.003
+Processing Files (0 / 1)      :  60%|██████    | 17.8GB / 29.5GB,  265MB/s  
+New Data Upload               :  99%|█████████▉| 14.8GB / 15.0GB,  262MB/s  
+  ...8b57gpx/model.safetensors:  60%|██████    | 17.8GB / 29.5GB            
+Jul 04  23:06:08.105
+Processing Files (0 / 1)      :  60%|██████    | 17.8GB / 29.5GB,  265MB/s  
+New Data Upload               :  99%|█████████▊| 14.8GB / 15.0GB,  262MB/s  
+Jul 04  23:06:08.106
+Processing Files (0 / 1)      :  60%|██████    | 17.8GB / 29.5GB,  266MB/s  
+Jul 04  23:06:08.206
+New Data Upload               :  99%|█████████▉| 14.9GB / 15.0GB,  263MB/s  
+
+Jul 04  23:06:08.206
+Processing Files (0 / 1)      :  60%|██████    | 17.9GB / 29.5GB,  267MB/s  
+Jul 04  23:06:08.307
+New Data Upload               :  99%|█████████▉| 14.9GB / 15.0GB,  264MB/s  
+
+Jul 04  23:06:08.307
+Processing Files (0 / 1)      :  61%|██████    | 17.9GB / 29.5GB,  267MB/s  
+Jul 04  23:06:08.407
+New Data Upload               :  99%|█████████▉| 14.9GB / 15.1GB,  264MB/s  
+
+Jul 04  23:06:08.408
+Processing Files (0 / 1)      :  61%|██████    | 17.9GB / 29.5GB,  266MB/s  
+Jul 04  23:06:08.408
+New Data Upload               :  99%|█████████▉| 15.0GB / 15.1GB,  263MB/s  
+Jul 04  23:06:08.508
+
+
+Jul 04  23:06:08.508
+Processing Files (0 / 1)      :  61%|██████    | 17.9GB / 29.5GB,  267MB/s  
+Jul 04  23:06:08.609
+New Data Upload               :  99%|█████████▉| 15.0GB / 15.2GB,  264MB/s  
+
+Jul 04  23:06:08.610
+Processing Files (0 / 1)      :  61%|██████    | 18.0GB / 29.5GB,  267MB/s  
+Jul 04  23:06:08.711
+New Data Upload               :  99%|█████████▉| 15.0GB / 15.2GB,  264MB/s  
+
+Jul 04  23:06:08.711
+Processing Files (0 / 1)      :  61%|██████    | 18.0GB / 29.5GB,  267MB/s  
+Jul 04  23:06:08.811
+New Data Upload               :  99%|█████████▉| 15.0GB / 15.2GB,  264MB/s  
+
+Jul 04  23:06:08.811
+Processing Files (0 / 1)      :  61%|██████    | 18.0GB / 29.5GB,  267MB/s  
+Jul 04  23:06:08.912
+New Data Upload               :  99%|█████████▉| 15.1GB / 15.2GB,  265MB/s  
+
+Jul 04  23:06:09.014
+Processing Files (0 / 1)      :  61%|██████    | 18.1GB / 29.5GB,  266MB/s  
+New Data Upload               :  99%|█████████▉| 15.1GB / 15.2GB,  264MB/s  
+  ...8b57gpx/model.safetensors:  61%|██████    | 18.1GB / 29.5GB            
+Jul 04  23:06:09.114
+New Data Upload               :  99%|█████████▉| 15.1GB / 15.3GB,  264MB/s  
+
+Jul 04  23:06:09.114
+Processing Files (0 / 1)      :  61%|██████    | 18.1GB / 29.5GB,  265MB/s  
+Jul 04  23:06:09.214
+New Data Upload               :  99%|█████████▉| 15.1GB / 15.3GB,  263MB/s  
+
+Jul 04  23:06:09.215
+Processing Files (0 / 1)      :  61%|██████▏   | 18.1GB / 29.5GB,  265MB/s  
+Jul 04  23:06:09.717
+Processing Files (0 / 1)      :  62%|██████▏   | 18.2GB / 29.5GB,  263MB/s  
+New Data Upload               :  99%|█████████▉| 15.2GB / 15.4GB,  261MB/s  
+  ...8b57gpx/model.safetensors:  62%|██████▏   | 18.2GB / 29.5GB            
+Jul 04  23:06:09.718
+Processing Files (0 / 1)      :  62%|██████▏   | 18.2GB / 29.5GB,  264MB/s  
+Jul 04  23:06:09.818
+Processing Files (0 / 1)      :  62%|██████▏   | 18.3GB / 29.5GB,  264MB/s  
+
+  ...8b57gpx/model.safetensors:  62%|██████▏   | 18.3GB / 29.5GB            
+Jul 04  23:06:09.919
+New Data Upload               :  99%|█████████▉| 15.3GB / 15.5GB,  262MB/s  
+
+Jul 04  23:06:09.919
+Processing Files (0 / 1)      :  62%|██████▏   | 18.3GB / 29.5GB,  265MB/s  
+Jul 04  23:06:10.019
+New Data Upload               :  99%|█████████▉| 15.3GB / 15.5GB,  263MB/s  
+
+Jul 04  23:06:10.020
+Processing Files (0 / 1)      :  62%|██████▏   | 18.3GB / 29.5GB,  265MB/s  
+Jul 04  23:06:10.120
+New Data Upload               :  99%|█████████▉| 15.4GB / 15.6GB,  263MB/s  
+
+Jul 04  23:06:10.121
+Processing Files (0 / 1)      :  62%|██████▏   | 18.4GB / 29.5GB,  265MB/s  
+Jul 04  23:06:10.222
+New Data Upload               :  99%|█████████▉| 15.4GB / 15.6GB,  263MB/s  
+
+Jul 04  23:06:10.223
+Processing Files (0 / 1)      :  62%|██████▏   | 18.4GB / 29.5GB,  265MB/s  
+Jul 04  23:06:10.324
+New Data Upload               :  99%|█████████▉| 15.4GB / 15.6GB,  263MB/s  
+
+Jul 04  23:06:10.324
+Processing Files (0 / 1)      :  62%|██████▏   | 18.4GB / 29.5GB,  265MB/s  
+Jul 04  23:06:10.424
+New Data Upload               :  99%|█████████▉| 15.4GB / 15.6GB,  263MB/s  
+
+Jul 04  23:06:10.425
+Processing Files (0 / 1)      :  62%|██████▏   | 18.4GB / 29.5GB,  266MB/s  
+Jul 04  23:06:10.525
+Processing Files (0 / 1)      :  63%|██████▎   | 18.5GB / 29.5GB,  267MB/s  
+
+  ...8b57gpx/model.safetensors:  63%|██████▎   | 18.5GB / 29.5GB            
+Jul 04  23:06:10.626
+New Data Upload               :  99%|█████████▉| 15.5GB / 15.7GB,  264MB/s  
+
+Jul 04  23:06:10.626
+Processing Files (0 / 1)      :  63%|██████▎   | 18.5GB / 29.5GB,  266MB/s  
+Jul 04  23:06:10.727
+New Data Upload               :  99%|█████████▉| 15.5GB / 15.7GB,  264MB/s  
+
+Jul 04  23:06:10.827
+Processing Files (0 / 1)      :  63%|██████▎   | 18.5GB / 29.5GB,  266MB/s  
+New Data Upload               :  99%|█████████▉| 15.6GB / 15.7GB,  263MB/s  
+Jul 04  23:06:10.828
+Processing Files (0 / 1)      :  63%|██████▎   | 18.5GB / 29.5GB,  266MB/s  
+Jul 04  23:06:11.029
+Processing Files (0 / 1)      :  63%|██████▎   | 18.6GB / 29.5GB,  265MB/s  
+New Data Upload               :  99%|█████████▉| 15.6GB / 15.8GB,  263MB/s  
+  ...8b57gpx/model.safetensors:  63%|██████▎   | 18.6GB / 29.5GB            
+Jul 04  23:06:11.029
+Processing Files (0 / 1)      :  63%|██████▎   | 18.6GB / 29.5GB,  265MB/s  
+Jul 04  23:06:11.130
+Processing Files (0 / 1)      :  63%|██████▎   | 18.6GB / 29.5GB,  265MB/s  
+
+  ...8b57gpx/model.safetensors:  63%|██████▎   | 18.6GB / 29.5GB            
+Jul 04  23:06:11.431
+Processing Files (0 / 1)      :  63%|██████▎   | 18.7GB / 29.5GB,  264MB/s  
+New Data Upload               :  99%|█████████▊| 15.7GB / 15.9GB,  262MB/s  
+  ...8b57gpx/model.safetensors:  63%|██████▎   | 18.7GB / 29.5GB            
+Jul 04  23:06:11.432
+Processing Files (0 / 1)      :  63%|██████▎   | 18.7GB / 29.5GB,  264MB/s  
+Jul 04  23:06:11.432
+
+Jul 04  23:06:11.532
+New Data Upload               :  99%|█████████▉| 15.7GB / 15.9GB,  261MB/s  
+
+Jul 04  23:06:11.532
+Processing Files (0 / 1)      :  63%|██████▎   | 18.7GB / 29.5GB,  264MB/s  
+Jul 04  23:06:11.633
+Processing Files (0 / 1)      :  63%|██████▎   | 18.7GB / 29.5GB,  265MB/s  
+
+  ...8b57gpx/model.safetensors:  63%|██████▎   | 18.7GB / 29.5GB            
+Jul 04  23:06:11.733
+New Data Upload               :  99%|█████████▉| 15.8GB / 16.0GB,  262MB/s  
+
+Jul 04  23:06:11.733
+Processing Files (0 / 1)      :  64%|██████▎   | 18.8GB / 29.5GB,  265MB/s  
+Jul 04  23:06:11.834
+New Data Upload               :  99%|█████████▉| 15.8GB / 16.0GB,  262MB/s  
+
+Jul 04  23:06:11.835
+Processing Files (0 / 1)      :  64%|██████▎   | 18.8GB / 29.5GB,  264MB/s  
+Jul 04  23:06:11.935
+New Data Upload               :  99%|█████████▉| 15.8GB / 16.0GB,  262MB/s  
+
+Jul 04  23:06:11.936
+Processing Files (0 / 1)      :  64%|██████▎   | 18.8GB / 29.5GB,  265MB/s  
+Jul 04  23:06:12.137
+Processing Files (0 / 1)      :  64%|██████▍   | 18.9GB / 29.5GB,  265MB/s  
+New Data Upload               :  99%|█████████▉| 15.9GB / 16.1GB,  263MB/s  
+  ...8b57gpx/model.safetensors:  64%|██████▍   | 18.9GB / 29.5GB            
+Jul 04  23:06:12.238
+Processing Files (0 / 1)      :  64%|██████▍   | 18.9GB / 29.5GB,  266MB/s  
+
+  ...8b57gpx/model.safetensors:  64%|██████▍   | 18.9GB / 29.5GB            
+Jul 04  23:06:12.339
+New Data Upload               :  99%|█████████▉| 16.0GB / 16.1GB,  264MB/s  
+
+Jul 04  23:06:12.640
+Processing Files (0 / 1)      :  64%|██████▍   | 19.0GB / 29.5GB,  267MB/s  
+New Data Upload               :  99%|█████████▉| 16.1GB / 16.2GB,  265MB/s  
+  ...8b57gpx/model.safetensors:  64%|██████▍   | 19.0GB / 29.5GB            
+Jul 04  23:06:12.841
+Processing Files (0 / 1)      :  65%|██████▍   | 19.1GB / 29.5GB,  265MB/s  
+New Data Upload               :  99%|█████████▉| 16.1GB / 16.2GB,  264MB/s  
+  ...8b57gpx/model.safetensors:  65%|██████▍   | 19.1GB / 29.5GB            
+Jul 04  23:06:12.942
+New Data Upload               :  99%|█████████▉| 16.1GB / 16.3GB,  263MB/s  
+
+Jul 04  23:06:13.043
+Processing Files (0 / 1)      :  65%|██████▍   | 19.1GB / 29.5GB,  264MB/s  
+New Data Upload               :  99%|█████████▉| 16.1GB / 16.3GB,  262MB/s  
+Jul 04  23:06:13.144
+Processing Files (0 / 1)      :  65%|██████▍   | 19.1GB / 29.5GB,  264MB/s  
+New Data Upload               :  99%|█████████▊| 16.1GB / 16.4GB,  262MB/s  
+  ...8b57gpx/model.safetensors:  65%|██████▍   | 19.1GB / 29.5GB            
+Jul 04  23:06:13.244
+New Data Upload               :  99%|█████████▉| 16.2GB / 16.4GB,  261MB/s  
+
+Jul 04  23:06:13.445
+Processing Files (0 / 1)      :  65%|██████▍   | 19.2GB / 29.5GB,  265MB/s  
+New Data Upload               :  99%|█████████▉| 16.2GB / 16.4GB,  263MB/s  
+  ...8b57gpx/model.safetensors:  65%|██████▍   | 19.2GB / 29.5GB            
+Jul 04  23:06:13.445
+Processing Files (0 / 1)      :  65%|██████▌   | 19.2GB / 29.5GB,  266MB/s  
+Jul 04  23:06:13.648
+Processing Files (0 / 1)      :  65%|██████▌   | 19.3GB / 29.5GB,  266MB/s  
+New Data Upload               :  99%|█████████▉| 16.3GB / 16.5GB,  264MB/s  
+  ...8b57gpx/model.safetensors:  65%|██████▌   | 19.3GB / 29.5GB            
+Jul 04  23:06:13.649
+Processing Files (0 / 1)      :  65%|██████▌   | 19.3GB / 29.5GB,  266MB/s  
+Jul 04  23:06:13.749
+New Data Upload               :  99%|█████████▉| 16.3GB / 16.5GB,  264MB/s  
+
+Jul 04  23:06:13.750
+Processing Files (0 / 1)      :  65%|██████▌   | 19.3GB / 29.5GB,  266MB/s  
+Jul 04  23:06:13.850
+Processing Files (0 / 1)      :  66%|██████▌   | 19.4GB / 29.5GB,  266MB/s  
+
+  ...8b57gpx/model.safetensors:  66%|██████▌   | 19.4GB / 29.5GB            
+Jul 04  23:06:13.951
+New Data Upload               :  99%|█████████▉| 16.4GB / 16.6GB,  264MB/s  
+
+Jul 04  23:06:13.951
+Processing Files (0 / 1)      :  66%|██████▌   | 19.4GB / 29.5GB,  266MB/s  
+Jul 04  23:06:14.052
+New Data Upload               :  99%|█████████▉| 16.4GB / 16.6GB,  264MB/s  
+
+Jul 04  23:06:14.153
+Processing Files (0 / 1)      :  66%|██████▌   | 19.4GB / 29.5GB,  266MB/s  
+New Data Upload               :  99%|█████████▉| 16.5GB / 16.6GB,  264MB/s  
+Jul 04  23:06:14.153
+Processing Files (0 / 1)      :  66%|██████▌   | 19.4GB / 29.5GB,  266MB/s  
+Jul 04  23:06:14.355
+Processing Files (0 / 1)      :  66%|██████▌   | 19.5GB / 29.5GB,  266MB/s  
+New Data Upload               :  99%|█████████▉| 16.5GB / 16.6GB,  264MB/s  
+  ...8b57gpx/model.safetensors:  66%|██████▌   | 19.5GB / 29.5GB            
+Jul 04  23:06:14.658
+Processing Files (0 / 1)      :  66%|██████▌   | 19.5GB / 29.5GB,  266MB/s  
+New Data Upload               :  99%|█████████▉| 16.6GB / 16.8GB,  264MB/s  
+  ...8b57gpx/model.safetensors:  66%|██████▌   | 19.5GB / 29.5GB            
+Jul 04  23:06:14.658
+Processing Files (0 / 1)      :  66%|██████▌   | 19.6GB / 29.5GB,  265MB/s  
+Jul 04  23:06:14.758
+Processing Files (0 / 1)      :  66%|██████▌   | 19.6GB / 29.5GB,  264MB/s  
+
+  ...8b57gpx/model.safetensors:  66%|██████▌   | 19.6GB / 29.5GB            
+Jul 04  23:06:14.859
+New Data Upload               :  99%|█████████▉| 16.6GB / 16.8GB,  263MB/s  
+
+Jul 04  23:06:14.859
+  ...8b57gpx/model.safetensors:  66%|██████▋   | 19.6GB / 29.5GB            
+Jul 04  23:06:14.859
+Processing Files (0 / 1)      :  66%|██████▋   | 19.6GB / 29.5GB,  264MB/s  
+Jul 04  23:06:14.959
+New Data Upload               :  99%|█████████▉| 16.6GB / 16.8GB,  262MB/s  
+
+Jul 04  23:06:14.960
+Processing Files (0 / 1)      :  66%|██████▋   | 19.6GB / 29.5GB,  264MB/s  
+Jul 04  23:06:15.061
+Processing Files (0 / 1)      :  66%|██████▋   | 19.6GB / 29.5GB,  264MB/s  
+
+  ...8b57gpx/model.safetensors:  66%|██████▋   | 19.6GB / 29.5GB            
+Jul 04  23:06:15.161
+New Data Upload               :  99%|█████████▊| 16.7GB / 16.9GB,  262MB/s  
+
+Jul 04  23:06:15.161
+Processing Files (0 / 1)      :  67%|██████▋   | 19.7GB / 29.5GB,  264MB/s  
+Jul 04  23:06:15.261
+New Data Upload               :  99%|█████████▉| 16.7GB / 16.9GB,  262MB/s  
+
+Jul 04  23:06:15.463
+Processing Files (0 / 1)      :  67%|██████▋   | 19.8GB / 29.5GB,  265MB/s  
+New Data Upload               :  99%|█████████▉| 16.8GB / 17.0GB,  263MB/s  
+  ...8b57gpx/model.safetensors:  67%|██████▋   | 19.8GB / 29.5GB            
+Jul 04  23:06:15.665
+Processing Files (0 / 1)      :  67%|██████▋   | 19.8GB / 29.5GB,  266MB/s  
+New Data Upload               :  99%|█████████▉| 16.8GB / 17.0GB,  264MB/s  
+  ...8b57gpx/model.safetensors:  67%|██████▋   | 19.8GB / 29.5GB            
+Jul 04  23:06:15.766
+New Data Upload               :  99%|█████████▉| 16.9GB / 17.0GB,  264MB/s  
+
+Jul 04  23:06:15.866
+Processing Files (0 / 1)      :  67%|██████▋   | 19.9GB / 29.5GB,  266MB/s  
+New Data Upload               :  99%|█████████▉| 16.9GB / 17.0GB,  264MB/s  
+Jul 04  23:06:15.967
+Processing Files (0 / 1)      :  67%|██████▋   | 19.9GB / 29.5GB,  266MB/s  
+New Data Upload               :  99%|█████████▉| 16.9GB / 17.1GB,  264MB/s  
+Jul 04  23:06:15.967
+Processing Files (0 / 1)      :  67%|██████▋   | 19.9GB / 29.5GB,  266MB/s  
+Jul 04  23:06:16.067
+New Data Upload               :  99%|█████████▉| 17.0GB / 17.1GB,  264MB/s  
+
+Jul 04  23:06:16.369
+Processing Files (0 / 1)      :  68%|██████▊   | 20.0GB / 29.5GB,  265MB/s  
+New Data Upload               :  99%|█████████▉| 17.0GB / 17.2GB,  264MB/s  
+  ...8b57gpx/model.safetensors:  68%|██████▊   | 20.0GB / 29.5GB            
+Jul 04  23:06:16.371
+Processing Files (0 / 1)      :  68%|██████▊   | 20.0GB / 29.5GB,  265MB/s  
+Jul 04  23:06:16.471
+Processing Files (0 / 1)      :  68%|██████▊   | 20.0GB / 29.5GB,  265MB/s  
+
+  ...8b57gpx/model.safetensors:  68%|██████▊   | 20.0GB / 29.5GB            
+Jul 04  23:06:16.773
+Processing Files (0 / 1)      :  68%|██████▊   | 20.1GB / 29.5GB,  266MB/s  
+New Data Upload               :  99%|█████████▉| 17.1GB / 17.3GB,  265MB/s  
+  ...8b57gpx/model.safetensors:  68%|██████▊   | 20.1GB / 29.5GB            
+Jul 04  23:06:16.874
+Processing Files (0 / 1)      :  68%|██████▊   | 20.2GB / 29.5GB,  266MB/s  
+New Data Upload               :  99%|█████████▉| 17.2GB / 17.3GB,  265MB/s  
+  ...8b57gpx/model.safetensors:  68%|██████▊   | 20.2GB / 29.5GB            
+Jul 04  23:06:16.975
+Processing Files (0 / 1)      :  68%|██████▊   | 20.2GB / 29.5GB,  266MB/s  
+
+  ...8b57gpx/model.safetensors:  68%|██████▊   | 20.2GB / 29.5GB            
+Jul 04  23:06:17.076
+New Data Upload               :  99%|█████████▉| 17.2GB / 17.4GB,  264MB/s  
+
+Jul 04  23:06:17.076
+Processing Files (0 / 1)      :  68%|██████▊   | 20.2GB / 29.5GB,  266MB/s  
+Jul 04  23:06:17.176
+Processing Files (0 / 1)      :  69%|██████▊   | 20.2GB / 29.5GB,  266MB/s  
+
+  ...8b57gpx/model.safetensors:  69%|██████▊   | 20.2GB / 29.5GB            
+Jul 04  23:06:17.277
+New Data Upload               :  99%|█████████▉| 17.3GB / 17.4GB,  265MB/s  
+
+Jul 04  23:06:17.377
+Processing Files (0 / 1)      :  69%|██████▊   | 20.3GB / 29.5GB,  266MB/s  
+New Data Upload               :  99%|█████████▉| 17.3GB / 17.4GB,  264MB/s  
+  ...8b57gpx/model.safetensors:  69%|██████▊   | 20.3GB / 29.5GB            
+Jul 04  23:06:17.478
+Processing Files (0 / 1)      :  69%|██████▉   | 20.3GB / 29.5GB,  266MB/s  
+
+  ...8b57gpx/model.safetensors:  69%|██████▉   | 20.3GB / 29.5GB            
+Jul 04  23:06:17.478
+New Data Upload               :  99%|█████████▉| 17.4GB / 17.5GB,  265MB/s  
+Jul 04  23:06:17.578
+
+
+Jul 04  23:06:17.779
+Processing Files (0 / 1)      :  69%|██████▉   | 20.4GB / 29.5GB,  266MB/s  
+New Data Upload               :  99%|█████████▉| 17.4GB / 17.6GB,  264MB/s  
+  ...8b57gpx/model.safetensors:  69%|██████▉   | 20.4GB / 29.5GB            
+Jul 04  23:06:18.081
+Processing Files (0 / 1)      :  69%|██████▉   | 20.4GB / 29.5GB,  265MB/s  
+New Data Upload               :  99%|█████████▉| 17.5GB / 17.6GB,  264MB/s  
+  ...8b57gpx/model.safetensors:  69%|██████▉   | 20.4GB / 29.5GB            
+Jul 04  23:06:18.082
+Processing Files (0 / 1)      :  69%|██████▉   | 20.5GB / 29.5GB,  266MB/s  
+Jul 04  23:06:18.183
+Processing Files (0 / 1)      :  69%|██████▉   | 20.5GB / 29.5GB,  266MB/s  
+
+  ...8b57gpx/model.safetensors:  69%|██████▉   | 20.5GB / 29.5GB            
+Jul 04  23:06:18.284
+Processing Files (0 / 1)      :  69%|██████▉   | 20.5GB / 29.5GB,  266MB/s  
+
+  ...8b57gpx/model.safetensors:  69%|██████▉   | 20.5GB / 29.5GB            
+Jul 04  23:06:18.586
+Processing Files (0 / 1)      :  70%|██████▉   | 20.6GB / 29.5GB,  267MB/s  
+New Data Upload               :  99%|█████████▉| 17.6GB / 17.8GB,  265MB/s  
+  ...8b57gpx/model.safetensors:  70%|██████▉   | 20.6GB / 29.5GB            
+Jul 04  23:06:18.587
+Processing Files (0 / 1)      :  70%|██████▉   | 20.6GB / 29.5GB,  267MB/s  
+Jul 04  23:06:18.687
+New Data Upload               :  99%|█████████▉| 17.7GB / 17.8GB,  266MB/s  
+
+Jul 04  23:06:18.789
+Processing Files (0 / 1)      :  70%|██████▉   | 20.7GB / 29.5GB,  267MB/s  
+New Data Upload               :  99%|█████████▉| 17.7GB / 17.8GB,  266MB/s  
+  ...8b57gpx/model.safetensors:  70%|██████▉   | 20.7GB / 29.5GB            
+Jul 04  23:06:18.890
+New Data Upload               :  99%|█████████▉| 17.7GB / 17.8GB,  265MB/s  
+
+Jul 04  23:06:18.992
+Processing Files (0 / 1)      :  70%|███████   | 20.7GB / 29.5GB,  264MB/s  
+New Data Upload               :  99%|█████████▉| 17.7GB / 17.9GB,  264MB/s  
+  ...8b57gpx/model.safetensors:  70%|███████   | 20.7GB / 29.5GB            
+Jul 04  23:06:19.093
+New Data Upload               :  99%|█████████▉| 17.7GB / 17.9GB,  263MB/s  
+
+Jul 04  23:06:19.294
+Processing Files (0 / 1)      :  70%|███████   | 20.8GB / 29.5GB,  264MB/s  
+New Data Upload               :  99%|█████████▉| 17.8GB / 18.0GB,  263MB/s  
+  ...8b57gpx/model.safetensors:  70%|███████   | 20.8GB / 29.5GB            
+Jul 04  23:06:19.596
+Processing Files (0 / 1)      :  71%|███████   | 20.8GB / 29.5GB,  265MB/s  
+New Data Upload               :  99%|█████████▉| 17.9GB / 18.0GB,  264MB/s  
+  ...8b57gpx/model.safetensors:  71%|███████   | 20.8GB / 29.5GB            
+Jul 04  23:06:19.596
+Processing Files (0 / 1)      :  71%|███████   | 20.9GB / 29.5GB,  266MB/s  
+Jul 04  23:06:19.696
+New Data Upload               :  99%|█████████▉| 17.9GB / 18.0GB,  264MB/s  
+
+Jul 04  23:06:19.999
+Processing Files (0 / 1)      :  71%|███████   | 20.9GB / 29.5GB,  266MB/s  
+New Data Upload               :  99%|█████████▉| 18.0GB / 18.2GB,  264MB/s  
+  ...8b57gpx/model.safetensors:  71%|███████   | 20.9GB / 29.5GB            
+Jul 04  23:06:20.201
+Processing Files (0 / 1)      :  71%|███████   | 21.0GB / 29.5GB,  267MB/s  
+New Data Upload               :  99%|█████████▉| 18.1GB / 18.2GB,  266MB/s  
+  ...8b57gpx/model.safetensors:  71%|███████   | 21.0GB / 29.5GB            
+Jul 04  23:06:20.201
+Processing Files (0 / 1)      :  71%|███████   | 21.0GB / 29.5GB,  266MB/s  
+Jul 04  23:06:20.504
+Processing Files (0 / 1)      :  71%|███████▏  | 21.1GB / 29.5GB,  265MB/s  
+New Data Upload               :  99%|█████████▉| 18.1GB / 18.3GB,  264MB/s  
+  ...8b57gpx/model.safetensors:  71%|███████▏  | 21.1GB / 29.5GB            
+Jul 04  23:06:20.605
+Processing Files (0 / 1)      :  71%|███████▏  | 21.1GB / 29.5GB,  264MB/s  
+New Data Upload               :  99%|█████████▉| 18.1GB / 18.3GB,  263MB/s  
+  ...8b57gpx/model.safetensors:  71%|███████▏  | 21.1GB / 29.5GB            
+Jul 04  23:06:20.806
+Processing Files (0 / 1)      :  72%|███████▏  | 21.1GB / 29.5GB,  264MB/s  
+New Data Upload               :  99%|█████████▉| 18.2GB / 18.4GB,  262MB/s  
+  ...8b57gpx/model.safetensors:  72%|███████▏  | 21.1GB / 29.5GB            
+Jul 04  23:06:20.907
+Processing Files (0 / 1)      :  72%|███████▏  | 21.2GB / 29.5GB,  264MB/s  
+New Data Upload               :  99%|█████████▉| 18.2GB / 18.4GB,  263MB/s  
+Jul 04  23:06:21.007
+Processing Files (0 / 1)      :  72%|███████▏  | 21.2GB / 29.5GB,  265MB/s  
+New Data Upload               :  99%|█████████▉| 18.3GB / 18.4GB,  264MB/s  
+Jul 04  23:06:21.008
+Processing Files (0 / 1)      :  72%|███████▏  | 21.2GB / 29.5GB,  266MB/s  
+Jul 04  23:06:21.210
+Processing Files (0 / 1)      :  72%|███████▏  | 21.3GB / 29.5GB,  266MB/s  
+New Data Upload               :  99%|█████████▉| 18.3GB / 18.4GB,  265MB/s  
+  ...8b57gpx/model.safetensors:  72%|███████▏  | 21.3GB / 29.5GB            
+Jul 04  23:06:21.311
+Processing Files (0 / 1)      :  72%|███████▏  | 21.3GB / 29.5GB,  266MB/s  
+New Data Upload               : 100%|█████████▉| 18.4GB / 18.4GB,  265MB/s  
+Jul 04  23:06:21.312
+Processing Files (0 / 1)      :  72%|███████▏  | 21.3GB / 29.5GB,  266MB/s  
+Jul 04  23:06:21.312
+New Data Upload               : 100%|█████████▉| 18.4GB / 18.4GB,  265MB/s  
+Jul 04  23:06:21.413
+
+
+Jul 04  23:06:21.413
+Processing Files (0 / 1)      :  72%|███████▏  | 21.3GB / 29.5GB,  265MB/s  
+Jul 04  23:06:21.513
+New Data Upload               :  99%|█████████▉| 18.4GB / 18.5GB,  264MB/s  
+
+Jul 04  23:06:21.614
+Processing Files (0 / 1)      :  72%|███████▏  | 21.3GB / 29.5GB,  263MB/s  
+New Data Upload               :  99%|█████████▉| 18.4GB / 18.5GB,  262MB/s  
+Jul 04  23:06:21.616
+Processing Files (0 / 1)      :  72%|███████▏  | 21.3GB / 29.5GB,  262MB/s  
+Jul 04  23:06:21.716
+New Data Upload               :  99%|█████████▉| 18.4GB / 18.5GB,  261MB/s  
+
+Jul 04  23:06:21.716
+Processing Files (0 / 1)      :  72%|███████▏  | 21.4GB / 29.5GB,  260MB/s  
+Jul 04  23:06:21.817
+New Data Upload               :  99%|█████████▉| 18.4GB / 18.6GB,  259MB/s  
+
+Jul 04  23:06:21.817
+Processing Files (0 / 1)      :  72%|███████▏  | 21.4GB / 29.5GB,  259MB/s  
+Jul 04  23:06:21.917
+New Data Upload               :  99%|█████████▉| 18.4GB / 18.6GB,  258MB/s  
+
+Jul 04  23:06:21.918
+Processing Files (0 / 1)      :  72%|███████▏  | 21.4GB / 29.5GB,  257MB/s  
+Jul 04  23:06:22.018
+New Data Upload               :  99%|█████████▉| 18.4GB / 18.6GB,  256MB/s  
+
+Jul 04  23:06:22.018
+Processing Files (0 / 1)      :  72%|███████▏  | 21.4GB / 29.5GB,  256MB/s  
+Jul 04  23:06:22.118
+New Data Upload               :  99%|█████████▉| 18.4GB / 18.6GB,  255MB/s  
+
+Jul 04  23:06:22.119
+Processing Files (0 / 1)      :  72%|███████▏  | 21.4GB / 29.5GB,  255MB/s  
+Jul 04  23:06:22.219
+New Data Upload               :  99%|█████████▉| 18.4GB / 18.6GB,  254MB/s  
+
+Jul 04  23:06:22.320
+Processing Files (0 / 1)      :  72%|███████▏  | 21.4GB / 29.5GB,  254MB/s  
+New Data Upload               :  99%|█████████▉| 18.4GB / 18.6GB,  253MB/s  
+Jul 04  23:06:22.321
+Processing Files (0 / 1)      :  72%|███████▏  | 21.4GB / 29.5GB,  254MB/s  
+Jul 04  23:06:22.422
+New Data Upload               :  99%|█████████▊| 18.5GB / 18.7GB,  253MB/s  
+
+Jul 04  23:06:22.422
+Processing Files (0 / 1)      :  73%|███████▎  | 21.4GB / 29.5GB,  254MB/s  
+Jul 04  23:06:22.522
+New Data Upload               :  99%|█████████▉| 18.5GB / 18.7GB,  253MB/s  
+
+Jul 04  23:06:22.624
+Processing Files (0 / 1)      :  73%|███████▎  | 21.5GB / 29.5GB,  255MB/s  
+New Data Upload               :  99%|█████████▉| 18.5GB / 18.7GB,  254MB/s  
+Jul 04  23:06:22.624
+Processing Files (0 / 1)      :  73%|███████▎  | 21.5GB / 29.5GB,  256MB/s  
+Jul 04  23:06:22.725
+New Data Upload               :  99%|█████████▉| 18.6GB / 18.8GB,  255MB/s  
+
+Jul 04  23:06:22.726
+Processing Files (0 / 1)      :  73%|███████▎  | 21.6GB / 29.5GB,  256MB/s  
+Jul 04  23:06:22.927
+Processing Files (0 / 1)      :  73%|███████▎  | 21.6GB / 29.5GB,  258MB/s  
+New Data Upload               :  99%|█████████▉| 18.6GB / 18.8GB,  256MB/s  
+  ...8b57gpx/model.safetensors:  73%|███████▎  | 21.6GB / 29.5GB            
+Jul 04  23:06:23.027
+New Data Upload               :  99%|█████████▉| 18.7GB / 18.8GB,  257MB/s  
+
+Jul 04  23:06:23.028
+Processing Files (0 / 1)      :  73%|███████▎  | 21.7GB / 29.5GB,  258MB/s  
+Jul 04  23:06:23.128
+New Data Upload               :  99%|█████████▉| 18.7GB / 18.8GB,  257MB/s  
+
+Jul 04  23:06:23.128
+Processing Files (0 / 1)      :  73%|███████▎  | 21.7GB / 29.5GB,  258MB/s  
+Jul 04  23:06:23.229
+New Data Upload               :  99%|█████████▉| 18.7GB / 18.9GB,  257MB/s  
+
+Jul 04  23:06:23.229
+Processing Files (0 / 1)      :  73%|███████▎  | 21.7GB / 29.5GB,  258MB/s  
+Jul 04  23:06:23.329
+Processing Files (0 / 1)      :  74%|███████▎  | 21.7GB / 29.5GB,  258MB/s  
+
+  ...8b57gpx/model.safetensors:  74%|███████▎  | 21.7GB / 29.5GB            
+Jul 04  23:06:23.430
+New Data Upload               :  99%|█████████▉| 18.8GB / 19.0GB,  257MB/s  
+
+Jul 04  23:06:23.430
+Processing Files (0 / 1)      :  74%|███████▎  | 21.8GB / 29.5GB,  258MB/s  
+Jul 04  23:06:23.631
+Processing Files (0 / 1)      :  74%|███████▍  | 21.8GB / 29.5GB,  259MB/s  
+New Data Upload               :  99%|█████████▉| 18.8GB / 19.0GB,  258MB/s  
+  ...8b57gpx/model.safetensors:  74%|███████▍  | 21.8GB / 29.5GB            
+Jul 04  23:06:23.732
+Processing Files (0 / 1)      :  74%|███████▍  | 21.9GB / 29.5GB,  260MB/s  
+New Data Upload               :  99%|█████████▉| 18.9GB / 19.0GB,  259MB/s  
+  ...8b57gpx/model.safetensors:  74%|███████▍  | 21.9GB / 29.5GB            
+Jul 04  23:06:23.833
+Processing Files (0 / 1)      :  74%|███████▍  | 21.9GB / 29.5GB,  259MB/s  
+
+  ...8b57gpx/model.safetensors:  74%|███████▍  | 21.9GB / 29.5GB            
+Jul 04  23:06:23.935
+New Data Upload               :  99%|█████████▉| 18.9GB / 19.1GB,  258MB/s  
+
+Jul 04  23:06:23.936
+Processing Files (0 / 1)      :  74%|███████▍  | 21.9GB / 29.5GB,  259MB/s  
+Jul 04  23:06:24.137
+Processing Files (0 / 1)      :  74%|███████▍  | 21.9GB / 29.5GB,  258MB/s  
+New Data Upload               :  99%|█████████▉| 19.0GB / 19.2GB,  257MB/s  
+  ...8b57gpx/model.safetensors:  74%|███████▍  | 21.9GB / 29.5GB            
+Jul 04  23:06:24.137
+Processing Files (0 / 1)      :  74%|███████▍  | 21.9GB / 29.5GB,  258MB/s  
+Jul 04  23:06:24.237
+New Data Upload               :  99%|█████████▉| 19.0GB / 19.2GB,  257MB/s  
+
+Jul 04  23:06:24.238
+Processing Files (0 / 1)      :  74%|███████▍  | 22.0GB / 29.5GB,  258MB/s  
+Jul 04  23:06:24.338
+New Data Upload               :  99%|█████████▉| 19.0GB / 19.2GB,  257MB/s  
+
+Jul 04  23:06:24.338
+Processing Files (0 / 1)      :  74%|███████▍  | 22.0GB / 29.5GB,  258MB/s  
+Jul 04  23:06:24.338
+New Data Upload               :  99%|█████████▉| 19.0GB / 19.2GB,  257MB/s  
+Jul 04  23:06:24.540
+Processing Files (0 / 1)      :  75%|███████▍  | 22.0GB / 29.5GB,  259MB/s  
+New Data Upload               :  99%|█████████▉| 19.1GB / 19.3GB,  258MB/s  
+  ...8b57gpx/model.safetensors:  75%|███████▍  | 22.0GB / 29.5GB            
+Jul 04  23:06:24.540
+Processing Files (0 / 1)      :  75%|███████▍  | 22.1GB / 29.5GB,  259MB/s  
+Jul 04  23:06:24.641
+New Data Upload               :  99%|█████████▉| 19.1GB / 19.3GB,  258MB/s  
+
+Jul 04  23:06:24.943
+Processing Files (0 / 1)      :  75%|███████▌  | 22.2GB / 29.5GB,  261MB/s  
+New Data Upload               :  99%|█████████▉| 19.2GB / 19.4GB,  260MB/s  
+  ...8b57gpx/model.safetensors:  75%|███████▌  | 22.2GB / 29.5GB            
+Jul 04  23:06:24.944
+Processing Files (0 / 1)      :  75%|███████▌  | 22.2GB / 29.5GB,  261MB/s  
+Jul 04  23:06:25.044
+New Data Upload               :  99%|█████████▉| 19.2GB / 19.4GB,  260MB/s  
+
+Jul 04  23:06:25.045
+Processing Files (0 / 1)      :  75%|███████▌  | 22.2GB / 29.5GB,  261MB/s  
+Jul 04  23:06:25.145
+New Data Upload               :  99%|█████████▉| 19.3GB / 19.4GB,  260MB/s  
+
+Jul 04  23:06:25.246
+Processing Files (0 / 1)      :  75%|███████▌  | 22.3GB / 29.5GB,  263MB/s  
+New Data Upload               :  99%|█████████▉| 19.3GB / 19.4GB,  261MB/s  
+  ...8b57gpx/model.safetensors:  75%|███████▌  | 22.3GB / 29.5GB            
+Jul 04  23:06:25.447
+Processing Files (0 / 1)      :  76%|███████▌  | 22.3GB / 29.5GB,  262MB/s  
+New Data Upload               :  99%|█████████▉| 19.4GB / 19.5GB,  262MB/s  
+  ...8b57gpx/model.safetensors:  76%|███████▌  | 22.3GB / 29.5GB            
+Jul 04  23:06:25.449
+Processing Files (0 / 1)      :  76%|███████▌  | 22.3GB / 29.5GB,  262MB/s  
+Jul 04  23:06:25.550
+Processing Files (0 / 1)      :  76%|███████▌  | 22.4GB / 29.5GB,  262MB/s  
+
+  ...8b57gpx/model.safetensors:  76%|███████▌  | 22.4GB / 29.5GB            
+Jul 04  23:06:25.651
+Processing Files (0 / 1)      :  76%|███████▌  | 22.4GB / 29.5GB,  261MB/s  
+
+  ...8b57gpx/model.safetensors:  76%|███████▌  | 22.4GB / 29.5GB            
+Jul 04  23:06:25.752
+Processing Files (0 / 1)      :  76%|███████▌  | 22.4GB / 29.5GB,  260MB/s  
+
+  ...8b57gpx/model.safetensors:  76%|███████▌  | 22.4GB / 29.5GB            
+Jul 04  23:06:25.852
+Processing Files (0 / 1)      :  76%|███████▌  | 22.4GB / 29.5GB,  260MB/s  
+
+  ...8b57gpx/model.safetensors:  76%|███████▌  | 22.4GB / 29.5GB            
+Jul 04  23:06:25.952
+New Data Upload               :  99%|█████████▉| 19.5GB / 19.6GB,  260MB/s  
+
+Jul 04  23:06:25.953
+Processing Files (0 / 1)      :  76%|███████▌  | 22.5GB / 29.5GB,  260MB/s  
+Jul 04  23:06:26.054
+New Data Upload               :  99%|█████████▉| 19.5GB / 19.6GB,  259MB/s  
+
+Jul 04  23:06:26.054
+  ...8b57gpx/model.safetensors:  76%|███████▌  | 22.5GB / 29.5GB            
+Jul 04  23:06:26.054
+Processing Files (0 / 1)      :  76%|███████▌  | 22.5GB / 29.5GB,  260MB/s  
+Jul 04  23:06:26.154
+New Data Upload               :  99%|█████████▉| 19.5GB / 19.7GB,  259MB/s  
+
+Jul 04  23:06:26.155
+Processing Files (0 / 1)      :  76%|███████▌  | 22.5GB / 29.5GB,  260MB/s  
+Jul 04  23:06:26.256
+New Data Upload               :  99%|█████████▉| 19.5GB / 19.7GB,  259MB/s  
+
+Jul 04  23:06:26.256
+Processing Files (0 / 1)      :  76%|███████▌  | 22.5GB / 29.5GB,  260MB/s  
+Jul 04  23:06:26.356
+New Data Upload               :  99%|█████████▉| 19.6GB / 19.8GB,  259MB/s  
+
+Jul 04  23:06:26.357
+Processing Files (0 / 1)      :  76%|███████▋  | 22.6GB / 29.5GB,  261MB/s  
+Jul 04  23:06:26.457
+New Data Upload               :  99%|█████████▉| 19.6GB / 19.8GB,  260MB/s  
+
+Jul 04  23:06:26.457
+Processing Files (0 / 1)      :  76%|███████▋  | 22.6GB / 29.5GB,  261MB/s  
+Jul 04  23:06:26.558
+Processing Files (0 / 1)      :  77%|███████▋  | 22.6GB / 29.5GB,  261MB/s  
+
+  ...8b57gpx/model.safetensors:  77%|███████▋  | 22.6GB / 29.5GB            
+Jul 04  23:06:26.659
+New Data Upload               :  99%|█████████▉| 19.7GB / 19.9GB,  260MB/s  
+
+Jul 04  23:06:26.660
+Processing Files (0 / 1)      :  77%|███████▋  | 22.6GB / 29.5GB,  261MB/s  
+Jul 04  23:06:26.760
+New Data Upload               :  99%|█████████▉| 19.7GB / 19.9GB,  260MB/s  
+
+Jul 04  23:06:26.761
+Processing Files (0 / 1)      :  77%|███████▋  | 22.7GB / 29.5GB,  262MB/s  
+Jul 04  23:06:26.761
+New Data Upload               :  99%|█████████▉| 19.7GB / 19.9GB,  261MB/s  
+Jul 04  23:06:26.861
+Processing Files (0 / 1)      :  77%|███████▋  | 22.7GB / 29.5GB,  261MB/s  
+
+  ...8b57gpx/model.safetensors:  77%|███████▋  | 22.7GB / 29.5GB            
+Jul 04  23:06:26.962
+Processing Files (0 / 1)      :  77%|███████▋  | 22.7GB / 29.5GB,  260MB/s  
+
+  ...8b57gpx/model.safetensors:  77%|███████▋  | 22.7GB / 29.5GB            
+Jul 04  23:06:27.464
+Processing Files (0 / 1)      :  77%|███████▋  | 22.8GB / 29.5GB,  261MB/s  
+New Data Upload               :  99%|█████████▉| 19.9GB / 20.1GB,  260MB/s  
+  ...8b57gpx/model.safetensors:  77%|███████▋  | 22.8GB / 29.5GB            
+Jul 04  23:06:27.465
+Processing Files (0 / 1)      :  77%|███████▋  | 22.9GB / 29.5GB,  261MB/s  
+Jul 04  23:06:27.565
+New Data Upload               :  99%|█████████▉| 19.9GB / 20.1GB,  261MB/s  
+
+Jul 04  23:06:27.768
+Processing Files (0 / 1)      :  78%|███████▊  | 22.9GB / 29.5GB,  260MB/s  
+New Data Upload               :  99%|█████████▉| 19.9GB / 20.1GB,  259MB/s  
+  ...8b57gpx/model.safetensors:  78%|███████▊  | 22.9GB / 29.5GB            
+Jul 04  23:06:27.870
+Processing Files (0 / 1)      :  78%|███████▊  | 22.9GB / 29.5GB,  259MB/s  
+New Data Upload               :  99%|█████████▉| 20.0GB / 20.1GB,  259MB/s  
+  ...8b57gpx/model.safetensors:  78%|███████▊  | 22.9GB / 29.5GB            
+Jul 04  23:06:28.071
+Processing Files (0 / 1)      :  78%|███████▊  | 23.0GB / 29.5GB,  259MB/s  
+New Data Upload               :  99%|█████████▉| 20.0GB / 20.2GB,  258MB/s  
+  ...8b57gpx/model.safetensors:  78%|███████▊  | 23.0GB / 29.5GB            
+Jul 04  23:06:28.071
+Processing Files (0 / 1)      :  78%|███████▊  | 23.0GB / 29.5GB,  260MB/s  
+Jul 04  23:06:28.172
+New Data Upload               :  99%|█████████▉| 20.0GB / 20.3GB,  259MB/s  
+
+Jul 04  23:06:28.274
+Processing Files (0 / 1)      :  78%|███████▊  | 23.0GB / 29.5GB,  261MB/s  
+New Data Upload               :  99%|█████████▉| 20.1GB / 20.3GB,  260MB/s  
+Jul 04  23:06:28.274
+Processing Files (0 / 1)      :  78%|███████▊  | 23.1GB / 29.5GB,  262MB/s  
+Jul 04  23:06:28.375
+Processing Files (0 / 1)      :  78%|███████▊  | 23.1GB / 29.5GB,  262MB/s  
+
+  ...8b57gpx/model.safetensors:  78%|███████▊  | 23.1GB / 29.5GB            
+Jul 04  23:06:28.476
+Processing Files (0 / 1)      :  78%|███████▊  | 23.1GB / 29.5GB,  262MB/s  
+
+  ...8b57gpx/model.safetensors:  78%|███████▊  | 23.1GB / 29.5GB            
+Jul 04  23:06:28.577
+Processing Files (0 / 1)      :  78%|███████▊  | 23.2GB / 29.5GB,  261MB/s  
+
+  ...8b57gpx/model.safetensors:  78%|███████▊  | 23.2GB / 29.5GB            
+Jul 04  23:06:28.679
+New Data Upload               :  99%|█████████▉| 20.2GB / 20.4GB,  261MB/s  
+
+Jul 04  23:06:28.679
+Processing Files (0 / 1)      :  78%|███████▊  | 23.2GB / 29.5GB,  261MB/s  
+Jul 04  23:06:28.880
+Processing Files (0 / 1)      :  79%|███████▊  | 23.2GB / 29.5GB,  261MB/s  
+New Data Upload               :  99%|█████████▉| 20.2GB / 20.4GB,  260MB/s  
+  ...8b57gpx/model.safetensors:  79%|███████▊  | 23.2GB / 29.5GB            
+Jul 04  23:06:28.880
+Processing Files (0 / 1)      :  79%|███████▊  | 23.2GB / 29.5GB,  261MB/s  
+Jul 04  23:06:28.980
+Processing Files (0 / 1)      :  79%|███████▊  | 23.3GB / 29.5GB,  261MB/s  
+
+  ...8b57gpx/model.safetensors:  79%|███████▊  | 23.3GB / 29.5GB            
+Jul 04  23:06:29.081
+New Data Upload               :  99%|█████████▉| 20.3GB / 20.5GB,  260MB/s  
+
+Jul 04  23:06:29.081
+Processing Files (0 / 1)      :  79%|███████▉  | 23.3GB / 29.5GB,  261MB/s  
+Jul 04  23:06:29.181
+New Data Upload               :  99%|█████████▉| 20.3GB / 20.5GB,  260MB/s  
+
+Jul 04  23:06:29.282
+Processing Files (0 / 1)      :  79%|███████▉  | 23.3GB / 29.5GB,  261MB/s  
+New Data Upload               :  99%|█████████▉| 20.3GB / 20.5GB,  261MB/s  
+Jul 04  23:06:29.282
+Processing Files (0 / 1)      :  79%|███████▉  | 23.3GB / 29.5GB,  261MB/s  
+Jul 04  23:06:29.383
+Processing Files (0 / 1)      :  79%|███████▉  | 23.4GB / 29.5GB,  262MB/s  
+
+  ...8b57gpx/model.safetensors:  79%|███████▉  | 23.4GB / 29.5GB            
+Jul 04  23:06:29.484
+Processing Files (0 / 1)      :  79%|███████▉  | 23.4GB / 29.5GB,  261MB/s  
+
+  ...8b57gpx/model.safetensors:  79%|███████▉  | 23.4GB / 29.5GB            
+Jul 04  23:06:29.585
+New Data Upload               :  99%|█████████▉| 20.4GB / 20.6GB,  260MB/s  
+
+Jul 04  23:06:29.787
+Processing Files (0 / 1)      :  79%|███████▉  | 23.5GB / 29.5GB,  262MB/s  
+New Data Upload               :  99%|█████████▉| 20.5GB / 20.7GB,  261MB/s  
+  ...8b57gpx/model.safetensors:  79%|███████▉  | 23.5GB / 29.5GB            
+Jul 04  23:06:29.888
+Processing Files (0 / 1)      :  80%|███████▉  | 23.5GB / 29.5GB,  262MB/s  
+
+  ...8b57gpx/model.safetensors:  80%|███████▉  | 23.5GB / 29.5GB            
+Jul 04  23:06:30.189
+Processing Files (0 / 1)      :  80%|███████▉  | 23.6GB / 29.5GB,  262MB/s  
+New Data Upload               :  99%|█████████▉| 20.6GB / 20.8GB,  261MB/s  
+  ...8b57gpx/model.safetensors:  80%|███████▉  | 23.6GB / 29.5GB            
+Jul 04  23:06:30.289
+New Data Upload               :  99%|█████████▉| 20.6GB / 20.8GB,  261MB/s  
+
+Jul 04  23:06:30.290
+  ...8b57gpx/model.safetensors:  80%|███████▉  | 23.6GB / 29.5GB            
+Jul 04  23:06:30.591
+Processing Files (0 / 1)      :  80%|████████  | 23.7GB / 29.5GB,  262MB/s  
+New Data Upload               :  99%|█████████▉| 20.7GB / 20.9GB,  261MB/s  
+  ...8b57gpx/model.safetensors:  80%|████████  | 23.7GB / 29.5GB            
+Jul 04  23:06:30.591
+Processing Files (0 / 1)      :  80%|████████  | 23.7GB / 29.5GB,  262MB/s  
+Jul 04  23:06:30.692
+New Data Upload               :  99%|█████████▉| 20.7GB / 20.9GB,  262MB/s  
+
+Jul 04  23:06:30.692
+Processing Files (0 / 1)      :  80%|████████  | 23.7GB / 29.5GB,  262MB/s  
+Jul 04  23:06:30.893
+Processing Files (0 / 1)      :  80%|████████  | 23.7GB / 29.5GB,  262MB/s  
+New Data Upload               :  99%|█████████▉| 20.8GB / 20.9GB,  262MB/s  
+  ...8b57gpx/model.safetensors:  80%|████████  | 23.7GB / 29.5GB            
+Jul 04  23:06:30.893
+Processing Files (0 / 1)      :  80%|████████  | 23.8GB / 29.5GB,  262MB/s  
+Jul 04  23:06:30.994
+New Data Upload               :  99%|█████████▉| 20.8GB / 21.0GB,  261MB/s  
+
+Jul 04  23:06:30.994
+Processing Files (0 / 1)      :  81%|████████  | 23.8GB / 29.5GB,  261MB/s  
+Jul 04  23:06:31.094
+New Data Upload               :  99%|█████████▉| 20.8GB / 21.0GB,  261MB/s  
+
+Jul 04  23:06:31.094
+Processing Files (0 / 1)      :  81%|████████  | 23.8GB / 29.5GB,  261MB/s  
+Jul 04  23:06:31.296
+Processing Files (0 / 1)      :  81%|████████  | 23.8GB / 29.5GB,  260MB/s  
+New Data Upload               :  99%|█████████▉| 20.9GB / 21.1GB,  260MB/s  
+  ...8b57gpx/model.safetensors:  81%|████████  | 23.8GB / 29.5GB            
+Jul 04  23:06:31.398
+Processing Files (0 / 1)      :  81%|████████  | 23.8GB / 29.5GB,  260MB/s  
+New Data Upload               :  99%|█████████▉| 20.9GB / 21.1GB,  259MB/s  
+Jul 04  23:06:31.398
+Processing Files (0 / 1)      :  81%|████████  | 23.9GB / 29.5GB,  259MB/s  
+Jul 04  23:06:31.498
+New Data Upload               :  99%|█████████▉| 20.9GB / 21.1GB,  258MB/s  
+
+Jul 04  23:06:31.599
+Processing Files (0 / 1)      :  81%|████████  | 23.9GB / 29.5GB,  258MB/s  
+New Data Upload               :  99%|█████████▉| 20.9GB / 21.1GB,  258MB/s  
+Jul 04  23:06:31.599
+Processing Files (0 / 1)      :  81%|████████  | 23.9GB / 29.5GB,  257MB/s  
+Jul 04  23:06:31.801
+Processing Files (0 / 1)      :  81%|████████  | 23.9GB / 29.5GB,  256MB/s  
+New Data Upload               :  99%|█████████▉| 20.9GB / 21.1GB,  255MB/s  
+  ...8b57gpx/model.safetensors:  81%|████████  | 23.9GB / 29.5GB            
+Jul 04  23:06:31.801
+Processing Files (0 / 1)      :  81%|████████  | 23.9GB / 29.5GB,  255MB/s  
+Jul 04  23:06:31.901
+New Data Upload               :  99%|█████████▉| 20.9GB / 21.2GB,  254MB/s  
+
+Jul 04  23:06:31.902
+Processing Files (0 / 1)      :  81%|████████  | 23.9GB / 29.5GB,  254MB/s  
+Jul 04  23:06:32.002
+New Data Upload               :  99%|█████████▉| 20.9GB / 21.2GB,  253MB/s  
+
+Jul 04  23:06:32.002
+Processing Files (0 / 1)      :  81%|████████  | 23.9GB / 29.5GB,  253MB/s  
+Jul 04  23:06:32.102
+New Data Upload               :  99%|█████████▉| 21.0GB / 21.2GB,  252MB/s  
+
+Jul 04  23:06:32.103
+Processing Files (0 / 1)      :  81%|████████  | 23.9GB / 29.5GB,  252MB/s  
+Jul 04  23:06:32.203
+New Data Upload               :  99%|█████████▊| 21.0GB / 21.3GB,  251MB/s  
+
+Jul 04  23:06:32.203
+Processing Files (0 / 1)      :  81%|████████  | 23.9GB / 29.5GB,  251MB/s  
+Jul 04  23:06:32.304
+New Data Upload               :  99%|█████████▊| 21.0GB / 21.3GB,  251MB/s  
+
+Jul 04  23:06:32.304
+Processing Files (0 / 1)      :  81%|████████  | 24.0GB / 29.5GB,  251MB/s  
+Jul 04  23:06:32.405
+New Data Upload               :  99%|█████████▉| 21.0GB / 21.3GB,  251MB/s  
+
+Jul 04  23:06:32.405
+Processing Files (0 / 1)      :  81%|████████▏ | 24.0GB / 29.5GB,  252MB/s  
+Jul 04  23:06:32.606
+Processing Files (0 / 1)      :  81%|████████▏ | 24.0GB / 29.5GB,  253MB/s  
+New Data Upload               :  99%|█████████▉| 21.1GB / 21.3GB,  252MB/s  
+  ...8b57gpx/model.safetensors:  81%|████████▏ | 24.0GB / 29.5GB            
+Jul 04  23:06:32.807
+Processing Files (0 / 1)      :  82%|████████▏ | 24.2GB / 29.5GB,  258MB/s  
+New Data Upload               :  99%|█████████▉| 21.2GB / 21.4GB,  256MB/s  
+  ...8b57gpx/model.safetensors:  82%|████████▏ | 24.2GB / 29.5GB            
+Jul 04  23:06:33.009
+Processing Files (0 / 1)      :  82%|████████▏ | 24.2GB / 29.5GB,  257MB/s  
+New Data Upload               :  99%|█████████▉| 21.3GB / 21.5GB,  257MB/s  
+  ...8b57gpx/model.safetensors:  82%|████████▏ | 24.2GB / 29.5GB            
+Jul 04  23:06:33.109
+New Data Upload               :  99%|█████████▉| 21.3GB / 21.5GB,  257MB/s  
+
+Jul 04  23:06:33.109
+Processing Files (0 / 1)      :  82%|████████▏ | 24.3GB / 29.5GB,  257MB/s  
+Jul 04  23:06:33.109
+
+Jul 04  23:06:33.210
+New Data Upload               :  99%|█████████▉| 21.3GB / 21.5GB,  257MB/s  
+
+Jul 04  23:06:33.210
+Processing Files (0 / 1)      :  82%|████████▏ | 24.3GB / 29.5GB,  257MB/s  
+Jul 04  23:06:33.512
+Processing Files (0 / 1)      :  82%|████████▏ | 24.3GB / 29.5GB,  257MB/s  
+New Data Upload               :  99%|█████████▉| 21.4GB / 21.6GB,  257MB/s  
+  ...8b57gpx/model.safetensors:  82%|████████▏ | 24.3GB / 29.5GB            
+Jul 04  23:06:33.513
+Processing Files (0 / 1)      :  82%|████████▏ | 24.4GB / 29.5GB,  257MB/s  
+Jul 04  23:06:33.714
+Processing Files (0 / 1)      :  83%|████████▎ | 24.4GB / 29.5GB,  258MB/s  
+New Data Upload               :  99%|█████████▉| 21.4GB / 21.6GB,  257MB/s  
+  ...8b57gpx/model.safetensors:  83%|████████▎ | 24.4GB / 29.5GB            
+Jul 04  23:06:33.815
+New Data Upload               :  99%|█████████▉| 21.5GB / 21.7GB,  258MB/s  
+
+Jul 04  23:06:33.815
+Processing Files (0 / 1)      :  83%|████████▎ | 24.5GB / 29.5GB,  258MB/s  
+Jul 04  23:06:34.016
+Processing Files (0 / 1)      :  83%|████████▎ | 24.5GB / 29.5GB,  258MB/s  
+New Data Upload               :  99%|█████████▉| 21.5GB / 21.7GB,  257MB/s  
+  ...8b57gpx/model.safetensors:  83%|████████▎ | 24.5GB / 29.5GB            
+Jul 04  23:06:34.116
+Processing Files (0 / 1)      :  83%|████████▎ | 24.5GB / 29.5GB,  258MB/s  
+New Data Upload               :  99%|█████████▉| 21.5GB / 21.7GB,  257MB/s  
+Jul 04  23:06:34.217
+Processing Files (0 / 1)      :  83%|████████▎ | 24.5GB / 29.5GB,  258MB/s  
+New Data Upload               :  99%|█████████▉| 21.6GB / 21.7GB,  257MB/s  
+Jul 04  23:06:34.217
+Processing Files (0 / 1)      :  83%|████████▎ | 24.6GB / 29.5GB,  259MB/s  
+Jul 04  23:06:34.318
+New Data Upload               :  99%|█████████▉| 21.6GB / 21.8GB,  258MB/s  
+
+Jul 04  23:06:34.418
+Processing Files (0 / 1)      :  83%|████████▎ | 24.6GB / 29.5GB,  259MB/s  
+New Data Upload               :  99%|█████████▉| 21.6GB / 21.8GB,  258MB/s  
+Jul 04  23:06:34.418
+Processing Files (0 / 1)      :  83%|████████▎ | 24.6GB / 29.5GB,  259MB/s  
+Jul 04  23:06:34.519
+New Data Upload               :  99%|█████████▉| 21.7GB / 21.8GB,  258MB/s  
+
+Jul 04  23:06:34.520
+Processing Files (0 / 1)      :  83%|████████▎ | 24.6GB / 29.5GB,  258MB/s  
+Jul 04  23:06:34.621
+New Data Upload               :  99%|█████████▉| 21.7GB / 21.9GB,  258MB/s  
+
+Jul 04  23:06:34.722
+Processing Files (0 / 1)      :  84%|████████▎ | 24.7GB / 29.5GB,  257MB/s  
+New Data Upload               :  99%|█████████▉| 21.7GB / 21.9GB,  257MB/s  
+  ...8b57gpx/model.safetensors:  84%|████████▎ | 24.7GB / 29.5GB            
+Jul 04  23:06:35.023
+Processing Files (0 / 1)      :  84%|████████▍ | 24.8GB / 29.5GB,  257MB/s  
+New Data Upload               :  99%|█████████▉| 21.8GB / 21.9GB,  257MB/s  
+  ...8b57gpx/model.safetensors:  84%|████████▍ | 24.8GB / 29.5GB            
+Jul 04  23:06:35.226
+Processing Files (0 / 1)      :  84%|████████▍ | 24.8GB / 29.5GB,  259MB/s  
+New Data Upload               :  99%|█████████▉| 21.8GB / 22.0GB,  257MB/s  
+  ...8b57gpx/model.safetensors:  84%|████████▍ | 24.8GB / 29.5GB            
+Jul 04  23:06:35.426
+Processing Files (0 / 1)      :  84%|████████▍ | 24.9GB / 29.5GB,  259MB/s  
+New Data Upload               :  99%|█████████▉| 21.9GB / 22.1GB,  258MB/s  
+  ...8b57gpx/model.safetensors:  84%|████████▍ | 24.9GB / 29.5GB            
+Jul 04  23:06:35.427
+Processing Files (0 / 1)      :  84%|████████▍ | 24.9GB / 29.5GB,  259MB/s  
+Jul 04  23:06:35.730
+Processing Files (0 / 1)      :  85%|████████▍ | 25.0GB / 29.5GB,  259MB/s  
+New Data Upload               :  99%|█████████▉| 22.0GB / 22.1GB,  259MB/s  
+  ...8b57gpx/model.safetensors:  85%|████████▍ | 25.0GB / 29.5GB            
+Jul 04  23:06:35.931
+Processing Files (0 / 1)      :  85%|████████▍ | 25.0GB / 29.5GB,  259MB/s  
+New Data Upload               :  99%|█████████▉| 22.0GB / 22.2GB,  259MB/s  
+  ...8b57gpx/model.safetensors:  85%|████████▍ | 25.0GB / 29.5GB            
+Jul 04  23:06:35.931
+Processing Files (0 / 1)      :  85%|████████▍ | 25.0GB / 29.5GB,  259MB/s  
+Jul 04  23:06:36.032
+New Data Upload               :  99%|█████████▉| 22.1GB / 22.2GB,  259MB/s  
+
+Jul 04  23:06:36.133
+Processing Files (0 / 1)      :  85%|████████▍ | 25.1GB / 29.5GB,  258MB/s  
+New Data Upload               :  99%|█████████▉| 22.1GB / 22.3GB,  257MB/s  
+  ...8b57gpx/model.safetensors:  85%|████████▍ | 25.1GB / 29.5GB            
+Jul 04  23:06:36.234
+
+
+Jul 04  23:06:36.235
+Processing Files (0 / 1)      :  85%|████████▍ | 25.1GB / 29.5GB,  257MB/s  
+Jul 04  23:06:36.436
+Processing Files (0 / 1)      :  85%|████████▍ | 25.1GB / 29.5GB,  257MB/s  
+New Data Upload               :  99%|█████████▉| 22.1GB / 22.3GB,  257MB/s  
+  ...8b57gpx/model.safetensors:  85%|████████▍ | 25.1GB / 29.5GB            
+Jul 04  23:06:36.537
+Processing Files (0 / 1)      :  85%|████████▌ | 25.1GB / 29.5GB,  257MB/s  
+New Data Upload               :  99%|█████████▉| 22.2GB / 22.3GB,  257MB/s  
+Jul 04  23:06:36.638
+Processing Files (0 / 1)      :  85%|████████▌ | 25.2GB / 29.5GB,  258MB/s  
+New Data Upload               :  99%|█████████▉| 22.2GB / 22.4GB,  257MB/s  
+  ...8b57gpx/model.safetensors:  85%|████████▌ | 25.2GB / 29.5GB            
+Jul 04  23:06:36.839
+Processing Files (0 / 1)      :  85%|████████▌ | 25.3GB / 29.5GB,  259MB/s  
+New Data Upload               :  99%|█████████▉| 22.3GB / 22.5GB,  258MB/s  
+  ...8b57gpx/model.safetensors:  85%|████████▌ | 25.3GB / 29.5GB            
+Jul 04  23:06:36.940
+Processing Files (0 / 1)      :  86%|████████▌ | 25.3GB / 29.5GB,  260MB/s  
+
+  ...8b57gpx/model.safetensors:  86%|████████▌ | 25.3GB / 29.5GB            
+Jul 04  23:06:37.141
+Processing Files (0 / 1)      :  86%|████████▌ | 25.3GB / 29.5GB,  260MB/s  
+New Data Upload               :  99%|█████████▉| 22.4GB / 22.5GB,  259MB/s  
+  ...8b57gpx/model.safetensors:  86%|████████▌ | 25.3GB / 29.5GB            
+Jul 04  23:06:37.344
+Processing Files (0 / 1)      :  86%|████████▌ | 25.4GB / 29.5GB,  258MB/s  
+New Data Upload               :  99%|█████████▉| 22.4GB / 22.6GB,  258MB/s  
+  ...8b57gpx/model.safetensors:  86%|████████▌ | 25.4GB / 29.5GB            
+Jul 04  23:06:37.444
+New Data Upload               :  99%|█████████▉| 22.4GB / 22.6GB,  258MB/s  
+
+Jul 04  23:06:37.645
+Processing Files (0 / 1)      :  86%|████████▌ | 25.4GB / 29.5GB,  258MB/s  
+New Data Upload               :  99%|█████████▉| 22.5GB / 22.7GB,  258MB/s  
+  ...8b57gpx/model.safetensors:  86%|████████▌ | 25.4GB / 29.5GB            
+Jul 04  23:06:37.947
+Processing Files (0 / 1)      :  86%|████████▋ | 25.5GB / 29.5GB,  259MB/s  
+New Data Upload               :  99%|█████████▉| 22.6GB / 22.7GB,  258MB/s  
+  ...8b57gpx/model.safetensors:  86%|████████▋ | 25.5GB / 29.5GB            
+Jul 04  23:06:38.148
+Processing Files (0 / 1)      :  87%|████████▋ | 25.6GB / 29.5GB,  259MB/s  
+New Data Upload               :  99%|█████████▉| 22.6GB / 22.8GB,  259MB/s  
+  ...8b57gpx/model.safetensors:  87%|████████▋ | 25.6GB / 29.5GB            
+Jul 04  23:06:38.150
+Processing Files (0 / 1)      :  87%|████████▋ | 25.6GB / 29.5GB,  260MB/s  
+Jul 04  23:06:38.352
+Processing Files (0 / 1)      :  87%|████████▋ | 25.7GB / 29.5GB,  260MB/s  
+New Data Upload               :  99%|█████████▉| 22.7GB / 22.9GB,  259MB/s  
+  ...8b57gpx/model.safetensors:  87%|████████▋ | 25.7GB / 29.5GB            
+Jul 04  23:06:38.453
+New Data Upload               :  99%|█████████▉| 22.7GB / 22.9GB,  260MB/s  
+
+Jul 04  23:06:38.654
+Processing Files (0 / 1)      :  87%|████████▋ | 25.7GB / 29.5GB,  261MB/s  
+New Data Upload               :  99%|█████████▉| 22.8GB / 22.9GB,  260MB/s  
+  ...8b57gpx/model.safetensors:  87%|████████▋ | 25.7GB / 29.5GB            
+Jul 04  23:06:38.655
+Processing Files (0 / 1)      :  87%|████████▋ | 25.7GB / 29.5GB,  260MB/s  
+Jul 04  23:06:38.856
+Processing Files (0 / 1)      :  87%|████████▋ | 25.8GB / 29.5GB,  260MB/s  
+New Data Upload               :  99%|█████████▉| 22.8GB / 23.0GB,  260MB/s  
+  ...8b57gpx/model.safetensors:  87%|████████▋ | 25.8GB / 29.5GB            
+Jul 04  23:06:38.956
+Processing Files (0 / 1)      :  87%|████████▋ | 25.8GB / 29.5GB,  261MB/s  
+
+  ...8b57gpx/model.safetensors:  87%|████████▋ | 25.8GB / 29.5GB            
+Jul 04  23:06:39.057
+New Data Upload               :  99%|█████████▉| 22.9GB / 23.0GB,  261MB/s  
+
+Jul 04  23:06:39.057
+Processing Files (0 / 1)      :  88%|████████▊ | 25.8GB / 29.5GB,  260MB/s  
+Jul 04  23:06:39.158
+Processing Files (0 / 1)      :  88%|████████▊ | 25.9GB / 29.5GB,  259MB/s  
+
+  ...8b57gpx/model.safetensors:  88%|████████▊ | 25.9GB / 29.5GB            
+Jul 04  23:06:39.259
+Processing Files (0 / 1)      :  88%|████████▊ | 25.9GB / 29.5GB,  259MB/s  
+
+  ...8b57gpx/model.safetensors:  88%|████████▊ | 25.9GB / 29.5GB            
+Jul 04  23:06:39.460
+Processing Files (0 / 1)      :  88%|████████▊ | 25.9GB / 29.5GB,  258MB/s  
+New Data Upload               :  99%|█████████▉| 22.9GB / 23.1GB,  258MB/s  
+  ...8b57gpx/model.safetensors:  88%|████████▊ | 25.9GB / 29.5GB            
+Jul 04  23:06:39.461
+Processing Files (0 / 1)      :  88%|████████▊ | 25.9GB / 29.5GB,  259MB/s  
+Jul 04  23:06:39.563
+Processing Files (0 / 1)      :  88%|████████▊ | 26.0GB / 29.5GB,  259MB/s  
+
+  ...8b57gpx/model.safetensors:  88%|████████▊ | 26.0GB / 29.5GB            
+Jul 04  23:06:39.765
+Processing Files (0 / 1)      :  88%|████████▊ | 26.0GB / 29.5GB,  259MB/s  
+New Data Upload               :  99%|█████████▉| 23.0GB / 23.2GB,  258MB/s  
+  ...8b57gpx/model.safetensors:  88%|████████▊ | 26.0GB / 29.5GB            
+Jul 04  23:06:39.865
+New Data Upload               :  99%|█████████▉| 23.1GB / 23.3GB,  259MB/s  
+
+Jul 04  23:06:39.866
+Processing Files (0 / 1)      :  88%|████████▊ | 26.0GB / 29.5GB,  259MB/s  
+Jul 04  23:06:39.966
+New Data Upload               :  99%|█████████▉| 23.1GB / 23.3GB,  259MB/s  
+
+Jul 04  23:06:39.966
+Processing Files (0 / 1)      :  88%|████████▊ | 26.1GB / 29.5GB,  260MB/s  
+Jul 04  23:06:40.066
+New Data Upload               :  99%|█████████▉| 23.1GB / 23.3GB,  260MB/s  
+
+Jul 04  23:06:40.066
+  ...8b57gpx/model.safetensors:  88%|████████▊ | 26.1GB / 29.5GB            
+Jul 04  23:06:40.067
+Processing Files (0 / 1)      :  88%|████████▊ | 26.1GB / 29.5GB,  260MB/s  
+Jul 04  23:06:40.167
+New Data Upload               :  99%|█████████▉| 23.1GB / 23.3GB,  260MB/s  
+
+Jul 04  23:06:40.167
+Processing Files (0 / 1)      :  88%|████████▊ | 26.1GB / 29.5GB,  260MB/s  
+Jul 04  23:06:40.267
+New Data Upload               :  99%|█████████▉| 23.2GB / 23.3GB,  260MB/s  
+
+Jul 04  23:06:40.267
+Processing Files (0 / 1)      :  89%|████████▊ | 26.2GB / 29.5GB,  260MB/s  
+Jul 04  23:06:40.368
+New Data Upload               :  99%|█████████▉| 23.2GB / 23.4GB,  260MB/s  
+
+Jul 04  23:06:40.368
+Processing Files (0 / 1)      :  89%|████████▊ | 26.2GB / 29.5GB,  260MB/s  
+Jul 04  23:06:40.469
+New Data Upload               :  99%|█████████▉| 23.2GB / 23.4GB,  260MB/s  
+
+Jul 04  23:06:40.469
+Processing Files (0 / 1)      :  89%|████████▉ | 26.2GB / 29.5GB,  261MB/s  
+Jul 04  23:06:40.569
+New Data Upload               :  99%|█████████▉| 23.3GB / 23.4GB,  261MB/s  
+
+Jul 04  23:06:40.570
+Processing Files (0 / 1)      :  89%|████████▉ | 26.3GB / 29.5GB,  261MB/s  
+Jul 04  23:06:40.670
+New Data Upload               :  99%|█████████▉| 23.3GB / 23.5GB,  261MB/s  
+
+Jul 04  23:06:40.670
+Processing Files (0 / 1)      :  89%|████████▉ | 26.3GB / 29.5GB,  262MB/s  
+Jul 04  23:06:40.770
+New Data Upload               :  99%|█████████▉| 23.3GB / 23.5GB,  261MB/s  
+
+Jul 04  23:06:40.771
+Processing Files (0 / 1)      :  89%|████████▉ | 26.3GB / 29.5GB,  261MB/s  
+Jul 04  23:06:40.871
+New Data Upload               :  99%|█████████▉| 23.3GB / 23.5GB,  261MB/s  
+
+Jul 04  23:06:40.871
+Processing Files (0 / 1)      :  89%|████████▉ | 26.3GB / 29.5GB,  261MB/s  
+Jul 04  23:06:40.972
+New Data Upload               :  99%|█████████▉| 23.4GB / 23.5GB,  260MB/s  
+
+Jul 04  23:06:40.973
+Processing Files (0 / 1)      :  89%|████████▉ | 26.3GB / 29.5GB,  260MB/s  
+Jul 04  23:06:41.274
+Processing Files (0 / 1)      :  89%|████████▉ | 26.4GB / 29.5GB,  259MB/s  
+New Data Upload               :  99%|█████████▉| 23.4GB / 23.6GB,  259MB/s  
+  ...8b57gpx/model.safetensors:  89%|████████▉ | 26.4GB / 29.5GB            
+Jul 04  23:06:41.576
+Processing Files (0 / 1)      :  90%|████████▉ | 26.5GB / 29.5GB,  259MB/s  
+New Data Upload               :  99%|█████████▉| 23.5GB / 23.7GB,  259MB/s  
+  ...8b57gpx/model.safetensors:  90%|████████▉ | 26.5GB / 29.5GB            
+Jul 04  23:06:41.576
+Processing Files (0 / 1)      :  90%|████████▉ | 26.5GB / 29.5GB,  260MB/s  
+Jul 04  23:06:41.677
+Processing Files (0 / 1)      :  90%|████████▉ | 26.5GB / 29.5GB,  261MB/s  
+
+  ...8b57gpx/model.safetensors:  90%|████████▉ | 26.5GB / 29.5GB            
+Jul 04  23:06:41.777
+New Data Upload               :  99%|█████████▉| 23.6GB / 23.7GB,  261MB/s  
+
+Jul 04  23:06:41.777
+Processing Files (0 / 1)      :  90%|████████▉ | 26.6GB / 29.5GB,  261MB/s  
+Jul 04  23:06:41.878
+New Data Upload               :  99%|█████████▉| 23.6GB / 23.8GB,  261MB/s  
+
+Jul 04  23:06:41.878
+Processing Files (0 / 1)      :  90%|█████████ | 26.6GB / 29.5GB,  261MB/s  
+Jul 04  23:06:41.978
+New Data Upload               :  99%|█████████▉| 23.6GB / 23.8GB,  261MB/s  
+
+Jul 04  23:06:42.079
+Processing Files (0 / 1)      :  90%|█████████ | 26.7GB / 29.5GB,  262MB/s  
+New Data Upload               :  99%|█████████▉| 23.7GB / 23.8GB,  262MB/s  
+  ...8b57gpx/model.safetensors:  90%|█████████ | 26.7GB / 29.5GB            
+Jul 04  23:06:42.180
+New Data Upload               :  99%|█████████▉| 23.7GB / 23.9GB,  262MB/s  
+
+Jul 04  23:06:42.180
+Processing Files (0 / 1)      :  90%|█████████ | 26.7GB / 29.5GB,  262MB/s  
+Jul 04  23:06:42.280
+New Data Upload               :  99%|█████████▉| 23.7GB / 23.9GB,  261MB/s  
+
+Jul 04  23:06:42.281
+Processing Files (0 / 1)      :  90%|█████████ | 26.7GB / 29.5GB,  261MB/s  
+Jul 04  23:06:42.381
+Processing Files (0 / 1)      :  90%|█████████ | 26.7GB / 29.5GB,  261MB/s  
+
+  ...8b57gpx/model.safetensors:  90%|█████████ | 26.7GB / 29.5GB            
+Jul 04  23:06:42.482
+New Data Upload               :  99%|█████████▉| 23.8GB / 23.9GB,  261MB/s  
+
+Jul 04  23:06:42.582
+Processing Files (0 / 1)      :  91%|█████████ | 26.8GB / 29.5GB,  260MB/s  
+New Data Upload               :  99%|█████████▉| 23.8GB / 23.9GB,  260MB/s  
+  ...8b57gpx/model.safetensors:  91%|█████████ | 26.8GB / 29.5GB            
+Jul 04  23:06:42.683
+Processing Files (0 / 1)      :  91%|█████████ | 26.8GB / 29.5GB,  260MB/s  
+
+  ...8b57gpx/model.safetensors:  91%|█████████ | 26.8GB / 29.5GB            
+Jul 04  23:06:42.784
+New Data Upload               :  99%|█████████▉| 23.8GB / 24.0GB,  260MB/s  
+
+Jul 04  23:06:42.785
+Processing Files (0 / 1)      :  91%|█████████ | 26.8GB / 29.5GB,  260MB/s  
+Jul 04  23:06:42.886
+New Data Upload               :  99%|█████████▉| 23.9GB / 24.1GB,  260MB/s  
+
+Jul 04  23:06:43.087
+Processing Files (0 / 1)      :  91%|█████████ | 26.9GB / 29.5GB,  261MB/s  
+New Data Upload               :  99%|█████████▉| 23.9GB / 24.1GB,  260MB/s  
+  ...8b57gpx/model.safetensors:  91%|█████████ | 26.9GB / 29.5GB            
+Jul 04  23:06:43.088
+New Data Upload               :  99%|█████████▉| 23.9GB / 24.1GB,  260MB/s  
+Jul 04  23:06:43.188
+
+
+Jul 04  23:06:43.188
+Processing Files (0 / 1)      :  91%|█████████ | 26.9GB / 29.5GB,  261MB/s  
+Jul 04  23:06:43.289
+New Data Upload               :  99%|█████████▉| 24.0GB / 24.1GB,  260MB/s  
+
+Jul 04  23:06:43.289
+Processing Files (0 / 1)      :  91%|█████████▏| 27.0GB / 29.5GB,  261MB/s  
+Jul 04  23:06:43.389
+Processing Files (0 / 1)      :  91%|█████████▏| 27.0GB / 29.5GB,  261MB/s  
+
+  ...8b57gpx/model.safetensors:  91%|█████████▏| 27.0GB / 29.5GB            
+Jul 04  23:06:43.692
+Processing Files (0 / 1)      :  92%|█████████▏| 27.1GB / 29.5GB,  262MB/s  
+New Data Upload               :  99%|█████████▉| 24.1GB / 24.3GB,  262MB/s  
+  ...8b57gpx/model.safetensors:  92%|█████████▏| 27.1GB / 29.5GB            
+Jul 04  23:06:43.693
+Processing Files (0 / 1)      :  92%|█████████▏| 27.1GB / 29.5GB,  262MB/s  
+Jul 04  23:06:43.794
+New Data Upload               :  99%|█████████▉| 24.1GB / 24.3GB,  262MB/s  
+
+Jul 04  23:06:43.794
+Processing Files (0 / 1)      :  92%|█████████▏| 27.1GB / 29.5GB,  262MB/s  
+Jul 04  23:06:43.895
+New Data Upload               :  99%|█████████▉| 24.1GB / 24.3GB,  262MB/s  
+
+Jul 04  23:06:44.096
+Processing Files (0 / 1)      :  92%|█████████▏| 27.2GB / 29.5GB,  261MB/s  
+New Data Upload               :  99%|█████████▉| 24.2GB / 24.3GB,  261MB/s  
+  ...8b57gpx/model.safetensors:  92%|█████████▏| 27.2GB / 29.5GB            
+Jul 04  23:06:44.197
+Processing Files (0 / 1)      :  92%|█████████▏| 27.2GB / 29.5GB,  261MB/s  
+
+  ...8b57gpx/model.safetensors:  92%|█████████▏| 27.2GB / 29.5GB            
+Jul 04  23:06:44.599
+Processing Files (0 / 1)      :  92%|█████████▏| 27.3GB / 29.5GB,  261MB/s  
+New Data Upload               :  99%|█████████▉| 24.3GB / 24.5GB,  260MB/s  
+  ...8b57gpx/model.safetensors:  92%|█████████▏| 27.3GB / 29.5GB            
+Jul 04  23:06:44.901
+Processing Files (0 / 1)      :  93%|█████████▎| 27.4GB / 29.5GB,  261MB/s  
+New Data Upload               :  99%|█████████▉| 24.4GB / 24.6GB,  261MB/s  
+  ...8b57gpx/model.safetensors:  93%|█████████▎| 27.4GB / 29.5GB            
+Jul 04  23:06:45.102
+Processing Files (0 / 1)      :  93%|█████████▎| 27.4GB / 29.5GB,  261MB/s  
+New Data Upload               :  99%|█████████▉| 24.5GB / 24.6GB,  261MB/s  
+  ...8b57gpx/model.safetensors:  93%|█████████▎| 27.4GB / 29.5GB            
+Jul 04  23:06:45.204
+Processing Files (0 / 1)      :  93%|█████████▎| 27.5GB / 29.5GB,  261MB/s  
+
+  ...8b57gpx/model.safetensors:  93%|█████████▎| 27.5GB / 29.5GB            
+Jul 04  23:06:45.405
+Processing Files (0 / 1)      :  93%|█████████▎| 27.5GB / 29.5GB,  262MB/s  
+New Data Upload               :  99%|█████████▉| 24.5GB / 24.7GB,  261MB/s  
+  ...8b57gpx/model.safetensors:  93%|█████████▎| 27.5GB / 29.5GB            
+Jul 04  23:06:45.606
+Processing Files (0 / 1)      :  93%|█████████▎| 27.6GB / 29.5GB,  261MB/s  
+New Data Upload               :  99%|█████████▉| 24.6GB / 24.7GB,  261MB/s  
+  ...8b57gpx/model.safetensors:  93%|█████████▎| 27.6GB / 29.5GB            
+Jul 04  23:06:45.708
+Processing Files (0 / 1)      :  93%|█████████▎| 27.6GB / 29.5GB,  261MB/s  
+
+  ...8b57gpx/model.safetensors:  93%|█████████▎| 27.6GB / 29.5GB            
+Jul 04  23:06:45.808
+Processing Files (0 / 1)      :  94%|█████████▎| 27.6GB / 29.5GB,  261MB/s  
+
+  ...8b57gpx/model.safetensors:  94%|█████████▎| 27.6GB / 29.5GB            
+Jul 04  23:06:45.808
+New Data Upload               :  99%|█████████▉| 24.7GB / 24.9GB,  261MB/s  
+Jul 04  23:06:45.909
+Processing Files (0 / 1)      :  94%|█████████▎| 27.6GB / 29.5GB,  261MB/s  
+
+  ...8b57gpx/model.safetensors:  94%|█████████▎| 27.6GB / 29.5GB            
+Jul 04  23:06:46.009
+New Data Upload               :  99%|█████████▉| 24.7GB / 24.9GB,  261MB/s  
+
+Jul 04  23:06:46.010
+Processing Files (0 / 1)      :  94%|█████████▎| 27.7GB / 29.5GB,  261MB/s  
+Jul 04  23:06:46.514
+Processing Files (0 / 1)      :  94%|█████████▍| 27.8GB / 29.5GB,  262MB/s  
+New Data Upload               :  99%|█████████▉| 24.8GB / 25.0GB,  262MB/s  
+  ...8b57gpx/model.safetensors:  94%|█████████▍| 27.8GB / 29.5GB            
+Jul 04  23:06:46.514
+Processing Files (0 / 1)      :  94%|█████████▍| 27.8GB / 29.5GB,  262MB/s  
+Jul 04  23:06:46.615
+New Data Upload               :  99%|█████████▉| 24.9GB / 25.0GB,  262MB/s  
+
+Jul 04  23:06:46.817
+Processing Files (0 / 1)      :  94%|█████████▍| 27.9GB / 29.5GB,  262MB/s  
+New Data Upload               :  99%|█████████▉| 24.9GB / 25.1GB,  262MB/s  
+  ...8b57gpx/model.safetensors:  94%|█████████▍| 27.9GB / 29.5GB            
+Jul 04  23:06:46.817
+Processing Files (0 / 1)      :  94%|█████████▍| 27.9GB / 29.5GB,  263MB/s  
+Jul 04  23:06:46.918
+Processing Files (0 / 1)      :  95%|█████████▍| 27.9GB / 29.5GB,  263MB/s  
+
+  ...8b57gpx/model.safetensors:  95%|█████████▍| 27.9GB / 29.5GB            
+Jul 04  23:06:47.018
+New Data Upload               :  99%|█████████▉| 25.0GB / 25.1GB,  263MB/s  
+
+Jul 04  23:06:47.119
+Processing Files (0 / 1)      :  95%|█████████▍| 27.9GB / 29.5GB,  262MB/s  
+New Data Upload               :  99%|█████████▉| 25.0GB / 25.1GB,  262MB/s  
+Jul 04  23:06:47.119
+Processing Files (0 / 1)      :  95%|█████████▍| 28.0GB / 29.5GB,  262MB/s  
+Jul 04  23:06:47.421
+Processing Files (0 / 1)      :  95%|█████████▍| 28.0GB / 29.5GB,  261MB/s  
+New Data Upload               :  99%|█████████▉| 25.1GB / 25.3GB,  262MB/s  
+  ...8b57gpx/model.safetensors:  95%|█████████▍| 28.0GB / 29.5GB            
+Jul 04  23:06:47.521
+New Data Upload               :  99%|█████████▉| 25.1GB / 25.3GB,  261MB/s  
+
+Jul 04  23:06:47.522
+Processing Files (0 / 1)      :  95%|█████████▌| 28.1GB / 29.5GB,  262MB/s  
+Jul 04  23:06:47.723
+Processing Files (0 / 1)      :  95%|█████████▌| 28.1GB / 29.5GB,  262MB/s  
+New Data Upload               :  99%|█████████▉| 25.1GB / 25.4GB,  262MB/s  
+  ...8b57gpx/model.safetensors:  95%|█████████▌| 28.1GB / 29.5GB            
+Jul 04  23:06:47.723
+Processing Files (0 / 1)      :  95%|█████████▌| 28.1GB / 29.5GB,  261MB/s  
+Jul 04  23:06:47.924
+Processing Files (0 / 1)      :  95%|█████████▌| 28.2GB / 29.5GB,  262MB/s  
+New Data Upload               :  99%|█████████▉| 25.2GB / 25.4GB,  262MB/s  
+  ...8b57gpx/model.safetensors:  95%|█████████▌| 28.2GB / 29.5GB            
+Jul 04  23:06:48.025
+New Data Upload               :  99%|█████████▉| 25.2GB / 25.4GB,  262MB/s  
+
+Jul 04  23:06:48.025
+Processing Files (0 / 1)      :  96%|█████████▌| 28.2GB / 29.5GB,  262MB/s  
+Jul 04  23:06:48.125
+New Data Upload               :  99%|█████████▉| 25.3GB / 25.4GB,  262MB/s  
+
+Jul 04  23:06:48.126
+Processing Files (0 / 1)      :  96%|█████████▌| 28.2GB / 29.5GB,  262MB/s  
+Jul 04  23:06:48.226
+New Data Upload               :  99%|█████████▉| 25.3GB / 25.5GB,  262MB/s  
+
+Jul 04  23:06:48.226
+Processing Files (0 / 1)      :  96%|█████████▌| 28.3GB / 29.5GB,  262MB/s  
+Jul 04  23:06:48.326
+Processing Files (0 / 1)      :  96%|█████████▌| 28.3GB / 29.5GB,  263MB/s  
+
+  ...8b57gpx/model.safetensors:  96%|█████████▌| 28.3GB / 29.5GB            
+Jul 04  23:06:48.528
+Processing Files (0 / 1)      :  96%|█████████▌| 28.3GB / 29.5GB,  262MB/s  
+New Data Upload               :  99%|█████████▉| 25.4GB / 25.6GB,  262MB/s  
+  ...8b57gpx/model.safetensors:  96%|█████████▌| 28.3GB / 29.5GB            
+Jul 04  23:06:48.628
+New Data Upload               :  99%|█████████▉| 25.4GB / 25.6GB,  262MB/s  
+
+Jul 04  23:06:48.730
+Processing Files (0 / 1)      :  96%|█████████▌| 28.4GB / 29.5GB,  261MB/s  
+New Data Upload               :  99%|█████████▉| 25.4GB / 25.6GB,  261MB/s  
+  ...8b57gpx/model.safetensors:  96%|█████████▌| 28.4GB / 29.5GB            
+Jul 04  23:06:48.932
+Processing Files (0 / 1)      :  96%|█████████▌| 28.4GB / 29.5GB,  262MB/s  
+New Data Upload               :  99%|█████████▉| 25.5GB / 25.6GB,  262MB/s  
+  ...8b57gpx/model.safetensors:  96%|█████████▌| 28.4GB / 29.5GB            
+Jul 04  23:06:48.932
+Processing Files (0 / 1)      :  96%|█████████▋| 28.4GB / 29.5GB,  261MB/s  
+Jul 04  23:06:49.032
+New Data Upload               :  99%|█████████▉| 25.5GB / 25.7GB,  261MB/s  
+
+Jul 04  23:06:49.032
+Processing Files (0 / 1)      :  96%|█████████▋| 28.5GB / 29.5GB,  261MB/s  
+Jul 04  23:06:49.133
+Processing Files (0 / 1)      :  96%|█████████▋| 28.5GB / 29.5GB,  261MB/s  
+
+  ...8b57gpx/model.safetensors:  96%|█████████▋| 28.5GB / 29.5GB            
+Jul 04  23:06:49.234
+New Data Upload               :  99%|█████████▉| 25.5GB / 25.7GB,  261MB/s  
+
+Jul 04  23:06:49.234
+Processing Files (0 / 1)      :  97%|█████████▋| 28.5GB / 29.5GB,  261MB/s  
+Jul 04  23:06:49.334
+New Data Upload               :  99%|█████████▉| 25.6GB / 25.8GB,  261MB/s  
+
+Jul 04  23:06:49.335
+  ...8b57gpx/model.safetensors:  97%|█████████▋| 28.5GB / 29.5GB            
+Jul 04  23:06:49.437
+Processing Files (0 / 1)      :  97%|█████████▋| 28.5GB / 29.5GB,  261MB/s  
+New Data Upload               :  99%|█████████▉| 25.6GB / 25.8GB,  261MB/s  
+Jul 04  23:06:49.438
+Processing Files (0 / 1)      :  97%|█████████▋| 28.6GB / 29.5GB,  261MB/s  
+Jul 04  23:06:49.538
+Processing Files (0 / 1)      :  97%|█████████▋| 28.6GB / 29.5GB,  261MB/s  
+
+  ...8b57gpx/model.safetensors:  97%|█████████▋| 28.6GB / 29.5GB            
+Jul 04  23:06:49.639
+New Data Upload               :  99%|█████████▉| 25.6GB / 25.8GB,  261MB/s  
+
+Jul 04  23:06:49.639
+Processing Files (0 / 1)      :  97%|█████████▋| 28.6GB / 29.5GB,  261MB/s  
+Jul 04  23:06:50.041
+Processing Files (0 / 1)      :  97%|█████████▋| 28.7GB / 29.5GB,  261MB/s  
+New Data Upload               :  99%|█████████▉| 25.7GB / 26.0GB,  261MB/s  
+  ...8b57gpx/model.safetensors:  97%|█████████▋| 28.7GB / 29.5GB            
+Jul 04  23:06:50.043
+Processing Files (0 / 1)      :  97%|█████████▋| 28.7GB / 29.5GB,  262MB/s  
+Jul 04  23:06:50.143
+New Data Upload               :  99%|█████████▉| 25.8GB / 26.0GB,  262MB/s  
+
+Jul 04  23:06:50.244
+Processing Files (0 / 1)      :  97%|█████████▋| 28.8GB / 29.5GB,  261MB/s  
+New Data Upload               :  99%|█████████▉| 25.8GB / 26.0GB,  261MB/s  
+  ...8b57gpx/model.safetensors:  97%|█████████▋| 28.8GB / 29.5GB            
+Jul 04  23:06:50.345
+New Data Upload               :  99%|█████████▉| 25.8GB / 26.0GB,  261MB/s  
+
+Jul 04  23:06:50.345
+Processing Files (0 / 1)      :  98%|█████████▊| 28.8GB / 29.5GB,  261MB/s  
+Jul 04  23:06:50.647
+Processing Files (0 / 1)      :  98%|█████████▊| 28.9GB / 29.5GB,  262MB/s  
+New Data Upload               :  99%|█████████▉| 25.9GB / 26.1GB,  262MB/s  
+  ...8b57gpx/model.safetensors:  98%|█████████▊| 28.9GB / 29.5GB            
+Jul 04  23:06:50.648
+Processing Files (0 / 1)      :  98%|█████████▊| 28.9GB / 29.5GB,  263MB/s  
+Jul 04  23:06:50.749
+Processing Files (0 / 1)      :  98%|█████████▊| 28.9GB / 29.5GB,  263MB/s  
+
+  ...8b57gpx/model.safetensors:  98%|█████████▊| 28.9GB / 29.5GB            
+Jul 04  23:06:51.252
+Processing Files (0 / 1)      :  98%|█████████▊| 29.0GB / 29.5GB,  262MB/s  
+New Data Upload               :  99%|█████████▉| 26.1GB / 26.2GB,  261MB/s  
+  ...8b57gpx/model.safetensors:  98%|█████████▊| 29.0GB / 29.5GB            
+Jul 04  23:06:51.253
+Processing Files (0 / 1)      :  98%|█████████▊| 29.0GB / 29.5GB,  261MB/s  
+Jul 04  23:06:51.354
+Processing Files (0 / 1)      :  98%|█████████▊| 29.1GB / 29.5GB,  261MB/s  
+
+  ...8b57gpx/model.safetensors:  98%|█████████▊| 29.1GB / 29.5GB            
+Jul 04  23:06:51.454
+New Data Upload               :  99%|█████████▉| 26.1GB / 26.3GB,  261MB/s  
+
+Jul 04  23:06:51.455
+Processing Files (0 / 1)      :  99%|█████████▊| 29.1GB / 29.5GB,  262MB/s  
+Jul 04  23:06:51.555
+New Data Upload               :  99%|█████████▉| 26.2GB / 26.3GB,  262MB/s  
+
+Jul 04  23:06:51.556
+Processing Files (0 / 1)      :  99%|█████████▊| 29.1GB / 29.5GB,  262MB/s  
+Jul 04  23:06:51.657
+Processing Files (0 / 1)      :  99%|█████████▊| 29.1GB / 29.5GB,  261MB/s  
+
+  ...8b57gpx/model.safetensors:  99%|█████████▊| 29.1GB / 29.5GB            
+Jul 04  23:06:51.859
+Processing Files (0 / 1)      :  99%|█████████▊| 29.2GB / 29.5GB,  260MB/s  
+New Data Upload               :  99%|█████████▉| 26.2GB / 26.4GB,  260MB/s  
+  ...8b57gpx/model.safetensors:  99%|█████████▊| 29.2GB / 29.5GB            
+Jul 04  23:06:51.860
+Processing Files (0 / 1)      :  99%|█████████▉| 29.2GB / 29.5GB,  260MB/s  
+Jul 04  23:06:51.960
+New Data Upload               :  99%|█████████▉| 26.2GB / 26.4GB,  260MB/s  
+
+Jul 04  23:06:52.161
+Processing Files (0 / 1)      :  99%|█████████▉| 29.2GB / 29.5GB,  261MB/s  
+New Data Upload               :  99%|█████████▉| 26.3GB / 26.5GB,  260MB/s  
+  ...8b57gpx/model.safetensors:  99%|█████████▉| 29.2GB / 29.5GB            
+Jul 04  23:06:52.264
+Processing Files (0 / 1)      :  99%|█████████▉| 29.3GB / 29.5GB,  261MB/s  
+New Data Upload               :  99%|█████████▉| 26.3GB / 26.5GB,  261MB/s  
+Jul 04  23:06:52.264
+Processing Files (0 / 1)      :  99%|█████████▉| 29.3GB / 29.5GB,  261MB/s  
+Jul 04  23:06:52.365
+Processing Files (0 / 1)      :  99%|█████████▉| 29.3GB / 29.5GB,  261MB/s  
+
+  ...8b57gpx/model.safetensors:  99%|█████████▉| 29.3GB / 29.5GB            
+Jul 04  23:06:52.465
+Processing Files (0 / 1)      :  99%|█████████▉| 29.4GB / 29.5GB,  262MB/s  
+
+  ...8b57gpx/model.safetensors:  99%|█████████▉| 29.4GB / 29.5GB            
+Jul 04  23:06:52.566
+Processing Files (0 / 1)      : 100%|█████████▉| 29.4GB / 29.5GB,  262MB/s  
+
+  ...8b57gpx/model.safetensors: 100%|█████████▉| 29.4GB / 29.5GB            
+Jul 04  23:06:52.667
+Processing Files (0 / 1)      : 100%|█████████▉| 29.4GB / 29.5GB,  262MB/s  
+
+  ...8b57gpx/model.safetensors: 100%|█████████▉| 29.4GB / 29.5GB            
+Jul 04  23:06:52.768
+New Data Upload               : 100%|█████████▉| 26.5GB / 26.6GB,  262MB/s  
+
+Jul 04  23:06:52.768
+  ...8b57gpx/model.safetensors: 100%|█████████▉| 29.5GB / 29.5GB            
+Jul 04  23:06:52.768
+Processing Files (0 / 1)      : 100%|█████████▉| 29.5GB / 29.5GB,  263MB/s  
+Jul 04  23:06:53.069
+Processing Files (0 / 1)      : 100%|█████████▉| 29.5GB / 29.5GB,  262MB/s  
+New Data Upload               : 100%|█████████▉| 26.5GB / 26.6GB,  262MB/s  
+  ...8b57gpx/model.safetensors: 100%|█████████▉| 29.5GB / 29.5GB            
+Jul 04  23:06:53.070
+Processing Files (0 / 1)      : 100%|█████████▉| 29.5GB / 29.5GB,  261MB/s  
+Jul 04  23:06:53.170
+New Data Upload               : 100%|█████████▉| 26.6GB / 26.6GB,  261MB/s  
+
+Jul 04  23:06:53.170
+Processing Files (0 / 1)      : 100%|█████████▉| 29.5GB / 29.5GB,  260MB/s  
+Jul 04  23:06:53.271
+New Data Upload               : 100%|█████████▉| 26.6GB / 26.6GB,  260MB/s  
+
+Jul 04  23:06:53.373
+Processing Files (0 / 1)      : 100%|█████████▉| 29.5GB / 29.5GB,  259MB/s  
+New Data Upload               : 100%|█████████▉| 26.6GB / 26.6GB,  259MB/s  
+Jul 04  23:06:53.374
+Processing Files (0 / 1)      : 100%|█████████▉| 29.5GB / 29.5GB,  257MB/s  
+Jul 04  23:06:53.474
+New Data Upload               : 100%|█████████▉| 26.6GB / 26.6GB,  257MB/s  
+
+Jul 04  23:06:53.475
+Processing Files (0 / 1)      : 100%|█████████▉| 29.5GB / 29.5GB,  255MB/s  
+Jul 04  23:06:53.576
+New Data Upload               : 100%|█████████▉| 26.6GB / 26.6GB,  255MB/s  
+
+Jul 04  23:06:53.779
+  ...8b57gpx/model.safetensors: 100%|█████████▉| 29.5GB / 29.5GB            
+
+  ...8b57gpx/model.safetensors: 100%|█████████▉| 29.5GB / 29.5GB            
+Jul 04  23:06:53.880
+  ...8b57gpx/model.safetensors: 100%|█████████▉| 29.5GB / 29.5GB            
+
+Jul 04  23:06:54.182
+Processing Files (1 / 1)      : 100%|██████████| 29.5GB / 29.5GB,  247MB/s  
+New Data Upload               : 100%|██████████| 26.6GB / 26.6GB,  246MB/s  
+  ...8b57gpx/model.safetensors: 100%|██████████| 29.5GB / 29.5GB            
+Jul 04  23:06:54.283
+  ...8b57gpx/model.safetensors: 100%|██████████| 29.5GB / 29.5GB            
+
+Jul 04  23:06:54.384
+  ...8b57gpx/model.safetensors: 100%|██████████| 29.5GB / 29.5GB            
+
+Jul 04  23:06:54.485
+  ...8b57gpx/model.safetensors: 100%|██████████| 29.5GB / 29.5GB            
+
+Jul 04  23:06:54.688
+  ...8b57gpx/model.safetensors: 100%|██████████| 29.5GB / 29.5GB            
+
+  ...8b57gpx/model.safetensors: 100%|██████████| 29.5GB / 29.5GB            
+Jul 04  23:06:54.991
+  ...8b57gpx/model.safetensors: 100%|██████████| 29.5GB / 29.5GB            
+
+  ...8b57gpx/model.safetensors: 100%|██████████| 29.5GB / 29.5GB            
+Jul 04  23:06:55.092
+  ...8b57gpx/model.safetensors: 100%|██████████| 29.5GB / 29.5GB            
+
+Jul 04  23:06:55.194
+  ...8b57gpx/model.safetensors: 100%|██████████| 29.5GB / 29.5GB            
+
+Jul 04  23:06:55.296
+  ...8b57gpx/model.safetensors: 100%|██████████| 29.5GB / 29.5GB            
+
+Jul 04  23:06:55.397
+  ...8b57gpx/model.safetensors: 100%|██████████| 29.5GB / 29.5GB            
+
+Jul 04  23:06:55.600
+  ...8b57gpx/model.safetensors: 100%|██████████| 29.5GB / 29.5GB            
+
+  ...8b57gpx/model.safetensors: 100%|██████████| 29.5GB / 29.5GB            
+Jul 04  23:06:55.768
+Processing Files (1 / 1)      : 100%|██████████| 29.5GB / 29.5GB,  218MB/s  
+
+  ...8b57gpx/model.safetensors: 100%|██████████| 29.5GB / 29.5GB            
+Jul 04  23:06:55.768
+New Data Upload               : 100%|██████████| 26.6GB / 26.6GB,  218MB/s  
+Jul 04  23:06:55.768
+  ...8b57gpx/model.safetensors: 100%|██████████| 29.5GB / 29.5GB            
+Jul 04  23:06:59.054
+Processing Files (0 / 0)      : |          |  0.00B /  0.00B            
+New Data Upload               : |          |  0.00B /  0.00B            
+Jul 04  23:06:59.056
+  ...mpr_r7wyh6/tokenizer.json: 100%|██████████| 11.4MB / 11.4MB            
+
+Jul 04  23:06:59.257
+Processing Files (1 / 1)      : 100%|██████████| 11.4MB / 11.4MB,   ???B/s  
+
+  ...mpr_r7wyh6/tokenizer.json: 100%|██████████| 11.4MB / 11.4MB            
+Jul 04  23:06:59.358
+  ...mpr_r7wyh6/tokenizer.json: 100%|██████████| 11.4MB / 11.4MB            
+
+Jul 04  23:06:59.560
+  ...mpr_r7wyh6/tokenizer.json: 100%|██████████| 11.4MB / 11.4MB            
+
+  ...mpr_r7wyh6/tokenizer.json: 100%|██████████| 11.4MB / 11.4MB            
+Jul 04  23:06:59.661
+  ...mpr_r7wyh6/tokenizer.json: 100%|██████████| 11.4MB / 11.4MB            
+
+Jul 04  23:06:59.863
+  ...mpr_r7wyh6/tokenizer.json: 100%|██████████| 11.4MB / 11.4MB            
+
+  ...mpr_r7wyh6/tokenizer.json: 100%|██████████| 11.4MB / 11.4MB            
+Jul 04  23:06:59.964
+  ...mpr_r7wyh6/tokenizer.json: 100%|██████████| 11.4MB / 11.4MB            
+
+Jul 04  23:07:00.060
+  ...mpr_r7wyh6/tokenizer.json: 100%|██████████| 11.4MB / 11.4MB            
+
+Jul 04  23:07:00.060
+Processing Files (1 / 1)      : 100%|██████████| 11.4MB / 11.4MB, 1.03MB/s  
+Jul 04  23:07:00.060
+New Data Upload               : |          |  0.00B /  0.00B,  0.00B/s  
+Jul 04  23:07:00.060
+  ...mpr_r7wyh6/tokenizer.json: 100%|██████████| 11.4MB / 11.4MB            
+Jul 04  23:07:00.796
+✨ Success: Pushed fine-tuned models to Hugging Face Hub repositories!
