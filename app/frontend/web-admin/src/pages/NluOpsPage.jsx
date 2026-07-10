@@ -103,6 +103,7 @@ function NluOpsPage() {
 
   // Model status state
   const [isTraining, setIsTraining] = useState(false);
+  const [trainProgressInfo, setTrainProgressInfo] = useState(null);
   const [isLlmTraining, setIsLlmTraining] = useState(false);
   const [llmTrainParams, setLlmTrainParams] = useState({
     epochs: 3,
@@ -188,6 +189,7 @@ function NluOpsPage() {
         setLayer1Rules(overridesData);
         setAggregations(aggregationsData.map(item => ({ ...item, approved: false })));
         setIsTraining(statusData.training_active);
+        setTrainProgressInfo(statusData);
         setModelMeta(metaData);
         setTrainHistory(historyData);
         setInferenceBackend(backendData?.backend || metaData?.inferenceBackend || "tfidf");
@@ -212,6 +214,7 @@ function NluOpsPage() {
       intervalId = setInterval(() => {
         getNluTrainStatus()
           .then((data) => {
+            setTrainProgressInfo(data);
             if (!data.training_active) {
               setIsTraining(false);
               showToast("Model retraining completed successfully!");
@@ -220,7 +223,7 @@ function NluOpsPage() {
             }
           })
           .catch(() => {});
-      }, 10000);
+      }, 3000);
     }
     return () => {
       if (intervalId) clearInterval(intervalId);
@@ -550,7 +553,9 @@ function NluOpsPage() {
               height: "8px",
               borderRadius: "50%"
             }}></span>
-            {(isTraining || isLlmTraining) ? "Retraining..." : "Sẵn sàng"}
+            {(isTraining || isLlmTraining) 
+              ? `${trainProgressInfo?.message || "Đang Retraining..."}${trainProgressInfo?.elapsed_seconds ? ` (${trainProgressInfo.elapsed_seconds}s)` : ""}`
+              : "Sẵn sàng"}
           </span>
         </div>
       </div>
