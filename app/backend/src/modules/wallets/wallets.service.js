@@ -95,16 +95,16 @@ async function create(userId, payload) {
       `INSERT INTO wallet_members (wallet_id, user_id, role) VALUES ($1, $2, 'owner')`,
       [w.rows[0].id, userId]
     );
-    
+
     if (balance > 0) {
       await client.query(
         `INSERT INTO transactions
-           (wallet_id, creator_id, amount, type, source, note, occurred_at)
-         VALUES ($1, $2, $3, 'income', 'manual', 'Số dư ban đầu', NOW())`,
+           (wallet_id, creator_id, amount, type, category_code, source, note, occurred_at)
+         VALUES ($1, $2, $3, 'income', 'Other', 'manual', 'Số dư ban đầu', NOW())`,
         [w.rows[0].id, userId, balance]
       );
     }
-    
+
     return row({ ...w.rows[0], member_role: 'owner', balance });
   });
 }
@@ -197,9 +197,20 @@ async function removeMember(userId, walletId, memberId) {
   if (r.rowCount === 0) throw ApiError.notFound('Member not found.');
 }
 
+async function leaveWallet(userId, walletId) {
+  const role = await assertMember(walletId, userId);
+  if (role === 'owner') {
+    throw ApiError.badRequest('Chủ ví không thể tự rời. Hãy chuyển quyền sở hữu hoặc xóa ví.');
+  }
+  await query(
+    `DELETE FROM wallet_members WHERE wallet_id = $1 AND user_id = $2`,
+    [walletId, userId]
+  );
+}
+
 async function generateInviteCode(userId, walletId) {
   await assertMember(walletId, userId, ['owner']);
-  
+
   // Check if there is an existing active invite code for this wallet
   const existing = await query(
     `SELECT code FROM wallet_invite_codes 
@@ -222,7 +233,7 @@ async function generateInviteCode(userId, walletId) {
     }
     retries++;
   }
-  
+
   const r = await query(
     `INSERT INTO wallet_invite_codes (wallet_id, code, created_by)
      VALUES ($1, $2, $3)
@@ -243,7 +254,7 @@ async function joinByInviteCode(userId, code) {
     throw ApiError.badRequest('Mã mời không hợp lệ hoặc đã hết hạn.');
   }
   const invite = r.rows[0];
-  
+
   // Add user as member to the wallet
   await query(
     `INSERT INTO wallet_members (wallet_id, user_id, role)
@@ -271,10 +282,10 @@ async function joinByInviteCode(userId, code) {
 
 async function transferBetweenWallets(userId, fromWalletId, toWalletId, amount) {
   if (amount <= 0) throw ApiError.badRequest('Số tiền chuyển phải lớn hơn 0.');
-  
+
   await assertMember(fromWalletId, userId, ['owner', 'member']);
   await assertMember(toWalletId, userId, ['owner', 'member']);
-  
+
   return withTransaction(async (client) => {
     const fromWalletRes = await client.query('SELECT balance, name FROM wallets WHERE id = $1', [fromWalletId]);
     if (fromWalletRes.rowCount === 0) throw ApiError.notFound('Ví chuyển không tồn tại.');
@@ -318,6 +329,7 @@ module.exports = {
   addMember,
   inviteMember,
   removeMember,
+  leaveWallet,
   generateInviteCode,
   joinByInviteCode,
   transferBetweenWallets,

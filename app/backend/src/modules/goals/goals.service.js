@@ -2,13 +2,23 @@
 
 const { query } = require('../../config/db');
 const ApiError = require('../../utils/ApiError');
+const crypto = require('crypto');
 
 async function list(userId, type) {
+  let whereType = '';
+  if (type === 'challenge') {
+    whereType = " AND g.type LIKE 'challenge%'";
+  } else if (type === 'personal' || type === 'savings') {
+    whereType = " AND (g.type IS NULL OR g.type NOT LIKE 'challenge%')";
+  }
+
   const r = await query(
-    `SELECT DISTINCT g.* FROM goals g
+    `SELECT DISTINCT g.*, w.name AS wallet_name, w.type AS wallet_type FROM goals g
+     LEFT JOIN wallets w ON w.id = g.wallet_id
      LEFT JOIN wallet_members wm ON wm.wallet_id = g.wallet_id AND wm.user_id = $1
      LEFT JOIN goal_members gm ON gm.goal_id = g.id AND gm.user_id = $1
-     WHERE (g.user_id = $1 OR wm.user_id IS NOT NULL OR gm.user_id IS NOT NULL) AND g.status != 'cancelled'
+     WHERE (g.user_id = $1 OR wm.user_id IS NOT NULL OR gm.user_id IS NOT NULL)
+       AND g.status != 'cancelled'${whereType}
      ORDER BY g.created_at DESC`,
     [userId]
   );
@@ -59,27 +69,78 @@ async function getById(userId, goalId) {
     [goalId]
   );
 
-  // Fetch top 3 contributors
-  const tops = await query(
-    `SELECT u.username, u.avatar_url AS "avatarUrl", SUM(gc.amount)::numeric AS total
+  // Fetch all contributors for leaderboard
+  const allContribs = await query(
+    `SELECT u.id AS "userId", u.username, u.avatar_url AS "avatarUrl", COALESCE(SUM(gc.amount), 0)::numeric AS total
      FROM goal_contributions gc
      JOIN users u ON u.id = gc.user_id
      WHERE gc.goal_id = $1
      GROUP BY u.id, u.username, u.avatar_url
-     ORDER BY total DESC
-     LIMIT 3`,
+     ORDER BY total DESC`,
     [goalId]
   );
+
+  const targetAmount = Number(goal.target_amount) || 1;
+  const contributorLeaderboard = allContribs.rows.map((t, idx) => {
+    const total = Number(t.total);
+    return {
+      rank: idx + 1,
+      userId: t.userId,
+      username: t.username,
+      avatarUrl: t.avatarUrl,
+      totalContributed: total,
+      percentage: Math.min(100, Math.round((total / targetAmount) * 100)),
+    };
+  });
+
+  // Fetch challenge progress leaderboard from goal_members
+  const challengeProgressRes = await query(
+    `SELECT gm.user_id AS "userId", u.username, u.avatar_url AS "avatarUrl", gm.role,
+            COALESCE(gm.current_amount, 0)::numeric AS "currentAmount", gm.status, gm.completed_at AS "completedAt"
+     FROM goal_members gm
+     JOIN users u ON u.id = gm.user_id
+     WHERE gm.goal_id = $1
+     ORDER BY COALESCE(gm.current_amount, 0) DESC, gm.completed_at ASC NULLS LAST`,
+    [goalId]
+  );
+
+  const progressLeaderboard = challengeProgressRes.rows.map((row, idx) => {
+    const curr = Number(row.currentAmount);
+    const pct = Math.min(100, Math.round((curr / targetAmount) * 100));
+    return {
+      rank: idx + 1,
+      userId: row.userId,
+      username: row.username,
+      avatarUrl: row.avatarUrl,
+      role: row.role,
+      currentAmount: curr,
+      targetAmount,
+      percentage: pct,
+      status: row.status || (curr >= targetAmount ? 'completed' : 'active'),
+      completedAt: row.completedAt,
+    };
+  });
+
+  const myProgress = progressLeaderboard.find((m) => String(m.userId) === String(userId)) || {
+    userId,
+    currentAmount: 0,
+    targetAmount,
+    percentage: 0,
+    status: 'active',
+  };
 
   return {
     ...goal,
     inviteCode: goal.invite_code,
-    target_amount: Number(goal.target_amount),
+    target_amount: targetAmount,
     current_amount: Number(goal.current_amount),
     walletName: goal.wallet_name,
     walletType: goal.wallet_type,
     walletMembers,
     goalMembers: gMems.rows,
+    contributorLeaderboard,
+    progressLeaderboard,
+    myProgress,
     contributions: contribs.rows.map((c) => ({
       id: c.id,
       amount: Number(c.amount),
@@ -87,18 +148,21 @@ async function getById(userId, goalId) {
       username: c.username,
       avatarUrl: c.avatarUrl,
     })),
-    topContributors: tops.rows.map((t) => ({
+    topContributors: contributorLeaderboard.slice(0, 3).map((t) => ({
       username: t.username,
       avatarUrl: t.avatarUrl,
-      total: Number(t.total),
+      total: t.totalContributed,
     })),
   };
 }
 
 async function create(userId, payload) {
+  const type = payload.type || 'personal';
+  const isGroup = payload.isGroup === true || type === 'saving_group' || type === 'challenge_group';
+  const inviteCode = isGroup ? crypto.randomBytes(3).toString('hex').toUpperCase() : null;
   const r = await query(
-    `INSERT INTO goals (user_id, wallet_id, name, target_amount, emoji, deadline)
-     VALUES ($1, $2, $3, $4, $5, $6)
+    `INSERT INTO goals (user_id, wallet_id, name, target_amount, emoji, deadline, type, invite_code)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
      RETURNING *`,
     [
       userId,
@@ -107,6 +171,8 @@ async function create(userId, payload) {
       payload.targetAmount,
       payload.emoji || null,
       payload.deadline || null,
+      type,
+      inviteCode,
     ]
   );
   const goal = r.rows[0];
@@ -156,12 +222,21 @@ async function remove(userId, goalId) {
   if (r.rowCount === 0) throw ApiError.notFound('Goal not found.');
 }
 
+async function leaveGoal(userId, goalId) {
+  const goal = await getById(userId, goalId);
+  if (goal.user_id === userId) {
+    throw ApiError.badRequest('Chủ mục tiêu không thể rời. Hãy xóa mục tiêu.');
+  }
+  await query(
+    `DELETE FROM goal_members WHERE goal_id = $1 AND user_id = $2`,
+    [goalId, userId]
+  );
+}
+
 const transactionService = require('../transactions/transactions.service');
 
 async function contribute(userId, goalId, amount) {
   const goal = await getById(userId, goalId);
-  const newAmount = goal.current_amount + amount;
-  const status = newAmount >= goal.target_amount ? 'completed' : 'active';
 
   await query(
     `INSERT INTO goal_contributions (goal_id, user_id, amount)
@@ -169,20 +244,42 @@ async function contribute(userId, goalId, amount) {
     [goalId, userId, amount]
   );
 
+  let myCurrentAmount = 0;
+  if (goal.type === 'challenge') {
+    const memRes = await query(
+      `INSERT INTO goal_members (goal_id, user_id, role, current_amount)
+       VALUES ($1, $2, 'member', $3)
+       ON CONFLICT (goal_id, user_id)
+       DO UPDATE SET current_amount = goal_members.current_amount + EXCLUDED.current_amount,
+                     status = CASE WHEN goal_members.current_amount + EXCLUDED.current_amount >= $4 THEN 'completed' ELSE goal_members.status END,
+                     completed_at = CASE WHEN goal_members.current_amount + EXCLUDED.current_amount >= $4 AND goal_members.completed_at IS NULL THEN NOW() ELSE goal_members.completed_at END
+       RETURNING current_amount`,
+      [goalId, userId, amount, Number(goal.target_amount)]
+    );
+    myCurrentAmount = Number(memRes.rows[0]?.current_amount || amount);
+  }
+
   const r = await query(
-    `UPDATE goals SET current_amount = $2, status = $3, updated_at = NOW()
-     WHERE id = $1 RETURNING *`,
-    [goalId, newAmount, status]
+    `UPDATE goals
+     SET current_amount = current_amount + $2,
+         status = CASE WHEN current_amount + $2 >= target_amount THEN 'completed' ELSE status END,
+         updated_at = NOW()
+     WHERE id = $1
+     RETURNING *`,
+    [goalId, amount]
   );
 
-  return r.rows[0];
+  const updatedGoal = r.rows[0];
+  return {
+    ...updatedGoal,
+    myCurrentAmount: goal.type === 'challenge' ? myCurrentAmount : Number(updatedGoal.current_amount),
+  };
 }
-
-const crypto = require('crypto');
 
 async function generateInviteCode(userId, goalId) {
   const goal = await getById(userId, goalId);
-  if (goal.inviteCode) return { inviteCode: goal.inviteCode };
+  const existingCode = goal.invite_code || goal.inviteCode;
+  if (existingCode) return { inviteCode: existingCode };
 
   const inviteCode = crypto.randomBytes(3).toString('hex').toUpperCase();
   await query(
@@ -216,6 +313,7 @@ module.exports = {
   create,
   update,
   remove,
+  leaveGoal,
   contribute,
   generateInviteCode,
   joinByInviteCode,

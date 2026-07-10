@@ -4,7 +4,7 @@ const asyncHandler = require('../../utils/asyncHandler');
 const service = require('./goals.service');
 
 exports.list = asyncHandler(async (req, res) => {
-  const data = await service.list(req.user.id);
+  const data = await service.list(req.user.id, req.query.type);
   res.json({ success: true, data });
 });
 
@@ -28,6 +28,11 @@ exports.remove = asyncHandler(async (req, res) => {
   res.json({ success: true });
 });
 
+exports.leaveGoal = asyncHandler(async (req, res) => {
+  await service.leaveGoal(req.user.id, req.params.id);
+  res.json({ success: true });
+});
+
 exports.contribute = asyncHandler(async (req, res) => {
   const data = await service.contribute(req.user.id, req.params.id, req.body.amount);
   res.json({ success: true, data });
@@ -41,5 +46,12 @@ exports.generateInviteCode = asyncHandler(async (req, res) => {
 exports.joinByInviteCode = asyncHandler(async (req, res) => {
   const data = await service.joinByInviteCode(req.user.id, req.body.inviteCode);
   res.json({ success: true, data });
+});
+
+const { runFinancialToolsReminders } = require('../../cron/financialToolsReminder.cron');
+
+exports.triggerReminders = asyncHandler(async (req, res) => {
+  const stats = await runFinancialToolsReminders();
+  res.json({ success: true, data: stats });
 });
 

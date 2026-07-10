@@ -491,6 +491,11 @@ async function _fetchWalletProfile(userId, walletId) {
         days_to_payday,
         weather,
       };
+      
+      if (row.wallet_type === 'shared') {
+        data.group_analytics_prompt = 'Bạn đang xem xét báo cáo của Ví Nhóm. Hãy sử dụng văn phong tập thể, nhắc nhở các thành viên trong nhóm về việc chi tiêu, đóng quỹ và các sự kiện chung. Phân tích phải tập trung vào việc chia sẻ chi phí (Split) và dòng tiền của nhóm (Settlement).';
+      }
+      
       walletProfileCache.set(cacheKey, { data, expiresAt: now + 30000 });
       return data;
     }
@@ -565,6 +570,210 @@ async function expenseFromText(userId, payload) {
   };
 }
 
+async function expenseFromTextAsync(userId, payload) {
+  // Create PENDING placeholder transaction immediately
+  const pendingTx = await query(
+    `INSERT INTO transactions
+       (wallet_id, creator_id, amount, type, source, processing_status, occurred_at)
+     VALUES ($1, $2, 0, 'expense', 'text', 'pending', NOW())
+     RETURNING id`,
+    [payload.walletId, userId]
+  );
+  const transactionId = pendingTx.rows[0].id;
+
+  // Run in background
+  setImmediate(() => _processTextBackground(userId, transactionId, payload));
+
+  return { transactionId, status: 'pending' };
+}
+
+async function _processTextBackground(userId, transactionId, payload) {
+  const { sendToUser } = require('../../services/wsHub');
+  try {
+    let profile = await _fetchWalletProfile(userId, payload.walletId);
+    let emotion = null;
+    let username = 'bạn';
+    if (userId) {
+      try {
+        const userRes = await query('SELECT username FROM users WHERE id = $1', [userId]);
+        if (userRes.rows[0]?.username) {
+          username = userRes.rows[0].username;
+        }
+        const settingsRes = await query('SELECT verbal_style FROM user_settings WHERE user_id = $1', [userId]);
+        const verbalStyle = settingsRes.rows[0]?.verbal_style || 'funny';
+        emotion = mapVerbalStyleToEmotion(verbalStyle);
+      } catch (_) {}
+    }
+    if (!profile) {
+      profile = { username };
+    } else {
+      profile.username = username;
+    }
+    const userCorrections = userId ? await _fetchUserCorrections(userId) : [];
+    const aiResponse = await aiClient.expenseFromText({
+      text: payload.text,
+      user_id: userId,
+      profile,
+      run_llm: true,
+      emotion,
+      user_corrections: userCorrections,
+    });
+    await logAi(userId, 'expense_from_text', payload, aiResponse, {
+      backend: aiResponse.nlu?.backend,
+      latency_ms: aiResponse.latency_ms,
+      confidence: aiResponse.extracted?.confidence,
+    });
+
+    const extracted = aiResponse.extracted || {};
+    const isRecord = aiResponse.nlu?.intent === 'Record';
+    
+    // Auto-save logic: If it's a Record intent, high confidence, and no missing category
+    const confidence = extracted.confidence ?? 0;
+    const isCertain = isRecord && !aiResponse.requires_category_selection && extracted.amount && extracted.amount > 0 && confidence > 0.8;
+    const needsReview = !isCertain;
+
+    const finalAmount = extracted.amount && extracted.amount > 0 ? extracted.amount : 0;
+    const recordType = extracted.record_type === 'Income' ? 'income' : 'expense';
+    let finalCategoryCode = extracted.category || 'Others';
+
+    if (extracted.category) {
+      const normalizedMap = {
+        'Food': 'Food & Drink',
+        'Transport': 'Transportation',
+        'Others': 'Other',
+      };
+      const mappedCategory = normalizedMap[extracted.category] || extracted.category;
+      const catRes = await query(
+        `SELECT id, code FROM categories 
+         WHERE (LOWER(code) = LOWER($1) OR LOWER(name) = LOWER($1) OR LOWER(code) = LOWER($2) OR LOWER(name) = LOWER($2))
+           AND (owner_id IS NULL OR owner_id = $3)
+         ORDER BY owner_id NULLS FIRST LIMIT 1`,
+        [extracted.category, mappedCategory, userId]
+      );
+      if (catRes.rows[0]) {
+        finalCategoryCode = catRes.rows[0].code;
+      } else {
+        finalCategoryCode = mappedCategory;
+      }
+    }
+
+    const aiMeta = {
+      nlu: aiResponse.nlu,
+      requires_category_selection: aiResponse.requires_category_selection,
+    };
+
+    const finalStatus = needsReview ? 'pending_review' : 'completed';
+
+    await query('BEGIN');
+    
+    // Update the pending transaction
+    await query(
+      `UPDATE transactions
+       SET amount = $1, type = $2, category_code = $3, note = $4,
+           ai_extracted = TRUE, ai_confidence = $5, ai_meta = $6,
+           processing_status = $7,
+           is_draft = $8,
+           updated_at = NOW()
+       WHERE id = $9`,
+      [
+        finalAmount,
+        recordType,
+        finalCategoryCode,
+        extracted.note || payload.text,
+        extracted.confidence ?? null,
+        aiMeta,
+        finalStatus,
+        needsReview, // Draft if needs review
+        transactionId
+      ]
+    );
+
+    // If completed (auto-saved), create story items
+    if (!needsReview) {
+      // Find wallet name
+      let sourceName = 'Ví cá nhân';
+      if (payload.walletId) {
+        const walletRes = await query('SELECT name FROM wallets WHERE id = $1', [payload.walletId]);
+        if (walletRes.rows[0]) sourceName = walletRes.rows[0].name;
+      }
+      const isIncome = recordType === 'income';
+      const summaryText = `${isIncome ? 'Thu' : 'Chi'} ${finalAmount.toLocaleString('vi-VN')}đ cho ${finalCategoryCode}`;
+
+      const storyRes = await query(
+        `INSERT INTO stories (user_id, wallet_id, type)
+         VALUES ($1, $2, 'single') RETURNING id`,
+        [userId, payload.walletId]
+      );
+      const storyId = storyRes.rows[0].id;
+
+      const storyItemRes = await query(
+        `INSERT INTO story_items (story_id, raw_text, type)
+         VALUES ($1, $2, 'text') RETURNING id`,
+        [storyId, payload.text]
+      );
+      const storyItemId = storyItemRes.rows[0].id;
+
+      await query(
+        `UPDATE transactions SET story_item_id = $1 WHERE id = $2`,
+        [storyItemId, transactionId]
+      );
+
+      // Create AI Comment
+      const aiCommentContent = aiResponse.nlg?.response || summaryText;
+      const aiEmotion = aiResponse.nlg?.emotion || 'Happy';
+      await query(
+        `INSERT INTO ai_comments (story_id, transaction_id, content_text, emotion)
+         VALUES ($1, $2, $3, $4)`,
+        [storyId, transactionId, aiCommentContent, aiEmotion]
+      );
+      
+      // Update wallet balance
+      if (payload.walletId) {
+        if (recordType === 'expense') {
+          await query('UPDATE wallets SET balance = balance - $1 WHERE id = $2', [finalAmount, payload.walletId]);
+        } else {
+          await query('UPDATE wallets SET balance = balance + $1 WHERE id = $2', [finalAmount, payload.walletId]);
+        }
+      }
+      walletProfileCache.delete(`${userId}:${payload.walletId}`);
+    }
+
+    await query('COMMIT');
+
+    sendToUser(userId, {
+      type: 'transaction_done',
+      transactionId,
+      data: {
+        status: 'done',
+        needsReview,
+        extracted,
+        nlu: aiResponse.nlu,
+        requires_category_selection: aiResponse.requires_category_selection || false,
+        confidence,
+        amount: finalAmount,
+        categoryCode: finalCategoryCode,
+        note: extracted.note || payload.text,
+        storyId,
+        aiComment: aiResponse.nlg?.response || summaryText,
+        mascotMood: aiResponse.nlg?.emotion || 'Happy'
+      }
+    });
+  } catch (err) {
+    await query('ROLLBACK').catch(() => {});
+    logger.error({ err: err.message, stack: err.stack, transactionId }, 'Background text NLU failed');
+    await query(
+      `UPDATE transactions SET processing_status = 'failed', updated_at = NOW() WHERE id = $1`,
+      [transactionId]
+    ).catch(() => {});
+    sendToUser(userId, {
+      type: 'transaction_failed',
+      transactionId,
+      error: 'Lỗi khi phân tích ngữ nghĩa: ' + err.message,
+    });
+  }
+}
+
+
 async function _processBillBackground(userId, walletId, transactionId, fileBuffer, originalName, contentType, imageUrl) {
   const { sendToUser } = require('../../services/wsHub');
   try {
@@ -619,13 +828,24 @@ async function _processBillBackground(userId, walletId, transactionId, fileBuffe
     let categoryId = null;
     let finalCategoryCode = extracted.category || null;
     if (extracted.category) {
+      const normalizedMap = {
+        'Food': 'Food & Drink',
+        'Transport': 'Transportation',
+        'Others': 'Other',
+      };
+      const mappedCategory = normalizedMap[extracted.category] || extracted.category;
       const catRes = await query(
-        `SELECT id, code FROM categories WHERE LOWER(code) = LOWER($1) OR LOWER(name) = LOWER($1) LIMIT 1`,
-        [extracted.category]
+        `SELECT id, code FROM categories 
+         WHERE (LOWER(code) = LOWER($1) OR LOWER(name) = LOWER($1) OR LOWER(code) = LOWER($2) OR LOWER(name) = LOWER($2))
+           AND (owner_id IS NULL OR owner_id = $3)
+         ORDER BY owner_id NULLS FIRST LIMIT 1`,
+        [extracted.category, mappedCategory, userId]
       );
       if (catRes.rows[0]) {
         categoryId = catRes.rows[0].id;
         finalCategoryCode = catRes.rows[0].code;
+      } else {
+        finalCategoryCode = mappedCategory;
       }
     }
 
@@ -1435,6 +1655,7 @@ function clearWalletProfileCache(userId, walletId) {
 module.exports = {
   nluInfer,
   expenseFromText,
+  expenseFromTextAsync,
   expenseFromBill,
   saveCorrection,
   isActionConfirmed,

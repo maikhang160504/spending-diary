@@ -137,6 +137,11 @@ router.post(
   validate({ body: expenseFromTextSchema }),
   controller.expenseFromText
 );
+router.post(
+  '/expense/from-text-async',
+  validate({ body: expenseFromTextSchema }),
+  controller.expenseFromTextAsync
+);
 router.post('/expense/from-bill', upload.single('file'), controller.expenseFromBill);
 
 router.post('/corrections', validate({ body: correctionSchema }), controller.saveCorrection);
@@ -154,5 +159,6 @@ router.post(
 );
 router.post('/chat/:sessionId', controller.aiChat);
 router.post('/notifications/simulate', controller.simulateNotification);
+router.post('/goal-recap', controller.goalRecap);
 
 module.exports = router;

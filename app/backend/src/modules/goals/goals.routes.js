@@ -74,9 +74,11 @@ router.use(requireAuth);
 router.get('/', controller.list);
 router.post('/', validate({ body: createGoalSchema }), controller.create);
 router.post('/join', controller.joinByInviteCode);
+router.post('/trigger-reminders', controller.triggerReminders);
 router.get('/:id', controller.getById);
 router.patch('/:id', validate({ body: updateGoalSchema }), controller.update);
 router.delete('/:id', controller.remove);
+router.post('/:id/leave', controller.leaveGoal);
 router.post('/:id/contribute', validate({ body: contributeSchema }), controller.contribute);
 router.post('/:id/invite', controller.generateInviteCode);
 

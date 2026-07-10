@@ -7,7 +7,10 @@ function parseRange(from, to) {
   const start = from
     ? new Date(from)
     : new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-  const end = to ? new Date(to) : now;
+  let end = to ? new Date(to) : now;
+  if (to && typeof to === 'string' && to.length === 10) {
+    end = new Date(`${to}T23:59:59.999Z`);
+  }
   return { start: start.toISOString(), end: end.toISOString() };
 }
 
@@ -175,7 +178,7 @@ async function byMonth(userId, { year, walletId } = {}) {
   }));
 }
 
-async function byCategory(userId, { from, to, range, walletId } = {}) {
+async function byCategory(userId, { from, to, range, walletId, type = 'expense' } = {}) {
   let start, end;
   if (range === 'week') {
     const now = new Date();
@@ -208,13 +211,15 @@ async function byCategory(userId, { from, to, range, walletId } = {}) {
       AND t.occurred_at BETWEEN $2 AND $3`;
   }
 
+  const txType = (type === 'income') ? 'income' : 'expense';
+
   const r = await query(
     `SELECT CASE WHEN category_code IS NULL OR LOWER(category_code) IN ('other', 'others') THEN 'Other' ELSE category_code END AS category_code,
             SUM(amount)::numeric AS total,
             COUNT(*)::int AS count
      FROM transactions t
      WHERE ${baseWhere}
-       AND type = 'expense'
+       AND type = '${txType}'
        AND (category_code IS NULL OR category_code != 'Saving')
      GROUP BY 1
      ORDER BY total DESC`,
@@ -224,6 +229,7 @@ async function byCategory(userId, { from, to, range, walletId } = {}) {
   return r.rows.map((row) => ({
     categoryCode: row.category_code,
     total: Number(row.total),
+    amount: Number(row.total),
     count: row.count,
     percent: total > 0 ? Math.round((Number(row.total) / total) * 100) : 0,
   }));

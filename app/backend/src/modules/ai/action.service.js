@@ -5,6 +5,7 @@ const ApiError = require('../../utils/ApiError');
 const statsService = require('../stats/stats.service');
 const budgetsService = require('../budgets/budgets.service');
 const goalsService = require('../goals/goals.service');
+const loansService = require('../loans/loans.service');
 const settingsService = require('../settings/settings.service');
 const txService = require('../transactions/transactions.service');
 const suggestionService = require('../budgets/suggestion.service');
@@ -709,8 +710,32 @@ async function executeSetLimit(userId, payload) {
 
 async function executeSetGoal(userId, payload) {
   const actionDetails = payload.actionDetails || {};
+  const toolType = payload.toolType || actionDetails.tool_type || actionDetails.toolType || null;
   const amount = resolveAmount(payload, actionDetails);
-  if (!amount) throw ApiError.badRequest('Thiếu số tiền mục tiêu.');
+  if (!amount) throw ApiError.badRequest('Thiếu số tiền.');
+
+  if (toolType === 'loan' || payload.contactName || actionDetails.contact_name || actionDetails.loan_type) {
+    const contactName = payload.contactName || actionDetails.contact_name || actionDetails.contactName || actionDetails.target || actionDetails.item || 'Người quen';
+    const loanType = payload.loanType || actionDetails.loan_type || actionDetails.loanType || 'lend';
+    const dueDate = payload.dueDate || actionDetails.due_date || actionDetails.dueDate || null;
+    const note = payload.goalName || actionDetails.goal_name || actionDetails.goalName || '';
+
+    const createdLoan = await loansService.create(userId, {
+      contact_name: contactName,
+      type: loanType,
+      amount,
+      due_date: dueDate,
+      reminder_date: dueDate,
+      note
+    });
+
+    return {
+      kind: 'loan',
+      toolType: 'loan',
+      loan: createdLoan,
+      message: `⏰ Đã tạo nhắc hẹn ${createdLoan.type === 'lend' ? 'cho vay' : 'đi vay'} ${formatVnd(amount)}đ với ${createdLoan.contact_name}${dueDate ? ` (hạn chót: ${dueDate})` : ''}. Mimo sẽ nhắc bạn đúng hẹn nhé! 🤝`
+    };
+  }
 
   const goalName = payload.goalName || actionDetails.goal_name || actionDetails.goalName || 'Mục tiêu tiết kiệm';
 
@@ -733,27 +758,58 @@ async function executeSetGoal(userId, payload) {
     }
   }
 
-  if (existing && maxSim > 0.75) {
+  if (existing && maxSim > 0.75 && existing.status === 'active') {
     const updated = await goalsService.contribute(userId, existing.id, amount);
-    const percent = Math.min(100, Math.round((Number(updated.current_amount || 0) / Number(updated.target_amount || 1)) * 100));
+    const displayAmount = existing.type === 'challenge'
+        ? Number(updated.myCurrentAmount || updated.current_amount || 0)
+        : Number(updated.current_amount || 0);
+    const percent = Math.min(100, Math.round((displayAmount / Number(updated.target_amount || 1)) * 100));
+
+    let msg = `Tuyệt vời! Mimo đã ghi nhận ${formatVnd(amount)}đ tích lũy vào mục tiêu '${existing.name}' của bạn rồi nhé! Hiện bạn đã đạt được ${formatVnd(displayAmount)}đ / ${formatVnd(updated.target_amount)}đ (${percent}%). Cố gắng lên nhé! 🚀`;
+    if (existing.type === 'challenge') {
+      msg = `🔥 Tuyệt vời! Mimo đã ghi nhận tiến độ ${formatVnd(amount)}đ vào thử thách '${existing.name}' của bạn! Bạn đã đạt ${formatVnd(displayAmount)}đ / ${formatVnd(updated.target_amount)}đ (${percent}%) trên bảng xếp hạng. Tiếp tục bứt phá nhé! 🚀`;
+    } else if (existing.type === 'saving_group') {
+      msg = `🤝 Tuyệt vời! Mimo đã ghi nhận đóng góp ${formatVnd(amount)}đ vào quỹ nhóm '${existing.name}'! Quỹ nhóm hiện có ${formatVnd(updated.current_amount)}đ / ${formatVnd(updated.target_amount)}đ (${percent}%). Cùng tiến tới mục tiêu nhé! 🌟`;
+    }
     return {
       kind: 'goal_contribute',
+      toolType: existing.type || 'saving_personal',
       goal: updated,
-      message: `Tuyệt vời! Mimo đã ghi nhận ${formatVnd(amount)}đ tích lũy vào mục tiêu '${existing.name}' của bạn rồi nhé! Hiện bạn đã đạt được ${formatVnd(updated.current_amount)}đ / ${formatVnd(updated.target_amount)}đ (${percent}%). Cố gắng lên nhé! 🚀`,
+      message: msg,
     };
+  }
+
+  let goalType = 'personal';
+  if (toolType === 'saving_group' || payload.isGroup || actionDetails.is_group || actionDetails.isGroup) {
+    goalType = 'saving_group';
+  } else if (toolType === 'challenge_group') {
+    goalType = 'challenge_group';
+  } else if (toolType === 'challenge' || toolType === 'challenge_personal') {
+    goalType = (payload.isGroup || actionDetails.is_group || actionDetails.isGroup) ? 'challenge_group' : 'challenge';
   }
 
   const goal = await goalsService.create(userId, {
     walletId: payload.walletId || undefined,
     name: goalName,
     targetAmount: amount,
-    emoji: '🎯',
+    type: goalType,
+    emoji: goalType.startsWith('challenge') ? '🔥' : (goalType === 'saving_group' ? '🤝' : '🎯'),
   });
+
+  let createMsg = `🎉 Đã tạo mục tiêu tiết kiệm cá nhân "${goal.name || goalName}" — mục tiêu tích lũy ${formatVnd(amount)}đ thành công! Chúc bạn sớm hoàn thành nhé! 🏆`;
+  if (goalType === 'saving_group') {
+    createMsg = `🤝 Đã tạo nhóm tiết kiệm "${goal.name || goalName}" với mục tiêu chung ${formatVnd(amount)}đ thành công! Mã nhóm tham gia của bạn là: [ ${goal.invite_code || ''} ]. Hãy chia sẻ mã này để bạn bè cùng tham gia nhé! 🌟`;
+  } else if (goalType === 'challenge_group') {
+    createMsg = `🔥 Đã tạo thử thách nhóm "${goal.name || goalName}" với mục tiêu ${formatVnd(amount)}đ thành công! Mã nhóm tham gia thử thách của bạn là: [ ${goal.invite_code || ''} ]. Rủ ngay bạn bè cùng đua tiến độ nhé! 🏆`;
+  } else if (goalType === 'challenge') {
+    createMsg = `🏆 Đã tạo thử thách cá nhân "${goal.name || goalName}" với mục tiêu ${formatVnd(amount)}đ thành công! Hãy quyết tâm bứt phá nhé! 🔥`;
+  }
 
   return {
     kind: 'goal',
+    toolType: goalType,
     goal,
-    message: `🎉 Đã tạo mục tiêu mới "${goal.name || goalName}" — mục tiêu tích lũy ${formatVnd(amount)}đ. Chúc bạn sớm hoàn thành nhé! 🏆`,
+    message: createMsg,
   };
 }
 
@@ -946,7 +1002,7 @@ async function executeAction(userId, payload) {
   if (type.includes('LIMIT') || type === 'SET_LIMIT') {
     return executeSetLimit(userId, payload);
   }
-  if (type.includes('GOAL')) {
+  if (type.includes('GOAL') || type.includes('LOAN') || payload.toolType === 'loan' || payload.actionDetails?.tool_type === 'loan') {
     return executeSetGoal(userId, payload);
   }
   if (type.includes('TONE') || type === 'SET_VERBAL_STYLE') {
@@ -974,11 +1030,8 @@ async function executeAction(userId, payload) {
   if (type === 'SET_USERNAME') {
     return executeSetUsername(userId, payload);
   }
-  if (type === 'SET_INCOME' || type === 'EDIT' || type === 'UPDATE_RECORD' || type.includes('DELETE')) {
-    throw ApiError.badRequest(`Action "${type}" không còn được hỗ trợ.`);
-  }
-  if (type === 'EXPORT_DATA') {
-    return executeExportData(userId, payload);
+  if (type === 'SET_INCOME' || type === 'EDIT' || type === 'UPDATE_RECORD' || type.includes('DELETE') || type === 'EXPORT_DATA') {
+    throw ApiError.badRequest(`Action "${type}" không còn được hỗ trợ tại Chat. Vui lòng sử dụng tính năng tại mục Cài đặt.`);
   }
   if (type === 'SET_ALERT') {
     return executeSetAlert(userId, payload);
@@ -1327,6 +1380,46 @@ function actionPreviewLabel(actionType, { amount, categoryCode } = {}) {
   return actionType;
 }
 
+function generateGoalRecapCommentary(goalData = {}, userProfile = {}) {
+  const userName = userProfile.displayName || userProfile.name || 'bạn';
+  const goalName = goalData.name || 'Mục tiêu tài chính';
+  const isGroup = Boolean(goalData.isGroup || goalData.is_group);
+  const isChallenge = Boolean(goalData.isChallenge || goalData.is_challenge || String(goalData.type || '').includes('challenge'));
+  const tone = (goalData.verbalStyle || userProfile.tone || 'funny').toLowerCase();
+  const topContributor = goalData.topContributor || goalData.top_contributor || null;
+  const earlyDays = Number(goalData.earlyByDays || goalData.early_by_days || 0);
+  const totalContribs = Number(goalData.totalContributions || goalData.total_contributions || 1);
+
+  let title = isChallenge ? 'CHỨNG NHẬN CHIẾN THẮNG THỬ THÁCH' : 'CHỨNG NHẬN HOÀN THÀNH MỤC TIÊU';
+  let mascotMood = 'Celebrate';
+  let commentary = '';
+
+  if (!isGroup) {
+    if (tone.includes('strict') || tone.includes('dan')) {
+      commentary = `Hmm, công nhận lần này làm nghiêm túc đấy ${userName}! Bền bỉ ${totalContribs} lần đóng góp không thèm rút lõi giữa chừng, toàn bộ số tiền đã nằm gọn trong quỹ "${goalName}". Tiếp tục giữ vững phong độ, đừng có mà tiêu xài phung phí hết nghe chưa!`;
+    } else {
+      commentary = `100 điểm không có nhưng cho ${userName}! Bạn đã xuất sắc hoàn thành "${goalName}"${earlyDays > 0 ? ` sớm hơn hạn tận ${earlyDays} ngày` : ''}! Với ${totalContribs} lần kiên trì trích quỹ và kỷ luật tuyệt vời, ước mơ tài chính nào bạn cũng sẽ chinh phục được thôi!`;
+    }
+  } else {
+    const mvpName = topContributor?.name || userName;
+    const mvpPercent = topContributor?.percentage ? ` (${topContributor.percentage}%)` : '';
+    if (tone.includes('strict') || tone.includes('dan')) {
+      commentary = `Không uổng công nhắc nhở hằng ngày, cuối cùng cả hội cũng hoàn thành quỹ "${goalName}"! Khen ngợi MVP ${mvpName}${mvpPercent} đã dẫn đầu đóng góp tích cực, các thành viên còn lại cũng rất hợp tác. Chúc cả nhóm tận hưởng thành quả xứng đáng!`;
+    } else {
+      commentary = `Đoàn kết là chấp hết! Cả chiến đội đã cùng chinh phục thành công "${goalName}" xuất sắc! Đặc biệt vinh danh MVP ${mvpName}${mvpPercent} gánh team cùng tinh thần đồng tâm hiệp lực của tất cả thành viên. Chúc mừng chiến thắng chung của chúng ta!`;
+    }
+  }
+
+  return {
+    title,
+    commentary,
+    mascotMood,
+    mvpMember: topContributor,
+    isGroup,
+    isChallenge,
+  };
+}
+
 module.exports = {
   isReportAction,
   inferTimeRangeFromText,
@@ -1350,4 +1443,5 @@ module.exports = {
   actionPreviewLabel,
   resolveCategoryCode,
   resolveAmount,
+  generateGoalRecapCommentary,
 };

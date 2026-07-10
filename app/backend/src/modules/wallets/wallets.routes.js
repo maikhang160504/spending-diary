@@ -112,6 +112,7 @@ router.post(
   controller.inviteMember
 );
 router.delete('/:id/members/:memberId', controller.removeMember);
+router.post('/:id/leave', controller.leaveWallet);
 
 router.post('/:id/generate-code', controller.generateInviteCode);
 router.post('/join', controller.joinByInviteCode);

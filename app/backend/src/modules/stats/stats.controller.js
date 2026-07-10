@@ -26,6 +26,7 @@ exports.byCategory = asyncHandler(async (req, res) => {
     to: req.query.to,
     range: req.query.range,
     walletId: req.query.walletId,
+    type: req.query.type,
   });
   res.json({ success: true, data });
 });

@@ -48,6 +48,11 @@ exports.removeMember = asyncHandler(async (req, res) => {
   res.json({ success: true });
 });
 
+exports.leaveWallet = asyncHandler(async (req, res) => {
+  await service.leaveWallet(req.user.id, req.params.id);
+  res.json({ success: true });
+});
+
 exports.generateInviteCode = asyncHandler(async (req, res) => {
   const data = await service.generateInviteCode(req.user.id, req.params.id);
   res.json({ success: true, data });

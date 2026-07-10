@@ -20,6 +20,11 @@ exports.expenseFromText = asyncHandler(async (req, res) => {
   res.json({ success: true, data });
 });
 
+exports.expenseFromTextAsync = asyncHandler(async (req, res) => {
+  const data = await service.expenseFromTextAsync(req.user.id, req.body);
+  res.status(202).json({ success: true, data });
+});
+
 exports.expenseFromBill = asyncHandler(async (req, res) => {
   if (!req.file) throw ApiError.badRequest('Field "file" is required.');
   const walletId = req.body?.walletId || req.query?.walletId || null;
@@ -73,6 +78,13 @@ const { simulateUserPush } = require('../fcm/notification.scheduler');
 
 exports.simulateNotification = asyncHandler(async (req, res) => {
   const data = await simulateUserPush(req.user.id);
+  res.json({ success: true, data });
+});
+
+const actionService = require('./action.service');
+
+exports.goalRecap = asyncHandler(async (req, res) => {
+  const data = actionService.generateGoalRecapCommentary(req.body || {}, req.user || {});
   res.json({ success: true, data });
 });
 
