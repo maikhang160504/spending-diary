@@ -29,6 +29,7 @@ import '../screens/shell/app_shell.dart';
 import '../screens/story/detail_story_screen.dart';
 import '../screens/streak/streak_screen.dart';
 import '../screens/wallet/share_wallet_screen.dart';
+import '../screens/group/group_analytics_screen.dart';
 
 /// Tất cả tên route tập trung tại đây
 class AppRoutes {
@@ -67,12 +68,16 @@ class AppRoutes {
   static const storyDetail    = '/story/:storyId';
   static const goalDetail     = '/app/goals/:goalId';
   static const recurring      = '/recurring';
+  static const groupAnalytics = '/group-analytics/:walletId';
 
   /// Build the story detail path with a real [storyId]
   static String storyDetailOf(String storyId) => '/story/$storyId';
 
   /// Build the goal detail path with a real [goalId]
   static String goalDetailOf(String goalId) => '/app/goals/$goalId';
+  
+  /// Build the group analytics path with a real [walletId]
+  static String groupAnalyticsOf(String walletId) => '/group-analytics/$walletId';
 }
 
 /// Helper function to build a page with a Lottie transition
@@ -152,11 +157,11 @@ final GoRouter appRouter = GoRouter(
       routes: [
         GoRoute(
           path: AppRoutes.home,
-          pageBuilder: (context, state) => _lottiePage(state, 'assets/animations/Loading.json', const HomeScreen()),
+          pageBuilder: (context, state) => const NoTransitionPage(child: HomeScreen()),
         ),
         GoRoute(
           path: AppRoutes.report,
-          pageBuilder: (context, state) => _lottiePage(state, 'assets/animations/Report.json', const ReportScreen()),
+          pageBuilder: (context, state) => const NoTransitionPage(child: ReportScreen()),
         ),
         GoRoute(
           path: AppRoutes.goals,
@@ -169,10 +174,8 @@ final GoRouter appRouter = GoRouter(
               initialTab = 2;
             }
             final joinCode = state.uri.queryParameters['code'];
-            return _lottiePage(
-              state,
-              'assets/animations/Success_goal.json',
-              FinancialToolsScreen(
+            return NoTransitionPage(
+              child: FinancialToolsScreen(
                 initialTabIndex: initialTab,
                 initialJoinCode: joinCode,
               ),
@@ -181,7 +184,7 @@ final GoRouter appRouter = GoRouter(
         ),
         GoRoute(
           path: AppRoutes.settings,
-          pageBuilder: (context, state) => _lottiePage(state, 'assets/animations/Loading.json', const SettingsScreen()),
+          pageBuilder: (context, state) => const NoTransitionPage(child: SettingsScreen()),
         ),
       ],
     ),
@@ -277,6 +280,14 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) {
         final extra = state.extra as Map<String, dynamic>?;
         return ShareWalletScreen(walletId: extra?['walletId'] as String?);
+      },
+    ),
+    GoRoute(
+      path: AppRoutes.groupAnalytics,
+      builder: (context, state) {
+        return GroupAnalyticsScreen(
+          walletId: state.pathParameters['walletId'] ?? '',
+        );
       },
     ),
     GoRoute(

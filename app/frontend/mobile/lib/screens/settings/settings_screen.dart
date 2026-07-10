@@ -17,6 +17,7 @@ import '../../theme/app_spacing.dart';
 import '../../widgets/ai_style_card_flip_transition.dart';
 import '../../widgets/skeleton.dart';
 import '../../widgets/notification_overlay.dart';
+import 'export_data_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -672,8 +673,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             icon: Icons.sync_alt,
                             label: 'Giao dịch định kỳ',
                             subtitle: 'Quản lý lịch lặp lại thu chi',
-                            showDivider: false,
+                            showDivider: true,
                             onTap: () => context.push(AppRoutes.recurring),
+                          ),
+                          _SettingRow(
+                            icon: Icons.file_download_outlined,
+                            label: 'Xuất dữ liệu chi tiêu',
+                            subtitle: 'Xuất Excel/CSV theo bộ lọc tùy chỉnh',
+                            showDivider: false,
+                            onTap: () => Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const ExportDataScreen(),
+                              ),
+                            ),
                           ),
                         ],
                       ),

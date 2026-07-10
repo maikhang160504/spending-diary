@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../routes/app_routes.dart';
+import 'goal_detail_screen.dart';
 import '../../services/api_client.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_palette.dart';
@@ -11,6 +11,7 @@ import '../../theme/app_spacing.dart';
 import '../../utils/formatters.dart';
 import '../../widgets/error_banner.dart';
 import '../../widgets/skeleton.dart';
+import '../../widgets/mimo_overlay.dart';
 
 class GoalScreen extends StatefulWidget {
   final bool isChallenge;
@@ -50,12 +51,15 @@ class _GoalScreenState extends State<GoalScreen> with AutomaticKeepAliveClientMi
     setState(() { _loading = true; _error = null; });
     try {
       final type = widget.isChallenge ? 'challenge' : 'personal';
-      final results = await Future.wait([
-        _api.getGoals(type),
-        _api.getWallets(),
-      ]);
-      _goals = results[0];
-      _wallets = results[1];
+      final goalResult = await _api.getGoals(type);
+      final walletResult = await _api.getWallets();
+      _goals = goalResult.where((g) {
+        final gType = g['type']?.toString() ?? 'personal';
+        final isChallengeGoal = gType.startsWith('challenge');
+        if (widget.isChallenge) return isChallengeGoal;
+        return !isChallengeGoal;
+      }).toList();
+      _wallets = walletResult;
     } on ApiException catch (e) {
       _error = e.localizedMessage;
     } catch (_) {
@@ -68,7 +72,7 @@ class _GoalScreenState extends State<GoalScreen> with AutomaticKeepAliveClientMi
     final nameCtrl = TextEditingController();
     final amountCtrl = TextEditingController();
     String emoji = '🎯';
-    String? selectedWalletId;
+    bool isGroup = false;
     DateTime? deadlineDate;
     bool isSubmitting = false;
 
@@ -82,6 +86,44 @@ class _GoalScreenState extends State<GoalScreen> with AutomaticKeepAliveClientMi
           child: SingleChildScrollView(
             child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(widget.isChallenge ? 'Tạo thử thách mới' : 'Tạo khoản tiết kiệm mới', style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+              const SizedBox(height: 16),
+              Text('Loại mục tiêu:', style: Theme.of(ctx).textTheme.bodySmall),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => setSheet(() => isGroup = false),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        decoration: BoxDecoration(
+                          color: !isGroup ? AppColors.teal.withValues(alpha: 0.15) : Colors.transparent,
+                          borderRadius: BorderRadius.circular(AppRadii.md),
+                          border: Border.all(color: !isGroup ? AppColors.teal : context.palette.border),
+                        ),
+                        alignment: Alignment.center,
+                        child: Text('👤 Cá nhân', style: TextStyle(fontWeight: !isGroup ? FontWeight.w700 : FontWeight.normal, color: !isGroup ? AppColors.teal : context.palette.textPrimary)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => setSheet(() => isGroup = true),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        decoration: BoxDecoration(
+                          color: isGroup ? AppColors.teal.withValues(alpha: 0.15) : Colors.transparent,
+                          borderRadius: BorderRadius.circular(AppRadii.md),
+                          border: Border.all(color: isGroup ? AppColors.teal : context.palette.border),
+                        ),
+                        alignment: Alignment.center,
+                        child: Text('👥 Nhóm (Có mã mời)', style: TextStyle(fontWeight: isGroup ? FontWeight.w700 : FontWeight.normal, color: isGroup ? AppColors.teal : context.palette.textPrimary)),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
               const SizedBox(height: 16),
               Text('Biểu tượng:', style: Theme.of(ctx).textTheme.bodySmall),
               const SizedBox(height: 8),
@@ -110,29 +152,6 @@ class _GoalScreenState extends State<GoalScreen> with AutomaticKeepAliveClientMi
                 decoration: const InputDecoration(labelText: 'Số tiền mục tiêu', hintText: 'VD: 25,000,000', suffixText: 'đ'),
               ),
               const SizedBox(height: 12),
-              if (widget.isChallenge)
-                DropdownButtonFormField<String?>(
-                  initialValue: selectedWalletId,
-                  decoration: const InputDecoration(labelText: 'Liên kết ví'),
-                  dropdownColor: ctx.palette.card,
-                  items: [
-                    const DropdownMenuItem<String?>(
-                      value: null,
-                      child: Text('Không liên kết (Cá nhân)'),
-                    ),
-                    ..._wallets.map((w) {
-                      final name = w['name'] as String? ?? 'Ví';
-                      final type = w['type'] as String? ?? 'personal';
-                      final isGroup = type == 'group';
-                      return DropdownMenuItem<String?>(
-                        value: w['id'] as String?,
-                        child: Text(isGroup ? 'Ví chung: $name' : 'Ví: $name'),
-                      );
-                    }),
-                  ],
-                  onChanged: (val) => setSheet(() => selectedWalletId = val),
-                ),
-              if (widget.isChallenge) const SizedBox(height: 12),
               InkWell(
                 onTap: () async {
                   final date = await showDatePicker(
@@ -172,12 +191,22 @@ class _GoalScreenState extends State<GoalScreen> with AutomaticKeepAliveClientMi
                               'name': name,
                               'targetAmount': amount,
                               'emoji': emoji,
-                              'walletId': widget.isChallenge ? selectedWalletId : null,
-                              'type': widget.isChallenge ? 'challenge' : 'personal',
+                              'walletId': null,
+                              'isGroup': isGroup,
+                              'type': isGroup
+                                  ? (widget.isChallenge ? 'challenge_group' : 'saving_group')
+                                  : (widget.isChallenge ? 'challenge' : 'personal'),
                               'deadline': deadlineStr,
                             });
                             await _loadGoals();
-                            if (widget.isChallenge && created['id'] != null) {
+                            final celebMsg = widget.isChallenge
+                                ? 'Xuất sắc! Thử thách "$name" đã khởi tạo, quyết tâm đạt mục tiêu nhé!'
+                                : 'Quỹ tiết kiệm "$name" đã sẵn sàng! Cùng tích lũy từng ngày nha!';
+                            mimoController.show(MiMoResponse(
+                              emotionAsset: 'Celebrate',
+                              message: celebMsg,
+                            ));
+                            if (isGroup && created['id'] != null) {
                               if (mounted) {
                                 _showInviteGoal(created['id'].toString(), name);
                               }
@@ -301,7 +330,7 @@ class _GoalScreenState extends State<GoalScreen> with AutomaticKeepAliveClientMi
         builder: (ctx, setSheetState) => Padding(
           padding: EdgeInsets.only(left: 20, right: 20, top: 20, bottom: MediaQuery.of(ctx).viewInsets.bottom + 20),
           child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('Nhập mã tham gia thử thách', style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+            Text(widget.isChallenge ? 'Nhập mã tham gia thử thách' : 'Nhập mã tham gia nhóm tiết kiệm', style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
             const SizedBox(height: 16),
             TextField(
               controller: codeCtrl,
@@ -328,7 +357,7 @@ class _GoalScreenState extends State<GoalScreen> with AutomaticKeepAliveClientMi
                           if (!ctx.mounted || !mounted) return;
                           ctx.pop();
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('🎉 Tham gia thử thách thành công!'), backgroundColor: AppColors.teal),
+                            SnackBar(content: Text(widget.isChallenge ? '🎉 Tham gia thử thách thành công!' : '🎉 Tham gia nhóm tiết kiệm thành công!'), backgroundColor: AppColors.teal),
                           );
                           _loadGoals();
                         } catch (e) {
@@ -353,75 +382,159 @@ class _GoalScreenState extends State<GoalScreen> with AutomaticKeepAliveClientMi
       context: context,
       barrierDismissible: false,
       builder: (ctx) => const AlertDialog(
-        content: Row(children: [CircularProgressIndicator(), SizedBox(width: 16), Text('Đang tạo mã mời...')]),
-      ),
-    );
-    try {
-      final code = await _api.inviteGoal(goalId);
-      final shareLink = 'spenddiary://app/goals?tab=challenge&code=$code';
-      if (!mounted) return;
-      Navigator.of(context).pop();
-      showDialog(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: Text('Mời bạn bè vào "$goalName"'),
-          content: Column(mainAxisSize: MainAxisSize.min, children: [
-            const Text('Chia sẻ mã hoặc link này để bạn bè cùng tham gia thử thách:'),
-            const SizedBox(height: 12),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(color: context.palette.surfaceAlt, borderRadius: BorderRadius.circular(8)),
-              child: SelectableText(code, textAlign: TextAlign.center, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: 4)),
-            ),
-            const SizedBox(height: 12),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                border: Border.all(color: AppColors.teal.withValues(alpha: 0.3)),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: SelectableText(
-                shareLink,
-                style: const TextStyle(fontSize: 12, color: AppColors.teal),
-              ),
-            ),
-          ]),
-          actions: [
-            TextButton(onPressed: () => ctx.pop(), child: const Text('Đóng')),
-            OutlinedButton.icon(
-              onPressed: () {
-                Clipboard.setData(ClipboardData(text: shareLink));
-                ctx.pop();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Đã sao chép link tham gia thử thách!')),
-                );
-              },
-              icon: const Icon(Icons.link, size: 16),
-              label: const Text('Copy Link'),
-            ),
-            FilledButton.icon(
-              onPressed: () {
-                Clipboard.setData(ClipboardData(text: code));
-                ctx.pop();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Đã sao chép mã mời!')),
-                );
-              },
-              icon: const Icon(Icons.copy, size: 16),
-              label: const Text('Copy Mã'),
-            ),
+        content: Row(
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(width: 16),
+            Text('Đang tạo mã mời...'),
           ],
         ),
-      );
+      ),
+    );
+    String? code;
+    try {
+      code = await _api.inviteGoal(goalId);
     } catch (e) {
-      if (!mounted) return;
-      Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Lỗi tạo mã mời: $e')),
-      );
+      if (mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Lỗi tạo mã mời: $e')),
+        );
+      }
+      return;
     }
+    if (!mounted) return;
+    Navigator.of(context, rootNavigator: true).pop();
+
+    final shareLink = 'spenddiary://app/goals?tab=challenge&code=$code';
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadii.xl)),
+        elevation: 10,
+        backgroundColor: context.palette.card,
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [AppColors.teal.withValues(alpha: 0.2), AppColors.teal.withValues(alpha: 0.05)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.emoji_events_rounded, size: 40, color: AppColors.teal),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Mời tham gia thử thách',
+                style: TextStyle(color: context.palette.textPrimary, fontSize: 18, fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                goalName,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: AppColors.teal, fontSize: 14, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'MÃ MỜI THAM GIA',
+                style: TextStyle(color: context.palette.textSecondary, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1.2),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                decoration: BoxDecoration(
+                  color: context.palette.surfaceAlt,
+                  borderRadius: BorderRadius.circular(AppRadii.lg),
+                  border: Border.all(color: AppColors.teal.withValues(alpha: 0.4), width: 1.5),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        code ?? '',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: context.palette.textPrimary,
+                          fontSize: 24,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 4,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.copy_rounded, color: AppColors.teal),
+                      tooltip: 'Copy mã',
+                      onPressed: () {
+                        Clipboard.setData(ClipboardData(text: code ?? ''));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Đã sao chép mã mời thử thách!')),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Hoặc chia sẻ liên kết:',
+                style: TextStyle(color: context.palette.textSecondary, fontSize: 12),
+              ),
+              const SizedBox(height: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: context.palette.surfaceAlt.withValues(alpha: 0.6),
+                  borderRadius: BorderRadius.circular(AppRadii.md),
+                  border: Border.all(color: context.palette.border),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        shareLink,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(color: context.palette.textSecondary, fontSize: 12),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    InkWell(
+                      onTap: () {
+                        Clipboard.setData(ClipboardData(text: shareLink));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Đã sao chép liên kết tham gia!')),
+                        );
+                      },
+                      child: const Text('Copy link', style: TextStyle(color: AppColors.teal, fontWeight: FontWeight.w700, fontSize: 12)),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () => ctx.pop(),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.teal,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadii.lg)),
+                  ),
+                  child: const Text('Xong', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
 
@@ -441,8 +554,9 @@ class _GoalScreenState extends State<GoalScreen> with AutomaticKeepAliveClientMi
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _GoalHeader(
+                  isChallenge: widget.isChallenge,
                   onAdd: _showCreateGoal,
-                  onJoin: widget.isChallenge ? _showJoinGoal : null,
+                  onJoin: _showJoinGoal,
                 ),
                 if (_error != null)
                   ErrorBanner(message: _error!, onRetry: _loadGoals),
@@ -473,9 +587,14 @@ class _GoalScreenState extends State<GoalScreen> with AutomaticKeepAliveClientMi
                                   goal: g,
                                   onContribute: () => _showContribute(g['id'] as String, g['name'] as String),
                                   onDelete: () => _deleteGoal(g['id'] as String),
-                                  onInvite: widget.isChallenge ? () => _showInviteGoal(g['id'] as String, g['name'] as String) : null,
+                                  onInvite: (widget.isChallenge || g['type'] == 'saving_group' || g['type'] == 'challenge_group' || g['inviteCode'] != null)
+                                      ? () => _showInviteGoal(g['id'] as String, g['name'] as String)
+                                      : null,
                                   onTap: () async {
-                                    final reload = await context.push<bool>(AppRoutes.goalDetailOf(g['id'] as String));
+                                    final reload = await Navigator.push<bool>(
+                                      context,
+                                      MaterialPageRoute(builder: (_) => GoalDetailScreen(goalId: g['id'] as String)),
+                                    );
                                     if (reload == true) _loadGoals();
                                   },
                                 )),
@@ -510,9 +629,10 @@ class _GoalScreenState extends State<GoalScreen> with AutomaticKeepAliveClientMi
 // ── Header ──────────────────────────────────────────────────────────────────
 
 class _GoalHeader extends StatelessWidget {
+  final bool isChallenge;
   final VoidCallback onAdd;
   final VoidCallback? onJoin;
-  const _GoalHeader({required this.onAdd, this.onJoin});
+  const _GoalHeader({required this.onAdd, this.onJoin, this.isChallenge = false});
 
   @override
   Widget build(BuildContext context) {
@@ -548,7 +668,7 @@ class _GoalHeader extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  onJoin != null ? 'Thử thách' : 'Tiết kiệm',
+                  isChallenge ? 'Thử thách' : 'Tiết kiệm',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     color: Colors.white,
                     fontWeight: FontWeight.w800,
@@ -559,7 +679,7 @@ class _GoalHeader extends StatelessWidget {
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  onJoin != null
+                  isChallenge
                       ? 'Tiết kiệm cùng bạn bè với thử thách chung'
                       : 'Tạo mục tiêu tiết kiệm và theo dõi tiến độ của bạn',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(

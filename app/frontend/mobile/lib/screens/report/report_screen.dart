@@ -17,7 +17,6 @@ class ReportScreen extends StatefulWidget {
 }
 
 class _ReportScreenState extends State<ReportScreen> {
-  String? _selectedWalletId;
 
   @override
   void initState() {
@@ -59,20 +58,15 @@ class _ReportScreenState extends State<ReportScreen> {
                 child: Row(
                   children: [
                     Container(
-                      width: 52,
-                      height: 52,
+                      width: 54,
+                      height: 54,
                       decoration: BoxDecoration(
-                        color: AppColors.teal,
+                        color: AppColors.teal.withValues(alpha: 0.15),
                         shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.teal.withValues(alpha: 0.35),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
                       ),
-                      child: const Icon(Icons.auto_awesome, color: Colors.white, size: 28),
+                      child: ClipOval(
+                        child: Image.asset('assets/MiMo/emotions/Happy.png', fit: BoxFit.cover),
+                      ),
                     ),
                     const SizedBox(width: 16),
                     Expanded(
@@ -102,7 +96,7 @@ class _ReportScreenState extends State<ReportScreen> {
                   ],
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 18),
 
               Text(
                 'DANH MỤC BÁO CÁO',
@@ -125,7 +119,7 @@ class _ReportScreenState extends State<ReportScreen> {
                 onTap: () {
                   Navigator.of(context).push(
                     MaterialPageRoute(
-                      builder: (_) => CategorySpendingReportScreen(initialWalletId: _selectedWalletId),
+                      builder: (_) => CategorySpendingReportScreen(),
                     ),
                   );
                 },
@@ -142,7 +136,7 @@ class _ReportScreenState extends State<ReportScreen> {
                 onTap: () {
                   Navigator.of(context).push(
                     MaterialPageRoute(
-                      builder: (_) => CashflowReportScreen(initialWalletId: _selectedWalletId),
+                      builder: (_) => CashflowReportScreen(),
                     ),
                   );
                 },
@@ -159,7 +153,7 @@ class _ReportScreenState extends State<ReportScreen> {
                 onTap: () {
                   Navigator.of(context).push(
                     MaterialPageRoute(
-                      builder: (_) => SavingTrendReportScreen(initialWalletId: _selectedWalletId),
+                      builder: (_) => SavingTrendReportScreen(),
                     ),
                   );
                 },
@@ -176,7 +170,7 @@ class _ReportScreenState extends State<ReportScreen> {
                 onTap: () {
                   Navigator.of(context).push(
                     MaterialPageRoute(
-                      builder: (_) => CumulativeBudgetReportScreen(initialWalletId: _selectedWalletId),
+                      builder: (_) => CumulativeBudgetReportScreen(),
                     ),
                   );
                 },
@@ -276,6 +270,8 @@ class _ReportScreenState extends State<ReportScreen> {
       ),
     );
   }
+
+
 }
 
 class _ReportHeader extends StatelessWidget {

@@ -42,8 +42,8 @@ class _MiMoOverlayState extends State<MiMoOverlay> with SingleTickerProviderStat
         .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutBack));
 
     _ctrl.forward();
-    // Auto-hide after 12 seconds
-    _autoHide = Timer(const Duration(seconds: 12), _dismiss);
+    // Auto-hide after 20 seconds
+    _autoHide = Timer(const Duration(seconds: 20), _dismiss);
   }
 
   void _dismiss() {

@@ -45,6 +45,25 @@ String formatVnd(int value) {
   return '${isNegative ? '-' : ''}$formatted đ';
 }
 
+/// Compact formatter: 1.5Tr, 250K, etc. for donut chart center label
+String formatVndCompact(int value) {
+  final isNegative = value < 0;
+  final abs = value.abs();
+  String result;
+  if (abs >= 1000000000) {
+    result = '${(abs / 1000000000).toStringAsFixed(1)}Tỷ';
+  } else if (abs >= 1000000) {
+    final tr = abs / 1000000;
+    result = tr >= 10 ? '${tr.toStringAsFixed(0)}Tr' : '${tr.toStringAsFixed(1)}Tr';
+  } else if (abs >= 1000) {
+    result = '${(abs / 1000).toStringAsFixed(0)}K';
+  } else {
+    result = '$abs';
+  }
+  return '${isNegative ? '-' : ''}$result đ';
+}
+
+
 /// ISO timestamp for sort/display: prefer occurred_at over created_at.
 String? txTimestampIso(Map<String, dynamic> tx) {
   for (final key in ['occurredAt', 'occurred_at', 'createdAt', 'created_at']) {

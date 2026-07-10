@@ -6,6 +6,7 @@ import '../../theme/app_radii.dart';
 import '../../theme/app_spacing.dart';
 import '../../utils/formatters.dart';
 import '../../services/ai_advisor_service.dart';
+import '../../services/api_client.dart';
 
 class SavingTrendReportScreen extends StatefulWidget {
   final String? initialWalletId;
@@ -19,6 +20,32 @@ class _SavingTrendReportScreenState extends State<SavingTrendReportScreen> {
   String _selectedPeriod = 'Theo tháng';
   bool _isAnalyzingAI = false;
   String? _aiInsight;
+  List<dynamic> _wallets = [];
+  String? _selectedWalletId;
+  final ApiClient _api = ApiClient();
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedWalletId = widget.initialWalletId ?? ApiClient.lastSelectedWalletId;
+    _loadWallets();
+  }
+
+  Future<void> _loadWallets() async {
+    try {
+      final wallets = await _api.getWallets();
+      if (mounted) {
+        setState(() {
+          _wallets = wallets;
+          if (_selectedWalletId == null && _wallets.isNotEmpty) {
+            _selectedWalletId = _wallets.first['id'] as String?;
+            ApiClient.lastSelectedWalletId = _selectedWalletId;
+          }
+        });
+      }
+    } catch (_) {}
+  }
+
 
   Future<void> _analyzeAI() async {
     setState(() => _isAnalyzingAI = true);
@@ -88,6 +115,8 @@ class _SavingTrendReportScreenState extends State<SavingTrendReportScreen> {
                   ),
                 ],
               ),
+              const SizedBox(height: 12),
+              _buildWalletSelectorBar(),
               const SizedBox(height: 20),
 
               // AI Advisor MiMo
@@ -96,6 +125,72 @@ class _SavingTrendReportScreenState extends State<SavingTrendReportScreen> {
 
               // Biểu đồ Xu hướng tiết kiệm
               _buildSavingChartCard(),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWalletSelectorBar() {
+    return Container(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            _buildWalletChipItem('Tất cả ví', null),
+            ..._wallets.map((w) {
+              final id = w['id']?.toString();
+              final name = w['name']?.toString() ?? 'Ví';
+              return _buildWalletChipItem(name, id);
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWalletChipItem(String label, String? walletId) {
+    final isSelected = _selectedWalletId == walletId;
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: InkWell(
+        onTap: () {
+          setState(() {
+            _selectedWalletId = walletId;
+            ApiClient.lastSelectedWalletId = walletId;
+          });
+          // _loadReportData();
+        },
+        borderRadius: BorderRadius.circular(AppRadii.full),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: isSelected ? AppColors.teal : context.palette.card,
+            borderRadius: BorderRadius.circular(AppRadii.full),
+            border: Border.all(
+              color: isSelected ? AppColors.teal : context.palette.border,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                walletId == null ? Icons.all_inclusive_rounded : Icons.account_balance_wallet_outlined,
+                size: 13,
+                color: isSelected ? Colors.white : context.palette.textSecondary,
+              ),
+              const SizedBox(width: 5),
+              Text(
+                label,
+                style: TextStyle(
+                  color: isSelected ? Colors.white : context.palette.textPrimary,
+                  fontSize: 11,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                ),
+              ),
             ],
           ),
         ),
@@ -151,8 +246,16 @@ class _SavingTrendReportScreenState extends State<SavingTrendReportScreen> {
                 Container(
                   width: 44,
                   height: 44,
-                  decoration: const BoxDecoration(color: AppColors.teal, shape: BoxShape.circle),
-                  child: const Icon(Icons.auto_awesome, color: Colors.white, size: 24),
+                  decoration: BoxDecoration(
+                    color: AppColors.teal.withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: ClipOval(
+                    child: Image.asset(
+                      _isAnalyzingAI ? 'assets/MiMo/emotions/Thinking.png' : 'assets/MiMo/emotions/Happy.png',
+                      fit: BoxFit.cover,
+                    ),
+                  ),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
@@ -194,10 +297,16 @@ class _SavingTrendReportScreenState extends State<SavingTrendReportScreen> {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const CircleAvatar(
-                  radius: 18,
-                  backgroundColor: AppColors.teal,
-                  child: Text('M', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: AppColors.teal.withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: ClipOval(
+                    child: Image.asset('assets/MiMo/emotions/Happy.png', fit: BoxFit.cover),
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(

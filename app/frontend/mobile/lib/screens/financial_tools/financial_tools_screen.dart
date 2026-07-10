@@ -63,44 +63,63 @@ class _FinancialToolsScreenState extends State<FinancialToolsScreen> {
                   height: 1.4,
                 ),
               ),
-              const SizedBox(height: 24),
-              _buildToolCard(
-                context: context,
-                icon: Icons.savings_rounded,
-                iconColor: const Color(0xFF0D9488),
-                iconBgColor: const Color(0xFFCCFBF1),
-                title: 'Tiết kiệm',
-                subtitle: 'Tích lũy cho mục tiêu tương lai',
-                onTap: () => _openFeatureCard(const GoalScreen(isChallenge: false)),
-              ),
-              const SizedBox(height: 16),
-              _buildToolCard(
-                context: context,
-                icon: Icons.track_changes_rounded,
-                iconColor: const Color(0xFFD97706),
-                iconBgColor: const Color(0xFFFEF3C7),
-                title: 'Thử thách',
-                subtitle: 'Tiết kiệm cùng bạn bè...',
-                onTap: () => _openFeatureCard(
-                  GoalScreen(
-                    isChallenge: true,
-                    initialJoinCode: widget.initialJoinCode,
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final double cardWidth = constraints.maxWidth > 600
+                          ? (constraints.maxWidth - 16) / 2
+                          : constraints.maxWidth;
+                      return Wrap(
+                        spacing: 16,
+                        runSpacing: 16,
+                        children: [
+                          SizedBox(
+                            width: cardWidth,
+                            child: _buildToolCard(
+                              context: context,
+                              icon: Icons.savings_rounded,
+                              iconColor: const Color(0xFF0D9488),
+                              iconBgColor: const Color(0xFFCCFBF1),
+                              title: 'Tiết kiệm',
+                              subtitle: 'Tích lũy cho mục tiêu tương lai',
+                              onTap: () => _openFeatureCard(const GoalScreen(isChallenge: false)),
+                            ),
+                          ),
+                          SizedBox(
+                            width: cardWidth,
+                            child: _buildToolCard(
+                              context: context,
+                              icon: Icons.track_changes_rounded,
+                              iconColor: const Color(0xFFD97706),
+                              iconBgColor: const Color(0xFFFEF3C7),
+                              title: 'Thử thách',
+                              subtitle: 'Tiết kiệm cùng bạn bè...',
+                              onTap: () => _openFeatureCard(
+                                GoalScreen(
+                                  isChallenge: true,
+                                  initialJoinCode: widget.initialJoinCode,
+                                ),
+                              ),
+                            ),
+                          ),
+                          SizedBox(
+                            width: cardWidth,
+                            child: _buildToolCard(
+                              context: context,
+                              icon: Icons.handshake_rounded,
+                              iconColor: const Color(0xFF6366F1),
+                              iconBgColor: const Color(0xFFEDE9FE),
+                              title: 'Vay mượn',
+                              subtitle: 'Quản lý khoản vay và cho mượn',
+                              onTap: () => _openFeatureCard(const LoansScreen()),
+                            ),
+                          ),
+                        ],
+                      );
+                    }
                   ),
-                ),
+                ],
               ),
-              const SizedBox(height: 16),
-              _buildToolCard(
-                context: context,
-                icon: Icons.handshake_rounded,
-                iconColor: const Color(0xFF6366F1),
-                iconBgColor: const Color(0xFFEDE9FE),
-                title: 'Vay mượn',
-                subtitle: 'Quản lý khoản vay và cho mượn',
-                onTap: () => _openFeatureCard(const LoansScreen()),
-                ),
-              ],
             ),
-          ),
             ),
           ],
         ),

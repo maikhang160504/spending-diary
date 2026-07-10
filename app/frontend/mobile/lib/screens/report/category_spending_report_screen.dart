@@ -20,34 +20,138 @@ class CategorySpendingReportScreen extends StatefulWidget {
 
 class _CategorySpendingReportScreenState extends State<CategorySpendingReportScreen> {
   String? _selectedWalletId;
-  String _selectedPeriod = 'Tháng này'; // 'Tuần này', 'Tháng này'
+  String _selectedPeriod = 'Tháng này';
+  String _recordType = 'expense'; // 'expense' or 'income'
   bool _isAnalyzingAI = false;
   String? _aiInsight;
+  int _touchedIndex = -1;
+
+  bool _isLoading = true;
+  List<Map<String, dynamic>> _cats = [];
+  int _totalAmt = 0;
+  List<Map<String, dynamic>> _walletsList = [];
 
   @override
   void initState() {
     super.initState();
     _selectedWalletId = widget.initialWalletId;
+    _loadReportData();
   }
 
-  Future<void> _analyzeAI(List<dynamic> cats) async {
-    setState(() {
-      _isAnalyzingAI = true;
-    });
+  Future<void> _loadReportData() async {
+    setState(() => _isLoading = true);
     try {
-      final summaryStr = cats.map((c) => '${c['categoryLabel']}: ${formatVnd(c['amount'] ?? 0)} (${c['percent']}%)').join(', ');
-      final prompt = 'Phân tích nhanh chi tiêu theo danh mục kỳ $_selectedPeriod: $summaryStr';
-      final res = await AIAdvisorService.askFinancialQuestion(prompt);
+      final now = DateTime.now();
+      String fromStr, toStr;
+      if (_selectedPeriod == 'Tuần này') {
+        final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
+        fromStr = startOfWeek.toIso8601String().substring(0, 10);
+        toStr = now.toIso8601String().substring(0, 10);
+      } else {
+        fromStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-01';
+        toStr = now.toIso8601String().substring(0, 10);
+      }
+
+      String prevFromStr, prevToStr;
+      if (_selectedPeriod == 'Tuần này') {
+        final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
+        final prevStart = startOfWeek.subtract(const Duration(days: 7));
+        final prevEnd = startOfWeek.subtract(const Duration(days: 1));
+        prevFromStr = prevStart.toIso8601String().substring(0, 10);
+        prevToStr = prevEnd.toIso8601String().substring(0, 10);
+      } else {
+        final prevMonth = DateTime(now.year, now.month - 1, 1);
+        final prevMonthEnd = DateTime(now.year, now.month, 0);
+        prevFromStr = prevMonth.toIso8601String().substring(0, 10);
+        prevToStr = prevMonthEnd.toIso8601String().substring(0, 10);
+      }
+
+      final results = await Future.wait([
+        AppQueries.statsByCategory('custom', _selectedWalletId, from: fromStr, to: toStr, type: _recordType).result,
+        AppQueries.statsByCategory('custom', _selectedWalletId, from: prevFromStr, to: prevToStr, type: _recordType).result,
+        AppQueries.wallets().result,
+      ]);
+
+      final rawCats = ((results[0] as dynamic)?.data as List<dynamic>?) ?? [];
+      final rawPrev = ((results[1] as dynamic)?.data as List<dynamic>?) ?? [];
+      final rawWallets = ((results[2] as dynamic)?.data as List<dynamic>?) ?? [];
+
+      final wallets = <Map<String, dynamic>>[];
+      for (final w in rawWallets) {
+        if (w is Map<String, dynamic>) wallets.add(w);
+      }
+
+      final Map<String, Map<String, dynamic>> mergedMap = {};
+      final Map<String, int> prevMap = {};
+      int totalAmt = 0;
+
+      for (final c in rawPrev) {
+        final map = c as Map<String, dynamic>;
+        final code = map['categoryCode']?.toString() ?? 'Other';
+        final label = CategoryTheme.of(code).label;
+        final amt = (map['amount'] as num?)?.toInt() ?? (map['total'] as num?)?.toInt() ?? 0;
+        prevMap[label] = (prevMap[label] ?? 0) + amt;
+      }
+
+      for (final c in rawCats) {
+        final map = c as Map<String, dynamic>;
+        final code = map['categoryCode']?.toString() ?? 'Other';
+        final amt = (map['amount'] as num?)?.toInt() ?? (map['total'] as num?)?.toInt() ?? 0;
+        final label = CategoryTheme.of(code).label;
+        totalAmt += amt;
+        if (mergedMap.containsKey(label)) {
+          mergedMap[label]!['amount'] = (mergedMap[label]!['amount'] as int) + amt;
+        } else {
+          mergedMap[label] = {
+            'categoryCode': code,
+            'categoryLabel': label,
+            'amount': amt,
+            'color': CategoryTheme.of(code).color.toARGB32(),
+          };
+        }
+      }
+
+      final cats = mergedMap.values.toList();
+      for (final c in cats) {
+        final amount = (c['amount'] as num?)?.toDouble() ?? 0.0;
+        c['percent'] = totalAmt > 0 ? (amount * 100 / totalAmt) : 0.0;
+        final label = c['categoryLabel']?.toString() ?? '';
+        final prevAmt = prevMap[label] ?? 0;
+        if (prevAmt > 0) {
+          c['momChange'] = ((amount - prevAmt) / prevAmt * 100).roundToDouble();
+        } else {
+          c['momChange'] = null;
+        }
+      }
+      cats.sort((a, b) => ((b['amount'] as num?) ?? 0).compareTo((a['amount'] as num?) ?? 0));
+
       if (mounted) {
         setState(() {
-          _aiInsight = res;
-          _isAnalyzingAI = false;
+          _cats = cats;
+          _totalAmt = totalAmt;
+          _walletsList = wallets;
+          _isLoading = false;
         });
       }
     } catch (e) {
       if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _analyzeAI(List<dynamic> cats) async {
+    setState(() { _isAnalyzingAI = true; });
+    try {
+      final summaryStr = cats.map((c) => '${c['categoryLabel']}: ${formatVnd(c['amount'] ?? 0)} (${c['percent']}%)').join(', ');
+      final typeLabel = _recordType == 'expense' ? 'chi tiêu' : 'thu nhập';
+      final prompt = 'Phân tích nhanh $typeLabel theo danh mục kỳ $_selectedPeriod: $summaryStr';
+      final res = await AIAdvisorService.askFinancialQuestion(prompt);
+      if (mounted) setState(() { _aiInsight = res; _isAnalyzingAI = false; });
+    } catch (e) {
+      if (mounted) {
         setState(() {
-          _aiInsight = 'MiMo nhận thấy bạn có sự phân bổ chi tiêu đa dạng. Hãy chú ý tối ưu các khoản chi lớn nhất nhé!';
+          _aiInsight = 'MiMo nhận thấy bạn có sự phân bổ tài chính rất chú ý. Hãy theo dõi sát các danh mục lớn nhé!';
           _isAnalyzingAI = false;
         });
       }
@@ -56,18 +160,6 @@ class _CategorySpendingReportScreenState extends State<CategorySpendingReportScr
 
   @override
   Widget build(BuildContext context) {
-    final now = DateTime.now();
-    String fromStr;
-    String toStr;
-    if (_selectedPeriod == 'Tuần này') {
-      final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
-      fromStr = startOfWeek.toIso8601String().substring(0, 10);
-      toStr = now.toIso8601String().substring(0, 10);
-    } else {
-      fromStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-01';
-      toStr = now.toIso8601String().substring(0, 10);
-    }
-
     return Scaffold(
       backgroundColor: context.palette.bg,
       appBar: AppBar(
@@ -78,108 +170,122 @@ class _CategorySpendingReportScreenState extends State<CategorySpendingReportScr
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
-          'Chi tiêu theo danh mục',
+          _recordType == 'expense' ? 'Chi tiêu theo danh mục' : 'Thu nhập theo danh mục',
           style: TextStyle(color: context.palette.textPrimary, fontSize: 18, fontWeight: FontWeight.w700),
         ),
       ),
       body: SafeArea(
         child: Column(
           children: [
-            // Bộ lọc: Ví & Thời gian (Theo tuần / Theo tháng)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: 4),
+              child: Row(children: [
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: context.palette.card,
+                      borderRadius: BorderRadius.circular(AppRadii.lg),
+                      border: Border.all(color: context.palette.border),
+                    ),
+                    child: Row(children: [
+                      _buildTypeBtn('Chi tiêu', _recordType == 'expense', () {
+                        if (_recordType != 'expense') {
+                          setState(() => _recordType = 'expense');
+                          _loadReportData();
+                        }
+                      }),
+                      _buildTypeBtn('Thu nhập', _recordType == 'income', () {
+                        if (_recordType != 'income') {
+                          setState(() => _recordType = 'income');
+                          _loadReportData();
+                        }
+                      }),
+                    ]),
+                  ),
+                ),
+              ]),
+            ),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.sm),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: context.palette.card,
-                        borderRadius: BorderRadius.circular(AppRadii.lg),
-                        border: Border.all(color: context.palette.border),
-                      ),
-                      child: Row(
+              child: Row(children: [
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: context.palette.card,
+                      borderRadius: BorderRadius.circular(AppRadii.lg),
+                      border: Border.all(color: context.palette.border),
+                    ),
+                    child: Row(children: [
+                      _buildPeriodBtn('Theo tuần', _selectedPeriod == 'Tuần này', () {
+                        if (_selectedPeriod != 'Tuần này') {
+                          setState(() => _selectedPeriod = 'Tuần này');
+                          _loadReportData();
+                        }
+                      }),
+                      _buildPeriodBtn('Theo tháng', _selectedPeriod == 'Tháng này', () {
+                        if (_selectedPeriod != 'Tháng này') {
+                          setState(() => _selectedPeriod = 'Tháng này');
+                          _loadReportData();
+                        }
+                      }),
+                    ]),
+                  ),
+                ),
+              ]),
+            ),
+            _buildWalletSelectorBar(),
+            Expanded(
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : SingleChildScrollView(
+                      padding: const EdgeInsets.all(AppSpacing.lg),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildPeriodBtn('Theo tuần', _selectedPeriod == 'Tuần này', () {
-                            setState(() => _selectedPeriod = 'Tuần này');
-                          }),
-                          _buildPeriodBtn('Theo tháng', _selectedPeriod == 'Tháng này', () {
-                            setState(() => _selectedPeriod = 'Tháng này');
-                          }),
+                          _buildAISection(_cats),
+                          const SizedBox(height: 16),
+                          _buildMinimalistDonutSection(_cats, _totalAmt),
+                          const SizedBox(height: 24),
+                          Text('Chi tiết danh mục',
+                            style: TextStyle(color: context.palette.textPrimary, fontSize: 16, fontWeight: FontWeight.w700)),
+                          const SizedBox(height: 12),
+                          if (_cats.isEmpty)
+                            Container(
+                              padding: const EdgeInsets.all(32),
+                              alignment: Alignment.center,
+                              child: const Text('Chưa có dữ liệu giao dịch', style: TextStyle(color: AppColors.muted)),
+                            )
+                          else
+                            ..._cats.map((cat) => _buildCategoryTile(cat)),
                         ],
                       ),
                     ),
-                  ),
-                ],
-              ),
-            ),
-
-            Expanded(
-              child: FutureBuilder(
-                future: AppQueries.statsByCategory('custom', _selectedWalletId, from: fromStr, to: toStr).result,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                  final rawCats = snapshot.data?.data ?? [];
-                  final Map<String, Map<String, dynamic>> mergedMap = {};
-                  int totalAmt = 0;
-                  for (final c in rawCats) {
-                    final map = c as Map<String, dynamic>;
-                    final code = map['categoryCode']?.toString() ?? 'Other';
-                    final amt = (map['amount'] as num?)?.toInt() ?? 0;
-                    final label = CategoryTheme.of(code).label;
-                    totalAmt += amt;
-                    if (mergedMap.containsKey(label)) {
-                      mergedMap[label]!['amount'] = (mergedMap[label]!['amount'] as int) + amt;
-                    } else {
-                      mergedMap[label] = {
-                        'categoryCode': code,
-                        'categoryLabel': label,
-                        'amount': amt,
-                        'color': CategoryTheme.of(code).color.toARGB32(),
-                      };
-                    }
-                  }
-                  final cats = mergedMap.values.toList();
-                  for (final c in cats) {
-                    c['percent'] = totalAmt > 0 ? ((c['amount'] as int) * 100 / totalAmt) : 0.0;
-                  }
-                  cats.sort((a, b) => (b['amount'] as int).compareTo(a['amount'] as int));
-
-                  return SingleChildScrollView(
-                    padding: const EdgeInsets.all(AppSpacing.lg),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildAISection(cats),
-                        const SizedBox(height: 16),
-                        _buildSoftDonutChartSection(cats, totalAmt),
-                        const SizedBox(height: 24),
-                        Text(
-                          'Chi tiết danh mục',
-                          style: TextStyle(
-                            color: context.palette.textPrimary,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        if (cats.isEmpty)
-                          Container(
-                            padding: const EdgeInsets.all(32),
-                            alignment: Alignment.center,
-                            child: const Text('Chưa có dữ liệu chi tiêu', style: TextStyle(color: AppColors.muted)),
-                          )
-                        else
-                          ...cats.map((cat) => _buildCategoryTile(cat)),
-                      ],
-                    ),
-                  );
-                },
-              ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTypeBtn(String label, bool active, VoidCallback onTap) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: active ? AppColors.teal : Colors.transparent,
+            borderRadius: BorderRadius.circular(AppRadii.md),
+          ),
+          child: Text(label,
+            style: TextStyle(
+              color: active ? Colors.white : context.palette.textPrimary,
+              fontSize: 13,
+              fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+            )),
         ),
       ),
     );
@@ -196,14 +302,12 @@ class _CategorySpendingReportScreenState extends State<CategorySpendingReportScr
             color: active ? AppColors.teal : Colors.transparent,
             borderRadius: BorderRadius.circular(AppRadii.md),
           ),
-          child: Text(
-            label,
+          child: Text(label,
             style: TextStyle(
               color: active ? Colors.white : context.palette.textPrimary,
               fontSize: 13,
               fontWeight: active ? FontWeight.w700 : FontWeight.w500,
-            ),
-          ),
+            )),
         ),
       ),
     );
@@ -219,59 +323,38 @@ class _CategorySpendingReportScreenState extends State<CategorySpendingReportScr
           child: Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  AppColors.teal.withValues(alpha: 0.15),
-                  AppColors.tealDark.withValues(alpha: 0.15),
-                ],
-              ),
+              gradient: LinearGradient(colors: [AppColors.teal.withValues(alpha: 0.15), AppColors.tealDark.withValues(alpha: 0.15)]),
               borderRadius: BorderRadius.circular(AppRadii.xl),
               border: Border.all(color: AppColors.teal.withValues(alpha: 0.3)),
             ),
-            child: Row(
-              children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: const BoxDecoration(
-                    color: AppColors.teal,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.auto_awesome, color: Colors.white, size: 24),
+            child: Row(children: [
+              Container(
+                width: 44, height: 44,
+                decoration: BoxDecoration(
+                  color: AppColors.teal.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
                 ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Phân tích AI từ MiMo Mascot',
-                        style: TextStyle(
-                          color: AppColors.teal,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        _isAnalyzingAI
-                            ? 'MiMo đang phân tích cấu trúc chi tiêu...'
-                            : 'Nhấn để MiMo phân tích & đưa ra lời khuyên cho bạn',
-                        style: const TextStyle(color: AppColors.muted, fontSize: 12),
-                      ),
-                    ],
+                child: ClipOval(
+                  child: Image.asset(
+                    _isAnalyzingAI ? 'assets/MiMo/emotions/Thinking.png' : 'assets/MiMo/emotions/Happy.png',
+                    fit: BoxFit.cover,
                   ),
                 ),
-                if (_isAnalyzingAI)
-                  const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                else
-                  const Icon(Icons.chevron_right_rounded, color: AppColors.teal),
-              ],
-            ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Text('Phân tích AI từ MiMo Mascot',
+                  style: TextStyle(color: AppColors.teal, fontSize: 15, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 2),
+                Text(
+                  _isAnalyzingAI ? 'MiMo đang phân tích cấu trúc tài chính...' : 'Nhấn để MiMo phân tích & đưa ra lời khuyên cho bạn',
+                  style: const TextStyle(color: AppColors.muted, fontSize: 12)),
+              ])),
+              if (_isAnalyzingAI)
+                const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+              else
+                const Icon(Icons.chevron_right_rounded, color: AppColors.teal),
+            ]),
           ),
         ),
         if (_aiInsight != null) ...[
@@ -284,40 +367,112 @@ class _CategorySpendingReportScreenState extends State<CategorySpendingReportScr
               border: Border.all(color: AppColors.teal.withValues(alpha: 0.25)),
               boxShadow: context.palette.softShadow,
             ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const CircleAvatar(
-                  radius: 18,
-                  backgroundColor: AppColors.teal,
-                  child: Text('M', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
+            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: AppColors.teal.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'MiMo khuyên bạn:',
-                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: AppColors.teal),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        _aiInsight!,
-                        style: TextStyle(color: context.palette.textPrimary, fontSize: 13, height: 1.4),
-                      ),
-                    ],
-                  ),
+                child: ClipOval(
+                  child: Image.asset('assets/MiMo/emotions/Happy.png', fit: BoxFit.cover),
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Text('MiMo khuyên bạn:',
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: AppColors.teal)),
+                const SizedBox(height: 4),
+                Text(_aiInsight!, style: TextStyle(color: context.palette.textPrimary, fontSize: 13, height: 1.4)),
+              ])),
+            ]),
           ),
         ],
       ],
     );
   }
 
-  Widget _buildSoftDonutChartSection(List<dynamic> cats, int totalAmt) {
+  Widget _buildWalletSelectorBar() {
+    return Container(
+      padding: const EdgeInsets.only(left: AppSpacing.lg, right: AppSpacing.lg, bottom: 10),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            _buildWalletChipItem('Tất cả ví', null),
+            ..._walletsList.map((w) {
+              final id = w['id']?.toString();
+              final name = w['name']?.toString() ?? 'Ví';
+              return _buildWalletChipItem(name, id);
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWalletChipItem(String label, String? walletId) {
+    final isSelected = _selectedWalletId == walletId;
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: InkWell(
+        onTap: () {
+          setState(() => _selectedWalletId = walletId);
+          _loadReportData();
+        },
+        borderRadius: BorderRadius.circular(AppRadii.full),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: isSelected ? AppColors.teal : context.palette.card,
+            borderRadius: BorderRadius.circular(AppRadii.full),
+            border: Border.all(
+              color: isSelected ? AppColors.teal : context.palette.border,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                walletId == null ? Icons.all_inclusive_rounded : Icons.account_balance_wallet_outlined,
+                size: 13,
+                color: isSelected ? Colors.white : context.palette.textSecondary,
+              ),
+              const SizedBox(width: 5),
+              Text(
+                label,
+                style: TextStyle(
+                  color: isSelected ? Colors.white : context.palette.textPrimary,
+                  fontSize: 11,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMinimalistDonutSection(List<dynamic> cats, int totalAmt) {
+    const chartSize = 180.0;
+    const donutThickness = 26.0;
+    const holeRadius = 52.0;
+
+    final displayCats = cats.take(8).toList();
+    final leftCats = <Map<String, dynamic>>[];
+    final rightCats = <Map<String, dynamic>>[];
+
+    for (int i = 0; i < displayCats.length; i++) {
+      if (i % 2 == 0) {
+        leftCats.add(displayCats[i] as Map<String, dynamic>);
+      } else {
+        rightCats.add(displayCats[i] as Map<String, dynamic>);
+      }
+    }
+
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
@@ -325,79 +480,242 @@ class _CategorySpendingReportScreenState extends State<CategorySpendingReportScr
         borderRadius: BorderRadius.circular(AppRadii.xl),
         boxShadow: context.palette.softShadow,
       ),
-      child: Column(
-        children: [
-          SizedBox(
-            height: 220,
-            child: cats.isEmpty
-                ? const Center(child: Text('Chưa có chi tiêu', style: TextStyle(color: AppColors.muted)))
-                : Stack(
+      child: Column(children: [
+        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+          Text('Phân bổ chi tiêu',
+            style: TextStyle(color: context.palette.textPrimary, fontSize: 15, fontWeight: FontWeight.w700)),
+          Text(_selectedPeriod,
+            style: const TextStyle(color: AppColors.teal, fontSize: 12, fontWeight: FontWeight.w600)),
+        ]),
+        const SizedBox(height: 20),
+
+        cats.isEmpty
+          ? const Padding(
+              padding: EdgeInsets.symmetric(vertical: 40),
+              child: Text('Chưa có chi tiêu', style: TextStyle(color: AppColors.muted)),
+            )
+          : Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Expanded(child: _buildSideLabels(leftCats, isLeft: true)),
+                SizedBox(
+                  width: chartSize,
+                  height: chartSize,
+                  child: Stack(
                     alignment: Alignment.center,
                     children: [
+                      Container(
+                        width: chartSize,
+                        height: chartSize,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.teal.withValues(alpha: 0.1),
+                              blurRadius: 24,
+                              spreadRadius: 4,
+                            ),
+                          ],
+                        ),
+                      ),
                       PieChart(
                         PieChartData(
-                          sectionsSpace: 4,
-                          centerSpaceRadius: 65,
-                          sections: cats.map((cat) {
+                          sectionsSpace: 3,
+                          centerSpaceRadius: holeRadius,
+                          startDegreeOffset: -90,
+                          pieTouchData: PieTouchData(
+                            touchCallback: (event, response) {
+                              setState(() {
+                                _touchedIndex = response?.touchedSection?.touchedSectionIndex ?? -1;
+                              });
+                            },
+                          ),
+                          sections: displayCats.asMap().entries.map((entry) {
+                            final i = entry.key;
+                            final cat = entry.value;
                             final pct = (cat['percent'] as double?) ?? 0.0;
                             final color = Color(cat['color'] as int? ?? AppColors.teal.toARGB32());
+                            final isTouched = i == _touchedIndex;
+
                             return PieChartSectionData(
                               color: color,
                               value: pct > 0 ? pct : 0.1,
-                              title: pct >= 5 ? '${pct.toStringAsFixed(0)}%' : '',
-                              radius: 28,
-                              titleStyle: const TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
+                              title: '',
+                              radius: isTouched ? donutThickness + 6 : donutThickness,
+                              borderSide: BorderSide(color: Colors.white, width: isTouched ? 2.5 : 1.5),
                             );
                           }).toList(),
                         ),
                       ),
-                      Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Text('Tổng chi', style: TextStyle(color: AppColors.muted, fontSize: 12)),
-                          const SizedBox(height: 4),
-                          Text(
-                            formatVnd(totalAmt),
-                            style: TextStyle(
-                              color: context.palette.textPrimary,
-                              fontSize: 18,
-                              fontWeight: FontWeight.w800,
-                            ),
+                      Column(mainAxisSize: MainAxisSize.min, children: [
+                        const Text('Tổng chi', style: TextStyle(color: AppColors.muted, fontSize: 10)),
+                        const SizedBox(height: 2),
+                        Text(
+                          formatVndCompact(totalAmt),
+                          style: TextStyle(
+                            color: context.palette.textPrimary,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
                           ),
-                        ],
+                        ),
+                      ]),
+                    ],
+                  ),
+                ),
+                Expanded(child: _buildSideLabels(rightCats, isLeft: false)),
+              ],
+            ),
+
+        if (cats.length > 8) ...[
+          const SizedBox(height: 12),
+          Text('+${cats.length - 8} danh mục khác',
+            style: const TextStyle(color: AppColors.muted, fontSize: 11)),
+        ],
+      ]),
+    );
+  }
+
+  Widget _buildSideLabels(List<Map<String, dynamic>> catList, {required bool isLeft}) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: isLeft ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      children: catList.map((cat) {
+        final color = Color(cat['color'] as int? ?? AppColors.teal.toARGB32());
+        final code = cat['categoryCode']?.toString() ?? 'Other';
+        final label = cat['categoryLabel']?.toString() ?? '';
+        final pct = (cat['percent'] as double?) ?? 0.0;
+        final momChange = cat['momChange'] as double?;
+        final shortLabel = label.length > 8 ? '${label.substring(0, 7)}…' : label;
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: isLeft ? Alignment.centerRight : Alignment.centerLeft,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: isLeft ? MainAxisAlignment.end : MainAxisAlignment.start,
+              children: [
+                if (isLeft) ...[
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: color.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            CategoryTheme.iconOf(code, size: 13),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${pct.toStringAsFixed(0)}%',
+                              style: TextStyle(
+                                color: color,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            if (momChange != null) ...[
+                              const SizedBox(width: 3),
+                              _buildMomBadge(momChange),
+                            ],
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        shortLabel,
+                        style: TextStyle(
+                          color: context.palette.textSecondary,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ],
                   ),
-          ),
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 12,
-            runSpacing: 8,
-            alignment: WrapAlignment.center,
-            children: cats.take(6).map((cat) {
-              final color = Color(cat['color'] as int? ?? AppColors.teal.toARGB32());
-              return Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
+                  const SizedBox(width: 6),
                   Container(
-                    width: 10,
-                    height: 10,
+                    width: 6,
+                    height: 6,
+                    decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+                  ),
+                ] else ...[
+                  Container(
+                    width: 6,
+                    height: 6,
                     decoration: BoxDecoration(color: color, shape: BoxShape.circle),
                   ),
                   const SizedBox(width: 6),
-                  Text(
-                    cat['categoryLabel']?.toString() ?? '',
-                    style: TextStyle(color: context.palette.textPrimary, fontSize: 12, fontWeight: FontWeight.w600),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: color.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            CategoryTheme.iconOf(code, size: 13),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${pct.toStringAsFixed(0)}%',
+                              style: TextStyle(
+                                color: color,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            if (momChange != null) ...[
+                              const SizedBox(width: 3),
+                              _buildMomBadge(momChange),
+                            ],
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        shortLabel,
+                        style: TextStyle(
+                          color: context.palette.textSecondary,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
-              );
-            }).toList(),
+              ],
+            ),
           ),
-        ],
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildMomBadge(double momChange) {
+    final isUp = momChange > 0;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
+      decoration: BoxDecoration(
+        color: isUp ? AppColors.danger.withValues(alpha: 0.12) : AppColors.teal.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(3),
+      ),
+      child: Text(
+        '${isUp ? '+' : ''}${momChange.toStringAsFixed(0)}%',
+        style: TextStyle(
+          color: isUp ? AppColors.danger : AppColors.teal,
+          fontSize: 8,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }
@@ -408,24 +726,24 @@ class _CategorySpendingReportScreenState extends State<CategorySpendingReportScr
     final amount = (cat['amount'] as num?)?.toInt() ?? 0;
     final percent = (cat['percent'] as num?)?.toDouble() ?? 0.0;
     final color = Color(cat['color'] as int? ?? AppColors.teal.toARGB32());
+    final momChange = cat['momChange'] as double?;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => CategoryDetailReportScreen(
-                categoryCode: code,
-                categoryName: label,
-                totalAmount: amount,
-                percentage: percent,
-                dateRangeLabel: _selectedPeriod,
-                walletId: _selectedWalletId,
-              ),
+          Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => CategoryDetailReportScreen(
+              categoryCode: code,
+              categoryName: label,
+              totalAmount: amount,
+              percentage: percent,
+              dateRangeLabel: _selectedPeriod,
+              walletId: _selectedWalletId,
+              recordType: _recordType,
             ),
-          );
+          ));
         },
         child: Container(
           padding: const EdgeInsets.all(14),
@@ -435,66 +753,66 @@ class _CategorySpendingReportScreenState extends State<CategorySpendingReportScr
             border: Border.all(color: color.withValues(alpha: 0.15)),
             boxShadow: context.palette.softShadow,
           ),
-          child: Row(
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.12),
-                  shape: BoxShape.circle,
+          child: Row(children: [
+            Container(
+              width: 42, height: 42,
+              decoration: BoxDecoration(color: color.withValues(alpha: 0.12), shape: BoxShape.circle),
+              child: Center(child: CategoryTheme.iconOf(code, size: 22)),
+            ),
+            const SizedBox(width: 14),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                Expanded(
+                  child: Text(label,
+                    maxLines: 1, overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: context.palette.textPrimary, fontSize: 15, fontWeight: FontWeight.w700)),
                 ),
-                child: Center(child: CategoryTheme.iconOf(code, size: 22)),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: context.palette.textPrimary,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                      ),
+                if (momChange != null)
+                  Container(
+                    margin: const EdgeInsets.only(left: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: momChange > 0 ? AppColors.danger.withValues(alpha: 0.1) : AppColors.teal.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(6),
                     ),
-                    const SizedBox(height: 6),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
-                      child: LinearProgressIndicator(
-                        value: percent / 100,
-                        backgroundColor: color.withValues(alpha: 0.12),
-                        valueColor: AlwaysStoppedAnimation(color),
-                        minHeight: 5,
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      Icon(
+                        momChange > 0 ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded,
+                        size: 10,
+                        color: momChange > 0 ? AppColors.danger : AppColors.teal,
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 2),
+                      Text(
+                        '${momChange.abs().toStringAsFixed(0)}%',
+                        style: TextStyle(
+                          color: momChange > 0 ? AppColors.danger : AppColors.teal,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ]),
+                  ),
+              ]),
+              const SizedBox(height: 6),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  value: percent / 100,
+                  backgroundColor: color.withValues(alpha: 0.12),
+                  valueColor: AlwaysStoppedAnimation(color),
+                  minHeight: 5,
                 ),
               ),
-              const SizedBox(width: 14),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    formatVnd(amount),
-                    style: TextStyle(
-                      color: context.palette.textPrimary,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${percent.toStringAsFixed(1)}%',
-                    style: const TextStyle(color: AppColors.muted, fontSize: 12, fontWeight: FontWeight.w600),
-                  ),
-                ],
-              ),
-            ],
-          ),
+            ])),
+            const SizedBox(width: 14),
+            Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+              Text(formatVnd(amount),
+                style: TextStyle(color: context.palette.textPrimary, fontSize: 15, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 4),
+              Text('${percent.toStringAsFixed(1)}%',
+                style: const TextStyle(color: AppColors.muted, fontSize: 12, fontWeight: FontWeight.w600)),
+            ]),
+          ]),
         ),
       ),
     );

@@ -37,6 +37,7 @@ class _AppShellState extends State<AppShell> {
   int _reconnectAttempt = 0;
   final _api = ApiClient();
   bool _showAiPopup = false;
+  final GlobalKey<AiAssistantPopupMenuState> _aiPopupKey = GlobalKey<AiAssistantPopupMenuState>();
 
   @override
   void initState() {
@@ -289,9 +290,15 @@ class _AppShellState extends State<AppShell> {
   }
 
   void _onFabTap(BuildContext context) {
-    setState(() {
-      _showAiPopup = !_showAiPopup;
-    });
+    if (_showAiPopup) {
+      if (_aiPopupKey.currentState != null) {
+        _aiPopupKey.currentState!.closePopup();
+      } else {
+        setState(() => _showAiPopup = false);
+      }
+    } else {
+      setState(() => _showAiPopup = true);
+    }
   }
 
   @override
@@ -302,125 +309,169 @@ class _AppShellState extends State<AppShell> {
     final hasInAppNotification = inAppNotificationController.current != null;
     final billBannerTop = topInset + 12 + (hasInAppNotification ? 92 : 0);
 
-    return Scaffold(
-      body: Stack(
-        children: [
-          widget.child,
-          if (billJobs.isNotEmpty)
-            Positioned(
-              left: 16,
-              right: 16,
-              top: billBannerTop,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: billJobs.map((job) {
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: BillProcessingBanner(
-                      job: job,
-                      onDismiss: job.phase == BillJobPhase.failed
-                          ? () => BillProcessingService.instance.dismissJob(job.transactionId)
-                          : null,
-                    ),
-                  );
-                }).toList(),
-              ),
+    final mainContent = Stack(
+      children: [
+        widget.child,
+        if (billJobs.isNotEmpty)
+          Positioned(
+            left: 16,
+            right: 16,
+            top: billBannerTop,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: billJobs.map((job) {
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: BillProcessingBanner(
+                    job: job,
+                    onDismiss: job.phase == BillJobPhase.failed
+                        ? () => BillProcessingService.instance.dismissJob(job.transactionId)
+                        : null,
+                  ),
+                );
+              }).toList(),
             ),
-          // MiMo overlay — góc phải dưới, ngay trên nav bar
-          if (mimoController.current != null)
-            Positioned(
-              right: 12,
-              bottom: 88,
-              child: MiMoOverlay(
-                response: mimoController.current!,
-                onDismiss: mimoController.dismiss,
-              ),
+          ),
+        // MiMo overlay — góc phải dưới, ngay trên nav bar
+        if (mimoController.current != null)
+          Positioned(
+            right: 12,
+            bottom: 88,
+            child: MiMoOverlay(
+              response: mimoController.current!,
+              onDismiss: mimoController.dismiss,
             ),
-          // In-App Floating Notification Banner — Top center of the screen
-          if (inAppNotificationController.current != null)
-            Positioned(
-              top: topInset + 12,
-              left: 16,
-              right: 16,
-              child: InAppNotificationBanner(
-                notification: inAppNotificationController.current!,
-                onDismiss: inAppNotificationController.dismiss,
-              ),
+          ),
+        // In-App Floating Notification Banner — Top center of the screen
+        if (inAppNotificationController.current != null)
+          Positioned(
+            top: topInset + 12,
+            left: 16,
+            right: 16,
+            child: InAppNotificationBanner(
+              notification: inAppNotificationController.current!,
+              onDismiss: inAppNotificationController.dismiss,
             ),
-          // AI Assistant Speed Dial Popup overlay
-          if (_showAiPopup)
-            Positioned.fill(
-              child: AiAssistantPopupMenu(
-                onClose: () {
-                  setState(() {
-                    _showAiPopup = false;
-                  });
-                },
-                onSelectBill: () {
-                  context.push(
-                    AppRoutes.camera,
-                    extra: {
-                      'walletId': ApiClient.lastSelectedWalletId,
-                      'initialMode': 'Bill',
-                    },
-                  );
-                },
-                onSelectPhotoText: () {
-                  context.push(
-                    AppRoutes.camera,
-                    extra: {
-                      'walletId': ApiClient.lastSelectedWalletId,
-                      'initialMode': 'Ảnh',
-                    },
-                  );
-                },
-                onSelectChat: () {
-                  context.push(
-                    AppRoutes.chat,
-                    extra: {'walletId': ApiClient.lastSelectedWalletId},
-                  );
-                },
-              ),
+          ),
+        // AI Assistant Speed Dial Popup overlay
+        if (_showAiPopup)
+          Positioned.fill(
+            child: AiAssistantPopupMenu(
+              key: _aiPopupKey,
+              onClose: () {
+                setState(() {
+                  _showAiPopup = false;
+                });
+              },
+              onSelectBill: () {
+                context.push(
+                  AppRoutes.camera,
+                  extra: {
+                    'walletId': ApiClient.lastSelectedWalletId,
+                    'initialMode': 'Bill',
+                  },
+                );
+              },
+              onSelectPhotoText: () {
+                context.push(
+                  AppRoutes.camera,
+                  extra: {
+                    'walletId': ApiClient.lastSelectedWalletId,
+                    'initialMode': 'Ảnh',
+                  },
+                );
+              },
+              onSelectChat: () {
+                context.push(
+                  AppRoutes.chat,
+                  extra: {'walletId': ApiClient.lastSelectedWalletId},
+                );
+              },
             ),
-        ],
-      ),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: context.palette.card,
-          border: Border(top: BorderSide(color: context.palette.border, width: 1)),
-          boxShadow: [BoxShadow(color: context.palette.shadow, blurRadius: 16, offset: const Offset(0, -4))],
-        ),
-        child: SafeArea(
-          top: false,
-          child: SizedBox(
-            height: 72,
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Row(
-                  children: [
-                    _NavItem(icon: Icons.home_outlined, activeIcon: Icons.home_rounded, label: 'Trang chủ', isActive: currentIndex == 0, onTap: () => _onTabTap(context, 0)),
-                    _NavItem(icon: Icons.insights_outlined, activeIcon: Icons.insights_rounded, label: 'Báo cáo', isActive: currentIndex == 1, onTap: () => _onTabTap(context, 1)),
-                    const Expanded(child: SizedBox()), // gap for FAB
-                    _NavItem(icon: Icons.savings_outlined, activeIcon: Icons.savings_rounded, label: 'Công cụ', isActive: currentIndex == 2, onTap: () => _onTabTap(context, 2)),
-                    _NavItem(icon: Icons.settings_outlined, activeIcon: Icons.settings_rounded, label: 'Cài đặt', isActive: currentIndex == 3, onTap: () => _onTabTap(context, 3)),
-                  ],
-                ),
-                // FAB raised above bar (SH-02: animated rotation on tap)
-                Positioned(
-                  top: -22,
-                  left: 0,
-                  right: 0,
-                  child: Center(
-                    child: _AnimatedFab(onTap: () => _onFabTap(context)),
+          ),
+      ],
+    );
+
+    return LayoutBuilder(builder: (context, constraints) {
+      final isWide = constraints.maxWidth >= 600;
+
+      if (isWide) {
+        return Scaffold(
+          backgroundColor: context.palette.bg,
+          body: Row(
+            children: [
+              NavigationRail(
+                backgroundColor: context.palette.card,
+                selectedIndex: currentIndex,
+                onDestinationSelected: (idx) => _onTabTap(context, idx),
+                labelType: NavigationRailLabelType.all,
+                selectedLabelTextStyle: TextStyle(color: AppColors.teal, fontWeight: FontWeight.bold, fontSize: 12),
+                unselectedLabelTextStyle: TextStyle(color: context.palette.muted, fontSize: 12),
+                selectedIconTheme: IconThemeData(color: AppColors.teal),
+                unselectedIconTheme: IconThemeData(color: context.palette.muted),
+                leading: Padding(
+                  padding: const EdgeInsets.only(bottom: 24, top: 16),
+                  child: FloatingActionButton(
+                    backgroundColor: AppColors.teal,
+                    foregroundColor: Colors.white,
+                    onPressed: () => _onFabTap(context),
+                    child: const Icon(Icons.add),
                   ),
                 ),
-              ],
+                destinations: const [
+                  NavigationRailDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home_rounded), label: Text('Trang chủ')),
+                  NavigationRailDestination(icon: Icon(Icons.insights_outlined), selectedIcon: Icon(Icons.insights_rounded), label: Text('Báo cáo')),
+                  NavigationRailDestination(icon: Icon(Icons.savings_outlined), selectedIcon: Icon(Icons.savings_rounded), label: Text('Công cụ')),
+                  NavigationRailDestination(icon: Icon(Icons.settings_outlined), selectedIcon: Icon(Icons.settings_rounded), label: Text('Cài đặt')),
+                ],
+              ),
+              const VerticalDivider(thickness: 1, width: 1),
+              Expanded(child: mainContent),
+            ],
+          ),
+        );
+      }
+
+      return Scaffold(
+        backgroundColor: context.palette.bg,
+        body: mainContent,
+        bottomNavigationBar: Container(
+          decoration: BoxDecoration(
+            color: context.palette.card,
+            border: Border(top: BorderSide(color: context.palette.border, width: 1)),
+            boxShadow: [BoxShadow(color: context.palette.shadow, blurRadius: 16, offset: const Offset(0, -4))],
+          ),
+          child: SafeArea(
+            top: false,
+            child: SizedBox(
+              height: 72,
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Row(
+                    children: [
+                      _NavItem(icon: Icons.home_outlined, activeIcon: Icons.home_rounded, label: 'Trang chủ', isActive: currentIndex == 0, onTap: () => _onTabTap(context, 0)),
+                      _NavItem(icon: Icons.insights_outlined, activeIcon: Icons.insights_rounded, label: 'Báo cáo', isActive: currentIndex == 1, onTap: () => _onTabTap(context, 1)),
+                      const Expanded(child: SizedBox()), // gap for FAB
+                      _NavItem(icon: Icons.savings_outlined, activeIcon: Icons.savings_rounded, label: 'Công cụ', isActive: currentIndex == 2, onTap: () => _onTabTap(context, 2)),
+                      _NavItem(icon: Icons.settings_outlined, activeIcon: Icons.settings_rounded, label: 'Cài đặt', isActive: currentIndex == 3, onTap: () => _onTabTap(context, 3)),
+                    ],
+                  ),
+                  Positioned(
+                    top: -22,
+                    left: 0,
+                    right: 0,
+                    child: Center(
+                      child: _AnimatedFab(onTap: () => _onFabTap(context)),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
-      ),
-    );
+      );
+    });
   }
 }
 

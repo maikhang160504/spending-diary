@@ -217,6 +217,9 @@ class BillProcessingService extends ChangeNotifier {
   }
 
   bool _needsReview(Map<String, dynamic> data) {
+    if (data.containsKey('needsReview')) {
+      return data['needsReview'] == true;
+    }
     final confidence = data['aiConfidence'] is num
         ? (data['aiConfidence'] as num).toDouble()
         : 0.0;
@@ -237,6 +240,7 @@ class BillProcessingService extends ChangeNotifier {
       'aiComment': data['aiComment'] ?? data['story'] ?? data['ai_message'],
       'mascotMood': data['mascotMood'] ?? data['mascot_mood'],
       'aiConfidence': data['aiConfidence'] ?? data['ai_confidence'],
+      'needsReview': data['needsReview'],
     };
   }
 

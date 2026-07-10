@@ -39,10 +39,10 @@ class AppQueries {
         queryFn: () => _api.getStories(walletId: walletId),
       );
 
-  static Query<List<dynamic>> statsByCategory(String? range, String? walletId, {String? from, String? to}) =>
+  static Query<List<dynamic>> statsByCategory(String? range, String? walletId, {String? from, String? to, String? type}) =>
       Query<List<dynamic>>(
-        key: 'statsCategory:${range ?? 'all'}:${walletId ?? 'all'}:${from ?? 'default'}:${to ?? 'default'}',
-        queryFn: () => _api.getStatsByCategory(range: range, walletId: walletId, from: from, to: to),
+        key: 'statsCategory:${range ?? 'all'}:${walletId ?? 'all'}:${from ?? 'default'}:${to ?? 'default'}:${type ?? 'expense'}',
+        queryFn: () => _api.getStatsByCategory(range: range, walletId: walletId, from: from, to: to, type: type),
       );
 
   static Query<List<dynamic>> statsByMonth(int year, String? walletId) =>

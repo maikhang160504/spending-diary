@@ -14,6 +14,7 @@ class AppColors {
   static const Color muted = Color(0xFF94A3B8);
   static const Color success = Color(0xFF16A34A);
   static const Color danger = Color(0xFFDC2626);
+  static const Color warning = Color(0xFFF59E0B);
 
   /// Shadow nhuốm theo nền (slate, không dùng đen tuyền) — cảm giác mềm & premium.
   static const Color shadow = Color(0x14334155); // slate-700 ~8%

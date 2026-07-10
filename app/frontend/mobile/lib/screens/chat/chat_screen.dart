@@ -78,7 +78,7 @@ int? _amountFromNlu(Map<String, dynamic> nlu) {
   return nluInt(raw);
 }
 
-String _actionSummary(String actionType, {int? amount, String? categoryCode, String? verb, String? verbalStyle, String? theme}) {
+String _actionSummary(String actionType, {int? amount, String? categoryCode, String? verb, String? verbalStyle, String? theme, String? toolType}) {
   final t = actionType.toUpperCase();
   final v = (verb ?? '').toUpperCase();
   final amt = amount != null ? formatVnd(amount) : null;
@@ -95,7 +95,16 @@ String _actionSummary(String actionType, {int? amount, String? categoryCode, Str
     return '${verbLabel('hạn mức')}${catLabel != null ? ' $catLabel' : ''}${amt != null ? ': $amt' : ''}';
   }
   if (t.contains('DELETE')) return 'Xóa giao dịch gần nhất';
-  if (t.contains('GOAL') || t == 'SET_GOAL' || t == 'ADD_GOAL') {
+  if (t.contains('GOAL') || t == 'SET_GOAL' || t == 'ADD_GOAL' || t.contains('LOAN')) {
+    if (toolType == 'challenge') {
+      return 'Tạo thử thách tiết kiệm${amt != null ? ' $amt' : ''}';
+    }
+    if (toolType == 'saving_group') {
+      return 'Tạo nhóm tiết kiệm${amt != null ? ' $amt' : ''}';
+    }
+    if (toolType == 'loan' || t.contains('LOAN')) {
+      return 'Tạo nhắc hẹn vay mượn${amt != null ? ' $amt' : ''}';
+    }
     return '${verbLabel('mục tiêu')}${amt != null ? ' $amt' : ''}';
   }
   if (t.contains('TONE') || t == 'SET_VERBAL_STYLE') {
@@ -146,6 +155,10 @@ _ActionPreview _actionPreviewFromNlu(
       nluString(nlu['verbal_style']) ??
       nluString(nlu['verbalStyle']);
   final theme = nluString(details?['theme']) ?? nluString(nlu['theme']);
+  final toolType = nluString(details?['tool_type']) ??
+      nluString(details?['toolType']) ??
+      nluString(nlu['tool_type']) ??
+      nluString(nlu['toolType']);
   return _ActionPreview(
     actionType: actionType,
     signature: _actionSignatureFromNlu(nlu),
@@ -159,6 +172,7 @@ _ActionPreview _actionPreviewFromNlu(
       verb: verb,
       verbalStyle: verbalStyle,
       theme: theme,
+      toolType: toolType,
     ),
     actionDetails: nlu['action_details'] as Map<String, dynamic>?,
     aiLine: aiLine,
@@ -168,6 +182,10 @@ _ActionPreview _actionPreviewFromNlu(
 Map<String, dynamic> _executeBodyFromPreview(_ActionPreview preview) {
   final details = preview.actionDetails;
   final goalName = nluString(details?['goal_name']) ?? nluString(details?['goalName']);
+  final toolType = nluString(details?['tool_type']) ?? nluString(details?['toolType']);
+  final loanType = nluString(details?['loan_type']) ?? nluString(details?['loanType']);
+  final contactName = nluString(details?['contact_name']) ?? nluString(details?['contactName']);
+  final dueDate = nluString(details?['due_date']) ?? nluString(details?['dueDate']);
   final timeLabel = nluString(details?['time']) ?? nluString(details?['time_range']);
   final query = nluString(details?['query']);
   return {
@@ -175,6 +193,10 @@ Map<String, dynamic> _executeBodyFromPreview(_ActionPreview preview) {
     if (preview.amount != null) 'amount': preview.amount,
     if (preview.categoryCode != null) 'categoryCode': preview.categoryCode,
     if (goalName != null && goalName.isNotEmpty) 'goalName': goalName,
+    if (toolType != null && toolType.isNotEmpty) 'toolType': toolType,
+    if (loanType != null && loanType.isNotEmpty) 'loanType': loanType,
+    if (contactName != null && contactName.isNotEmpty) 'contactName': contactName,
+    if (dueDate != null && dueDate.isNotEmpty) 'dueDate': dueDate,
     if (query != null && query.isNotEmpty) 'query': query,
     'text': preview.originalText,
     if (preview.actionDetails != null) 'actionDetails': preview.actionDetails,
@@ -1187,7 +1209,12 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       });
       _scrollToBottom();
 
-      if (searchPreview != null || budgetPreview != null || reportPreview != null) {
+      if (searchPreview != null ||
+          budgetPreview != null ||
+          reportPreview != null ||
+          kind == 'goal' ||
+          kind == 'goal_contribute' ||
+          kind == 'loan') {
         await _persistActionResultMessage(message, result);
       }
 

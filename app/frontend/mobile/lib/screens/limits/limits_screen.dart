@@ -91,6 +91,309 @@ class _LimitsScreenState extends State<LimitsScreen> {
     return 'Tháng ${now.month}/${now.year}';
   }
 
+  void _showSmartBudgetSuggestions() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: context.palette.card,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadii.xl)),
+      ),
+      builder: (sheetCtx) {
+        bool loading = true;
+        String? err;
+        Map<String, dynamic>? resultData;
+        Map<String, int> amounts = {};
+        Map<String, bool> selected = {};
+
+        return StatefulBuilder(
+          builder: (ctx, setSheetState) {
+            if (loading && resultData == null && err == null) {
+              _api.getBudgetSuggestions().then((data) {
+                if (!ctx.mounted) return;
+                final list = (data['suggestions'] as List<dynamic>? ?? []);
+                for (final item in list) {
+                  final m = item as Map<String, dynamic>;
+                  final code = m['categoryCode'] as String? ?? 'Other';
+                  final amt = ((m['suggestedAmount'] ?? 0) as num).toInt();
+                  amounts[code] = amt;
+                  selected[code] = true;
+                }
+                setSheetState(() {
+                  resultData = data;
+                  loading = false;
+                });
+              }).catchError((e) {
+                if (!ctx.mounted) return;
+                setSheetState(() {
+                  err = e.toString();
+                  loading = false;
+                });
+              });
+            }
+
+            final suggestions = (resultData?['suggestions'] as List<dynamic>? ?? []);
+            final targetMonth = resultData?['targetMonth'] as String? ?? '';
+            final story = resultData?['story'] as String? ?? 'Dựa trên chi tiêu trung bình 3 tháng qua và mùa vụ.';
+
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(ctx).viewInsets.bottom,
+                left: 20,
+                right: 20,
+                top: 20,
+              ),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(ctx).size.height * 0.82,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: AppColors.teal.withValues(alpha: 0.12),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.auto_awesome, color: AppColors.teal, size: 22),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Gợi ý hạn mức AI thông minh',
+                                style: TextStyle(
+                                  color: context.palette.textPrimary,
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              if (targetMonth.isNotEmpty)
+                                Text(
+                                  'Áp dụng cho tháng $targetMonth',
+                                  style: TextStyle(
+                                    color: context.palette.textSecondary,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          icon: Icon(Icons.close, color: context.palette.textSecondary),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    if (loading) ...[
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 48),
+                        child: Center(child: CircularProgressIndicator(color: AppColors.teal)),
+                      ),
+                    ] else if (err != null) ...[
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 24),
+                        child: Center(
+                          child: Text(
+                            'Không tải được gợi ý AI. Vui lòng thử lại sau.',
+                            style: TextStyle(color: AppColors.danger),
+                          ),
+                        ),
+                      ),
+                    ] else if (suggestions.isEmpty) ...[
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 32),
+                        child: Center(
+                          child: Text(
+                            'Chưa có đủ dữ liệu chi tiêu để AI đưa ra gợi ý.',
+                            style: TextStyle(color: context.palette.textSecondary),
+                          ),
+                        ),
+                      ),
+                    ] else ...[
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppColors.teal.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.lightbulb_outline, color: AppColors.teal, size: 18),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                story,
+                                style: TextStyle(
+                                  color: context.palette.textPrimary,
+                                  fontSize: 12,
+                                  height: 1.3,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Flexible(
+                        child: ListView.separated(
+                          shrinkWrap: true,
+                          itemCount: suggestions.length,
+                          separatorBuilder: (_, _) => const SizedBox(height: 8),
+                          itemBuilder: (ctx, i) {
+                            final m = suggestions[i] as Map<String, dynamic>;
+                            final code = m['categoryCode'] as String? ?? 'Other';
+                            final style = CategoryTheme.of(code);
+                            final amt = amounts[code] ?? 0;
+                            final isSel = selected[code] ?? true;
+                            final reason = m['reason'] as String? ?? '';
+
+                            return Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: context.palette.surfaceAlt,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Row(
+                                children: [
+                                  Checkbox(
+                                    value: isSel,
+                                    activeColor: AppColors.teal,
+                                    onChanged: (v) {
+                                      setSheetState(() => selected[code] = v ?? true);
+                                    },
+                                  ),
+                                  Container(
+                                    width: 34,
+                                    height: 34,
+                                    decoration: BoxDecoration(
+                                      color: style.color.withValues(alpha: 0.15),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Center(
+                                      child: CategoryTheme.iconOf(code, size: 18),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          style.label,
+                                          style: TextStyle(
+                                            color: context.palette.textPrimary,
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                        if (reason.isNotEmpty)
+                                          Text(
+                                            reason,
+                                            style: TextStyle(
+                                              color: context.palette.textSecondary,
+                                              fontSize: 11,
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    formatVnd(amt),
+                                    style: const TextStyle(
+                                      color: AppColors.teal,
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () {
+                                Navigator.pop(ctx);
+                                context.push('/chat');
+                              },
+                              icon: const Icon(Icons.chat_bubble_outline, size: 16),
+                              label: const Text('Hỏi Mimo AI'),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: AppColors.teal,
+                                side: const BorderSide(color: AppColors.teal),
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: FilledButton.icon(
+                              onPressed: () async {
+                                final overrides = <String, num>{};
+                                for (final entry in amounts.entries) {
+                                  if (selected[entry.key] == true) {
+                                    overrides[entry.key] = entry.value;
+                                  }
+                                }
+                                Navigator.pop(ctx);
+                                try {
+                                  await _api.applyBudgetSuggestions(
+                                    month: targetMonth,
+                                    overrides: overrides,
+                                  );
+                                  if (!mounted) return;
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('✅ Đã áp dụng gợi ý hạn mức AI thành công!'),
+                                      backgroundColor: AppColors.teal,
+                                    ),
+                                  );
+                                  _loadBudgets();
+                                } catch (_) {
+                                  if (!mounted) return;
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('❌ Lỗi khi áp dụng hạn mức.'),
+                                      backgroundColor: AppColors.danger,
+                                    ),
+                                  );
+                                }
+                              },
+                              icon: const Icon(Icons.check, size: 16),
+                              label: const Text('Áp dụng ngay'),
+                              style: FilledButton.styleFrom(
+                                backgroundColor: AppColors.teal,
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   void _showAddBudget({String? initialCategory}) {
     final amountCtrl = TextEditingController();
     String? selectedCategory = initialCategory;
@@ -227,18 +530,44 @@ class _LimitsScreenState extends State<LimitsScreen> {
                               child: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 16),
                             ),
                           ),
-                          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                            Text('Giới hạn chi tiêu', style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.white, fontWeight: FontWeight.w700)),
-                            const SizedBox(height: 4),
-                            Text('Kiểm soát ngân sách theo danh mục', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white70)),
-                          ]),
-                          GestureDetector(
-                            onTap: _showAddBudget,
-                            child: Container(
-                              width: 40, height: 40,
-                              decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), shape: BoxShape.circle),
-                              child: const Icon(Icons.add, color: Colors.white),
-                            ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                              Text('Giới hạn chi tiêu', maxLines: 1, overflow: TextOverflow.ellipsis, style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.white, fontWeight: FontWeight.w700)),
+                              const SizedBox(height: 4),
+                              Text('Kiểm soát ngân sách theo danh mục', maxLines: 1, overflow: TextOverflow.ellipsis, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white70)),
+                            ]),
+                          ),
+                          const SizedBox(width: 12),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              GestureDetector(
+                                onTap: _showSmartBudgetSuggestions,
+                                child: Container(
+                                  width: 40,
+                                  height: 40,
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.2),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(Icons.auto_awesome, color: Colors.white, size: 20),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              GestureDetector(
+                                onTap: _showAddBudget,
+                                child: Container(
+                                  width: 40,
+                                  height: 40,
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.2),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(Icons.add, color: Colors.white),
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -312,7 +641,21 @@ class _LimitsScreenState extends State<LimitsScreen> {
                           ),
                         )
                       else
-                        ..._limits.map((item) => _LimitCard(item: item, onEdit: () => _showEditDialog(context, item))),
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            final double cardWidth = constraints.maxWidth > 600
+                                ? (constraints.maxWidth - 12) / 2
+                                : constraints.maxWidth;
+                            return Wrap(
+                              spacing: 12,
+                              runSpacing: 12,
+                              children: _limits.map((item) => SizedBox(
+                                width: cardWidth,
+                                child: _LimitCard(item: item, onEdit: () => _showEditDialog(context, item)),
+                              )).toList(),
+                            );
+                          }
+                        ),
                       const SizedBox(height: 12),
                       GestureDetector(
                         onTap: _showAddBudget,

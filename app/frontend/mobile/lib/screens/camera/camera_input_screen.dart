@@ -8,6 +8,7 @@ import '../../services/api_client.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_radii.dart';
 import '../../widgets/loading_indicator.dart';
+import '../../services/bill_processing_service.dart';
 
 class CameraInputScreen extends StatefulWidget {
   final String? imagePath;
@@ -55,21 +56,25 @@ class _CameraInputScreenState extends State<CameraInputScreen> {
       });
       final targetId = widget.walletId ?? ApiClient.lastSelectedWalletId ?? (wallets.isNotEmpty ? wallets[0]['id'] as String : '');
 
-      final result = await _api.aiExpenseFromText(
+      final result = await _api.aiExpenseFromTextAsync(
         walletId: targetId,
         text: _controller.text.trim(),
-        autoSave: false,
       );
 
       if (!mounted) return;
       setState(() => _isLoading = false);
-      // Pass extracted data to confirm screen via extra
-      final extraData = Map<String, dynamic>.from(result);
-      if (widget.imagePath != null) {
-        extraData['imagePath'] = widget.imagePath;
+
+      final txId = result['transactionId'] as String?;
+      if (txId != null && txId.isNotEmpty) {
+        BillProcessingService.instance.trackExistingJob(
+          transactionId: txId,
+          walletId: targetId,
+          localImagePath: widget.imagePath,
+        );
       }
-      extraData['walletId'] = targetId;
-      context.push(AppRoutes.cameraConfirm, extra: extraData);
+
+      // Return to home or pop
+      context.go(AppRoutes.home);
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() { _isLoading = false; _error = e.localizedMessage; });

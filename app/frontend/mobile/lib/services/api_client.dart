@@ -313,6 +313,10 @@ class ApiClient {
     await _request('DELETE', '/wallets/$id');
   }
 
+  Future<void> leaveWallet(String id) async {
+    await _request('POST', '/wallets/$id/leave');
+  }
+
   Future<Map<String, dynamic>> generateWalletInviteCode(String walletId) async {
     final result = await _request('POST', '/wallets/$walletId/generate-code');
     return result['data'] as Map<String, dynamic>;
@@ -346,6 +350,7 @@ class ApiClient {
   Future<Map<String, dynamic>> getTransactions({
     String? walletId,
     String? type,
+    String? categoryCode,
     int pageSize = 20,
     int page = 1,
     String? from,
@@ -357,6 +362,7 @@ class ApiClient {
       queryParams: {
         'walletId': ?walletId,
         'type': ?type,
+        'categoryCode': ?categoryCode,
         'pageSize': '$pageSize',
         'page': '$page',
         'from': ?from,
@@ -484,6 +490,10 @@ class ApiClient {
     await _request('DELETE', '/goals/$id');
   }
 
+  Future<void> leaveGoal(String id) async {
+    await _request('POST', '/goals/$id/leave');
+  }
+
   Future<String> inviteGoal(String id) async {
     final result = await _request('POST', '/goals/$id/invite');
     final data = result['data'] as Map<String, dynamic>;
@@ -539,6 +549,19 @@ class ApiClient {
     return result['data'] as Map<String, dynamic>;
   }
 
+  Future<Map<String, dynamic>> aiExpenseFromTextAsync({
+    required String walletId,
+    required String text,
+  }) async {
+    final result = await _request(
+      'POST',
+      '/ai/expense/from-text-async',
+      body: {'walletId': walletId, 'text': text},
+    );
+    return result['data'] as Map<String, dynamic>;
+  }
+
+
   Future<Map<String, dynamic>> aiExpenseFromBill({
     required String walletId,
     required String filePath,
@@ -580,6 +603,12 @@ class ApiClient {
     return result['data'] as Map<String, dynamic>;
   }
 
+  Future<Map<String, dynamic>> getBudgetSuggestions({String? month}) async {
+    final query = month != null ? '?month=$month' : '';
+    final result = await _request('GET', '/budgets/suggestions$query');
+    return result['data'] as Map<String, dynamic>;
+  }
+
   Future<Map<String, dynamic>> applyBudgetSuggestions({
     required String month,
     Map<String, num>? overrides,
@@ -587,7 +616,7 @@ class ApiClient {
     final result = await _request(
       'POST',
       '/budgets/suggestions/apply',
-      body: {'month': month, if (overrides != null) 'overrides': overrides},
+      body: {'month': month, '?overrides': overrides},
     );
     return {
       'data': result['data'],
@@ -779,12 +808,40 @@ class ApiClient {
     return result['data'] as Map<String, dynamic>;
   }
 
+  // ─── Group Stats ────────────────────────────────────────────────────────
+  Future<Map<String, dynamic>> getGroupOverview(String walletId) async {
+    final result = await _request('GET', '/group-stats/$walletId/overview');
+    return result['data'] as Map<String, dynamic>;
+  }
+
+  Future<List<dynamic>> getGroupCategories(String walletId) async {
+    final result = await _request('GET', '/group-stats/$walletId/categories');
+    return result['data'] as List<dynamic>;
+  }
+
+  Future<Map<String, dynamic>> getGroupSettlement(String walletId) async {
+    final result = await _request('GET', '/group-stats/$walletId/settlement');
+    return result['data'] as Map<String, dynamic>;
+  }
+
+  Future<List<dynamic>> getGroupTimeline(String walletId, {String? range, String? from, String? to}) async {
+    final query = <String, String>{};
+    if (range != null) query['range'] = range;
+    if (from != null) query['from'] = from;
+    if (to != null) query['to'] = to;
+    
+    final uri = Uri(path: '/group-stats/$walletId/timeline', queryParameters: query.isEmpty ? null : query);
+    final result = await _request('GET', uri.toString());
+    return result['data'] as List<dynamic>;
+  }
+
   // ─── Stats ────────────────────────────────────────────────────────
   Future<List<dynamic>> getStatsByCategory({
     String? range,
     String? walletId,
     String? from,
     String? to,
+    String? type,
   }) async {
     final result = await _request(
       'GET',
@@ -794,6 +851,7 @@ class ApiClient {
         'walletId': ?walletId,
         'from': ?from,
         'to': ?to,
+        'type': ?type,
       },
     );
     return result['data'] as List<dynamic>;
@@ -872,6 +930,10 @@ class ApiClient {
   }
   Future<void> deleteLoan(String id) async {
     await _request('DELETE', '/loans/$id');
+  }
+
+  Future<Map<String, dynamic>> getGoalRecap(Map<String, dynamic> body) async {
+    return await _request('POST', '/ai/goal-recap', body: body);
   }
 }
 

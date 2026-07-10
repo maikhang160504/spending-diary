@@ -1,72 +1,167 @@
-// lib/widgets/common/segment_tabs.dart
-// Shared 3-tab segmented control (Story / Gallery / Calendar)
 import 'package:flutter/material.dart';
-
+import 'package:go_router/go_router.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../theme/app_colors.dart';
+import '../theme/categories.dart';
 import '../theme/app_radii.dart';
+import '../theme/app_palette.dart';
+import '../utils/formatters.dart';
+import '../utils/mimo_emotion.dart';
+import '../routes/app_routes.dart';
+import '../services/api_client.dart';
 
-class SegmentTabs extends StatelessWidget {
-  final String selected; // 'Story' | 'Gallery' | 'Calendar'
-  final ValueChanged<String> onChanged;
+class WalletChip extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final bool isSelected;
+  final int unseenCount;
+  final VoidCallback onTap;
+  final VoidCallback? onLongPress;
 
-  static const _tabs = [
-    _Tab('Story', Icons.article_outlined),
-    _Tab('Gallery', Icons.grid_view_rounded),
-    _Tab('Calendar', Icons.calendar_month_outlined),
-  ];
-
-  const SegmentTabs({super.key, required this.selected, required this.onChanged});
+  const WalletChip({
+    required this.label,
+    required this.icon,
+    required this.isSelected,
+    this.unseenCount = 0,
+    required this.onTap,
+    this.onLongPress,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF1F5F9),
-        borderRadius: BorderRadius.circular(AppRadii.lg),
-      ),
-      child: Row(
-        children: _tabs.map((tab) {
-          final isSelected = selected == tab.label;
-          return Expanded(
-            child: GestureDetector(
-              onTap: () => onChanged(tab.label),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
-                padding: const EdgeInsets.symmetric(vertical: 9),
-                decoration: BoxDecoration(
-                  color: isSelected ? Colors.white : Colors.transparent,
-                  borderRadius: BorderRadius.circular(AppRadii.md),
-                  boxShadow: isSelected
-                      ? const [BoxShadow(color: Color(0x14000000), blurRadius: 6, offset: Offset(0, 3))]
-                      : null,
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(tab.icon, size: 15, color: isSelected ? AppColors.teal : AppColors.muted),
-                    const SizedBox(width: 5),
-                    Text(
-                      tab.label,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                        color: isSelected ? AppColors.teal : AppColors.muted,
-                      ),
-                    ),
-                  ],
-                ),
+    return GestureDetector(
+      onTap: onTap,
+      onLongPress: onLongPress,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? Colors.white
+              : Colors.white.withValues(alpha: 0.25),
+          borderRadius: BorderRadius.circular(AppRadii.md),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 16,
+              color: isSelected ? AppColors.teal : Colors.white,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: isSelected ? AppColors.teal : Colors.white,
+                fontWeight: FontWeight.w600,
               ),
             ),
-          );
-        }).toList(),
+            if (unseenCount > 0) ...[
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.redAccent,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '+$unseenCount',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 8,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
 }
 
-class _Tab {
+class BalanceStat extends StatelessWidget {
+  final String label, value;
+  final Color color;
+  const BalanceStat({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: context.palette.textSecondary),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: color,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class SegmentItem extends StatelessWidget {
   final String label;
   final IconData icon;
-  const _Tab(this.label, this.icon);
+  final bool isSelected;
+  final VoidCallback onTap;
+  const SegmentItem({
+    required this.label,
+    required this.icon,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(
+            color: isSelected ? context.palette.card : Colors.transparent,
+            borderRadius: BorderRadius.circular(AppRadii.md),
+            boxShadow: isSelected ? context.palette.softShadow : null,
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                size: 16,
+                color: isSelected ? AppColors.teal : AppColors.muted,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: isSelected ? AppColors.teal : AppColors.muted,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
+

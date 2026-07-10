@@ -17,10 +17,10 @@ class AiAssistantPopupMenu extends StatefulWidget {
   });
 
   @override
-  State<AiAssistantPopupMenu> createState() => _AiAssistantPopupMenuState();
+  State<AiAssistantPopupMenu> createState() => AiAssistantPopupMenuState();
 }
 
-class _AiAssistantPopupMenuState extends State<AiAssistantPopupMenu>
+class AiAssistantPopupMenuState extends State<AiAssistantPopupMenu>
     with SingleTickerProviderStateMixin {
   late AnimationController _ctrl;
   late Animation<double> _auraScale;
@@ -115,6 +115,8 @@ class _AiAssistantPopupMenuState extends State<AiAssistantPopupMenu>
     _ctrl.dispose();
     super.dispose();
   }
+
+  void closePopup() => _close();
 
   void _close() {
     if (_isClosing) return;

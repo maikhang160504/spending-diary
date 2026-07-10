@@ -9,6 +9,50 @@ class CategoryStyle {
   final String iconAsset;
 
   const CategoryStyle({required this.color, required this.emoji, required this.label, required this.iconAsset});
+
+  /// Returns a sized [Image.asset] widget from assets/MiMo/category/
+  Widget iconWidget({double size = 24}) {
+    return Image.asset(
+      iconAsset,
+      width: size,
+      height: size,
+      fit: BoxFit.contain,
+      errorBuilder: (ctx, err, st) => Text(emoji, style: TextStyle(fontSize: size * 0.75)),
+    );
+  }
+
+  /// @deprecated — use [CategoryTheme.iconOf] or [iconWidget] instead.
+  /// Kept for backward-compatibility only.
+  IconData get icon {
+    switch (label) {
+      case 'Ăn uống': return Icons.restaurant_rounded;
+      case 'Mua sắm': return Icons.shopping_bag_rounded;
+      case 'Đồ dùng thiết yếu':
+      case 'Thiết yếu':
+      case 'Hoá đơn': return Icons.local_grocery_store_rounded;
+      case 'Di chuyển':
+      case 'Du lịch': return Icons.directions_car_rounded;
+      case 'Nhà ở':
+      case 'Nhà cửa': return Icons.home_rounded;
+      case 'Giải trí': return Icons.movie_rounded;
+      case 'Sức khỏe': return Icons.favorite_rounded;
+      case 'Giáo dục': return Icons.school_rounded;
+      case 'Làm đẹp': return Icons.spa_rounded;
+      case 'Xã hội':
+      case 'Quà tặng': return Icons.people_rounded;
+      case 'Kinh doanh':
+      case 'Công việc':
+      case 'Freelance': return Icons.work_rounded;
+      case 'Thưởng': return Icons.card_giftcard_rounded;
+      case 'Từ thiện': return Icons.volunteer_activism_rounded;
+      case 'Tiết kiệm': return Icons.savings_rounded;
+      case 'Nợ': return Icons.credit_card_rounded;
+      case 'Đầu tư': return Icons.trending_up_rounded;
+      case 'Lương': return Icons.account_balance_wallet_rounded;
+      case 'Khác': return Icons.category_rounded;
+      default: return Icons.category_rounded;
+    }
+  }
 }
 
 class CategoryTheme {

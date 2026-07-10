@@ -4,8 +4,10 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_palette.dart';
 import '../../theme/app_radii.dart';
 import '../../theme/app_spacing.dart';
+import '../../theme/categories.dart';
 import '../../utils/formatters.dart';
 import '../../services/ai_advisor_service.dart';
+import '../../services/app_queries.dart';
 
 class CashflowReportScreen extends StatefulWidget {
   final String? initialWalletId;
@@ -98,7 +100,9 @@ class _CashflowReportScreenState extends State<CashflowReportScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 10),
+              _buildWalletSelectorBar(),
+              const SizedBox(height: 10),
 
               // Header switch So với cùng kỳ
               Container(
@@ -147,7 +151,7 @@ class _CashflowReportScreenState extends State<CashflowReportScreen> {
 
               // Biểu đồ Biến động thu chi
               _buildChartCard(),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
 
               // Ghi chú giải thích màu cột
               if (_compareYoY)
@@ -156,9 +160,13 @@ class _CashflowReportScreenState extends State<CashflowReportScreen> {
                   children: [
                     _buildLegendDot(AppColors.teal, 'Kỳ hiện tại'),
                     const SizedBox(width: 24),
-                    _buildLegendDot(AppColors.tealDark.withValues(alpha: 0.65), 'Cùng kỳ trước'),
+                    _buildLegendDot(AppColors.warning, 'Cùng kỳ trước'),
                   ],
                 ),
+              const SizedBox(height: 24),
+
+              // Danh sách danh mục (Thu/Chi) hoặc Bảng chênh lệch Thu - Chi theo tuần/tháng
+              _buildBottomDetailSection(),
             ],
           ),
         ),
@@ -245,8 +253,16 @@ class _CashflowReportScreenState extends State<CashflowReportScreen> {
                 Container(
                   width: 44,
                   height: 44,
-                  decoration: const BoxDecoration(color: AppColors.teal, shape: BoxShape.circle),
-                  child: const Icon(Icons.auto_awesome, color: Colors.white, size: 24),
+                  decoration: BoxDecoration(
+                    color: AppColors.teal.withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: ClipOval(
+                    child: Image.asset(
+                      _isAnalyzingAI ? 'assets/MiMo/emotions/Thinking.png' : 'assets/MiMo/emotions/Happy.png',
+                      fit: BoxFit.cover,
+                    ),
+                  ),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
@@ -288,10 +304,16 @@ class _CashflowReportScreenState extends State<CashflowReportScreen> {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const CircleAvatar(
-                  radius: 18,
-                  backgroundColor: AppColors.teal,
-                  child: Text('M', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: AppColors.teal.withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: ClipOval(
+                    child: Image.asset('assets/MiMo/emotions/Happy.png', fit: BoxFit.cover),
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -315,6 +337,78 @@ class _CashflowReportScreenState extends State<CashflowReportScreen> {
           ),
         ],
       ],
+    );
+  }
+
+  Widget _buildWalletSelectorBar() {
+    return FutureBuilder(
+      future: AppQueries.wallets().result,
+      builder: (context, snapshot) {
+        final rawList = snapshot.data?.data ?? [];
+        final wallets = <Map<String, dynamic>>[];
+        if (rawList is List) {
+          for (final item in rawList) {
+            if (item is Map<String, dynamic>) wallets.add(item);
+          }
+        }
+        return Container(
+          padding: const EdgeInsets.only(left: AppSpacing.lg, right: AppSpacing.lg, bottom: 4),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                _buildWalletChipItem('Tất cả ví', null),
+                ...wallets.map((w) {
+                  final id = w['id']?.toString();
+                  final name = w['name']?.toString() ?? 'Ví';
+                  return _buildWalletChipItem(name, id);
+                }),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildWalletChipItem(String label, String? walletId) {
+    final isSelected = _selectedWalletId == walletId;
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: InkWell(
+        onTap: () => setState(() => _selectedWalletId = walletId),
+        borderRadius: BorderRadius.circular(AppRadii.full),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: isSelected ? AppColors.teal : context.palette.card,
+            borderRadius: BorderRadius.circular(AppRadii.full),
+            border: Border.all(
+              color: isSelected ? AppColors.teal : context.palette.border,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                walletId == null ? Icons.all_inclusive_rounded : Icons.account_balance_wallet_outlined,
+                size: 13,
+                color: isSelected ? Colors.white : context.palette.textSecondary,
+              ),
+              const SizedBox(width: 5),
+              Text(
+                label,
+                style: TextStyle(
+                  color: isSelected ? Colors.white : context.palette.textPrimary,
+                  fontSize: 11,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -371,11 +465,15 @@ class _CashflowReportScreenState extends State<CashflowReportScreen> {
                   leftTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
-                      reservedSize: 44,
+                      reservedSize: 54,
+                      interval: maxVal > 0 ? (maxVal / 3) : 1000000,
                       getTitlesWidget: (val, meta) {
                         if (val == 0) return const SizedBox();
-                        final compact = val >= 1000000 ? '${(val / 1000000).toStringAsFixed(1)}M' : '${(val / 1000).toStringAsFixed(0)}K';
-                        return Text(compact, style: const TextStyle(color: AppColors.muted, fontSize: 10));
+                        final compact = val >= 1000000 ? '${(val / 1000000).toStringAsFixed(1)}Tr' : '${(val / 1000).toStringAsFixed(0)}K';
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: Text(compact, style: const TextStyle(color: AppColors.muted, fontSize: 10)),
+                        );
                       },
                     ),
                   ),
@@ -416,9 +514,9 @@ class _CashflowReportScreenState extends State<CashflowReportScreen> {
                     );
                   }
                   final higher = cur >= prev ? cur : prev;
-                  final higherColor = cur >= prev ? AppColors.teal : AppColors.tealDark.withValues(alpha: 0.65);
+                  final higherColor = cur >= prev ? AppColors.teal : AppColors.warning;
                   final lower = cur >= prev ? prev : cur;
-                  final lowerColor = cur >= prev ? AppColors.tealDark.withValues(alpha: 0.65) : AppColors.teal;
+                  final lowerColor = cur >= prev ? AppColors.warning : AppColors.teal;
 
                   return BarChartGroupData(
                     x: idx,
@@ -451,6 +549,222 @@ class _CashflowReportScreenState extends State<CashflowReportScreen> {
         const SizedBox(width: 6),
         Text(label, style: const TextStyle(color: AppColors.muted, fontSize: 12)),
       ],
+    );
+  }
+
+  Widget _buildBottomDetailSection() {
+    if (_selectedTab == 'Chênh lệch') {
+      return _buildNetCashflowBreakdown();
+    }
+    return _buildCategoryBreakdownList();
+  }
+
+  Widget _buildCategoryBreakdownList() {
+    final isIncome = _selectedTab == 'Thu';
+    final typeParam = isIncome ? 'income' : 'expense';
+    final title = isIncome ? 'Danh mục Thu nhập' : 'Danh mục Chi tiêu';
+
+    return FutureBuilder(
+      future: AppQueries.statsByCategory('custom', _selectedWalletId, type: typeParam).result,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: Padding(padding: EdgeInsets.all(24), child: CircularProgressIndicator()));
+        }
+        final rawList = snapshot.data?.data ?? [];
+        int totalAmt = 0;
+        final List<Map<String, dynamic>> cats = [];
+        for (final item in rawList) {
+          final map = item as Map<String, dynamic>;
+          final amt = (map['amount'] as num?)?.toInt() ?? (map['total'] as num?)?.toInt() ?? 0;
+          final code = map['categoryCode']?.toString() ?? 'Other';
+          final label = CategoryTheme.of(code).label;
+          totalAmt += amt;
+          cats.add({
+            'code': code,
+            'label': label,
+            'amount': amt,
+            'color': CategoryTheme.of(code).color,
+          });
+        }
+        cats.sort((a, b) => (b['amount'] as int).compareTo(a['amount'] as int));
+
+        return Container(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          decoration: BoxDecoration(
+            color: context.palette.card,
+            borderRadius: BorderRadius.circular(AppRadii.xl),
+            boxShadow: context.palette.softShadow,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: TextStyle(color: context.palette.textPrimary, fontSize: 16, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 16),
+              if (cats.isEmpty)
+                Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 20),
+                    child: Text('Chưa có dữ liệu $_selectedTab trong kỳ này', style: const TextStyle(color: AppColors.muted)),
+                  ),
+                )
+              else
+                ...cats.map((cat) {
+                  final amt = cat['amount'] as int;
+                  final pct = totalAmt > 0 ? (amt / totalAmt) : 0.0;
+                  final color = cat['color'] as Color;
+                  final label = cat['label'] as String;
+
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 14),
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: color.withValues(alpha: 0.15),
+                                shape: BoxShape.circle,
+                              ),
+                              child: CategoryTheme.iconOf(cat['code'] as String, size: 20),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                label,
+                                style: TextStyle(color: context.palette.textPrimary, fontSize: 14, fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                            Text(
+                              formatVnd(amt),
+                              style: TextStyle(color: context.palette.textPrimary, fontSize: 14, fontWeight: FontWeight.w700),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(4),
+                          child: LinearProgressIndicator(
+                            value: pct,
+                            backgroundColor: context.palette.border.withValues(alpha: 0.4),
+                            valueColor: AlwaysStoppedAnimation<Color>(color),
+                            minHeight: 5,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildNetCashflowBreakdown() {
+    final isWeekly = _selectedPeriod == 'Theo tuần';
+    final items = isWeekly
+        ? [
+            {'title': 'Tuần 1 (Ngày 1 - 7)', 'income': 4200000, 'expense': 3100000},
+            {'title': 'Tuần 2 (Ngày 8 - 14)', 'income': 3500000, 'expense': 2800000},
+            {'title': 'Tuần 3 (Ngày 15 - 21)', 'income': 5000000, 'expense': 4200000},
+            {'title': 'Tuần 4 (Ngày 22 - 31)', 'income': 6100000, 'expense': 3900000},
+          ]
+        : [
+            {'title': 'Tháng 1', 'income': 18500000, 'expense': 14200000},
+            {'title': 'Tháng 2', 'income': 19200000, 'expense': 16500000},
+            {'title': 'Tháng 3', 'income': 21000000, 'expense': 15800000},
+            {'title': 'Tháng 4', 'income': 22500000, 'expense': 17100000},
+            {'title': 'Tháng 5', 'income': 20800000, 'expense': 18300000},
+            {'title': 'Tháng 6', 'income': 24000000, 'expense': 16900000},
+          ];
+
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: context.palette.card,
+        borderRadius: BorderRadius.circular(AppRadii.xl),
+        boxShadow: context.palette.softShadow,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Chi tiết độ chênh lệch Thu - Chi ($_selectedPeriod)',
+            style: TextStyle(color: context.palette.textPrimary, fontSize: 16, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 16),
+          ...items.map((item) {
+            final income = item['income'] as int;
+            final expense = item['expense'] as int;
+            final diff = income - expense;
+            final isPos = diff >= 0;
+
+            return Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: context.palette.bg,
+                borderRadius: BorderRadius.circular(AppRadii.lg),
+                border: Border.all(color: context.palette.border.withValues(alpha: 0.6)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        item['title'] as String,
+                        style: TextStyle(color: context.palette.textPrimary, fontSize: 14, fontWeight: FontWeight.w700),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: isPos ? AppColors.success.withValues(alpha: 0.15) : AppColors.danger.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(AppRadii.md),
+                        ),
+                        child: Text(
+                          '${isPos ? "+" : ""}${formatVnd(diff)}',
+                          style: TextStyle(
+                            color: isPos ? AppColors.success : AppColors.danger,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.arrow_downward_rounded, size: 14, color: AppColors.success),
+                          const SizedBox(width: 4),
+                          Text('Thu: ${formatVnd(income)}', style: const TextStyle(color: AppColors.success, fontSize: 12, fontWeight: FontWeight.w600)),
+                        ],
+                      ),
+                      Row(
+                        children: [
+                          const Icon(Icons.arrow_upward_rounded, size: 14, color: AppColors.danger),
+                          const SizedBox(width: 4),
+                          Text('Chi: ${formatVnd(expense)}', style: const TextStyle(color: AppColors.danger, fontSize: 12, fontWeight: FontWeight.w600)),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          }),
+        ],
+      ),
     );
   }
 }

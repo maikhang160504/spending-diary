@@ -6,7 +6,7 @@ import '../../theme/app_radii.dart';
 import '../../theme/app_spacing.dart';
 import '../../utils/formatters.dart';
 import '../../services/ai_advisor_service.dart';
-
+import '../../services/api_client.dart';
 class CumulativeBudgetReportScreen extends StatefulWidget {
   final String? initialWalletId;
   const CumulativeBudgetReportScreen({super.key, this.initialWalletId});
@@ -19,6 +19,31 @@ class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScr
   String _selectedPeriod = 'Theo tháng';
   bool _isAnalyzingAI = false;
   String? _aiInsight;
+  List<dynamic> _wallets = [];
+  String? _selectedWalletId;
+  final ApiClient _api = ApiClient();
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedWalletId = widget.initialWalletId ?? ApiClient.lastSelectedWalletId;
+    _loadWallets();
+  }
+
+  Future<void> _loadWallets() async {
+    try {
+      final wallets = await _api.getWallets();
+      if (mounted) {
+        setState(() {
+          _wallets = wallets;
+          if (_selectedWalletId == null && _wallets.isNotEmpty) {
+            _selectedWalletId = _wallets.first['id'] as String?;
+            ApiClient.lastSelectedWalletId = _selectedWalletId;
+          }
+        });
+      }
+    } catch (_) {}
+  }
 
   Future<void> _analyzeAI() async {
     setState(() => _isAnalyzingAI = true);
@@ -58,7 +83,7 @@ class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScr
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
-          'Chi tiêu lũy kế & Hạn mức',
+          'Chi tiêu mức lũy kế',
           style: TextStyle(color: context.palette.textPrimary, fontSize: 18, fontWeight: FontWeight.w700),
         ),
       ),
@@ -93,6 +118,8 @@ class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScr
                   ),
                 ],
               ),
+              const SizedBox(height: 12),
+              _buildWalletSelectorBar(),
               const SizedBox(height: 20),
 
               // AI Advisor MiMo
@@ -166,6 +193,72 @@ class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScr
         const SizedBox(height: 4),
         Text(value, style: TextStyle(color: color, fontSize: 16, fontWeight: FontWeight.w700)),
       ],
+    );
+  }
+
+  Widget _buildWalletSelectorBar() {
+    return Container(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            _buildWalletChipItem('Tất cả ví', null),
+            ..._wallets.map((w) {
+              final id = w['id']?.toString();
+              final name = w['name']?.toString() ?? 'Ví';
+              return _buildWalletChipItem(name, id);
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWalletChipItem(String label, String? walletId) {
+    final isSelected = _selectedWalletId == walletId;
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: InkWell(
+        onTap: () {
+          setState(() {
+            _selectedWalletId = walletId;
+            ApiClient.lastSelectedWalletId = walletId;
+          });
+          // _loadReportData();
+        },
+        borderRadius: BorderRadius.circular(AppRadii.full),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: isSelected ? AppColors.teal : context.palette.card,
+            borderRadius: BorderRadius.circular(AppRadii.full),
+            border: Border.all(
+              color: isSelected ? AppColors.teal : context.palette.border,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                walletId == null ? Icons.all_inclusive_rounded : Icons.account_balance_wallet_outlined,
+                size: 13,
+                color: isSelected ? Colors.white : context.palette.textSecondary,
+              ),
+              const SizedBox(width: 5),
+              Text(
+                label,
+                style: TextStyle(
+                  color: isSelected ? Colors.white : context.palette.textPrimary,
+                  fontSize: 11,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
