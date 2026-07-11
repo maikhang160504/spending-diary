@@ -285,6 +285,7 @@ class _AppShellState extends State<AppShell> {
   }
 
   void _onTabTap(BuildContext context, int index) {
+    shellNavigatorKey.currentState?.popUntil((route) => route.isFirst);
     const routes = [AppRoutes.home, AppRoutes.report, AppRoutes.goals, AppRoutes.settings];
     context.go(routes[index]);
   }

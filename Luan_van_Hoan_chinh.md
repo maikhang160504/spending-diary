@@ -609,18 +609,18 @@ xychart-beta
     bar [76.2, 90.1, 94.8]
 ```
 
-**BẢNG 4.1. KẾT QUẢ BENCHMARK MÔ HÌNH NLU (N=1000 SAMPLES)**
+**BẢNG 4.1. KẾT QUẢ BENCHMARK CÁC MÔ HÌNH NLU (CẬP NHẬT MỚI NHẤT)**
 
-| Cấu trúc Mô hình (Model Architecture) | Độ chính xác Ý định (Intent Acc) | F1-Score (Entity / Danh mục) | Độ trễ Suy luận (P95 Latency) | Tiêu thụ Bộ nhớ (RAM/VRAM) | 
-|---------------------------------------|----------------------------------|------------------------------|-------------------------------|---------------------------|
-| **1. TF-IDF + Logistic Regression** | 84.5% | 76.2% | **12ms** (Rất nhanh) | ~50 MB (CPU) |
-| **2. PhoBERT-base + SpaCy NER** | 93.8% | 90.1% | 145ms | ~1.5 GB (CPU/GPU) |
-| **3. Qwen2.5-14B (LLM LoRA 4-bit)** | **96.5%** | **94.8%** | ~1,250ms (Đám mây) | ~9.5 GB VRAM |
+| Mô hình | Độ chính xác Intent (%) | Độ chính xác Category (%) | Độ chính xác Record Type (%) | Thời gian phản hồi trung bình (ms) | Thời gian phản hồi P95 (ms) |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| **1. TF-IDF (Baseline)** | 93.00 | 85.00 | 97.00 | 4.83 | 9.01 |
+| **2. PhoBERT** | 97.00 | 83.00 | 97.00 | 424.24 | 535.87 |
+| **3. Qwen 2.5** | 99.00 | 98.00 | 97.00 | 15980.29 | 19848.47 |
 
 **Nhận xét phân tích Benchmark:**
-- Mô hình truyền thống (TF-IDF) có tốc độ phản hồi cực nhanh, phù hợp làm Baseline hoặc chạy trên thiết bị biên (Edge Device) nhưng tỷ lệ nhận nhầm (False Positive) quá lớn đối với văn nói phức tạp.
-- Cấu trúc sử dụng **Qwen2.5 LLM** đem lại tỷ lệ F1-Score xuất sắc nhất (94.8%), khả năng nhận diện các từ lóng tiếng Việt (ví dụ: "chuyển 5 củ cho chủ trọ") là hoàn hảo. Tuy nhiên, rào cản độ trễ (1,2s) và chi phí thuê GPU lớn là nhược điểm.
-- **PhoBERT + SpaCy (Kiến trúc hiện tại của dự án):** Đạt điểm cân bằng xuất sắc. Độ trễ 145ms cho phép phản hồi tức thì, trong khi Accuracy >93% đáp ứng tuyệt đối nhu cầu thương mại hóa.
+- **Qwen 2.5** cho thấy sự vượt trội hoàn toàn về khả năng hiểu ngữ nghĩa ngôn ngữ tự nhiên, đạt độ chính xác gần như tuyệt đối ở Intent (99.0%) và Category (98.0%). Điều này chứng tỏ sức mạnh của các LLM trong việc trích xuất thông tin phức tạp. Tuy nhiên, rào cản độ trễ (hơn 15 giây) khiến mô hình này chỉ phù hợp với các tác vụ xử lý bất đồng bộ (background processing).
+- **PhoBERT** đem lại sự cải thiện đáng kể cho bài toán nhận diện Intent (đạt 97.0% so với 93.0% của TF-IDF) và đạt mức cân bằng xuất sắc. Độ trễ trung bình khoảng 424.24 ms cho phép phản hồi gần như tức thì, đáp ứng tốt trải nghiệm hội thoại trực tiếp của người dùng.
+- **Mô hình truyền thống (TF-IDF)** có tốc độ phản hồi cực nhanh (chỉ 4.83 ms), cực kỳ tối ưu cho các hệ thống đòi hỏi độ trễ thấp. Độ chính xác cũng khá tốt nhưng tỷ lệ nhận nhầm (Category) vẫn còn cao hơn so với Qwen 2.5 đối với văn nói phức tạp.
 
 ### 4.4. Đánh giá kiểm thử Nhận dạng Ký tự Quang học (OCR - Hóa đơn)
 Mô hình VietOCR được tinh chỉnh lại toàn bộ lớp giải mã chú ý (Attention Decoder) dựa trên tập hóa đơn Việt Nam (MC-OCR Challenge 2021). 

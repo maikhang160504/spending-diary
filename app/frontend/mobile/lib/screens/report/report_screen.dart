@@ -21,7 +21,6 @@ class _ReportScreenState extends State<ReportScreen> {
   @override
   void initState() {
     super.initState();
-    AppQueries.invalidateWalletData();
   }
 
   @override
@@ -65,7 +64,7 @@ class _ReportScreenState extends State<ReportScreen> {
                         shape: BoxShape.circle,
                       ),
                       child: ClipOval(
-                        child: Image.asset('assets/MiMo/emotions/Happy.png', fit: BoxFit.cover),
+                        child: Image.asset('assets/MiMo/emotions/Working.png', fit: BoxFit.cover),
                       ),
                     ),
                     const SizedBox(width: 16),
@@ -117,7 +116,7 @@ class _ReportScreenState extends State<ReportScreen> {
                 title: 'Chi tiêu theo danh mục',
                 subtitle: 'Phân tích tỷ trọng chi tiêu & cơ cấu dòng tiền từng nhóm',
                 onTap: () {
-                  Navigator.of(context).push(
+                  Navigator.of(context, rootNavigator: false).push(
                     MaterialPageRoute(
                       builder: (_) => CategorySpendingReportScreen(),
                     ),
@@ -134,7 +133,7 @@ class _ReportScreenState extends State<ReportScreen> {
                 title: 'Biến động thu chi',
                 subtitle: 'So sánh dòng tiền Thu - Chi & chế độ cột chồng so với cùng kỳ',
                 onTap: () {
-                  Navigator.of(context).push(
+                  Navigator.of(context, rootNavigator: false).push(
                     MaterialPageRoute(
                       builder: (_) => CashflowReportScreen(),
                     ),
@@ -151,7 +150,7 @@ class _ReportScreenState extends State<ReportScreen> {
                 title: 'Xu hướng tiết kiệm',
                 subtitle: 'Theo dõi tích lũy ròng qua các kỳ & tối ưu gia tăng tài sản',
                 onTap: () {
-                  Navigator.of(context).push(
+                  Navigator.of(context, rootNavigator: false).push(
                     MaterialPageRoute(
                       builder: (_) => SavingTrendReportScreen(),
                     ),
@@ -168,7 +167,7 @@ class _ReportScreenState extends State<ReportScreen> {
                 title: 'Chi tiêu lũy kế so với hạn mức',
                 subtitle: 'Kiểm soát tốc độ đốt hạn mức & cảnh báo vượt ngân sách',
                 onTap: () {
-                  Navigator.of(context).push(
+                  Navigator.of(context, rootNavigator: false).push(
                     MaterialPageRoute(
                       builder: (_) => CumulativeBudgetReportScreen(),
                     ),

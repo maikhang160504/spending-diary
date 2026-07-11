@@ -738,7 +738,7 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
                             child: InkWell(
                               borderRadius: BorderRadius.circular(AppRadii.md),
                               onTap: () {
-                                Navigator.of(context).push(
+                                Navigator.of(context, rootNavigator: true).push(
                                   MaterialPageRoute(
                                     builder: (ctx) => GoalRecapScreen(
                                       goal: {

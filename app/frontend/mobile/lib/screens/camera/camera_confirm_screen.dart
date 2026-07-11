@@ -193,11 +193,20 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
       final reviewMsg = reviewTxId != null
           ? 'Đã cập nhật bill sau khi kiểm tra'
           : null;
+          
+      final extracted = widget.extractedData?['extracted'] as Map<String, dynamic>?;
+      final aiComment = extracted?['aiComment'] as String?;
+      final mascotMood = extracted?['mascotMood'] as String?;
+          
       final nluMeta = widget.extractedData?['nlu'] as Map<String, dynamic>?;
       final llm = nluMeta != null
           ? LlmMimoReply.fromNlu(nluMeta, intent: 'Record')
-          : const LlmMimoReply(text: '', emotionAsset: 'Success');
-      final mimoMsg = reviewMsg ?? (llm.text.isNotEmpty ? llm.text : 'Đã lưu! Mimo ghi nhận rồi nhé');
+          : LlmMimoReply(
+              text: aiComment ?? '',
+              emotionAsset: mascotMood ?? 'Success',
+            );
+            
+      final mimoMsg = llm.text.isNotEmpty ? llm.text : (reviewMsg ?? 'Đã lưu! Mimo ghi nhận rồi nhé');
       Future.delayed(const Duration(milliseconds: 400), () {
         mimoController.show(MiMoResponse(
           emotionAsset: llm.emotionAsset,

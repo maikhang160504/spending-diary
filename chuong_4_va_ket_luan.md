@@ -93,7 +93,32 @@ Hệ thống đã triển khai bộ công cụ Benchmark tự động để ki�
 - **Chỉ số đánh giá**:
   - **Độ chính xác (Accuracy)**: Đo lường tỷ lệ đoán đúng Intent, Category, và Record Type.
   - **Thời gian trễ (Latency)**: Tính toán thời gian trung bình (Average Latency) và P95 Latency cho 1 request để so sánh tốc độ phản hồi giữa các mô hình.
-- **Kết quả thu được**: Kết quả benchmark được hệ thống tổng hợp tự động và xuất ra file `nlu_benchmark_results.json` để làm minh chứng thực tế đưa vào báo cáo đánh giá của Chương 4. *(Bạn có thể chạy lệnh `python text_nlu/tools/run_nlu_benchmark.py` để lấy số liệu thực tế mới nhất điền vào luận văn).*
+- **Kết quả thu được**: Kết quả benchmark được thực hiện để so sánh ba phương pháp (TF-IDF, PhoBERT, và Qwen 2.5), cụ thể như sau:
+
+#### Bảng so sánh hiệu năng các mô hình NLU
+
+| Mô hình | Độ chính xác Intent (%) | Độ chính xác Category (%) | Độ chính xác Record Type (%) | Thời gian phản hồi trung bình (ms) | Thời gian phản hồi P95 (ms) |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| **TF-IDF (Baseline)** | 93.00 | 85.00 | 97.00 | 4.83 | 9.01 |
+| **PhoBERT** | 97.00 | 83.00 | 97.00 | 424.24 | 535.87 |
+| **Qwen 2.5** | 99.00 | 98.00 | 97.00 | 15980.29 | 19848.47 |
+
+#### Nhận xét và Đánh giá
+
+Dựa vào bảng so sánh trên, ta có thể rút ra một số nhận xét chi tiết về hiệu năng của ba mô hình TF-IDF, PhoBERT và Qwen 2.5 khi ứng dụng vào bài toán phân loại ý định (Intent), danh mục (Category) và loại giao dịch (Record Type):
+
+**Về độ chính xác (Accuracy):**
+- **Qwen 2.5** cho thấy sự vượt trội hoàn toàn về khả năng hiểu ngữ nghĩa ngôn ngữ tự nhiên, đạt độ chính xác gần như tuyệt đối ở Intent (99.0%) và Category (98.0%). Điều này chứng tỏ sức mạnh của các mô hình ngôn ngữ lớn (LLM) trong việc trích xuất thông tin phức tạp.
+- **PhoBERT** đem lại sự cải thiện đáng kể cho bài toán nhận diện Intent (đạt 97.0% so với 93.0% của TF-IDF), tuy nhiên lại giảm nhẹ ở phần phân loại Category (83.0% so với 85.0%). 
+- Cả ba mô hình đều xử lý rất tốt bài toán phân loại Record Type với độ chính xác ngang bằng nhau (97.0%), cho thấy đặc trưng của loại giao dịch (Thu/Chi) khá rõ ràng và dễ nhận diện.
+
+**Về tốc độ phản hồi (Latency):**
+- **TF-IDF** cho tốc độ xử lý vượt trội, chỉ mất trung bình 4.83 ms cho mỗi yêu cầu, cực kỳ tối ưu cho các hệ thống đòi hỏi độ trễ thấp theo thời gian thực (real-time).
+- **PhoBERT** có thời gian phản hồi trung bình khoảng 424.24 ms. Đây là mức trễ hoàn toàn có thể chấp nhận được đối với trải nghiệm người dùng trên thiết bị di động.
+- **Qwen 2.5** dù mang lại độ chính xác cao nhất nhưng lại gặp hạn chế rất lớn về mặt hiệu năng với thời gian trễ trung bình lên đến xấp xỉ 16 giây (15980.29 ms). Mức độ trễ này có thể gây ảnh hưởng tiêu cực trực tiếp đến trải nghiệm người dùng (UX) nếu triển khai trực tiếp vào các tác vụ đồng bộ (synchronous).
+
+**Kết luận:** 
+Nếu hệ thống ưu tiên tuyệt đối vào tốc độ và tài nguyên, **TF-IDF** là một lựa chọn cơ bản. Tuy nhiên, để đạt được sự cân bằng tối ưu giữa độ chính xác nhận diện ngôn ngữ tự nhiên tiếng Việt và trải nghiệm thời gian thực của người dùng, **PhoBERT** là mô hình phù hợp nhất cho các luồng tương tác trực tiếp. Trong khi đó, **Qwen 2.5** cực kỳ thông minh trong việc phân tích ngữ cảnh, nên phù hợp ứng dụng vào các luồng xử lý bất đồng bộ (background processing) như xử lý hóa đơn (OCR) hoặc khi hệ thống có tài nguyên phần cứng (GPU) đủ mạnh.
 
 ---
 

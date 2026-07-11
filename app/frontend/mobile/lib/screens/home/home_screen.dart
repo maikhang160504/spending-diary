@@ -590,16 +590,24 @@ class _HomeScreenState extends State<HomeScreen> {
                       extra: {'walletId': _selectedWalletId},
                     ),
                     child: Container(
-                      height: 48,
-                      width: 48,
+                      height: 52,
+                      width: 52,
                       decoration: BoxDecoration(
-                        color: context.palette.card,
+                        gradient: AppGradients.teal,
                         borderRadius: BorderRadius.circular(16),
-                        boxShadow: context.palette.cardShadow,
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.teal.withValues(alpha: 0.35),
+                            blurRadius: 12,
+                            spreadRadius: 2,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
                       ),
                       child: const Icon(
                         Icons.chat_bubble_outline_rounded,
-                        color: AppColors.teal,
+                        color: Colors.white,
+                        size: 24,
                       ),
                     ),
                   ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:intl/intl.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_palette.dart';
 import '../../theme/app_radii.dart';
@@ -23,12 +24,27 @@ class _CashflowReportScreenState extends State<CashflowReportScreen> {
   bool _compareYoY = false; // "So với cùng kỳ"
   String _selectedTab = 'Chi'; // 'Chi', 'Thu', 'Chênh lệch'
   bool _isAnalyzingAI = false;
+  int _periodOffset = 0;
   String? _aiInsight;
 
   @override
   void initState() {
     super.initState();
     _selectedWalletId = widget.initialWalletId;
+  }
+
+  String _getPeriodLabel() {
+    final now = DateTime.now();
+    if (_selectedPeriod == 'Theo tuần') {
+      if (_periodOffset == 0) return 'Tuần hiện tại';
+      final startOfWeek = now.subtract(Duration(days: now.weekday - 1)).subtract(Duration(days: 7 * _periodOffset));
+      final endOfWeek = startOfWeek.add(const Duration(days: 6));
+      return '${DateFormat('dd/MM').format(startOfWeek)} - ${DateFormat('dd/MM').format(endOfWeek)}';
+    } else {
+      if (_periodOffset == 0) return 'Tháng hiện tại';
+      final targetMonth = DateTime(now.year, now.month - _periodOffset, 1);
+      return 'Tháng ${targetMonth.month}/${targetMonth.year}';
+    }
   }
 
   Future<void> _analyzeAI() async {
@@ -89,10 +105,10 @@ class _CashflowReportScreenState extends State<CashflowReportScreen> {
                       child: Row(
                         children: [
                           _buildPeriodBtn('Theo tuần', _selectedPeriod == 'Theo tuần', () {
-                            setState(() => _selectedPeriod = 'Theo tuần');
+                            setState(() { _selectedPeriod = 'Theo tuần'; _periodOffset = 0; });
                           }),
                           _buildPeriodBtn('Theo tháng', _selectedPeriod == 'Theo tháng', () {
-                            setState(() => _selectedPeriod = 'Theo tháng');
+                            setState(() { _selectedPeriod = 'Theo tháng'; _periodOffset = 0; });
                           }),
                         ],
                       ),
@@ -100,38 +116,65 @@ class _CashflowReportScreenState extends State<CashflowReportScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 10),
-              _buildWalletSelectorBar(),
-              const SizedBox(height: 10),
-
-              // Header switch So với cùng kỳ
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                decoration: BoxDecoration(
-                  color: context.palette.card,
-                  borderRadius: BorderRadius.circular(AppRadii.xl),
-                  boxShadow: context.palette.softShadow,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: 4),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      'So với cùng kỳ',
-                      style: TextStyle(
-                        color: context.palette.textPrimary,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
+                    Expanded(
+                      child: Row(
+                        children: [
+                          IconButton(
+                            icon: Icon(Icons.chevron_left_rounded, color: context.palette.textPrimary),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            onPressed: () {
+                              setState(() => _periodOffset++);
+                            },
+                          ),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.center,
+                              child: Text(
+                                _getPeriodLabel(),
+                                style: TextStyle(color: context.palette.textPrimary, fontWeight: FontWeight.bold, fontSize: 14),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          IconButton(
+                            icon: Icon(Icons.chevron_right_rounded, color: _periodOffset > 0 ? context.palette.textPrimary : AppColors.muted),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            onPressed: _periodOffset > 0 ? () {
+                              setState(() => _periodOffset--);
+                            } : null,
+                          ),
+                        ],
                       ),
                     ),
-                    Switch.adaptive(
-                      value: _compareYoY,
-                      activeTrackColor: AppColors.teal,
-                      onChanged: (val) => setState(() => _compareYoY = val),
+                    Row(
+                      children: [
+                        const Text('So cùng kỳ', style: TextStyle(color: AppColors.muted, fontSize: 12, fontWeight: FontWeight.w600)),
+                        const SizedBox(width: 4),
+                        Transform.scale(
+                          scale: 0.7,
+                          child: Switch.adaptive(
+                            value: _compareYoY,
+                            activeTrackColor: AppColors.teal,
+                            onChanged: (val) => setState(() => _compareYoY = val),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 8),
+              _buildWalletSelectorBar(),
+              const SizedBox(height: 12),
 
               // Tabs Chi / Thu / Chênh lệch
               Row(
@@ -179,7 +222,7 @@ class _CashflowReportScreenState extends State<CashflowReportScreen> {
       child: GestureDetector(
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 8),
+          padding: const EdgeInsets.symmetric(vertical: 6),
           alignment: Alignment.center,
           decoration: BoxDecoration(
             color: active ? AppColors.teal : Colors.transparent,
@@ -189,7 +232,7 @@ class _CashflowReportScreenState extends State<CashflowReportScreen> {
             label,
             style: TextStyle(
               color: active ? Colors.white : context.palette.textPrimary,
-              fontSize: 13,
+              fontSize: 12,
               fontWeight: active ? FontWeight.w700 : FontWeight.w500,
             ),
           ),
@@ -203,14 +246,14 @@ class _CashflowReportScreenState extends State<CashflowReportScreen> {
     return Expanded(
       child: InkWell(
         onTap: () => setState(() => _selectedTab = label),
-        borderRadius: BorderRadius.circular(AppRadii.lg),
+        borderRadius: BorderRadius.circular(AppRadii.md),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(vertical: 10),
+          padding: const EdgeInsets.symmetric(vertical: 8),
           alignment: Alignment.center,
           decoration: BoxDecoration(
             color: active ? AppColors.teal.withValues(alpha: 0.15) : context.palette.card,
-            borderRadius: BorderRadius.circular(AppRadii.lg),
+            borderRadius: BorderRadius.circular(AppRadii.md),
             border: Border.all(
               color: active ? AppColors.teal : context.palette.border,
               width: active ? 1.5 : 1,
@@ -220,7 +263,7 @@ class _CashflowReportScreenState extends State<CashflowReportScreen> {
             label,
             style: TextStyle(
               color: active ? AppColors.teal : context.palette.textPrimary,
-              fontSize: 13,
+              fontSize: 12,
               fontWeight: active ? FontWeight.w700 : FontWeight.w500,
             ),
           ),
@@ -259,7 +302,7 @@ class _CashflowReportScreenState extends State<CashflowReportScreen> {
                   ),
                   child: ClipOval(
                     child: Image.asset(
-                      _isAnalyzingAI ? 'assets/MiMo/emotions/Thinking.png' : 'assets/MiMo/emotions/Happy.png',
+                      _isAnalyzingAI ? 'assets/MiMo/emotions/Thinking.png' : 'assets/MiMo/emotions/Working.png',
                       fit: BoxFit.cover,
                     ),
                   ),
@@ -312,7 +355,7 @@ class _CashflowReportScreenState extends State<CashflowReportScreen> {
                     shape: BoxShape.circle,
                   ),
                   child: ClipOval(
-                    child: Image.asset('assets/MiMo/emotions/Happy.png', fit: BoxFit.cover),
+                    child: Image.asset('assets/MiMo/emotions/Working.png', fit: BoxFit.cover),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -344,11 +387,11 @@ class _CashflowReportScreenState extends State<CashflowReportScreen> {
     return FutureBuilder(
       future: AppQueries.wallets().result,
       builder: (context, snapshot) {
-        final rawList = snapshot.data?.data ?? [];
+        final rawList = (snapshot.data?.data as List?) ?? [];
         final wallets = <Map<String, dynamic>>[];
-        if (rawList is List) {
-          for (final item in rawList) {
-            if (item is Map<String, dynamic>) wallets.add(item);
+        if (snapshot.hasData) {
+          for (var item in rawList) {
+            if (item is Map<String, dynamic> && item['type'] != 'group') wallets.add(item);
           }
         }
         return Container(
@@ -380,7 +423,7 @@ class _CashflowReportScreenState extends State<CashflowReportScreen> {
         borderRadius: BorderRadius.circular(AppRadii.full),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 160),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
           decoration: BoxDecoration(
             color: isSelected ? AppColors.teal : context.palette.card,
             borderRadius: BorderRadius.circular(AppRadii.full),
@@ -393,7 +436,7 @@ class _CashflowReportScreenState extends State<CashflowReportScreen> {
             children: [
               Icon(
                 walletId == null ? Icons.all_inclusive_rounded : Icons.account_balance_wallet_outlined,
-                size: 13,
+                size: 12,
                 color: isSelected ? Colors.white : context.palette.textSecondary,
               ),
               const SizedBox(width: 5),

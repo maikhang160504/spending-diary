@@ -610,9 +610,10 @@ class _AddRecurringRuleSheetState extends State<AddRecurringRuleSheet> {
 
   Future<void> _selectDate() async {
     final now = DateTime.now();
+    final initial = _selectedDate.isBefore(now) ? now : _selectedDate;
     final picked = await showDatePicker(
       context: context,
-      initialDate: _selectedDate,
+      initialDate: initial,
       firstDate: now,
       lastDate: now.add(const Duration(days: 365)),
       builder: (context, child) {

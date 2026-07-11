@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:intl/intl.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_palette.dart';
 import '../../theme/app_radii.dart';
@@ -18,6 +19,7 @@ class CumulativeBudgetReportScreen extends StatefulWidget {
 class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScreen> {
   String _selectedPeriod = 'Theo tháng';
   bool _isAnalyzingAI = false;
+  int _periodOffset = 0;
   String? _aiInsight;
   List<dynamic> _wallets = [];
   String? _selectedWalletId;
@@ -30,12 +32,26 @@ class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScr
     _loadWallets();
   }
 
+  String _getPeriodLabel() {
+    final now = DateTime.now();
+    if (_selectedPeriod == 'Theo tuần') {
+      if (_periodOffset == 0) return 'Tuần hiện tại';
+      final startOfWeek = now.subtract(Duration(days: now.weekday - 1)).subtract(Duration(days: 7 * _periodOffset));
+      final endOfWeek = startOfWeek.add(const Duration(days: 6));
+      return '${DateFormat('dd/MM').format(startOfWeek)} - ${DateFormat('dd/MM').format(endOfWeek)}';
+    } else {
+      if (_periodOffset == 0) return 'Tháng hiện tại';
+      final targetMonth = DateTime(now.year, now.month - _periodOffset, 1);
+      return 'Tháng ${targetMonth.month}/${targetMonth.year}';
+    }
+  }
+
   Future<void> _loadWallets() async {
     try {
       final wallets = await _api.getWallets();
       if (mounted) {
         setState(() {
-          _wallets = wallets;
+          _wallets = wallets.where((w) => w['type'] != 'group').toList();
           if (_selectedWalletId == null && _wallets.isNotEmpty) {
             _selectedWalletId = _wallets.first['id'] as String?;
             ApiClient.lastSelectedWalletId = _selectedWalletId;
@@ -107,16 +123,40 @@ class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScr
                       child: Row(
                         children: [
                           _buildPeriodBtn('Theo tuần', _selectedPeriod == 'Theo tuần', () {
-                            setState(() => _selectedPeriod = 'Theo tuần');
+                            setState(() { _selectedPeriod = 'Theo tuần'; _periodOffset = 0; });
                           }),
                           _buildPeriodBtn('Theo tháng', _selectedPeriod == 'Theo tháng', () {
-                            setState(() => _selectedPeriod = 'Theo tháng');
+                            setState(() { _selectedPeriod = 'Theo tháng'; _periodOffset = 0; });
                           }),
                         ],
                       ),
                     ),
                   ),
                 ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    IconButton(
+                      icon: Icon(Icons.chevron_left_rounded, color: context.palette.textPrimary),
+                      onPressed: () {
+                        setState(() => _periodOffset++);
+                      },
+                    ),
+                    Text(
+                      _getPeriodLabel(),
+                      style: TextStyle(color: context.palette.textPrimary, fontWeight: FontWeight.bold, fontSize: 14),
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.chevron_right_rounded, color: _periodOffset > 0 ? context.palette.textPrimary : AppColors.muted),
+                      onPressed: _periodOffset > 0 ? () {
+                        setState(() => _periodOffset--);
+                      } : null,
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 12),
               _buildWalletSelectorBar(),
@@ -198,7 +238,7 @@ class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScr
 
   Widget _buildWalletSelectorBar() {
     return Container(
-      padding: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.only(bottom: 4),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Row(
@@ -230,7 +270,7 @@ class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScr
         borderRadius: BorderRadius.circular(AppRadii.full),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 160),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
           decoration: BoxDecoration(
             color: isSelected ? AppColors.teal : context.palette.card,
             borderRadius: BorderRadius.circular(AppRadii.full),
@@ -243,7 +283,7 @@ class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScr
             children: [
               Icon(
                 walletId == null ? Icons.all_inclusive_rounded : Icons.account_balance_wallet_outlined,
-                size: 13,
+                size: 12,
                 color: isSelected ? Colors.white : context.palette.textSecondary,
               ),
               const SizedBox(width: 5),
@@ -267,7 +307,7 @@ class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScr
       child: GestureDetector(
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 8),
+          padding: const EdgeInsets.symmetric(vertical: 6),
           alignment: Alignment.center,
           decoration: BoxDecoration(
             color: active ? AppColors.teal : Colors.transparent,
@@ -277,7 +317,7 @@ class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScr
             label,
             style: TextStyle(
               color: active ? Colors.white : context.palette.textPrimary,
-              fontSize: 13,
+              fontSize: 12,
               fontWeight: active ? FontWeight.w700 : FontWeight.w500,
             ),
           ),
@@ -310,8 +350,16 @@ class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScr
                 Container(
                   width: 44,
                   height: 44,
-                  decoration: const BoxDecoration(color: AppColors.teal, shape: BoxShape.circle),
-                  child: const Icon(Icons.auto_awesome, color: Colors.white, size: 24),
+                  decoration: BoxDecoration(
+                    color: AppColors.teal.withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: ClipOval(
+                    child: Image.asset(
+                      _isAnalyzingAI ? 'assets/MiMo/emotions/Thinking.png' : 'assets/MiMo/emotions/Working.png',
+                      fit: BoxFit.cover,
+                    ),
+                  ),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
@@ -353,10 +401,16 @@ class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScr
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const CircleAvatar(
-                  radius: 18,
-                  backgroundColor: AppColors.teal,
-                  child: Text('M', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: AppColors.teal.withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: ClipOval(
+                    child: Image.asset('assets/MiMo/emotions/Working.png', fit: BoxFit.cover),
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -420,7 +474,25 @@ class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScr
               LineChartData(
                 minY: 0,
                 maxY: 16500000,
-                lineTouchData: LineTouchData(enabled: true),
+                lineTouchData: LineTouchData(
+                  enabled: true,
+                  touchTooltipData: LineTouchTooltipData(
+                    getTooltipColor: (_) => context.palette.card,
+                    tooltipRoundedRadius: 8,
+                    getTooltipItems: (touchedSpots) {
+                      return touchedSpots.map((LineBarSpot touchedSpot) {
+                        return LineTooltipItem(
+                          formatVnd(touchedSpot.y.toInt()),
+                          TextStyle(
+                            color: touchedSpot.bar.color ?? context.palette.textPrimary,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        );
+                      }).toList();
+                    },
+                  ),
+                ),
                 gridData: FlGridData(
                   show: true,
                   drawVerticalLine: false,
@@ -477,11 +549,12 @@ class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScr
             ),
           ),
           const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 20,
+            runSpacing: 8,
             children: [
               _buildLegendLine(AppColors.danger, 'Chi tiêu lũy kế thực tế', isDash: false),
-              const SizedBox(width: 20),
               _buildLegendLine(AppColors.muted, 'Đường lý tưởng (I_k)', isDash: true),
             ],
           ),
@@ -492,6 +565,7 @@ class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScr
 
   Widget _buildLegendLine(Color color, String label, {required bool isDash}) {
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
         Container(
           width: 18,

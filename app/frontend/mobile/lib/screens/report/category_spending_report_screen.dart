@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:intl/intl.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_palette.dart';
 import '../../theme/app_radii.dart';
@@ -31,11 +32,27 @@ class _CategorySpendingReportScreenState extends State<CategorySpendingReportScr
   int _totalAmt = 0;
   List<Map<String, dynamic>> _walletsList = [];
 
+  int _periodOffset = 0;
+
   @override
   void initState() {
     super.initState();
     _selectedWalletId = widget.initialWalletId;
     _loadReportData();
+  }
+
+  String _getPeriodLabel() {
+    final now = DateTime.now();
+    if (_selectedPeriod == 'Tuần này') {
+      if (_periodOffset == 0) return 'Tuần hiện tại';
+      final startOfWeek = now.subtract(Duration(days: now.weekday - 1)).subtract(Duration(days: 7 * _periodOffset));
+      final endOfWeek = startOfWeek.add(const Duration(days: 6));
+      return '${DateFormat('dd/MM').format(startOfWeek)} - ${DateFormat('dd/MM').format(endOfWeek)}';
+    } else {
+      if (_periodOffset == 0) return 'Tháng hiện tại';
+      final targetMonth = DateTime(now.year, now.month - _periodOffset, 1);
+      return 'Tháng ${targetMonth.month}/${targetMonth.year}';
+    }
   }
 
   Future<void> _loadReportData() async {
@@ -44,24 +61,27 @@ class _CategorySpendingReportScreenState extends State<CategorySpendingReportScr
       final now = DateTime.now();
       String fromStr, toStr;
       if (_selectedPeriod == 'Tuần này') {
-        final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
+        final startOfWeek = now.subtract(Duration(days: now.weekday - 1)).subtract(Duration(days: 7 * _periodOffset));
+        final endOfWeek = startOfWeek.add(const Duration(days: 6));
         fromStr = startOfWeek.toIso8601String().substring(0, 10);
-        toStr = now.toIso8601String().substring(0, 10);
+        toStr = endOfWeek.toIso8601String().substring(0, 10);
       } else {
-        fromStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-01';
-        toStr = now.toIso8601String().substring(0, 10);
+        final targetMonth = DateTime(now.year, now.month - _periodOffset, 1);
+        final targetMonthEnd = DateTime(now.year, now.month - _periodOffset + 1, 0);
+        fromStr = targetMonth.toIso8601String().substring(0, 10);
+        toStr = targetMonthEnd.toIso8601String().substring(0, 10);
       }
 
       String prevFromStr, prevToStr;
       if (_selectedPeriod == 'Tuần này') {
-        final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
+        final startOfWeek = now.subtract(Duration(days: now.weekday - 1)).subtract(Duration(days: 7 * _periodOffset));
         final prevStart = startOfWeek.subtract(const Duration(days: 7));
         final prevEnd = startOfWeek.subtract(const Duration(days: 1));
         prevFromStr = prevStart.toIso8601String().substring(0, 10);
         prevToStr = prevEnd.toIso8601String().substring(0, 10);
       } else {
-        final prevMonth = DateTime(now.year, now.month - 1, 1);
-        final prevMonthEnd = DateTime(now.year, now.month, 0);
+        final prevMonth = DateTime(now.year, now.month - _periodOffset - 1, 1);
+        final prevMonthEnd = DateTime(now.year, now.month - _periodOffset, 0);
         prevFromStr = prevMonth.toIso8601String().substring(0, 10);
         prevToStr = prevMonthEnd.toIso8601String().substring(0, 10);
       }
@@ -78,7 +98,7 @@ class _CategorySpendingReportScreenState extends State<CategorySpendingReportScr
 
       final wallets = <Map<String, dynamic>>[];
       for (final w in rawWallets) {
-        if (w is Map<String, dynamic>) wallets.add(w);
+        if (w is Map<String, dynamic> && w['type'] != 'group') wallets.add(w);
       }
 
       final Map<String, Map<String, dynamic>> mergedMap = {};
@@ -207,7 +227,7 @@ class _CategorySpendingReportScreenState extends State<CategorySpendingReportScr
               ]),
             ),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.sm),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: 4),
               child: Row(children: [
                 Expanded(
                   child: Container(
@@ -220,13 +240,13 @@ class _CategorySpendingReportScreenState extends State<CategorySpendingReportScr
                     child: Row(children: [
                       _buildPeriodBtn('Theo tuần', _selectedPeriod == 'Tuần này', () {
                         if (_selectedPeriod != 'Tuần này') {
-                          setState(() => _selectedPeriod = 'Tuần này');
+                          setState(() { _selectedPeriod = 'Tuần này'; _periodOffset = 0; });
                           _loadReportData();
                         }
                       }),
                       _buildPeriodBtn('Theo tháng', _selectedPeriod == 'Tháng này', () {
                         if (_selectedPeriod != 'Tháng này') {
-                          setState(() => _selectedPeriod = 'Tháng này');
+                          setState(() { _selectedPeriod = 'Tháng này'; _periodOffset = 0; });
                           _loadReportData();
                         }
                       }),
@@ -234,6 +254,32 @@ class _CategorySpendingReportScreenState extends State<CategorySpendingReportScr
                   ),
                 ),
               ]),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.xs),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  IconButton(
+                    icon: Icon(Icons.chevron_left_rounded, color: context.palette.textPrimary),
+                    onPressed: () {
+                      setState(() => _periodOffset++);
+                      _loadReportData();
+                    },
+                  ),
+                  Text(
+                    _getPeriodLabel(),
+                    style: TextStyle(color: context.palette.textPrimary, fontWeight: FontWeight.bold, fontSize: 14),
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.chevron_right_rounded, color: _periodOffset > 0 ? context.palette.textPrimary : AppColors.muted),
+                    onPressed: _periodOffset > 0 ? () {
+                      setState(() => _periodOffset--);
+                      _loadReportData();
+                    } : null,
+                  ),
+                ],
+              ),
             ),
             _buildWalletSelectorBar(),
             Expanded(
@@ -274,7 +320,7 @@ class _CategorySpendingReportScreenState extends State<CategorySpendingReportScr
       child: GestureDetector(
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 8),
+          padding: const EdgeInsets.symmetric(vertical: 6),
           alignment: Alignment.center,
           decoration: BoxDecoration(
             color: active ? AppColors.teal : Colors.transparent,
@@ -283,7 +329,7 @@ class _CategorySpendingReportScreenState extends State<CategorySpendingReportScr
           child: Text(label,
             style: TextStyle(
               color: active ? Colors.white : context.palette.textPrimary,
-              fontSize: 13,
+              fontSize: 12,
               fontWeight: active ? FontWeight.w700 : FontWeight.w500,
             )),
         ),
@@ -296,7 +342,7 @@ class _CategorySpendingReportScreenState extends State<CategorySpendingReportScr
       child: GestureDetector(
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 8),
+          padding: const EdgeInsets.symmetric(vertical: 6),
           alignment: Alignment.center,
           decoration: BoxDecoration(
             color: active ? AppColors.teal : Colors.transparent,
@@ -305,7 +351,7 @@ class _CategorySpendingReportScreenState extends State<CategorySpendingReportScr
           child: Text(label,
             style: TextStyle(
               color: active ? Colors.white : context.palette.textPrimary,
-              fontSize: 13,
+              fontSize: 12,
               fontWeight: active ? FontWeight.w700 : FontWeight.w500,
             )),
         ),
@@ -336,7 +382,7 @@ class _CategorySpendingReportScreenState extends State<CategorySpendingReportScr
                 ),
                 child: ClipOval(
                   child: Image.asset(
-                    _isAnalyzingAI ? 'assets/MiMo/emotions/Thinking.png' : 'assets/MiMo/emotions/Happy.png',
+                    _isAnalyzingAI ? 'assets/MiMo/emotions/Thinking.png' : 'assets/MiMo/emotions/Working.png',
                     fit: BoxFit.cover,
                   ),
                 ),
@@ -376,7 +422,7 @@ class _CategorySpendingReportScreenState extends State<CategorySpendingReportScr
                   shape: BoxShape.circle,
                 ),
                 child: ClipOval(
-                  child: Image.asset('assets/MiMo/emotions/Happy.png', fit: BoxFit.cover),
+                  child: Image.asset('assets/MiMo/emotions/Working.png', fit: BoxFit.cover),
                 ),
               ),
               const SizedBox(width: 12),
@@ -395,7 +441,7 @@ class _CategorySpendingReportScreenState extends State<CategorySpendingReportScr
 
   Widget _buildWalletSelectorBar() {
     return Container(
-      padding: const EdgeInsets.only(left: AppSpacing.lg, right: AppSpacing.lg, bottom: 10),
+      padding: const EdgeInsets.only(left: AppSpacing.lg, right: AppSpacing.lg, bottom: 4),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Row(
@@ -424,7 +470,7 @@ class _CategorySpendingReportScreenState extends State<CategorySpendingReportScr
         borderRadius: BorderRadius.circular(AppRadii.full),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 160),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
           decoration: BoxDecoration(
             color: isSelected ? AppColors.teal : context.palette.card,
             borderRadius: BorderRadius.circular(AppRadii.full),
@@ -437,7 +483,7 @@ class _CategorySpendingReportScreenState extends State<CategorySpendingReportScr
             children: [
               Icon(
                 walletId == null ? Icons.all_inclusive_rounded : Icons.account_balance_wallet_outlined,
-                size: 13,
+                size: 12,
                 color: isSelected ? Colors.white : context.palette.textSecondary,
               ),
               const SizedBox(width: 5),
@@ -733,7 +779,7 @@ class _CategorySpendingReportScreenState extends State<CategorySpendingReportScr
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: () {
-          Navigator.of(context).push(MaterialPageRoute(
+          Navigator.of(context, rootNavigator: false).push(MaterialPageRoute(
             builder: (_) => CategoryDetailReportScreen(
               categoryCode: code,
               categoryName: label,

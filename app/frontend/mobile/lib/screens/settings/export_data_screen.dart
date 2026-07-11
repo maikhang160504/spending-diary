@@ -12,7 +12,8 @@ import '../../theme/app_radii.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/categories.dart';
 import '../../utils/formatters.dart';
-
+import 'package:share_plus/share_plus.dart';
+import 'package:open_filex/open_filex.dart';
 class ExportDataScreen extends StatefulWidget {
   const ExportDataScreen({super.key});
 
@@ -202,7 +203,7 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
               children: [
                 Icon(Icons.check_circle_outline, color: AppColors.teal, size: 28),
                 SizedBox(width: 10),
-                Text('Xuất dữ liệu thành công'),
+                Expanded(child: Text('Xuất dữ liệu thành công')),
               ],
             ),
             content: Column(
@@ -225,6 +226,20 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
               ],
             ),
             actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  OpenFilex.open(file.path);
+                },
+                child: const Text('Mở tệp', style: TextStyle(color: AppColors.teal)),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  Share.shareXFiles([XFile(file.path)], text: 'Dữ liệu Sổ thu chi');
+                },
+                child: const Text('Chia sẻ', style: TextStyle(color: AppColors.teal)),
+              ),
               FilledButton(
                 onPressed: () => Navigator.pop(ctx),
                 style: FilledButton.styleFrom(backgroundColor: AppColors.teal),

@@ -90,6 +90,8 @@ Page<dynamic> _lottiePage(GoRouterState state, String lottiePath, Widget child) 
 }
 
 /// go_router instance — được dùng trong MaterialApp.router
+final GlobalKey<NavigatorState> shellNavigatorKey = GlobalKey<NavigatorState>();
+
 final GoRouter appRouter = GoRouter(
   initialLocation: AppRoutes.splash,
   redirect: (context, state) async {
@@ -153,6 +155,7 @@ final GoRouter appRouter = GoRouter(
 
     // ── Shell (bottom nav) ───────────────────────────────────
     ShellRoute(
+      navigatorKey: shellNavigatorKey,
       builder: (context, state, child) => AppShell(child: child),
       routes: [
         GoRoute(

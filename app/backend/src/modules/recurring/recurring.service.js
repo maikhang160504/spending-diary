@@ -55,7 +55,7 @@ async function create(userId, payload) {
   const r = await query(
     `INSERT INTO recurring_rules
        (user_id, wallet_id, amount, type, category_code, note, frequency, next_occurrence, is_active)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8::date, $9)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
      RETURNING *`,
     [userId, walletId, amount, type, categoryCode, note, frequency, nextOccurrence, isActive]
   );
@@ -91,7 +91,7 @@ async function update(userId, id, payload) {
   for (const [k, col] of Object.entries(map)) {
     if (payload[k] !== undefined) {
       if (k === 'nextOccurrence') {
-        fields.push(`${col} = $${i++}::date`);
+        fields.push(`${col} = $${i++}`);
       } else {
         fields.push(`${col} = $${i++}`);
       }

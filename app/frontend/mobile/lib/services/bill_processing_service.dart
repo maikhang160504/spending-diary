@@ -212,6 +212,8 @@ class BillProcessingService extends ChangeNotifier {
         'note': data['note'] ?? '',
         'confidence': confidence,
         'record_type': 'Expense',
+        'aiComment': data['aiComment'],
+        'mascotMood': data['mascotMood'],
       },
     };
   }

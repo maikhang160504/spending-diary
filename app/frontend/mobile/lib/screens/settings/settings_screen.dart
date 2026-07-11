@@ -681,7 +681,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             label: 'Xuất dữ liệu chi tiêu',
                             subtitle: 'Xuất Excel/CSV theo bộ lọc tùy chỉnh',
                             showDivider: false,
-                            onTap: () => Navigator.of(context).push(
+                            onTap: () => Navigator.of(context, rootNavigator: false).push(
                               MaterialPageRoute(
                                 builder: (_) => const ExportDataScreen(),
                               ),
@@ -1106,23 +1106,46 @@ class _SettingsHeader extends StatelessWidget {
           bottomRight: Radius.circular(AppRadii.xl),
         ),
       ),
-      padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      padding: const EdgeInsets.fromLTRB(24, 20, 20, 24),
+      child: Row(
         children: [
-          Text(
-            'Cài đặt',
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-              color: Colors.white,
-              fontWeight: FontWeight.w800,
+          Container(
+            width: 44,
+            height: 44,
+            margin: const EdgeInsets.only(right: 14),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.22),
+              shape: BoxShape.circle,
             ),
+            child: const Icon(Icons.settings_rounded, color: Colors.white, size: 24),
           ),
-          const SizedBox(height: 4),
-          Text(
-            'Quản lý tài khoản và tùy chỉnh ứng dụng',
-            style: Theme.of(
-              context,
-            ).textTheme.bodyMedium?.copyWith(color: Colors.white70),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Cài đặt',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 21,
+                      ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  'Quản lý tài khoản và tùy chỉnh ứng dụng',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Colors.white.withValues(alpha: 0.88),
+                        fontSize: 12,
+                      ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
           ),
         ],
       ),

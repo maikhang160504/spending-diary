@@ -236,6 +236,17 @@ class _ToolsHeader extends StatelessWidget {
                 child: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 18),
               ),
             ),
+          ] else ...[
+            Container(
+              width: 44,
+              height: 44,
+              margin: const EdgeInsets.only(right: 14),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.22),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.calculate_rounded, color: Colors.white, size: 24),
+            ),
           ],
           Expanded(
             child: Column(
@@ -254,7 +265,7 @@ class _ToolsHeader extends StatelessWidget {
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  'Quản lý tài chính, vay mượn và mục tiêu tương lai',
+                  'Quản lý và lập kế hoạch tài chính hiệu quả',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: Colors.white.withValues(alpha: 0.88),
                         fontSize: 12,
