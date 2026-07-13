@@ -188,11 +188,18 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
                             ctx.pop();
                             try {
                               await _api.contributeGoal(widget.goalId, amount);
+                              if (!ctx.mounted || !mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('🎉 Thêm tiền thành công!'),
+                                  backgroundColor: AppColors.teal,
+                                ),
+                              );
                               _loadGoalDetail();
-                            } catch (_) {
+                            } catch (e) {
                               if (mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Không thể thực hiện đóng góp')),
+                                  SnackBar(content: Text('Không thể thực hiện đóng góp: $e')),
                                 );
                               }
                             }

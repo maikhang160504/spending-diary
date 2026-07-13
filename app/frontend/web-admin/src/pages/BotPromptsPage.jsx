@@ -2,18 +2,24 @@ import { useState, useEffect } from "react";
 import { getBotPrompts, saveBotPrompts, getSystemSettings, saveSystemSettings, testSystemPrompt } from "../services/api";
 
 const PERSONA_LABELS = {
-  vui: "Vui vẻ / Năng lượng cao",
-  dan_doi: "Giận dỗi / Lo lắng"
+  dui_de: "Dui dẻ / Vui vẻ",
+  dan_doi: "Dận dỗi / Hay khóc",
+  kho_tinh: "Khó tính / Kỷ luật",
+  ngot_ngao: "Ngọt ngào / Chữa lành"
 };
 
 const PERSONA_ICONS = {
-  vui: "🎉🔥",
-  dan_doi: "😢💔"
+  dui_de: "😎🎉",
+  dan_doi: "🥺😭",
+  kho_tinh: "🔥😠",
+  ngot_ngao: "💖🥰"
 };
 
 const MOCK_PREVIEWS = {
-  vui: "Ăn sáng vỉa hè hết 45k hả sen? Bữa sáng thịnh soạn hết nước chấm luôn, quẩy thôi! ☕️🔥",
-  dan_doi: "Lại ăn sườn nướng 55k? Ét ô ét cứu con tim, nhức nhức cái đầu quá bạn ơi! 😢"
+  dui_de: "Ăn sáng vỉa hè hết 45k hả sen? Bữa sáng thịnh soạn hết nước chấm luôn, quẩy thôi! ☕️🔥",
+  dan_doi: "Lại ăn sườn nướng 55k? Ét ô ét cứu con tim, nhức nhức cái đầu quá bạn ơi! 😢",
+  kho_tinh: "Trời đất, ăn gì mà hết 55k một bữa vậy?! Bạn có biết 55k là bằng mấy ngày tiền đi chợ của người ta không?",
+  ngot_ngao: "Thương bạn lắm nè, đói thì phải ăn ngon một bữa thôi, đừng tiếc nha, cưng xỉu luôn á! 🥰"
 };
 
 function BotPromptsPage() {
@@ -25,7 +31,7 @@ function BotPromptsPage() {
     nluThreshold: 0.85,
     dateFallback: "transaction"
   });
-  const [persona, setPersona] = useState("vui");
+  const [persona, setPersona] = useState("dui_de");
   const [customPrompt, setCustomPrompt] = useState("");
   const [thresholds, setThresholds] = useState({
     budgetAlert: 30,

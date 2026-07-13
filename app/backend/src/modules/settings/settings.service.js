@@ -27,6 +27,12 @@ async function update(userId, payload) {
   let idx = 2;
 
   if (payload.verbalStyle !== undefined) {
+    if (['kho_tinh', 'ngot_ngao'].includes(payload.verbalStyle)) {
+      const userRes = await query('SELECT is_premium FROM users WHERE id = $1', [userId]);
+      if (!userRes.rows[0]?.is_premium) {
+        throw require('../../utils/ApiError').forbidden('PREMIUM_REQUIRED_STYLE_LIMIT');
+      }
+    }
     fields.push(`verbal_style = $${idx++}`);
     values.push(payload.verbalStyle);
   }

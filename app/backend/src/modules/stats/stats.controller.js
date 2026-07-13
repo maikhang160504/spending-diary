@@ -2,6 +2,7 @@
 
 const asyncHandler = require('../../utils/asyncHandler');
 const service = require('./stats.service');
+const peerCompareService = require('./peer_compare.service');
 
 exports.dashboard = asyncHandler(async (req, res) => {
   const data = await service.dashboard(req.user.id, {
@@ -41,6 +42,13 @@ exports.mom = asyncHandler(async (req, res) => {
 exports.cumulativeVsBudget = asyncHandler(async (req, res) => {
   const data = await service.getCumulativeVsBudget(req.user.id, {
     walletId: req.query.walletId,
+  });
+  res.json({ success: true, data });
+});
+
+exports.peerCompare = asyncHandler(async (req, res) => {
+  const data = await peerCompareService.getPeerCompare(req.user.id, {
+    month: req.query.month,
   });
   res.json({ success: true, data });
 });

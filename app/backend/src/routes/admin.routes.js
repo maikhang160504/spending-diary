@@ -174,6 +174,7 @@ router.get('/users', async (req, res, next) => {
         u.email,
         u.role,
         u.is_active AS "isActive",
+        u.is_premium AS "isPremium",
         u.created_at AS "createdAt",
         s.age_group AS "ageGroup",
         s.job_type AS "jobType",
@@ -1308,3 +1309,58 @@ router.post('/settings', async (req, res, next) => {
 
 module.exports = router;
 
+
+// ============================================================
+// MONETIZATION — Premium & Revenue Admin APIs
+// ============================================================
+
+const paymentsService = require('../modules/payments/payments.service');
+
+// GET /api/admin/monetization/stats — Tổng doanh thu, doanh thu tháng, số user Premium
+router.get('/monetization/stats', async (req, res, next) => {
+  try {
+    const stats = await paymentsService.getRevenueStats();
+    res.json({ success: true, data: stats });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/admin/monetization/history?days=30 — Biểu đồ doanh thu theo ngày
+router.get('/monetization/history', async (req, res, next) => {
+  try {
+    const days = Math.min(parseInt(req.query.days || 30, 10), 365);
+    const data = await paymentsService.getRevenueDailyHistory(days);
+    res.json({ success: true, data });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/admin/monetization/orders?limit=50&offset=0 — Lịch sử giao dịch
+router.get('/monetization/orders', async (req, res, next) => {
+  try {
+    const limit  = Math.min(parseInt(req.query.limit  || 50, 10), 200);
+    const offset = parseInt(req.query.offset || 0, 10);
+    const orders = await paymentsService.getOrdersList({ limit, offset });
+    res.json({ success: true, data: orders });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/admin/users/:id/premium — Admin cấp/tước Premium thủ công
+router.post('/users/:id/premium', async (req, res, next) => {
+  const { id } = req.params;
+  const { isPremium } = req.body;
+  if (typeof isPremium !== 'boolean') {
+    return res.status(400).json({ message: 'isPremium must be a boolean' });
+  }
+  try {
+    await paymentsService.adminSetPremium(id, isPremium);
+    logger.info({ userId: id, isPremium }, '[Admin] Manual premium toggle');
+    res.json({ success: true, message: isPremium ? 'Premium granted' : 'Premium revoked' });
+  } catch (err) {
+    next(err);
+  }
+});

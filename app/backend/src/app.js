@@ -32,7 +32,14 @@ app.use(
     credentials: true,
   })
 );
-app.use(express.json({ limit: '2mb' }));
+app.use(
+  express.json({
+    limit: '2mb',
+    verify: (req, _res, buf) => {
+      req.rawBody = buf;
+    },
+  })
+);
 app.use(express.urlencoded({ extended: true }));
 app.use(requestId);
 if (env.nodeEnv !== 'test') {
@@ -55,6 +62,7 @@ app.get('/', (_req, res) =>
   })
 );
 
+app.use('/hooks', require('./routes/hooks.routes'));
 app.use('/api/v1', router);
 app.use('/api/admin', adminRouter);
 

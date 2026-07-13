@@ -166,7 +166,15 @@ class _FlipOverlayState extends State<_FlipOverlay> with SingleTickerProviderSta
 
 
 
-  String get _toLabel => widget.toStyle == 'strict' ? 'Dận Dữ' : 'Dui Dẻ';
+  String get _toLabel {
+    switch (widget.toStyle) {
+      case 'dan_doi': return 'Dận Dỗi';
+      case 'kho_tinh': return 'Khó Tính';
+      case 'ngot_ngao': return 'Ngọt Ngào';
+      case 'dui_de':
+      default: return 'Dui Dẻ';
+    }
+  }
 
 
 
@@ -408,15 +416,43 @@ class _StyleFlipCard extends StatelessWidget {
 
 
 
-    final isFunny = style == 'funny';
+    String asset = 'assets/MiMo/emotions/Sassy.png';
+    String label = 'Dui Dẻ';
+    String description = 'Vui vẻ, hài hước';
+    Color accent = AppColors.teal;
+    String emoji = '😎';
 
-    final asset = isFunny ? 'assets/MiMo/emotions/Cool.png' : 'assets/MiMo/emotions/Angry.png';
-
-    final label = isFunny ? 'Dui Dẻ' : 'Dận Dữ';
-
-    final accent = isFunny ? AppColors.teal : const Color(0xFFF97316);
-
-
+    switch (style) {
+      case 'dan_doi':
+        asset = 'assets/MiMo/emotions/Sad.png';
+        label = 'Dận Dỗi';
+        description = 'Hay dỗi, mít ướt';
+        accent = const Color(0xFF6366F1); // Indigo
+        emoji = '🥺';
+        break;
+      case 'kho_tinh':
+        asset = 'assets/MiMo/emotions/Angry.png';
+        label = 'Khó Tính';
+        description = 'Nghiêm túc, kỷ luật';
+        accent = const Color(0xFFF97316); // Orange
+        emoji = '🔥';
+        break;
+      case 'ngot_ngao':
+        asset = 'assets/MiMo/emotions/Love.png';
+        label = 'Ngọt Ngào';
+        description = 'Thấu cảm, chữa lành';
+        accent = const Color(0xFFEC4899); // Pink
+        emoji = '💖';
+        break;
+      case 'dui_de':
+      default:
+        asset = 'assets/MiMo/emotions/Sassy.png';
+        label = 'Dui Dẻ';
+        description = 'Vui vẻ, hài hước';
+        accent = AppColors.teal;
+        emoji = '😎';
+        break;
+    }
 
     return SizedBox(
 
@@ -482,7 +518,7 @@ class _StyleFlipCard extends StatelessWidget {
 
                       height: width * 0.34,
 
-                      errorBuilder: (_, e, s) => Text(isFunny ? '😎' : '🔥', style: TextStyle(fontSize: width * 0.2)),
+                      errorBuilder: (_, e, s) => Text(emoji, style: TextStyle(fontSize: width * 0.2)),
 
                     ),
 
@@ -510,7 +546,7 @@ class _StyleFlipCard extends StatelessWidget {
 
                 Text(
 
-                  isFunny ? 'Vui vẻ, hài hước' : 'Nghiêm túc, thẳng thắn',
+                  description,
 
                   maxLines: 1,
 

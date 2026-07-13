@@ -169,8 +169,52 @@ class _LoansScreenState extends State<LoansScreen> with AutomaticKeepAliveClient
                     icon: Icon(Icons.more_vert, color: context.palette.textSecondary),
                     onSelected: (value) async {
                       if (value == 'pay') {
-                        await _api.updateLoan(loan['id'].toString(), {'paid_amount': amount, 'status': 'paid'});
-                        _loadLoans();
+                        try {
+                          await _api.updateLoan(loan['id'].toString(), {'paid_amount': amount, 'status': 'paid'});
+                          if (!mounted) return;
+                          
+                          // Hiển thị Success.png khi trả xong nợ
+                          showDialog(
+                            context: context,
+                            builder: (_) => Dialog(
+                              backgroundColor: Colors.transparent,
+                              elevation: 0,
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Image.asset(
+                                    'assets/MiMo/emotions/Relax.png',
+                                    height: 150,
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                    decoration: BoxDecoration(
+                                      color: context.palette.card,
+                                      borderRadius: BorderRadius.circular(16),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: AppColors.success.withValues(alpha: 0.2),
+                                          blurRadius: 20,
+                                        ),
+                                      ],
+                                    ),
+                                    child: const Text(
+                                      'Đã thanh toán xong!',
+                                      style: TextStyle(
+                                        color: AppColors.success,
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 18,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                          
+                          _loadLoans();
+                        } catch (_) {}
                       } else if (value == 'delete') {
                         await _api.deleteLoan(loan['id'].toString());
                         _loadLoans();

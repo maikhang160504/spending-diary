@@ -20,6 +20,8 @@ import '../../widgets/mimo_overlay.dart';
 import '../../widgets/notification_overlay.dart';
 import '../../widgets/bill_processing_banner.dart';
 import '../../widgets/ai_popup_menu.dart';
+import '../../widgets/premium_upsell_bottom_sheet.dart';
+import '../../services/ads_service.dart';
 
 /// AppShell wraps the 4 ShellRoute tabs + persistent bottom nav + MiMo overlay + Notification banner
 class AppShell extends StatefulWidget {
@@ -42,6 +44,13 @@ class _AppShellState extends State<AppShell> {
   @override
   void initState() {
     super.initState();
+    AdsService.instance.initialize();
+    AdsService.instance.onAdTriggered.listen((_) {
+      if (mounted) {
+        showPremiumUpsellSheet(context);
+        AdsService.instance.resetTime();
+      }
+    });
     mimoController.addListener(_onMiMoChanged);
     inAppNotificationController.addListener(_onNotificationChanged);
     BillProcessingService.instance.addListener(_onBillJobsChanged);

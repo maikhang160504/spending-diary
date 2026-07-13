@@ -40,7 +40,7 @@ Về mặt học thuật, đề tài thực nghiệm và tinh chỉnh mô hình 
    4.2. Cấu hình phần cứng huấn luyện và thực nghiệm
    4.3. Kết quả Benchmark so sánh 3 kiến trúc Mô hình NLU
    4.4. Đánh giá kiểm thử Nhận dạng Ký tự Quang học (OCR - Hóa đơn)
-   4.5. Đánh giá tính ổn định của Ứng dụng (Load Testing & Unit Testing)
+   4.5. Đánh giá tính ổn định của Ứng dụng (Load Testing & Unit Testing)- có thể bỏ
 6. Phần Kết luận
    6.1. Kết quả đạt được
    6.2. Hạn chế của Đề tài

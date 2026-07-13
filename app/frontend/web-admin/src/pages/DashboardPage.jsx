@@ -716,9 +716,10 @@ function DashboardPage() {
         </div>
         <div className="metric-card" style={{ background: "var(--bg-obsidian-900)", border: "1px solid var(--border-color)", borderRadius: "16px", padding: "24px", position: "relative" }}>
           <span className="metric-indicator indicator-amber" style={{ position: "absolute", top: "24px", left: "24px", width: "8px", height: "8px", borderRadius: "50%", background: "var(--accent-amber)", boxShadow: "0 0 10px var(--accent-amber)" }}></span>
-          <span className="metric-label" style={{ display: "block", fontSize: "13px", color: "var(--text-secondary)", marginBottom: "8px", paddingLeft: "16px" }}>Tổng khối lượng chi tiêu</span>
+          <span className="metric-label" style={{ display: "block", fontSize: "13px", color: "var(--text-secondary)", marginBottom: "8px", paddingLeft: "16px" }}>Tổng doanh thu premium</span>
           <span className="metric-value" style={{ display: "block", fontSize: "28px", fontWeight: "700", color: "var(--text-primary)" }}>{Number(analytics.totalExpenseAmount).toLocaleString()} VND</span>
           <span className="metric-desc" style={{ display: "block", fontSize: "12px", color: "var(--text-muted)", marginTop: "4px" }}>Tổng giá trị dòng tiền thực tế được theo dõi</span>
+
         </div>
       </div>
 

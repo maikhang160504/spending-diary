@@ -159,6 +159,23 @@ async function getById(userId, goalId) {
 async function create(userId, payload) {
   const type = payload.type || 'personal';
   const isGroup = payload.isGroup === true || type === 'saving_group' || type === 'challenge_group';
+  
+  // Check Premium limits
+  const userRes = await query('SELECT is_premium FROM users WHERE id = $1', [userId]);
+  const isPremium = userRes.rows[0]?.is_premium;
+
+  if (!isPremium) {
+    const isChallenge = type.startsWith('challenge');
+    const q = isChallenge 
+      ? `SELECT COUNT(*) FROM goal_members gm JOIN goals g ON g.id = gm.goal_id WHERE gm.user_id = $1 AND g.type LIKE 'challenge%' AND g.status != 'cancelled'`
+      : `SELECT COUNT(*) FROM goal_members gm JOIN goals g ON g.id = gm.goal_id WHERE gm.user_id = $1 AND (g.type IS NULL OR g.type NOT LIKE 'challenge%') AND g.status != 'cancelled'`;
+      
+    const countRes = await query(q, [userId]);
+    if (parseInt(countRes.rows[0].count) >= 5) {
+      throw ApiError.forbidden('PREMIUM_REQUIRED_GOAL_LIMIT');
+    }
+  }
+
   const inviteCode = isGroup ? crypto.randomBytes(3).toString('hex').toUpperCase() : null;
   const r = await query(
     `INSERT INTO goals (user_id, wallet_id, name, target_amount, emoji, deadline, type, invite_code)
@@ -291,11 +308,28 @@ async function generateInviteCode(userId, goalId) {
 
 async function joinByInviteCode(userId, inviteCode) {
   const r = await query(
-    `SELECT id FROM goals WHERE invite_code = $1 AND status != 'cancelled'`,
+    `SELECT id, type FROM goals WHERE invite_code = $1 AND status != 'cancelled'`,
     [inviteCode.trim().toUpperCase()]
   );
   if (r.rowCount === 0) throw ApiError.notFound('Mã mời không hợp lệ hoặc mục tiêu đã kết thúc.');
   const goalId = r.rows[0].id;
+  const type = r.rows[0].type || '';
+
+  // Check Premium limits
+  const userRes = await query('SELECT is_premium FROM users WHERE id = $1', [userId]);
+  const isPremium = userRes.rows[0]?.is_premium;
+
+  if (!isPremium) {
+    const isChallenge = type.startsWith('challenge');
+    const q = isChallenge 
+      ? `SELECT COUNT(*) FROM goal_members gm JOIN goals g ON g.id = gm.goal_id WHERE gm.user_id = $1 AND g.type LIKE 'challenge%' AND g.status != 'cancelled'`
+      : `SELECT COUNT(*) FROM goal_members gm JOIN goals g ON g.id = gm.goal_id WHERE gm.user_id = $1 AND (g.type IS NULL OR g.type NOT LIKE 'challenge%') AND g.status != 'cancelled'`;
+      
+    const countRes = await query(q, [userId]);
+    if (parseInt(countRes.rows[0].count) >= 5) {
+      throw ApiError.forbidden('PREMIUM_REQUIRED_GOAL_LIMIT');
+    }
+  }
 
   await query(
     `INSERT INTO goal_members (goal_id, user_id, role)

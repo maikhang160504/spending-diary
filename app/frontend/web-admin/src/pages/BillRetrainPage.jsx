@@ -449,7 +449,11 @@ export default function BillRetrainPage() {
   };
 
   const onModalTrigger = async () => {
-    if (!window.confirm("Bạn có chắc chắn muốn khởi chạy huấn luyện mô hình LayoutLMv3 trên đám mây Modal (sử dụng GPU) không?\n\nTác vụ này sẽ chạy nền và có thể tốn tài nguyên đám mây.")) return;
+    const pw = window.prompt("Bạn có chắc chắn muốn khởi chạy huấn luyện mô hình LayoutLMv3 trên đám mây Modal (sử dụng GPU) không?\n\nTác vụ này sẽ chạy nền và có thể tốn tài nguyên đám mây.\n\nNhập mật khẩu quản trị để xác nhận:");
+    if (pw !== "admin") {
+      if (pw !== null) alert("Mật khẩu không đúng! Hủy thao tác.");
+      return;
+    }
     setBusy(true, "Đang khởi chạy training LayoutLMv3 trên Modal Cloud...");
     try {
       const res = await triggerBillModal(30, 0.00002);

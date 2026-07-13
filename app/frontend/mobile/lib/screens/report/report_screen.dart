@@ -8,6 +8,7 @@ import 'category_spending_report_screen.dart';
 import 'cashflow_report_screen.dart';
 import 'saving_trend_report_screen.dart';
 import 'cumulative_budget_report_screen.dart';
+import 'peer_compare_report_screen.dart';
 
 class ReportScreen extends StatefulWidget {
   const ReportScreen({super.key});
@@ -170,6 +171,23 @@ class _ReportScreenState extends State<ReportScreen> {
                   Navigator.of(context, rootNavigator: false).push(
                     MaterialPageRoute(
                       builder: (_) => CumulativeBudgetReportScreen(),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 14),
+
+              // Card 5: So sánh cộng đồng
+              _buildReportMenuCard(
+                icon: Icons.groups_rounded,
+                iconColor: const Color(0xFF673AB7),
+                iconBgColor: const Color(0xFFEDE7F6),
+                title: 'So sánh cộng đồng',
+                subtitle: 'Đối chiếu chi tiêu của bạn với nhóm người có cùng độ tuổi và công việc',
+                onTap: () {
+                  Navigator.of(context, rootNavigator: false).push(
+                    MaterialPageRoute(
+                      builder: (_) => PeerCompareReportScreen(),
                     ),
                   );
                 },

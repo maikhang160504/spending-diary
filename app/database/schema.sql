@@ -15,10 +15,12 @@ CREATE TABLE IF NOT EXISTS users (
     username         VARCHAR(80) NOT NULL,
     email            VARCHAR(160) NOT NULL UNIQUE,
     password_hash    TEXT NOT NULL,
+    google_id        TEXT UNIQUE,                             -- Google OAuth ID
     avatar_url       TEXT,
     preferred_vibe   VARCHAR(20) NOT NULL DEFAULT 'funny',
     role             VARCHAR(20) NOT NULL DEFAULT 'user',     -- user | admin
     is_active        BOOLEAN NOT NULL DEFAULT TRUE,
+    is_premium       BOOLEAN NOT NULL DEFAULT FALSE,          -- Premium subscription flag
     last_login_at    TIMESTAMPTZ,
     created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -209,3 +211,21 @@ VALUES
     (gen_random_uuid(), NULL, 'Đầu tư',         'investment',   'income',  'trending-up',  '#0D9488'),
     (gen_random_uuid(), NULL, 'Kinh doanh',     'business',     'income',  'store',        '#7C3AED')
 ON CONFLICT DO NOTHING;
+
+-- ---------- 11. Orders (Premium payments via VietQR / SePay) ---------------
+CREATE TABLE IF NOT EXISTS orders (
+    id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id          UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    code             VARCHAR(30) NOT NULL UNIQUE,    -- VD: SD60711224215 (SD + YYMMDDHHMMSS)
+    amount           NUMERIC(15, 2) NOT NULL DEFAULT 49000,
+    status           VARCHAR(20) NOT NULL DEFAULT 'pending',  -- pending | completed | cancelled
+    transfer_content TEXT,                           -- Nội dung chuyển khoản thực tế từ SePay webhook
+    paid_at          TIMESTAMPTZ,
+    created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_code   ON orders(code);
+CREATE INDEX IF NOT EXISTS idx_orders_user          ON orders(user_id);
+CREATE INDEX IF NOT EXISTS idx_orders_pending       ON orders(user_id) WHERE status = 'pending';
+CREATE INDEX IF NOT EXISTS idx_orders_status        ON orders(status);
+CREATE INDEX IF NOT EXISTS idx_orders_created       ON orders(created_at);

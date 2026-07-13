@@ -8,7 +8,7 @@ const MIMO_ASSET_NAMES = new Set([
   'Sorry', 'Success', 'Taunting', 'Thankful', 'Thinking', 'Working', 'Worried',
 ]);
 
-const NLG_PERSONA_KEYS = new Set(['hai_huoc', 'dan_doi', 'dong_cam', 'cham_choc', 'nghiem_tuc', 'vui']);
+const NLG_PERSONA_KEYS = new Set(['dui_de', 'dan_doi', 'kho_tinh', 'ngot_ngao']);
 
 function intentFallback(intent) {
   if (intent === 'Record') return 'Success';
@@ -23,12 +23,10 @@ function coerceMimoAsset(raw) {
   const lower = trimmed.toLowerCase();
 
   const PERSONA_TO_EMOTION = {
-    vui: 'Happy',
-    dan_doi: 'Worried',
-    cham_choc: 'Taunting',
-    dong_cam: 'Chill',
-    nghiem_tuc: 'Approved',
-    hai_huoc: 'Giggle',
+    dui_de: 'Happy',
+    dan_doi: 'Sad',
+    kho_tinh: 'Angry',
+    ngot_ngao: 'Love',
   };
   if (PERSONA_TO_EMOTION[lower]) {
     return PERSONA_TO_EMOTION[lower];

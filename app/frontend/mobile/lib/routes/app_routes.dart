@@ -30,6 +30,7 @@ import '../screens/story/detail_story_screen.dart';
 import '../screens/streak/streak_screen.dart';
 import '../screens/wallet/share_wallet_screen.dart';
 import '../screens/group/group_analytics_screen.dart';
+import '../screens/premium/premium_payment_screen.dart';
 
 /// Tất cả tên route tập trung tại đây
 class AppRoutes {
@@ -70,6 +71,9 @@ class AppRoutes {
   static const recurring      = '/recurring';
   static const groupAnalytics = '/group-analytics/:walletId';
 
+  // Premium
+  static const premiumPayment  = '/premium/payment';
+
   /// Build the story detail path with a real [storyId]
   static String storyDetailOf(String storyId) => '/story/$storyId';
 
@@ -95,7 +99,7 @@ final GlobalKey<NavigatorState> shellNavigatorKey = GlobalKey<NavigatorState>();
 final GoRouter appRouter = GoRouter(
   initialLocation: AppRoutes.splash,
   redirect: (context, state) async {
-    final protectedPrefixes = ['/app/', '/camera', '/chat', '/limits', '/wallet', '/streak', '/story', '/recurring'];
+    final protectedPrefixes = ['/app/', '/camera', '/chat', '/limits', '/wallet', '/streak', '/story', '/recurring', '/premium'];
     
     final isOnboarding = state.matchedLocation == AppRoutes.onboarding ||
                          state.matchedLocation == AppRoutes.onboardingStep2 ||
@@ -321,6 +325,10 @@ final GoRouter appRouter = GoRouter(
           goalId: state.pathParameters['goalId'] ?? '',
         ),
       ),
+    ),
+    GoRoute(
+      path: AppRoutes.premiumPayment,
+      builder: (context, state) => const PremiumPaymentScreen(),
     ),
   ],
 );

@@ -18,6 +18,7 @@ const recurringRoutes = require('../modules/recurring/recurring.routes');
 const fcmRoutes = require('../modules/fcm/fcm.routes');
 const loansRoutes = require('../modules/loans/loans.route');
 const groupStatsRoutes = require('../modules/group_stats/group_stats.routes');
+const paymentsRoutes = require('../modules/payments/payments.routes');
 const authController = require('../modules/auth/auth.controller');
 const { requireAuth } = require('../middlewares/auth');
 
@@ -54,5 +55,6 @@ router.use('/recurring', recurringRoutes);
 router.use('/users/me/fcm', fcmRoutes);
 router.use('/loans', loansRoutes);
 router.use('/group-stats', groupStatsRoutes);
+router.use('/payments', paymentsRoutes);
 
 module.exports = router;

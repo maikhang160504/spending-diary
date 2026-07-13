@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../../routes/app_routes.dart';
+import '../../services/ads_service.dart';
 import '../../services/api_client.dart';
 import '../../services/app_queries.dart';
 import '../../services/fcm_service.dart';
@@ -17,6 +18,7 @@ import '../../theme/app_spacing.dart';
 import '../../widgets/ai_style_card_flip_transition.dart';
 import '../../widgets/skeleton.dart';
 import '../../widgets/notification_overlay.dart';
+import '../../widgets/premium_upsell_bottom_sheet.dart';
 import 'export_data_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -29,7 +31,7 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _notificationsEnabled = true;
   String _selectedPersonality = 'Dui Dẻ';
-  String _verbalStyle = 'funny';
+  String _verbalStyle = 'dui_de';
   final _api = ApiClient();
 
   // API data
@@ -41,6 +43,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   int _monthlyIncome = 0;
   String _ageGroup = '';
   String _jobType = '';
+  bool _isPremium = false;
 
   @override
   void initState() {
@@ -65,15 +68,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _monthlyIncome = inc is num ? inc.toInt() : 0;
         _ageGroup = (settings['age_group'] as String?) ?? '';
         _jobType = (settings['job_type'] as String?) ?? '';
-        _verbalStyle = (settings['verbal_style'] as String?) == 'strict'
-            ? 'strict'
-            : 'funny';
-        _selectedPersonality = _verbalStyle == 'strict' ? 'Dận Dữ' : 'Dui Dẻ';
+        _verbalStyle = (settings['verbal_style'] as String?) ?? (settings['verbalStyle'] as String?) ?? 'dui_de';
+        _selectedPersonality = _verbalStyle == 'dan_doi' ? 'Dận Dỗi' : (_verbalStyle == 'kho_tinh' ? 'Khó Tính' : (_verbalStyle == 'ngot_ngao' ? 'Ngọt Ngào' : 'Dui Dẻ'));
         _notificationsEnabled =
             (settings['notifications_enabled'] as bool?) ?? true;
       });
     } catch (_) {}
     if (mounted) setState(() => _loading = false);
+    // Load premium status
+    try {
+      final isPremium = await _api.getMyPremiumStatus();
+      AdsService.instance.setPremium(isPremium);
+      if (mounted) setState(() => _isPremium = isPremium);
+    } catch (_) {}
   }
 
   Future<void> _updateSetting(String key, dynamic value) async {
@@ -638,6 +645,207 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             ),
                     ),
                     const SizedBox(height: 24),
+                    // ── Premium section ────────────────────────────
+                    GestureDetector(
+                      onTap: _isPremium ? null : () {
+                        showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          backgroundColor: Colors.transparent,
+                          builder: (ctx) => Container(
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).brightness == Brightness.dark 
+                                  ? const Color(0xFF1E293B) 
+                                  : Colors.white,
+                              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                            ),
+                            padding: const EdgeInsets.all(24),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  width: 40,
+                                  height: 4,
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey.withValues(alpha: 0.3),
+                                    borderRadius: BorderRadius.circular(2),
+                                  ),
+                                ),
+                                const SizedBox(height: 24),
+                                Container(
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: const BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    gradient: LinearGradient(
+                                      colors: [Color(0xFFFFB347), Color(0xFFFFCC02)],
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                    ),
+                                  ),
+                                  child: const Icon(Icons.workspace_premium_rounded, size: 48, color: Colors.white),
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  'SpendDiary Premium',
+                                  style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Mở khóa toàn bộ sức mạnh quản lý chi tiêu',
+                                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.muted),
+                                ),
+                                const SizedBox(height: 32),
+                                _buildBenefitRow(context, Icons.block_flipped, 'Không có quảng cáo', 'Trải nghiệm mượt mà không bị làm phiền'),
+                                const SizedBox(height: 16),
+                                _buildBenefitRow(context, Icons.all_inclusive_rounded, 'Vô hạn số lượng ví', 'Tạo và quản lý bao nhiêu ví tùy thích'),
+                                const SizedBox(height: 16),
+                                _buildBenefitRow(context, Icons.insert_drive_file_outlined, 'Xuất dữ liệu Excel/CSV', 'Báo cáo chi tiết cho cá nhân và công việc'),
+                                const SizedBox(height: 32),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: FilledButton(
+                                    onPressed: () {
+                                      Navigator.pop(ctx);
+                                      context.push(AppRoutes.premiumPayment);
+                                    },
+                                    style: FilledButton.styleFrom(
+                                      backgroundColor: const Color(0xFFFFB347),
+                                      padding: const EdgeInsets.symmetric(vertical: 16),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                    ),
+                                    child: const Text('Thanh toán ngay — 49.000đ', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                                  ),
+                                ),
+                                SizedBox(height: MediaQuery.paddingOf(context).bottom),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                      child: Builder(
+                        builder: (context) {
+                          final isDark = Theme.of(context).brightness == Brightness.dark;
+                          return Container(
+                            decoration: BoxDecoration(
+                              gradient: isDark 
+                                  ? const LinearGradient(
+                                      colors: [Color(0xFF2A1C11), Color(0xFF1A130D)],
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                    )
+                                  : const LinearGradient(
+                                      colors: [Color(0xFFFFF7ED), Color(0xFFFFEDD5)],
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                    ),
+                              borderRadius: BorderRadius.circular(AppRadii.lg),
+                              border: Border.all(
+                                color: isDark 
+                                    ? const Color(0xFFFFB347).withValues(alpha: 0.4)
+                                    : const Color(0xFFFDBA74).withValues(alpha: 0.5),
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFFFFB347).withValues(alpha: isDark ? 0.15 : 0.25),
+                                  blurRadius: 20,
+                                  offset: const Offset(0, 8),
+                                ),
+                              ],
+                            ),
+                            child: Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                Positioned(
+                                  right: -20,
+                                  top: -20,
+                                  child: Container(
+                                    width: 100,
+                                    height: 100,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      gradient: RadialGradient(
+                                        colors: [
+                                          const Color(0xFFFFB347).withValues(alpha: isDark ? 0.15 : 0.3),
+                                          const Color(0xFFFFB347).withValues(alpha: 0.0),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                Padding(
+                                  padding: const EdgeInsets.all(18),
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        width: 48,
+                                        height: 48,
+                                        decoration: BoxDecoration(
+                                          gradient: const LinearGradient(
+                                            colors: [Color(0xFFFFB347), Color(0xFFFFCC02)],
+                                            begin: Alignment.topLeft,
+                                            end: Alignment.bottomRight,
+                                          ),
+                                          borderRadius: BorderRadius.circular(14),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: const Color(0xFFFFB347).withValues(alpha: 0.4),
+                                              blurRadius: 8,
+                                              offset: const Offset(0, 2),
+                                            ),
+                                          ],
+                                        ),
+                                        child: const Icon(
+                                          Icons.workspace_premium_rounded,
+                                          color: Colors.white,
+                                          size: 26,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 16),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              _isPremium ? '👑 Đã kích hoạt Premium' : 'Nâng cấp Premium',
+                                              style: TextStyle(
+                                                color: isDark ? const Color(0xFFFFCC02) : const Color(0xFF9A3412),
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w800,
+                                                letterSpacing: 0.3,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              _isPremium
+                                                  ? 'Trải nghiệm không giới hạn'
+                                                  : 'Xóa quảng cáo, xuất Excel, ví vô hạn',
+                                              style: TextStyle(
+                                                color: isDark 
+                                                    ? Colors.white.withValues(alpha: 0.8) 
+                                                    : const Color(0xFFC2410C),
+                                                fontSize: 12,
+                                                fontWeight: isDark ? FontWeight.normal : FontWeight.w500,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      if (!_isPremium)
+                                        Icon(
+                                          Icons.arrow_forward_ios_rounded,
+                                          color: isDark ? const Color(0xFFFFB347) : const Color(0xFFEA580C),
+                                          size: 16,
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }
+                      ),
+                    ),
+                    const SizedBox(height: 24),
                     // Tài khoản section
                     Text(
                       'Tài khoản',
@@ -681,11 +889,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             label: 'Xuất dữ liệu chi tiêu',
                             subtitle: 'Xuất Excel/CSV theo bộ lọc tùy chỉnh',
                             showDivider: false,
-                            onTap: () => Navigator.of(context, rootNavigator: false).push(
-                              MaterialPageRoute(
-                                builder: (_) => const ExportDataScreen(),
-                              ),
-                            ),
+                            onTap: () {
+                              if (!_isPremium) {
+                                showPremiumUpsellSheet(context);
+                              } else {
+                                Navigator.of(context, rootNavigator: false).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => const ExportDataScreen(),
+                                  ),
+                                );
+                              }
+                            },
                           ),
                         ],
                       ),
@@ -770,6 +984,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   selected: _verbalStyle,
                                   onSelected: (style) async {
                                     if (style == _verbalStyle) return;
+                                    if ((style == 'kho_tinh' || style == 'ngot_ngao') && !_isPremium) {
+                                      showPremiumUpsellSheet(context);
+                                      return;
+                                    }
                                     final prev = _verbalStyle;
                                     await AiStyleCardFlipTransition.run(
                                       context: context,
@@ -779,10 +997,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                         if (!mounted) return;
                                         setState(() {
                                           _verbalStyle = style;
-                                          _selectedPersonality =
-                                              style == 'strict'
-                                              ? 'Dận Dữ'
-                                              : 'Dui Dẻ';
+                                          _selectedPersonality = style == 'dan_doi' ? 'Dận Dỗi' : (style == 'kho_tinh' ? 'Khó Tính' : (style == 'ngot_ngao' ? 'Ngọt Ngào' : 'Dui Dẻ'));
                                         });
                                         _updateSetting('verbalStyle', style);
                                         _api.updateProfile({'preferredVibe': style}).catchError((_) => <String, dynamic>{});
@@ -793,7 +1008,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               ],
                             ),
                           ),
-                          const Divider(height: 1, color: Color(0xFFE2E8F0)),
+                          Divider(height: 1, color: context.palette.border),
                           // Notifications toggle — persisted via API
                           Padding(
                             padding: const EdgeInsets.symmetric(
@@ -1027,6 +1242,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               );
                             },
                           ),
+                          _SettingRow(
+                            icon: Icons.ad_units_outlined,
+                            label: 'Mô phỏng Quảng cáo',
+                            subtitle: 'Trigger hiển thị quảng cáo ngay lập tức',
+                            showDivider: false,
+                            onTap: () {
+                              AdsService.instance.triggerTestAd();
+                            },
+                          ),
                         ],
                       ),
                     ),
@@ -1074,6 +1298,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildBenefitRow(BuildContext context, IconData icon, String title, String subtitle) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, color: const Color(0xFFFFB347), size: 28),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 2),
+              Text(subtitle, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.muted)),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -1223,9 +1467,8 @@ class _SettingRow extends StatelessWidget {
   }
 }
 
-/// Bộ chọn phong cách AI — lật thẻ khi đổi (xem AiStyleCardFlipTransition).
 class _AiStyleSwapSelector extends StatelessWidget {
-  final String selected; // 'funny' | 'strict'
+  final String selected; // 'funny' | 'strict' | 'kho_tinh' | 'ngot_ngao'
   final Future<void> Function(String style) onSelected;
   const _AiStyleSwapSelector({
     required this.selected,
@@ -1235,32 +1478,56 @@ class _AiStyleSwapSelector extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const gap = 10.0;
-    const height = 100.0;
-    return SizedBox(
-      height: height,
-      child: Row(
-        children: [
-          Expanded(
-            child: _StyleCard(
-              asset: 'assets/MiMo/emotions/Cool.png',
-              fallback: '😎',
-              label: 'Dui Dẻ',
-              selected: selected == 'funny',
-              onTap: () => onSelected('funny'),
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: _StyleCard(
+                asset: 'assets/MiMo/emotions/Sassy.png',
+                fallback: '😎',
+                label: 'Dui Dẻ',
+                selected: selected == 'dui_de',
+                onTap: () => onSelected('dui_de'),
+              ),
             ),
-          ),
-          const SizedBox(width: gap),
-          Expanded(
-            child: _StyleCard(
-              asset: 'assets/MiMo/emotions/Angry.png',
-              fallback: '🔥',
-              label: 'Dận Dữ',
-              selected: selected == 'strict',
-              onTap: () => onSelected('strict'),
+            const SizedBox(width: gap),
+            Expanded(
+              child: _StyleCard(
+                asset: 'assets/MiMo/emotions/Sad.png',
+                fallback: '😢',
+                label: 'Dận Dỗi',
+                selected: selected == 'dan_doi',
+                onTap: () => onSelected('dan_doi'),
+              ),
             ),
-          ),
-        ],
-      ),
+          ],
+        ),
+        const SizedBox(height: gap),
+        Row(
+          children: [
+            Expanded(
+              child: _StyleCard(
+                asset: 'assets/MiMo/emotions/Angry.png',
+                fallback: '🧐',
+                label: 'Khó Tính',
+                selected: selected == 'kho_tinh',
+                onTap: () => onSelected('kho_tinh'),
+              ),
+            ),
+            const SizedBox(width: gap),
+            Expanded(
+              child: _StyleCard(
+                asset: 'assets/MiMo/emotions/Love.png',
+                fallback: '💖',
+                label: 'Ngọt Ngào',
+                selected: selected == 'ngot_ngao',
+                onTap: () => onSelected('ngot_ngao'),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }
@@ -1283,38 +1550,52 @@ class _StyleCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 250),
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        decoration: BoxDecoration(
-          color: selected
-              ? AppColors.teal.withValues(alpha: 0.1)
-              : context.palette.surfaceAlt,
-          borderRadius: BorderRadius.circular(AppRadii.md),
-          border: Border.all(
-            color: selected ? AppColors.teal : context.palette.border,
-            width: selected ? 2 : 1,
+      child: AnimatedScale(
+        scale: selected ? 1.05 : 1.0,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOutBack,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: selected
+                ? AppColors.teal.withValues(alpha: 0.15)
+                : context.palette.surfaceAlt,
+            borderRadius: BorderRadius.circular(AppRadii.md),
+            border: Border.all(
+              color: selected ? AppColors.teal : context.palette.border,
+              width: selected ? 2 : 1,
+            ),
+            boxShadow: selected
+                ? [
+                    BoxShadow(
+                      color: AppColors.teal.withValues(alpha: 0.2),
+                      blurRadius: 10,
+                      spreadRadius: 1,
+                    )
+                  ]
+                : [],
           ),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Image.asset(
-              asset,
-              width: 36,
-              height: 36,
-              errorBuilder: (_, _, _) =>
-                  Text(fallback, style: const TextStyle(fontSize: 24)),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: selected ? AppColors.teal : AppColors.textPrimary,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Image.asset(
+                asset,
+                width: 36,
+                height: 36,
+                errorBuilder: (_, _, _) =>
+                    Text(fallback, style: const TextStyle(fontSize: 24)),
               ),
-            ),
-          ],
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: selected ? AppColors.teal : Theme.of(context).textTheme.bodySmall?.color,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

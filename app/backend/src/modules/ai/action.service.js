@@ -32,15 +32,18 @@ const VI_CATEGORY_MAP = {
 };
 
 const TONE_MAP = {
-  'hai huoc': 'funny',
-  'vui ve': 'funny',
-  'funny': 'funny',
-  'dui de': 'funny',
-  'dan doi': 'strict',
-  'strict': 'strict',
-  'nghiem': 'strict',
-  'sassy': 'strict',
-  'xeo sac': 'strict',
+  'dui de': 'dui_de',
+  'dui_de': 'dui_de',
+  'vui ve': 'dui_de',
+  'dan doi': 'dan_doi',
+  'dan_doi': 'dan_doi',
+  'kho tinh': 'kho_tinh',
+  'kho_tinh': 'kho_tinh',
+  'nghiem': 'kho_tinh',
+  'nghiem khac': 'kho_tinh',
+  'ngot ngao': 'ngot_ngao',
+  'ngot_ngao': 'ngot_ngao',
+  'ngot': 'ngot_ngao',
 };
 
 function isReportAction(actionType) {
@@ -155,6 +158,25 @@ function inferTimeRangeFromText(text) {
     const t2 = `${pad(to.getDate())}/${pad(to.getMonth() + 1)}/${to.getFullYear()}`;
     return `${prefix} (${f} - ${t2})`;
   };
+
+  const customRangeMatch = t.match(/tu(?: ngay)?\s+(\d{1,2})[\/\-.](\d{1,2})(?:[\/\-.](\d{4}))?\s+den(?: ngay)?\s+(\d{1,2})[\/\-.](\d{1,2})(?:[\/\-.](\d{4}))?/i);
+  if (customRangeMatch) {
+    const d1 = parseInt(customRangeMatch[1], 10);
+    const m1 = parseInt(customRangeMatch[2], 10);
+    const y1 = customRangeMatch[3] ? parseInt(customRangeMatch[3], 10) : now.getFullYear();
+    const d2 = parseInt(customRangeMatch[4], 10);
+    const m2 = parseInt(customRangeMatch[5], 10);
+    const y2 = customRangeMatch[6] ? parseInt(customRangeMatch[6], 10) : now.getFullYear();
+    
+    const from = new Date(y1, m1 - 1, d1, 0, 0, 0);
+    const to = new Date(y2, m2 - 1, d2, 23, 59, 59);
+    return {
+      period_label: label('Tùy chọn', from, to),
+      from: fmt(from),
+      to: fmt(to),
+      granularity: 'custom'
+    };
+  }
 
   if (/\btuan nay\b/.test(t)) {
     const from = mondayOf(now);
@@ -355,7 +377,36 @@ async function getHighestTransactionOnDay(userId, dayStr) {
 }
 
 async function executeReport(userId, { timeRange, categoryCode, reportKind, text, actionDetails } = {}) {
-  const range = timeRange || inferTimeRangeFromText(text || '');
+  let range;
+  let customPrevRange = null;
+
+  if (Array.isArray(timeRange)) {
+    if (timeRange.length === 2) {
+      const isDate1 = !isNaN(Date.parse(timeRange[0]));
+      const isDate2 = !isNaN(Date.parse(timeRange[1]));
+      
+      if (isDate1 && isDate2 && timeRange[0].length >= 10 && timeRange[1].length >= 10) {
+        range = {
+          from: timeRange[0],
+          to: timeRange[1],
+          period_label: `Từ ${timeRange[0]} đến ${timeRange[1]}`,
+          granularity: 'custom'
+        };
+      } else {
+        range = inferTimeRangeFromText(timeRange[0] || text || '');
+        customPrevRange = inferTimeRangeFromText(timeRange[1] || '');
+      }
+    } else if (timeRange.length === 1) {
+      range = inferTimeRangeFromText(timeRange[0] || text || '');
+    } else {
+      range = inferTimeRangeFromText(text || '');
+    }
+  } else if (timeRange && typeof timeRange === 'object' && timeRange.from) {
+    range = timeRange;
+  } else {
+    range = inferTimeRangeFromText(text || '');
+  }
+
   const dash = await statsService.dashboard(userId, { from: range.from, to: range.to });
   const kind = reportKind || detectReportKind(text, null);
   const resolvedCategory = resolveCategoryCode(categoryCode, actionDetails, text);
@@ -517,7 +568,7 @@ async function executeReport(userId, { timeRange, categoryCode, reportKind, text
   // 1. Calculate previous period comparison
   let comparePercent = 0;
   let prevByDay = [];
-  const prevRange = getPreviousPeriodRange(range.from, range.to, range.granularity);
+  const prevRange = customPrevRange || getPreviousPeriodRange(range.from, range.to, range.granularity);
   try {
     const prevDash = await statsService.dashboard(userId, { from: prevRange.from, to: prevRange.to });
     prevByDay = prevDash.byDay || [];
@@ -880,16 +931,39 @@ async function executeSetTone(userId, payload) {
     const mapped = TONE_MAP[_norm(String(style))];
     style = mapped || String(style).toLowerCase();
   }
-  style = style || 'funny';
-  if (style !== 'funny' && style !== 'strict') {
-    style = 'funny';
+  style = style || 'dui_de';
+  const allowedStyles = ['dui_de', 'dan_doi', 'kho_tinh', 'ngot_ngao'];
+  if (!allowedStyles.includes(style)) {
+    style = 'dui_de';
+  }
+
+  // Check premium requirement
+  const isPremiumStyle = ['kho_tinh', 'ngot_ngao'].includes(style);
+  if (isPremiumStyle) {
+    const { query } = require('../db');
+    const userRes = await query('SELECT is_premium FROM users WHERE id = $1', [userId]);
+    const isPremium = userRes.rows[0]?.is_premium;
+    if (!isPremium) {
+      return {
+        kind: 'tone',
+        isPremiumLocked: true,
+        verbalStyle: style,
+        message: 'Bạn cần nâng cấp Premium để sử dụng giọng điệu này nhé!',
+      };
+    }
   }
 
   // Check current verbal style
-  const currentSettings = await query('SELECT verbal_style FROM user_settings WHERE user_id = $1', [userId]);
-  const currentStyle = currentSettings.rows[0]?.verbal_style || 'funny';
+  const { query: checkQuery } = require('../db');
+  const currentSettings = await checkQuery('SELECT verbal_style FROM user_settings WHERE user_id = $1', [userId]);
+  const currentStyle = currentSettings.rows[0]?.verbal_style || 'dui_de';
 
-  const labels = { funny: 'Dui Dẻ', strict: 'Dận Dỗi' };
+  const labels = {
+    dui_de: 'Dui Dẻ',
+    dan_doi: 'Dận Dỗi',
+    kho_tinh: 'Khó Tính',
+    ngot_ngao: 'Ngọt Ngào',
+  };
 
   if (currentStyle === style) {
     return {

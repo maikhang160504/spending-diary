@@ -7,6 +7,7 @@ const txService = require('../transactions/transactions.service');
 const actionService = require('./action.service');
 const ApiError = require('../../utils/ApiError');
 const logger = require('../../config/logger');
+const weatherService = require('../weather/weather.service');
 const { normalizeMascotMood, pickMimoEmotionFromNlu } = require('../../utils/mascotMood');
 const {
   resolveCategoryCorrectionKeyword,
@@ -235,6 +236,76 @@ async function _enrichNluWithAction(userId, payload, response) {
     }
   }
 
+  if (['SET_TONE', 'SYSTEM_SETTING', 'SET_USERNAME', 'SET_ALERT'].includes(actionType)) {
+    try {
+      const actionResult = await actionService.executeAction(userId, {
+        actionType,
+        text: payload.text || response.text || '',
+        actionDetails: response.action_details,
+        verbalStyle: response.verbal_style,
+        theme: response.theme,
+        username: response.username,
+        slots: response,
+      });
+      response.action_result = actionResult;
+
+      // Handle settings updated push for TONE
+      if (actionType === 'SET_TONE' && actionResult.changed && actionResult.verbalStyle) {
+        const { sendToUser } = require('../../services/wsHub');
+        sendToUser(userId, { type: 'settings_updated', verbal_style: actionResult.verbalStyle });
+      }
+
+      let story = actionResult.message;
+      const runLlm = Boolean(payload.runLlm || payload.run_llm || response.gemini_json || response.llama_json);
+      if (runLlm) {
+        try {
+          let nlgPersona = payload.nlgPersona || payload.emotion;
+          if (!nlgPersona && userId) {
+            const settingsRes = await query('SELECT verbal_style FROM user_settings WHERE user_id = $1', [userId]);
+            const verbalStyle = settingsRes.rows[0]?.verbal_style || 'dui_de';
+            nlgPersona = mapVerbalStyleToNlgPersona(verbalStyle);
+          }
+          const userCorrections = userId ? await _fetchUserCorrections(userId) : [];
+          const secondPayload = {
+            text: payload.text || response.text || '',
+            profile: {
+              ...(payload.profile || {}),
+              action_facts: actionResult,
+            },
+            run_llm: true,
+            nlg_persona: nlgPersona || null,
+            emotion: nlgPersona || null,
+            user_id: userId,
+            user_corrections: userCorrections,
+          };
+          const secondRes = await aiClient.inferText(secondPayload);
+          const secondStory = secondRes.gemini_json?.response || secondRes.gemini_json?.story || secondRes.nlg_response;
+          if (secondStory) {
+            story = secondStory;
+            response.gemini_json = secondRes.gemini_json || response.gemini_json;
+            response.llama_json = secondRes.llama_json || response.llama_json;
+          }
+        } catch (err) {
+          logger.error({ err: err.message, userId }, `Second LLM call for ${actionType} failed`);
+        }
+      }
+
+      const displayEmotion = pickMimoEmotionFromNlu(response, 'Action');
+      response.gemini_json = response.gemini_json || {};
+      response.gemini_json.mimo_emotion = displayEmotion;
+      response.gemini_json.emotion = displayEmotion;
+      response.mimo_emotion = displayEmotion;
+      response.nlg_response = story || response.nlg_response;
+      response.gemini_json.story = story || response.gemini_json.story;
+
+      await logAi(userId, 'action_executed', { text: payload.text, actionType }, actionResult, { backend: response.backend });
+      return response;
+    } catch (err) {
+      logger.warn({ err: err.message, userId }, `action ${actionType} execution failed`);
+      return response;
+    }
+  }
+
   if (!actionService.isReportAction(actionType)) return response;
 
   const timeRange =
@@ -337,13 +408,12 @@ async function logAi(userId, flow, input, output, extra = {}) {
 
 function mapVerbalStyleToNlgPersona(style) {
   const mapping = {
-    funny: 'hai_huoc',
-    gentle: 'dong_cam',
-    serious: 'nghiem_tuc',
-    sarcastic: 'cham_choc',
-    strict: 'dan_doi',
+    dui_de: 'dui_de',
+    dan_doi: 'dan_doi',
+    kho_tinh: 'kho_tinh',
+    ngot_ngao: 'ngot_ngao',
   };
-  return mapping[style] || 'hai_huoc';
+  return mapping[style] || 'dui_de';
 }
 
 /** @deprecated use mapVerbalStyleToNlgPersona */
@@ -474,7 +544,9 @@ async function _fetchWalletProfile(userId, walletId) {
       
       const day_of_month = localTime.getUTCDate();
       const days_to_payday = day_of_month <= 25 ? (25 - day_of_month) : (30 - day_of_month + 25);
-      const weather = ['nắng đẹp', 'mưa rả rích', 'mát mẻ', 'hơi oi bức', 'se lạnh'][Math.floor(Math.random() * 5)];
+      const lat = contextMeta?.lat;
+      const lng = contextMeta?.lng;
+      const weather = await weatherService.getWeather(lat, lng);
       
       const data = {
         budget_total:     Number(row.budget_total) || 0,
@@ -1348,7 +1420,7 @@ async function _runChatLlmFollowUp(userId, sessionId, messageId, context) {
   }
 }
 
-async function aiChat(userId, sessionId, userMessage) {
+async function aiChat(userId, sessionId, userMessage, contextMeta) {
   const chatService = require('../chat/chat.service');
   
   // Get recent messages for context
@@ -1401,6 +1473,25 @@ async function aiChat(userId, sessionId, userMessage) {
   let profile = null;
   if (walletId) {
     profile = await _fetchWalletProfile(userId, walletId);
+    if (profile && contextMeta) {
+      if (contextMeta.local_hour != null) {
+        const hour = Number(contextMeta.local_hour);
+        let time_of_day = 'sáng';
+        if (hour >= 11 && hour < 14) time_of_day = 'trưa';
+        else if (hour >= 14 && hour < 18) time_of_day = 'chiều';
+        else if (hour >= 18 && hour < 22) time_of_day = 'tối';
+        else if (hour >= 22 || hour < 5) time_of_day = 'đêm khuya';
+        profile.time_of_day = time_of_day;
+      }
+      if (contextMeta.local_day_of_month != null) {
+        profile.day_of_month = Number(contextMeta.local_day_of_month);
+        const day = profile.day_of_month;
+        profile.days_to_payday = day <= 25 ? (25 - day) : (30 - day + 25);
+      }
+      const lat = contextMeta.lat;
+      const lng = contextMeta.lng;
+      profile.weather = await weatherService.getWeather(lat, lng);
+    }
   }
   if (!profile) {
     profile = { username };
@@ -1475,23 +1566,24 @@ async function aiChat(userId, sessionId, userMessage) {
           }
         }
       } else if (intent === 'Action') {
-        const actionType = aiResponse.action_type || 'Thao tác';
-        const actionLabels = {
-          'LIMIT': 'Đặt hạn mức',
-          'DELETE': 'Xóa giao dịch gần nhất',
-          'GOAL': 'Tạo mục tiêu tiết kiệm',
-          'TONE': 'Đổi giọng nói Mimo',
-          'SEARCH': 'Tìm kiếm giao dịch',
-          'SETTING': 'Mở cài đặt ứng dụng'
-        };
-        let actionLabel = actionType;
-        for (const [key, val] of Object.entries(actionLabels)) {
-          if (actionType.toUpperCase().includes(key)) {
-            actionLabel = val;
-            break;
-          }
+        const actionType = (aiResponse.action_type || 'Thao tác').toUpperCase();
+        const hardcodedActions = ['REPORT_GENERAL', 'REPORT_COMPARE', 'SEARCH_RECORD', 'SUGGEST_BUDGET'];
+
+        if (hardcodedActions.includes(actionType)) {
+          const actionLabels = {
+            'REPORT_GENERAL': 'Xem báo cáo tổng quan',
+            'REPORT_COMPARE': 'So sánh chi tiêu',
+            'SEARCH_RECORD': 'Tìm kiếm giao dịch',
+            'SUGGEST_BUDGET': 'Gợi ý hạn mức thông minh'
+          };
+          const actionLabel = actionLabels[actionType] || 'Thao tác';
+          fallbackText = `Mimo đã chuẩn bị sẵn dữ liệu: ${actionLabel}. Bạn hãy xem qua nhé!`;
+          llmText = ''; // Force override to use the hardcoded string
+        } else {
+          // Use LLM response for SET_LIMIT, SET_GOAL, SET_USERNAME, etc.
+          // Fallback text only if LLM failed to generate anything
+          fallbackText = `Mimo đã chuẩn bị sẵn thao tác cho bạn. Bạn có muốn thực hiện không?`;
         }
-        fallbackText = `Mimo đã chuẩn bị sẵn thao tác: ${actionLabel}. Bạn có muốn thực hiện không?`;
       }
     }
 

@@ -35,5 +35,6 @@ router.get('/by-month', controller.byMonth);
 router.get('/by-category', controller.byCategory);
 router.get('/mom', controller.mom);
 router.get('/cumulative-vs-budget', controller.cumulativeVsBudget);
+router.get('/peer-compare', controller.peerCompare);
 
 module.exports = router;

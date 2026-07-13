@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import UserCacheInspector from "../components/UserCacheInspector";
 import { getAdminUsers, getUserInspector } from "../services/api";
 
+const API = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
+
 const PAGE_SIZE = 10;
 
 const AUTH_LABELS = {
@@ -165,8 +167,31 @@ function UserManagementPage() {
     const active = users.filter((u) => u.isActive).length;
     const google = users.filter((u) => u.authProvider === "Google").length;
     const email = users.filter((u) => u.authProvider === "Email").length;
-    return { total: users.length, active, google, email };
+    const premium = users.filter((u) => u.isPremium).length;
+    return { total: users.length, active, google, email, premium };
   }, [users]);
+
+  const [toggling, setToggling] = useState({});
+
+  const handleTogglePremium = async (e, userId, currentPremium) => {
+    e.stopPropagation();
+    setToggling((p) => ({ ...p, [userId]: true }));
+    try {
+      const res = await fetch(`${API}/api/admin/users/${userId}/premium`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isPremium: !currentPremium }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      setUsers((prev) =>
+        prev.map((u) => u.id === userId ? { ...u, isPremium: !currentPremium } : u)
+      );
+    } catch (err) {
+      alert("Lỗi: " + err.message);
+    } finally {
+      setToggling((p) => ({ ...p, [userId]: false }));
+    }
+  };
 
   const onSelectUser = (userId) => {
     setSelectedId(userId);
@@ -174,348 +199,346 @@ function UserManagementPage() {
   };
 
   return (
-    <div className="page-container user-mgmt-page">
-      <header className="user-mgmt-hero">
-        <div className="user-mgmt-hero-copy">
-          <h1 className="user-mgmt-title">User Management</h1>
-          <p className="user-mgmt-desc">
-            Quản lý tài khoản, hồ sơ onboarding và cache NLU — lọc theo nhóm, duyệt có phân trang.
+    <div className="page-container" style={{ padding: "30px 40px", maxWidth: "1600px", margin: "0 auto" }}>
+      {/* Header */}
+      <div className="page-header" style={{ marginBottom: "24px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div>
+          <h1 className="page-title" style={{ fontSize: "28px", fontWeight: "700", color: "var(--text-primary)", letterSpacing: "-0.5px" }}>User Management</h1>
+          <p className="page-desc" style={{ color: "var(--text-secondary)", fontSize: "14px", marginTop: "4px" }}>
+            Quản lý tài khoản, hồ sơ onboarding và cache NLU — lọc theo nhóm, phân trang.
           </p>
         </div>
-        <div className="user-mgmt-hero-actions">
-          <button type="button" className="btn btn-secondary" onClick={loadUsers} disabled={listLoading}>
-            {listLoading ? "Đang tải..." : "Làm mới"}
-          </button>
-        </div>
-      </header>
+        <button type="button" className="btn" onClick={loadUsers} disabled={listLoading} style={{
+          background: "var(--bg-obsidian-900)",
+          border: "1px solid var(--border-color)",
+          color: "var(--text-primary)",
+          padding: "8px 16px",
+          borderRadius: "8px",
+          fontWeight: "600",
+          fontSize: "13px",
+          cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+          gap: "8px",
+          transition: "all 0.2s"
+        }}>
+          {listLoading ? (
+            <>
+              <span className="brand-dot" style={{ width: "8px", height: "8px", animation: "pulse 1.5s infinite", background: "var(--accent-blue)" }}></span>
+              Đang tải...
+            </>
+          ) : "Làm mới"}
+        </button>
+      </div>
 
-      <div className="user-mgmt-metrics">
-        <div className="user-mgmt-metric">
-          <span className="user-mgmt-metric-label">Tổng tài khoản</span>
-          <strong className="user-mgmt-metric-value">{stats.total}</strong>
+      {/* Metrics Strip */}
+      <div className="bill-stat-strip" style={{
+        marginBottom: "30px",
+        background: "var(--bg-obsidian-900)",
+        border: "1px solid var(--border-color)",
+        borderRadius: "16px",
+        padding: "20px 24px",
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+        gap: "20px",
+        boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.02)"
+      }}>
+        <div className="bill-stat" style={{ paddingRight: "20px", borderRight: "1px solid var(--border-color)" }}>
+          <span className="bill-stat-label" style={{ fontSize: "10px", color: "var(--text-muted)", letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: "600", display: "block", marginBottom: "4px" }}>Tổng tài khoản</span>
+          <span className="bill-stat-value" style={{ fontSize: "20px", fontWeight: "700", color: "var(--text-primary)", fontFamily: "var(--font-mono)" }}>{stats.total}</span>
         </div>
-        <div className="user-mgmt-metric">
-          <span className="user-mgmt-metric-label">Đang hoạt động</span>
-          <strong className="user-mgmt-metric-value ok">{stats.active}</strong>
+        <div className="bill-stat" style={{ paddingRight: "20px", borderRight: "1px solid var(--border-color)" }}>
+          <span className="bill-stat-label" style={{ fontSize: "10px", color: "var(--text-muted)", letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: "600", display: "block", marginBottom: "4px" }}>Đang hoạt động</span>
+          <span className="bill-stat-value" style={{ fontSize: "20px", fontWeight: "700", color: "var(--accent-emerald-hover)", fontFamily: "var(--font-mono)" }}>{stats.active}</span>
         </div>
-        <div className="user-mgmt-metric">
-          <span className="user-mgmt-metric-label">Google</span>
-          <strong className="user-mgmt-metric-value">{stats.google}</strong>
+        <div className="bill-stat" style={{ paddingRight: "20px", borderRight: "1px solid var(--border-color)" }}>
+          <span className="bill-stat-label" style={{ fontSize: "10px", color: "var(--text-muted)", letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: "600", display: "block", marginBottom: "4px" }}>Google / Email</span>
+          <span className="bill-stat-value" style={{ fontSize: "16px", fontWeight: "700", color: "var(--text-primary)", fontFamily: "var(--font-mono)" }}>{stats.google} <span style={{color:"var(--text-muted)", fontWeight:"400"}}>/</span> {stats.email}</span>
         </div>
-        <div className="user-mgmt-metric">
-          <span className="user-mgmt-metric-label">Email</span>
-          <strong className="user-mgmt-metric-value">{stats.email}</strong>
+        <div className="bill-stat" style={{ paddingRight: "20px", borderRight: "1px solid var(--border-color)" }}>
+          <span className="bill-stat-label" style={{ fontSize: "10px", color: "var(--text-muted)", letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: "600", display: "block", marginBottom: "4px" }}>👑 Premium</span>
+          <span className="bill-stat-value" style={{ fontSize: "20px", fontWeight: "700", color: "#a78bfa", fontFamily: "var(--font-mono)" }}>{stats.premium}</span>
         </div>
-        <div className="user-mgmt-metric">
-          <span className="user-mgmt-metric-label">Kết quả lọc</span>
-          <strong className="user-mgmt-metric-value">{filteredUsers.length}</strong>
+        <div className="bill-stat">
+          <span className="bill-stat-label" style={{ fontSize: "10px", color: "var(--text-muted)", letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: "600", display: "block", marginBottom: "4px" }}>Kết quả lọc</span>
+          <span className="bill-stat-value" style={{ fontSize: "20px", fontWeight: "700", color: "var(--text-primary)", fontFamily: "var(--font-mono)" }}>{filteredUsers.length}</span>
         </div>
       </div>
 
-      {listError && <div className="user-mgmt-error">{listError}</div>}
+      {listError && <div className="user-mgmt-error" style={{ background: "rgba(239, 68, 68, 0.1)", color: "var(--accent-rose)", padding: "12px", borderRadius: "8px", border: "1px solid rgba(239, 68, 68, 0.2)", fontSize: "13px", marginBottom: "20px" }}>{listError}</div>}
 
-      <div className="user-mgmt-layout">
-        <section className="user-mgmt-directory">
-          <div className="user-mgmt-toolbar">
-            <label className="user-mgmt-search">
-              <span>Tìm kiếm</span>
+      <div className="dashboard-grid" style={{ gap: "24px", gridTemplateColumns: selectedUser ? "2fr 1fr" : "1fr" }}>
+        
+        {/* Left Side: Directory */}
+        <section className="panel" style={{
+          background: "var(--bg-obsidian-900)",
+          border: "1px solid var(--border-color)",
+          borderRadius: "16px",
+          padding: "24px",
+          boxShadow: "0 4px 20px rgba(0, 0, 0, 0.15)",
+          display: "flex",
+          flexDirection: "column",
+          gap: "20px",
+          height: "fit-content"
+        }}>
+          {/* Toolbar */}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "16px", alignItems: "flex-end", paddingBottom: "16px", borderBottom: "1px solid var(--border-color)" }}>
+            <div style={{ flex: "1 1 200px" }}>
+              <label style={{ fontSize: "12px", fontWeight: "600", color: "var(--text-muted)", marginBottom: "6px", display: "block", textTransform: "uppercase", letterSpacing: "0.05em" }}>Tìm kiếm</label>
               <input
                 type="search"
-                className="form-input"
-                placeholder="Tên, email, UUID, nhóm tuổi..."
+                placeholder="Tên, email, UUID..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
+                style={{
+                  width: "100%",
+                  background: "var(--bg-obsidian-950)",
+                  border: "1px solid var(--border-color)",
+                  borderRadius: "8px",
+                  padding: "10px 14px",
+                  color: "var(--text-primary)",
+                  fontSize: "13px"
+                }}
               />
-            </label>
-            <div className="user-mgmt-filters">
-              <label className="user-mgmt-filter">
-                <span>Đăng nhập</span>
-                <select className="bill-select" value={filterAuth} onChange={(e) => setFilterAuth(e.target.value)}>
-                  <option value="all">Tất cả</option>
-                  {AUTH_FILTER_OPTIONS.filter((v) => v !== "all").map((v) => (
-                    <option key={v} value={v}>{authLabel(v)}</option>
-                  ))}
-                </select>
-              </label>
-              <label className="user-mgmt-filter">
-                <span>Nhóm tuổi</span>
-                <select className="bill-select" value={filterAge} onChange={(e) => setFilterAge(e.target.value)}>
-                  <option value="all">Tất cả</option>
-                  {ageOptions.filter((v) => v !== "all").map((v) => (
-                    <option key={v} value={v}>{v === "__unset__" ? "Chưa khai báo" : v}</option>
-                  ))}
-                </select>
-              </label>
-              <label className="user-mgmt-filter">
-                <span>Nghề nghiệp</span>
-                <select className="bill-select" value={filterJob} onChange={(e) => setFilterJob(e.target.value)}>
-                  <option value="all">Tất cả</option>
-                  {jobOptions.filter((v) => v !== "all").map((v) => (
-                    <option key={v} value={v}>{v === "__unset__" ? "Chưa khai báo" : v}</option>
-                  ))}
-                </select>
-              </label>
-              {hasActiveFilters && (
-                <button type="button" className="btn btn-ghost user-mgmt-clear-filters" onClick={clearFilters}>
-                  Xóa lọc
-                </button>
-              )}
             </div>
-          </div>
+            
+            <div>
+              <label style={{ fontSize: "12px", fontWeight: "600", color: "var(--text-muted)", marginBottom: "6px", display: "block", textTransform: "uppercase", letterSpacing: "0.05em" }}>Đăng nhập</label>
+              <select value={filterAuth} onChange={(e) => setFilterAuth(e.target.value)} style={{ background: "var(--bg-obsidian-950)", border: "1px solid var(--border-color)", borderRadius: "8px", padding: "10px 14px", color: "var(--text-primary)", fontSize: "13px", height: "40px" }}>
+                <option value="all">Tất cả</option>
+                {AUTH_FILTER_OPTIONS.filter((v) => v !== "all").map((v) => <option key={v} value={v}>{authLabel(v)}</option>)}
+              </select>
+            </div>
+            
+            <div>
+              <label style={{ fontSize: "12px", fontWeight: "600", color: "var(--text-muted)", marginBottom: "6px", display: "block", textTransform: "uppercase", letterSpacing: "0.05em" }}>Nhóm tuổi</label>
+              <select value={filterAge} onChange={(e) => setFilterAge(e.target.value)} style={{ background: "var(--bg-obsidian-950)", border: "1px solid var(--border-color)", borderRadius: "8px", padding: "10px 14px", color: "var(--text-primary)", fontSize: "13px", height: "40px" }}>
+                <option value="all">Tất cả</option>
+                {ageOptions.filter((v) => v !== "all").map((v) => <option key={v} value={v}>{v === "__unset__" ? "Chưa khai báo" : v}</option>)}
+              </select>
+            </div>
 
-          <div className="user-mgmt-table-wrap">
-            {listLoading ? (
-              <div className="user-mgmt-table-skeleton" aria-hidden="true">
-                {Array.from({ length: 6 }).map((_, i) => (
-                  <div key={i} className="user-inspector-skeleton user-inspector-skeleton-wide" />
-                ))}
-              </div>
-            ) : filteredUsers.length === 0 ? (
-              <div className="user-mgmt-empty">
-                <p>Không có người dùng phù hợp</p>
-                <span>Thử bỏ bộ lọc hoặc làm mới danh sách.</span>
-                {hasActiveFilters && (
-                  <button type="button" className="btn btn-ghost" onClick={clearFilters}>
-                    Xóa lọc
-                  </button>
-                )}
-              </div>
-            ) : (
-              <table className="user-mgmt-table">
-                <thead>
-                  <tr>
-                    <th scope="col">Người dùng</th>
-                    <th scope="col">Đăng nhập</th>
-                    <th scope="col">Hồ sơ</th>
-                    <th scope="col">Trạng thái</th>
-                    <th scope="col">Ngày tạo</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {paginatedUsers.map((user) => {
-                    const hue = avatarHue(user.id);
-                    const isSelected = selectedId === user.id;
-                    return (
-                      <tr
-                        key={user.id}
-                        className={isSelected ? "selected" : ""}
-                        tabIndex={0}
-                        onClick={() => onSelectUser(user.id)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" || e.key === " ") {
-                            e.preventDefault();
-                            onSelectUser(user.id);
-                          }
-                        }}
-                      >
-                        <td>
-                          <div className="user-mgmt-row-user">
-                            <span
-                              className="user-mgmt-avatar"
-                              style={{
-                                "--avatar-hue": hue,
-                                background: `hsla(${hue}, 42%, 46%, 0.14)`,
-                                borderColor: `hsla(${hue}, 52%, 58%, 0.32)`,
-                                color: `hsl(${hue}, 68%, 72%)`,
-                              }}
-                              aria-hidden="true"
-                            >
-                              {initials(user.username, user.email)}
-                            </span>
-                            <span className="user-mgmt-row-copy">
-                              <strong>{user.username || "Chưa đặt tên"}</strong>
-                              <span>{user.email}</span>
-                            </span>
-                          </div>
-                        </td>
-                        <td>
-                          <span className={`user-auth-badge ${user.authProvider?.toLowerCase() || "unknown"}`}>
-                            {authLabel(user.authProvider)}
-                          </span>
-                        </td>
-                        <td>
-                          <span className="user-mgmt-profile-chip">{user.ageGroup || "—"}</span>
-                          <span className="user-mgmt-profile-chip muted">{user.jobType || "—"}</span>
-                        </td>
-                        <td>
-                          <span className={`user-status-pill compact ${user.isActive ? "ok" : "off"}`}>
-                            {user.isActive ? "Active" : "Inactive"}
-                          </span>
-                        </td>
-                        <td className="user-mgmt-date">{formatDate(user.createdAt)}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+            <div>
+              <label style={{ fontSize: "12px", fontWeight: "600", color: "var(--text-muted)", marginBottom: "6px", display: "block", textTransform: "uppercase", letterSpacing: "0.05em" }}>Nghề nghiệp</label>
+              <select value={filterJob} onChange={(e) => setFilterJob(e.target.value)} style={{ background: "var(--bg-obsidian-950)", border: "1px solid var(--border-color)", borderRadius: "8px", padding: "10px 14px", color: "var(--text-primary)", fontSize: "13px", height: "40px" }}>
+                <option value="all">Tất cả</option>
+                {jobOptions.filter((v) => v !== "all").map((v) => <option key={v} value={v}>{v === "__unset__" ? "Chưa khai báo" : v}</option>)}
+              </select>
+            </div>
+
+            {hasActiveFilters && (
+              <button type="button" onClick={clearFilters} style={{
+                background: "transparent", border: "none", color: "var(--accent-rose-hover)", fontWeight: "600", fontSize: "13px", padding: "10px", cursor: "pointer"
+              }}>
+                Xóa lọc
+              </button>
             )}
           </div>
 
+          {/* User Cards Grid */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "16px" }}>
+            {listLoading ? (
+              Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} style={{ height: "120px", background: "var(--bg-obsidian-950)", borderRadius: "12px", border: "1px solid var(--border-color)", animation: "pulse 1.5s infinite" }}></div>
+              ))
+            ) : paginatedUsers.length === 0 ? (
+              <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "60px 20px", color: "var(--text-muted)" }}>
+                <p style={{ fontWeight: "600", fontSize: "15px", color: "var(--text-primary)", marginBottom: "6px" }}>Không có người dùng phù hợp</p>
+                <p style={{ fontSize: "13px" }}>Thử bỏ bộ lọc hoặc làm mới danh sách.</p>
+              </div>
+            ) : (
+              paginatedUsers.map((user) => {
+                const hue = avatarHue(user.id);
+                const isSelected = selectedId === user.id;
+                return (
+                  <div
+                    key={user.id}
+                    onClick={() => onSelectUser(user.id)}
+                    style={{
+                      background: isSelected ? "rgba(26,115,232,0.05)" : "var(--bg-obsidian-950)",
+                      border: `1px solid ${isSelected ? "var(--accent-blue)" : "var(--border-color)"}`,
+                      borderRadius: "12px",
+                      padding: "16px",
+                      cursor: "pointer",
+                      transition: "all 0.2s",
+                      position: "relative",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "12px"
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                      <div style={{
+                        width: "42px", height: "42px", borderRadius: "50%",
+                        background: `hsla(${hue}, 42%, 46%, 0.14)`,
+                        border: `1px solid hsla(${hue}, 52%, 58%, 0.32)`,
+                        color: `hsl(${hue}, 68%, 72%)`,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontWeight: "700", fontSize: "14px", flexShrink: 0
+                      }}>
+                        {initials(user.username, user.email)}
+                      </div>
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <div style={{ fontWeight: "600", color: "var(--text-primary)", fontSize: "14px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                          {user.username || "Chưa đặt tên"}
+                        </div>
+                        <div style={{ color: "var(--text-muted)", fontSize: "12px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", marginTop: "2px" }}>
+                          {user.email}
+                        </div>
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "4px" }}>
+                        <span style={{
+                          fontSize: "10px", fontWeight: "700", padding: "2px 6px", borderRadius: "4px",
+                          background: user.isActive ? "rgba(16,185,129,0.1)" : "rgba(100,116,139,0.1)",
+                          color: user.isActive ? "var(--accent-emerald-hover)" : "var(--text-muted)",
+                          border: `1px solid ${user.isActive ? "rgba(16,185,129,0.2)" : "rgba(100,116,139,0.2)"}`
+                        }}>
+                          {user.isActive ? "ACTIVE" : "INACTIVE"}
+                        </span>
+                        {user.isPremium && (
+                          <span style={{ fontSize: "12px" }} title="Premium User">👑</span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "auto", paddingTop: "12px", borderTop: "1px dashed rgba(255,255,255,0.05)" }}>
+                      <div style={{ display: "flex", gap: "6px" }}>
+                        {user.ageGroup && <span style={{ fontSize: "10px", background: "var(--bg-obsidian-800)", color: "var(--text-secondary)", padding: "2px 6px", borderRadius: "4px", border: "1px solid var(--border-color)" }}>{user.ageGroup}</span>}
+                        {user.jobType && <span style={{ fontSize: "10px", background: "var(--bg-obsidian-800)", color: "var(--text-secondary)", padding: "2px 6px", borderRadius: "4px", border: "1px solid var(--border-color)" }}>{user.jobType}</span>}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={(e) => handleTogglePremium(e, user.id, user.isPremium)}
+                        disabled={toggling[user.id]}
+                        style={{
+                          background: user.isPremium ? "rgba(167,139,250,0.12)" : "transparent",
+                          border: `1px solid ${user.isPremium ? "rgba(167,139,250,0.4)" : "rgba(255,255,255,0.1)"}`,
+                          color: user.isPremium ? "#c4b5fd" : "var(--text-muted)",
+                          fontSize: "11px", fontWeight: "600", padding: "4px 8px", borderRadius: "6px", cursor: "pointer",
+                          transition: "all 0.2s"
+                        }}
+                      >
+                        {toggling[user.id] ? "..." : user.isPremium ? "Hạ cấp" : "Nâng Premium"}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          {/* Pagination */}
           {!listLoading && filteredUsers.length > 0 && (
-            <footer className="user-mgmt-pagination">
-              <p className="user-mgmt-range">
-                Hiển thị <strong>{rangeStart}–{rangeEnd}</strong> / {filteredUsers.length} người dùng
-              </p>
-              <div className="user-mgmt-page-controls">
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: "20px", borderTop: "1px solid var(--border-color)", marginTop: "auto" }}>
+              <span style={{ fontSize: "13px", color: "var(--text-muted)" }}>
+                Hiển thị <strong style={{ color: "var(--text-primary)" }}>{rangeStart}–{rangeEnd}</strong> / {filteredUsers.length}
+              </span>
+              <div style={{ display: "flex", gap: "6px" }}>
                 <button
                   type="button"
-                  className="user-mgmt-page-btn"
                   disabled={page <= 1}
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  style={{ background: "var(--bg-obsidian-950)", border: "1px solid var(--border-color)", color: "var(--text-primary)", padding: "6px 12px", borderRadius: "6px", fontSize: "12px", fontWeight: "600", cursor: page <= 1 ? "not-allowed" : "pointer", opacity: page <= 1 ? 0.5 : 1 }}
                 >
                   Trước
                 </button>
-                <div className="user-mgmt-page-list">
-                  {pageWindow.map((p, idx) => {
-                    const prev = pageWindow[idx - 1];
-                    const gap = prev != null && p - prev > 1;
-                    return (
-                      <span key={p} className="user-mgmt-page-item">
-                        {gap && <span className="user-mgmt-page-ellipsis" aria-hidden="true">…</span>}
-                        <button
-                          type="button"
-                          className={`user-mgmt-page-btn ${p === page ? "active" : ""}`}
-                          aria-current={p === page ? "page" : undefined}
-                          onClick={() => setPage(p)}
-                        >
-                          {p}
-                        </button>
-                      </span>
-                    );
-                  })}
-                </div>
+                {pageWindow.map((p, idx) => {
+                  const prev = pageWindow[idx - 1];
+                  const gap = prev != null && p - prev > 1;
+                  return (
+                    <div key={p} style={{ display: "flex", gap: "6px" }}>
+                      {gap && <span style={{ color: "var(--text-muted)", padding: "6px" }}>…</span>}
+                      <button
+                        type="button"
+                        onClick={() => setPage(p)}
+                        style={{
+                          background: p === page ? "var(--accent-blue)" : "var(--bg-obsidian-950)",
+                          border: `1px solid ${p === page ? "var(--accent-blue)" : "var(--border-color)"}`,
+                          color: p === page ? "#fff" : "var(--text-primary)",
+                          padding: "6px 12px", borderRadius: "6px", fontSize: "12px", fontWeight: "600", cursor: "pointer"
+                        }}
+                      >
+                        {p}
+                      </button>
+                    </div>
+                  );
+                })}
                 <button
                   type="button"
-                  className="user-mgmt-page-btn"
                   disabled={page >= totalPages}
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  style={{ background: "var(--bg-obsidian-950)", border: "1px solid var(--border-color)", color: "var(--text-primary)", padding: "6px 12px", borderRadius: "6px", fontSize: "12px", fontWeight: "600", cursor: page >= totalPages ? "not-allowed" : "pointer", opacity: page >= totalPages ? 0.5 : 1 }}
                 >
                   Sau
                 </button>
               </div>
-            </footer>
+            </div>
           )}
         </section>
 
-        <aside className="user-mgmt-detail">
-          <div className="user-mgmt-detail-head">
-            <h2 className="user-mgmt-detail-title">Chi tiết người dùng</h2>
-          </div>
+        {/* Right Side: Detail Panel */}
+        {selectedUser && (
+          <aside style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+            <div className="panel" style={{
+              background: "var(--bg-obsidian-900)", border: "1px solid var(--border-color)", borderRadius: "16px", padding: "24px", boxShadow: "0 4px 20px rgba(0, 0, 0, 0.15)"
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "16px", paddingBottom: "20px", borderBottom: "1px dashed var(--border-color)", marginBottom: "20px" }}>
+                <div style={{
+                  width: "56px", height: "56px", borderRadius: "12px",
+                  background: `hsla(${avatarHue(selectedUser.id)}, 42%, 46%, 0.14)`,
+                  border: `1px solid hsla(${avatarHue(selectedUser.id)}, 52%, 58%, 0.32)`,
+                  color: `hsl(${avatarHue(selectedUser.id)}, 68%, 72%)`,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontWeight: "700", fontSize: "20px", flexShrink: 0
+                }}>
+                  {initials(selectedUser.username, selectedUser.email)}
+                </div>
+                <div style={{ minWidth: 0 }}>
+                  <h3 style={{ fontSize: "18px", fontWeight: "700", color: "var(--text-primary)", margin: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    {selectedUser.username || "Chưa đặt tên"}
+                  </h3>
+                  <p style={{ fontSize: "13px", color: "var(--text-muted)", margin: "4px 0 0 0" }}>{selectedUser.email}</p>
+                </div>
+              </div>
 
-          {!selectedUser && (
-            <div className="user-mgmt-detail-empty">
-              <p>Chưa chọn người dùng</p>
-              <span>Chọn một dòng trong bảng để xem hồ sơ và cache inspector.</span>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                <div>
+                  <div style={{ fontSize: "11px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "4px" }}>Nhóm tuổi</div>
+                  <div style={{ fontSize: "14px", color: "var(--text-primary)", fontWeight: "500" }}>{selectedUser.ageGroup || inspector?.ageGroup || "—"}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: "11px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "4px" }}>Nghề nghiệp</div>
+                  <div style={{ fontSize: "14px", color: "var(--text-primary)", fontWeight: "500" }}>{selectedUser.jobType || inspector?.jobType || "—"}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: "11px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "4px" }}>Đăng nhập</div>
+                  <div style={{ fontSize: "14px", color: "var(--text-primary)", fontWeight: "500" }}>{authLabel(selectedUser.authProvider || inspector?.authProvider)}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: "11px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "4px" }}>Ngày tạo</div>
+                  <div style={{ fontSize: "14px", color: "var(--text-primary)", fontWeight: "500" }}>{formatDate(selectedUser.createdAt || inspector?.createdAt)}</div>
+                </div>
+                <div style={{ gridColumn: "1 / -1" }}>
+                  <div style={{ fontSize: "11px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "4px" }}>User ID</div>
+                  <div style={{ fontSize: "12px", color: "var(--text-primary)", fontFamily: "var(--font-mono)", background: "var(--bg-obsidian-950)", padding: "8px 12px", borderRadius: "8px", border: "1px solid var(--border-color)" }}>
+                    {selectedUser.id}
+                  </div>
+                </div>
+              </div>
             </div>
-          )}
 
-          {selectedUser && (
-            <>
-              <div className="user-profile-card">
-                <div className="user-profile-head">
-                  <span
-                    className="user-mgmt-avatar large"
-                    style={{
-                      "--avatar-hue": avatarHue(selectedUser.id),
-                      background: `hsla(${avatarHue(selectedUser.id)}, 42%, 46%, 0.14)`,
-                      borderColor: `hsla(${avatarHue(selectedUser.id)}, 52%, 58%, 0.32)`,
-                      color: `hsl(${avatarHue(selectedUser.id)}, 68%, 72%)`,
-                    }}
-                  >
-                    {initials(selectedUser.username, selectedUser.email)}
-                  </span>
-                  <div>
-                    <h3 className="user-profile-name">{selectedUser.username || "Chưa đặt tên"}</h3>
-                    <p className="user-profile-email">{selectedUser.email}</p>
-                  </div>
-                  <span className={`user-status-pill ${selectedUser.isActive ? "ok" : "off"}`}>
-                    {selectedUser.isActive ? "Active" : "Inactive"}
-                  </span>
-                </div>
+            {inspectorError && <div className="user-mgmt-error" style={{ background: "rgba(239, 68, 68, 0.1)", color: "var(--accent-rose)", padding: "12px", borderRadius: "8px", border: "1px solid rgba(239, 68, 68, 0.2)", fontSize: "13px" }}>{inspectorError}</div>}
 
-                <dl className="user-profile-grid">
-                  <div>
-                    <dt>Nhóm tuổi</dt>
-                    <dd>{selectedUser.ageGroup || inspector?.ageGroup || "Chưa khai báo"}</dd>
-                  </div>
-                  <div>
-                    <dt>Nhóm việc làm</dt>
-                    <dd>{selectedUser.jobType || inspector?.jobType || "Chưa khai báo"}</dd>
-                  </div>
-                  <div>
-                    <dt>Đăng nhập bằng</dt>
-                    <dd>
-                      <span className={`user-auth-badge ${selectedUser.authProvider?.toLowerCase() || "unknown"}`}>
-                        {authLabel(selectedUser.authProvider || inspector?.authProvider)}
-                      </span>
-                    </dd>
-                  </div>
-                  <div>
-                    <dt>Vai trò</dt>
-                    <dd>{selectedUser.role || "user"}</dd>
-                  </div>
-                  <div>
-                    <dt>Ngày tạo</dt>
-                    <dd>{formatDate(selectedUser.createdAt || inspector?.createdAt)}</dd>
-                  </div>
-                  <div>
-                    <dt>User ID</dt>
-                    <dd><code className="mono">{selectedUser.id}</code></dd>
-                  </div>
-                </dl>
-              </div>
-
-              <div className="user-profile-actions" style={{ marginTop: "16px", padding: "16px", background: "white", borderRadius: "12px", border: "1px solid #f1f5f9" }}>
-                <h4 style={{ fontWeight: "600", fontSize: "14px", marginBottom: "12px", color: "#1e293b" }}>Xuất dữ liệu chi tiêu (Excel/CSV)</h4>
-                <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-                  <a
-                    href={`${import.meta.env.VITE_API_BASE_URL || "http://localhost:4000"}/api/admin/transactions/export?userId=${selectedUser.id}&period=day`}
-                    download
-                    className="user-mgmt-page-btn"
-                    style={{ textDecoration: "none", fontSize: "12px", padding: "6px 12px", textAlign: "center" }}
-                  >
-                    📅 Hôm nay
-                  </a>
-                  <a
-                    href={`${import.meta.env.VITE_API_BASE_URL || "http://localhost:4000"}/api/admin/transactions/export?userId=${selectedUser.id}&period=week`}
-                    download
-                    className="user-mgmt-page-btn"
-                    style={{ textDecoration: "none", fontSize: "12px", padding: "6px 12px", textAlign: "center" }}
-                  >
-                    🗓️ Tuần này
-                  </a>
-                  <a
-                    href={`${import.meta.env.VITE_API_BASE_URL || "http://localhost:4000"}/api/admin/transactions/export?userId=${selectedUser.id}&period=month`}
-                    download
-                    className="user-mgmt-page-btn"
-                    style={{ textDecoration: "none", fontSize: "12px", padding: "6px 12px", textAlign: "center" }}
-                  >
-                    📊 Tháng này
-                  </a>
-                  <a
-                    href={`${import.meta.env.VITE_API_BASE_URL || "http://localhost:4000"}/api/admin/transactions/export?userId=${selectedUser.id}&period=all`}
-                    download
-                    className="user-mgmt-page-btn primary"
-                    style={{ textDecoration: "none", fontSize: "12px", padding: "6px 12px", textAlign: "center", background: "#0d9488", color: "white" }}
-                  >
-                    📥 Tất cả
-                  </a>
-                </div>
-              </div>
-
-              {inspectorError && <div className="user-mgmt-error">{inspectorError}</div>}
-
-              <div className="user-inspector-wrap">
-                <UserCacheInspector
-                  userId={selectedId}
-                  data={inspector}
-                  loading={inspectorLoading}
-                  onRefresh={() => loadInspector(selectedId)}
-                />
-              </div>
-            </>
-          )}
-        </aside>
+            <div style={{ flex: 1, background: "var(--bg-obsidian-900)", border: "1px solid var(--border-color)", borderRadius: "16px", padding: "24px", boxShadow: "0 4px 20px rgba(0, 0, 0, 0.15)" }}>
+              <UserCacheInspector
+                userId={selectedId}
+                data={inspector}
+                loading={inspectorLoading}
+                onRefresh={() => loadInspector(selectedId)}
+              />
+            </div>
+          </aside>
+        )}
       </div>
     </div>
   );

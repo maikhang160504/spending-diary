@@ -377,7 +377,11 @@ function NluOpsPage() {
   // Trigger retraining in background
   const handleRetrain = (target = "local") => {
     const label = target === "encoder" ? "PhoBERT Encoder" : "TF-IDF & NLU";
-    if (!window.confirm(`Bạn có chắc chắn muốn bắt đầu huấn luyện lại mô hình ${label} không?\n\nQuá trình này sẽ diễn ra chạy nền.`)) return;
+    const pw = window.prompt(`Bạn có chắc chắn muốn bắt đầu huấn luyện lại mô hình ${label} không?\nQuá trình này sẽ diễn ra chạy nền.\n\nNhập mật khẩu quản trị để xác nhận:`);
+    if (pw !== "admin") {
+      if (pw !== null) showToast("Mật khẩu không đúng! Hủy thao tác.");
+      return;
+    }
     setLoading(true);
     triggerNluTrain(target)
       .then((res) => {
@@ -408,7 +412,11 @@ function NluOpsPage() {
   };
 
   const handleLlmFinetune = () => {
-    if (!window.confirm("Bắt đầu huấn luyện Fine-tune Qwen2.5-14B-Instruct trên GPU Modal H100?\n\nTác vụ này sẽ chạy nền trong khoảng 1 giờ và tiêu thụ tài nguyên đám mây.")) return;
+    const pw = window.prompt("Bắt đầu huấn luyện Fine-tune Qwen2.5-14B-Instruct trên GPU Modal H100?\n\nTác vụ này sẽ chạy nền trong khoảng 1 giờ và tiêu thụ tài nguyên đám mây.\n\nNhập mật khẩu quản trị để xác nhận:");
+    if (pw !== "admin") {
+      if (pw !== null) showToast("Mật khẩu không đúng! Hủy thao tác.");
+      return;
+    }
     setIsLlmTraining(true);
     triggerLlmFinetune(llmTrainParams.epochs, llmTrainParams.lr, llmTrainParams.batchSize)
       .then((res) => {

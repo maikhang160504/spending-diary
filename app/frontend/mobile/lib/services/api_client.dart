@@ -414,6 +414,17 @@ class ApiClient {
     return result['data'] as Map<String, dynamic>;
   }
 
+  Future<Map<String, dynamic>> getPeerCompare({String? month}) async {
+    final result = await _request(
+      'GET',
+      '/stats/peer-compare',
+      queryParams: {
+        'month': ?month,
+      },
+    );
+    return result['data'] as Map<String, dynamic>;
+  }
+
   // ─── Budgets ──────────────────────────────────────────────────────
   Future<List<dynamic>> getBudgets() async {
     final result = await _request('GET', '/budgets/summary');
@@ -726,11 +737,13 @@ class ApiClient {
     return result['data'] as Map<String, dynamic>;
   }
 
-  Future<Map<String, dynamic>> aiChat(String sessionId, String content) async {
+  Future<Map<String, dynamic>> aiChat(String sessionId, String content, {Map<String, dynamic>? contextMeta}) async {
+    final body = <String, dynamic>{'content': content};
+    if (contextMeta != null) body['contextMeta'] = contextMeta;
     final result = await _request(
       'POST',
       '/ai/chat/$sessionId',
-      body: {'content': content},
+      body: body,
     );
     return result['data'] as Map<String, dynamic>;
   }
@@ -934,6 +947,29 @@ class ApiClient {
 
   Future<Map<String, dynamic>> getGoalRecap(Map<String, dynamic> body) async {
     return await _request('POST', '/ai/goal-recap', body: body);
+  }
+
+  // ─── Payments / Premium ───────────────────────────────────────────
+
+  /// Tạo đơn hàng Premium mới.
+  /// Trả về: { orderId, code, amount, transferContent, qrUrl, bank, accountNumber, accountName }
+  Future<Map<String, dynamic>> createPaymentOrder() async {
+    final result = await _request('POST', '/payments/create');
+    return result['data'] as Map<String, dynamic>;
+  }
+
+  /// Polling: kiểm tra trạng thái đơn hàng gần nhất.
+  /// Trả về null nếu chưa có đơn. Status: pending | completed | cancelled
+  Future<Map<String, dynamic>?> getPaymentStatus() async {
+    final result = await _request('GET', '/payments/status');
+    return result['data'] as Map<String, dynamic>?;
+  }
+
+  /// Lấy trạng thái Premium của user hiện tại.
+  Future<bool> getMyPremiumStatus() async {
+    final result = await _request('GET', '/payments/my');
+    final data = result['data'] as Map<String, dynamic>?;
+    return data?['isPremium'] as bool? ?? false;
   }
 }
 

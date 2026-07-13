@@ -17,6 +17,9 @@ import '../../theme/categories.dart';
 import '../../utils/formatters.dart';
 import '../../services/streak_celebration.dart';
 import '../../utils/budget_prompt.dart';
+import '../../services/ads_service.dart';
+import '../../widgets/interstitial_ad_dialog.dart';
+import '../../widgets/premium_upsell_bottom_sheet.dart';
 
 class CameraConfirmScreen extends StatefulWidget {
   /// Extracted expense data passed from CameraInputScreen via GoRouter extra.
@@ -182,6 +185,18 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
       if (mounted) {
         checkCategoryLimitAndSuggest(context, _category);
       }
+      
+      bool showAd = false;
+      if (mounted) {
+        showAd = AdsService.instance.incrementAndCheckIfNotPremium();
+        if (showAd) {
+          await showInterstitialAdDialog(
+            context,
+            onDismissed: () => showPremiumUpsellSheet(context),
+          );
+        }
+      }
+
       if (!mounted) return;
 
       if (isGroupWallet) {

@@ -83,6 +83,20 @@ async function getById(userId, id) {
 }
 
 async function create(userId, payload) {
+  // Check Premium limits
+  const userRes = await query('SELECT is_premium FROM users WHERE id = $1', [userId]);
+  const isPremium = userRes.rows[0]?.is_premium;
+
+  if (!isPremium) {
+    if (payload.type === 'personal') {
+      const pCount = await query(`SELECT COUNT(*) FROM wallets WHERE owner_id = $1 AND type = 'personal' AND is_archived = FALSE`, [userId]);
+      if (parseInt(pCount.rows[0].count) >= 2) throw ApiError.forbidden('PREMIUM_REQUIRED_WALLET_LIMIT');
+    } else if (payload.type === 'group') {
+      const gCount = await query(`SELECT COUNT(*) FROM wallet_members wm JOIN wallets w ON w.id = wm.wallet_id WHERE wm.user_id = $1 AND w.type = 'group' AND w.is_archived = FALSE`, [userId]);
+      if (parseInt(gCount.rows[0].count) >= 1) throw ApiError.forbidden('PREMIUM_REQUIRED_WALLET_LIMIT');
+    }
+  }
+
   return withTransaction(async (client) => {
     const balance = Number(payload.balance) || 0;
     const w = await client.query(
@@ -254,6 +268,16 @@ async function joinByInviteCode(userId, code) {
     throw ApiError.badRequest('Mã mời không hợp lệ hoặc đã hết hạn.');
   }
   const invite = r.rows[0];
+
+  // Check Premium limits
+  const userRes = await query('SELECT is_premium FROM users WHERE id = $1', [userId]);
+  const isPremium = userRes.rows[0]?.is_premium;
+
+  if (!isPremium) {
+    // Joining a wallet implies it's a group wallet (since you invite to group wallets usually, but even if personal, the prompt restricts to 1 group wallet total or 2 personal. We'll count all group wallets for simplicity)
+    const gCount = await query(`SELECT COUNT(*) FROM wallet_members wm JOIN wallets w ON w.id = wm.wallet_id WHERE wm.user_id = $1 AND w.type = 'group' AND w.is_archived = FALSE`, [userId]);
+    if (parseInt(gCount.rows[0].count) >= 1) throw ApiError.forbidden('PREMIUM_REQUIRED_WALLET_LIMIT');
+  }
 
   // Add user as member to the wallet
   await query(

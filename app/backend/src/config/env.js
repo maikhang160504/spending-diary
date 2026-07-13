@@ -95,6 +95,15 @@ const env = {
     privateKey: process.env.FIREBASE_PRIVATE_KEY || null,
   },
 
+  sepayWebhookSecret: process.env.SEPAY_WEBHOOK_SECRET || process.env['HMAC-SHA256'] || null,
+  sepay: {
+    apiKey: process.env.API_SEPAY || null,
+    bank: process.env.SEPAY_BANK || 'bidv',
+    accountNumber: process.env.SEPAY_ACCOUNT_NUMBER || '0000000001',
+    accountName: process.env.SEPAY_ACCOUNT_NAME || 'SEPAY TEST ACCOUNT',
+    description: process.env.SEPAY_DES || 'TKPMK',   // Tiền tố nội dung chuyển khoản
+  },
+
   isProd: process.env.NODE_ENV === 'production',
 };
 

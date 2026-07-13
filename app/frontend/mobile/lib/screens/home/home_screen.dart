@@ -19,6 +19,7 @@ import '../../widgets/category_chip.dart';
 import '../../widgets/error_banner.dart';
 import '../../widgets/skeleton.dart';
 import '../wallet/create_wallet_screen.dart';
+import '../../widgets/premium_upsell_bottom_sheet.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -406,10 +407,17 @@ class _HomeScreenState extends State<HomeScreen> {
                             }
                           }
                         } on ApiException catch (e) {
-                          setDialogState(() {
-                            loading = false;
-                            errorMsg = e.localizedMessage;
-                          });
+                          if (e.message.contains('PREMIUM_REQUIRED_WALLET_LIMIT')) {
+                            if (mounted) {
+                              Navigator.pop(ctx);
+                              showPremiumUpsellSheet(context);
+                            }
+                          } else {
+                            setDialogState(() {
+                              loading = false;
+                              errorMsg = e.localizedMessage;
+                            });
+                          }
                         } catch (_) {
                           setDialogState(() {
                             loading = false;

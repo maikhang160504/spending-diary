@@ -12,6 +12,7 @@ import '../../utils/formatters.dart';
 import '../../widgets/error_banner.dart';
 import '../../widgets/skeleton.dart';
 import '../../widgets/mimo_overlay.dart';
+import '../../widgets/premium_upsell_bottom_sheet.dart';
 
 class GoalScreen extends StatefulWidget {
   final bool isChallenge;
@@ -212,7 +213,11 @@ class _GoalScreenState extends State<GoalScreen> with AutomaticKeepAliveClientMi
                               }
                             }
                           } on ApiException catch (e) {
-                            if (mounted) {
+                            if (e.message.contains('PREMIUM_REQUIRED_GOAL_LIMIT')) {
+                              if (mounted) {
+                                showPremiumUpsellSheet(context);
+                              }
+                            } else if (mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(content: Text(e.localizedMessage), backgroundColor: AppColors.danger),
                               );
@@ -305,8 +310,24 @@ class _GoalScreenState extends State<GoalScreen> with AutomaticKeepAliveClientMi
                         ctx.pop();
                         try {
                           await _api.contributeGoal(goalId, amount);
+                          if (!ctx.mounted || !mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('🎉 Thêm tiền thành công!'),
+                              backgroundColor: AppColors.teal,
+                            ),
+                          );
                           _loadGoals();
-                        } catch (_) {}
+                        } catch (e) {
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Thất bại: $e'),
+                                backgroundColor: AppColors.danger,
+                              ),
+                            );
+                          }
+                        }
                       },
                 style: FilledButton.styleFrom(backgroundColor: AppColors.teal, padding: const EdgeInsets.symmetric(vertical: 14)),
                 child: const Text('Thêm tiền'),
@@ -360,6 +381,18 @@ class _GoalScreenState extends State<GoalScreen> with AutomaticKeepAliveClientMi
                             SnackBar(content: Text(widget.isChallenge ? '🎉 Tham gia thử thách thành công!' : '🎉 Tham gia nhóm tiết kiệm thành công!'), backgroundColor: AppColors.teal),
                           );
                           _loadGoals();
+                        } on ApiException catch (e) {
+                          if (e.message.contains('PREMIUM_REQUIRED_GOAL_LIMIT')) {
+                            if (ctx.mounted) {
+                              ctx.pop();
+                              showPremiumUpsellSheet(context);
+                            }
+                          } else {
+                            setSheetState(() {
+                              isSubmitting = false;
+                              errorMsg = e.localizedMessage;
+                            });
+                          }
                         } catch (e) {
                           setSheetState(() {
                             isSubmitting = false;

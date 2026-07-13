@@ -5,6 +5,7 @@ import NluOpsPage from "./pages/NluOpsPage";
 import UserManagementPage from "./pages/UserManagementPage";
 import BotPromptsPage from "./pages/BotPromptsPage";
 import BillRetrainPage from "./pages/BillRetrainPage";
+import MonetizationPage from "./pages/MonetizationPage";
 
 function App() {
   return (
@@ -17,6 +18,7 @@ function App() {
           <Route path="user-inspector" element={<Navigate to="/users" replace />} />
           <Route path="bill-retrain" element={<BillRetrainPage />} />
           <Route path="bot-prompts" element={<BotPromptsPage />} />
+          <Route path="monetization" element={<MonetizationPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

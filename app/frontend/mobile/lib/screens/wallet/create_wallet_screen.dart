@@ -6,6 +6,7 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_palette.dart';
 import '../../theme/app_radii.dart';
 import '../../utils/formatters.dart';
+import '../../widgets/premium_upsell_bottom_sheet.dart';
 
 class CreateWalletScreen extends StatefulWidget {
   const CreateWalletScreen({super.key});
@@ -79,7 +80,14 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
         context.pop(res);
       }
     } on ApiException catch (e) {
-      setState(() => _error = e.localizedMessage);
+      if (e.message.contains('PREMIUM_REQUIRED_WALLET_LIMIT')) {
+        if (mounted) {
+          context.pop(); // Đóng popup tạo ví
+          showPremiumUpsellSheet(context);
+        }
+      } else {
+        setState(() => _error = e.localizedMessage);
+      }
     } catch (_) {
       setState(() => _error = 'Không thể tạo ví, vui lòng thử lại.');
     } finally {
