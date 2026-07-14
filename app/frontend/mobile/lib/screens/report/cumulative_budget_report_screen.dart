@@ -205,10 +205,10 @@ class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScr
                     ),
                     const SizedBox(height: 14),
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        _buildStatCol('Đã chi lũy kế', formatVnd(currentSpent), AppColors.danger),
-                        _buildStatCol('Còn lại an toàn', formatVnd(remaining), AppColors.teal),
+                        Expanded(child: _buildStatCol('Đã chi lũy kế', formatVnd(currentSpent), AppColors.danger, isRight: false)),
+                        const SizedBox(width: 12),
+                        Expanded(child: _buildStatCol('Còn lại an toàn', formatVnd(remaining), AppColors.teal, isRight: true)),
                       ],
                     ),
                   ],
@@ -225,13 +225,17 @@ class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScr
     );
   }
 
-  Widget _buildStatCol(String label, String value, Color color) {
+  Widget _buildStatCol(String label, String value, Color color, {bool isRight = false}) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: isRight ? CrossAxisAlignment.end : CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(color: AppColors.muted, fontSize: 12)),
+        Text(label, style: const TextStyle(color: AppColors.muted, fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
         const SizedBox(height: 4),
-        Text(value, style: TextStyle(color: color, fontSize: 16, fontWeight: FontWeight.w700)),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: isRight ? Alignment.centerRight : Alignment.centerLeft,
+          child: Text(value, style: TextStyle(color: color, fontSize: 16, fontWeight: FontWeight.w700)),
+        ),
       ],
     );
   }

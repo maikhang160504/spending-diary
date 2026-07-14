@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import '../../services/api_client.dart';
 import '../../theme/app_colors.dart';
 import '../../utils/formatters.dart';
 import '../../widgets/loading_indicator.dart';
 import '../../widgets/error_banner.dart';
-import '../../theme/app_theme.dart';
 import '../../theme/app_radii.dart';
 import '../../theme/app_palette.dart';
 
@@ -302,8 +300,4 @@ class _GroupAnalyticsScreenState extends State<GroupAnalyticsScreen> {
       ),
     );
   }
-}
-
-extension on BuildContext {
-  ThemeData get theme => Theme.of(this);
 }

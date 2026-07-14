@@ -387,7 +387,7 @@ class _CashflowReportScreenState extends State<CashflowReportScreen> {
     return FutureBuilder(
       future: AppQueries.wallets().result,
       builder: (context, snapshot) {
-        final rawList = (snapshot.data?.data as List?) ?? [];
+        final rawList = snapshot.data?.data ?? [];
         final wallets = <Map<String, dynamic>>[];
         if (snapshot.hasData) {
           for (var item in rawList) {
@@ -759,12 +759,16 @@ class _CashflowReportScreenState extends State<CashflowReportScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        item['title'] as String,
-                        style: TextStyle(color: context.palette.textPrimary, fontSize: 14, fontWeight: FontWeight.w700),
+                      Expanded(
+                        child: Text(
+                          item['title'] as String,
+                          style: TextStyle(color: context.palette.textPrimary, fontSize: 14, fontWeight: FontWeight.w700),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
+                      const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
@@ -784,21 +788,26 @@ class _CashflowReportScreenState extends State<CashflowReportScreen> {
                   ),
                   const SizedBox(height: 10),
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Row(
-                        children: [
-                          const Icon(Icons.arrow_downward_rounded, size: 14, color: AppColors.success),
-                          const SizedBox(width: 4),
-                          Text('Thu: ${formatVnd(income)}', style: const TextStyle(color: AppColors.success, fontSize: 12, fontWeight: FontWeight.w600)),
-                        ],
+                      Expanded(
+                        child: Row(
+                          children: [
+                            const Icon(Icons.arrow_downward_rounded, size: 14, color: AppColors.success),
+                            const SizedBox(width: 4),
+                            Expanded(child: Text('Thu: ${formatVnd(income)}', style: const TextStyle(color: AppColors.success, fontSize: 12, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                          ],
+                        ),
                       ),
-                      Row(
-                        children: [
-                          const Icon(Icons.arrow_upward_rounded, size: 14, color: AppColors.danger),
-                          const SizedBox(width: 4),
-                          Text('Chi: ${formatVnd(expense)}', style: const TextStyle(color: AppColors.danger, fontSize: 12, fontWeight: FontWeight.w600)),
-                        ],
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            const Icon(Icons.arrow_upward_rounded, size: 14, color: AppColors.danger),
+                            const SizedBox(width: 4),
+                            Flexible(child: Text('Chi: ${formatVnd(expense)}', style: const TextStyle(color: AppColors.danger, fontSize: 12, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                          ],
+                        ),
                       ),
                     ],
                   ),

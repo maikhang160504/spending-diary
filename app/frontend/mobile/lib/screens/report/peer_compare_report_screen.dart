@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:intl/intl.dart';
 
 import '../../theme/app_colors.dart';
 import '../../theme/app_palette.dart';
@@ -28,8 +27,6 @@ class _PeerCompareReportScreenState extends State<PeerCompareReportScreen> {
   int _peerCount = 0;
   bool _notEnoughPeers = false;
   List<Map<String, dynamic>> _compareData = [];
-
-  int _touchedIndex = -1;
 
   @override
   void initState() {
@@ -290,17 +287,7 @@ class _PeerCompareReportScreenState extends State<PeerCompareReportScreen> {
               child: RadarChart(
                 RadarChartData(
                   radarTouchData: RadarTouchData(
-                    touchCallback: (FlTouchEvent event, response) {
-                      if (!event.isInterestedForInteractions) {
-                        setState(() {
-                          _touchedIndex = -1;
-                        });
-                        return;
-                      }
-                      setState(() {
-                        _touchedIndex = response?.touchedSpot?.touchedDataSetIndex ?? -1;
-                      });
-                    },
+                    touchCallback: (FlTouchEvent event, response) {},
                   ),
                   dataSets: [
                     RadarDataSet(

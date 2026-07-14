@@ -3,7 +3,6 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_palette.dart';
 import '../../theme/app_radii.dart';
 import '../../theme/app_spacing.dart';
-import '../../services/app_queries.dart';
 import 'category_spending_report_screen.dart';
 import 'cashflow_report_screen.dart';
 import 'saving_trend_report_screen.dart';
@@ -29,174 +28,191 @@ class _ReportScreenState extends State<ReportScreen> {
     return Scaffold(
       backgroundColor: context.palette.bg,
       body: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const _ReportHeader(),
-              Padding(
-                padding: const EdgeInsets.all(AppSpacing.lg),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Banner tóm tắt lời chào / gợi ý từ MiMo
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      AppColors.teal.withValues(alpha: 0.15),
-                      AppColors.tealDark.withValues(alpha: 0.12),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 800),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const _ReportHeader(),
+                  Padding(
+                    padding: const EdgeInsets.all(AppSpacing.lg),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Banner tóm tắt lời chào / gợi ý từ MiMo
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(18),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                AppColors.teal.withValues(alpha: 0.15),
+                                AppColors.tealDark.withValues(alpha: 0.12),
+                              ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(AppRadii.xl),
+                            border: Border.all(color: AppColors.teal.withValues(alpha: 0.25), width: 1.2),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 54,
+                                height: 54,
+                                decoration: BoxDecoration(
+                                  color: AppColors.teal.withValues(alpha: 0.15),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: ClipOval(
+                                  child: Image.asset('assets/MiMo/emotions/Working.png', fit: BoxFit.cover),
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Trung tâm Phân tích Tài chính',
+                                      style: TextStyle(
+                                        color: context.palette.textPrimary,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    const Text(
+                                      'Chọn báo cáo bên dưới để xem biểu đồ chi tiết & phân tích chuyên sâu cùng AI MiMo Mascot.',
+                                      style: TextStyle(
+                                        color: AppColors.muted,
+                                        fontSize: 12,
+                                        height: 1.35,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+
+                        Text(
+                          'DANH MỤC BÁO CÁO',
+                          style: TextStyle(
+                            color: AppColors.muted,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.8,
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+
+                        LayoutBuilder(builder: (context, constraints) {
+                          final w = constraints.maxWidth;
+                          final cardWidth = w >= 600 ? (w - 14) / 2 : w;
+                          return Wrap(
+                            spacing: 14,
+                            runSpacing: 14,
+                            children: [
+                              SizedBox(
+                                width: cardWidth,
+                                child: _buildReportMenuCard(
+                                  icon: Icons.pie_chart_rounded,
+                                  iconColor: const Color(0xFFE91E63),
+                                  iconBgColor: const Color(0xFFFCE4EC),
+                                  title: 'Chi tiêu theo danh mục',
+                                  subtitle: 'Phân tích tỷ trọng chi tiêu & cơ cấu dòng tiền từng nhóm',
+                                  onTap: () {
+                                    Navigator.of(context, rootNavigator: false).push(
+                                      MaterialPageRoute(
+                                        builder: (_) => CategorySpendingReportScreen(),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                              SizedBox(
+                                width: cardWidth,
+                                child: _buildReportMenuCard(
+                                  icon: Icons.bar_chart_rounded,
+                                  iconColor: const Color(0xFF2196F3),
+                                  iconBgColor: const Color(0xFFE3F2FD),
+                                  title: 'Biến động thu chi',
+                                  subtitle: 'So sánh dòng tiền Thu - Chi & chế độ cột chồng so với cùng kỳ',
+                                  onTap: () {
+                                    Navigator.of(context, rootNavigator: false).push(
+                                      MaterialPageRoute(
+                                        builder: (_) => CashflowReportScreen(),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                              SizedBox(
+                                width: cardWidth,
+                                child: _buildReportMenuCard(
+                                  icon: Icons.trending_up_rounded,
+                                  iconColor: const Color(0xFF4CAF50),
+                                  iconBgColor: const Color(0xFFE8F5E9),
+                                  title: 'Xu hướng tiết kiệm',
+                                  subtitle: 'Theo dõi tích lũy ròng qua các kỳ & tối ưu gia tăng tài sản',
+                                  onTap: () {
+                                    Navigator.of(context, rootNavigator: false).push(
+                                      MaterialPageRoute(
+                                        builder: (_) => SavingTrendReportScreen(),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                              SizedBox(
+                                width: cardWidth,
+                                child: _buildReportMenuCard(
+                                  icon: Icons.speed_rounded,
+                                  iconColor: const Color(0xFFFF9800),
+                                  iconBgColor: const Color(0xFFFFF3E0),
+                                  title: 'Chi tiêu lũy kế so với hạn mức',
+                                  subtitle: 'Kiểm soát tốc độ đốt hạn mức & cảnh báo vượt ngân sách',
+                                  onTap: () {
+                                    Navigator.of(context, rootNavigator: false).push(
+                                      MaterialPageRoute(
+                                        builder: (_) => CumulativeBudgetReportScreen(),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                              SizedBox(
+                                width: w, // Thẻ cuối cùng cho nó dài hết cỡ
+                                child: _buildReportMenuCard(
+                                  icon: Icons.groups_rounded,
+                                  iconColor: const Color(0xFF673AB7),
+                                  iconBgColor: const Color(0xFFEDE7F6),
+                                  title: 'So sánh cộng đồng',
+                                  subtitle: 'Đối chiếu chi tiêu của bạn với nhóm người có cùng độ tuổi và công việc',
+                                  onTap: () {
+                                    Navigator.of(context, rootNavigator: false).push(
+                                      MaterialPageRoute(
+                                        builder: (_) => PeerCompareReportScreen(),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ],
+                          );
+                        }),
+                        const SizedBox(height: 32),
+                      ],
+                    ),
                   ),
-                  borderRadius: BorderRadius.circular(AppRadii.xl),
-                  border: Border.all(color: AppColors.teal.withValues(alpha: 0.25), width: 1.2),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 54,
-                      height: 54,
-                      decoration: BoxDecoration(
-                        color: AppColors.teal.withValues(alpha: 0.15),
-                        shape: BoxShape.circle,
-                      ),
-                      child: ClipOval(
-                        child: Image.asset('assets/MiMo/emotions/Working.png', fit: BoxFit.cover),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Trung tâm Phân tích Tài chính',
-                            style: TextStyle(
-                              color: context.palette.textPrimary,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          const Text(
-                            'Chọn báo cáo bên dưới để xem biểu đồ chi tiết & phân tích chuyên sâu cùng AI MiMo Mascot.',
-                            style: TextStyle(
-                              color: AppColors.muted,
-                              fontSize: 12,
-                              height: 1.35,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
+                ],
               ),
-              const SizedBox(height: 18),
-
-              Text(
-                'DANH MỤC BÁO CÁO',
-                style: TextStyle(
-                  color: AppColors.muted,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.8,
-                ),
-              ),
-              const SizedBox(height: 14),
-
-              // Card 1: Chi tiêu theo danh mục
-              _buildReportMenuCard(
-                icon: Icons.pie_chart_rounded,
-                iconColor: const Color(0xFFE91E63),
-                iconBgColor: const Color(0xFFFCE4EC),
-                title: 'Chi tiêu theo danh mục',
-                subtitle: 'Phân tích tỷ trọng chi tiêu & cơ cấu dòng tiền từng nhóm',
-                onTap: () {
-                  Navigator.of(context, rootNavigator: false).push(
-                    MaterialPageRoute(
-                      builder: (_) => CategorySpendingReportScreen(),
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(height: 14),
-
-              // Card 2: Biến động thu chi
-              _buildReportMenuCard(
-                icon: Icons.bar_chart_rounded,
-                iconColor: const Color(0xFF2196F3),
-                iconBgColor: const Color(0xFFE3F2FD),
-                title: 'Biến động thu chi',
-                subtitle: 'So sánh dòng tiền Thu - Chi & chế độ cột chồng so với cùng kỳ',
-                onTap: () {
-                  Navigator.of(context, rootNavigator: false).push(
-                    MaterialPageRoute(
-                      builder: (_) => CashflowReportScreen(),
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(height: 14),
-
-              // Card 3: Xu hướng tiết kiệm
-              _buildReportMenuCard(
-                icon: Icons.trending_up_rounded,
-                iconColor: const Color(0xFF4CAF50),
-                iconBgColor: const Color(0xFFE8F5E9),
-                title: 'Xu hướng tiết kiệm',
-                subtitle: 'Theo dõi tích lũy ròng qua các kỳ & tối ưu gia tăng tài sản',
-                onTap: () {
-                  Navigator.of(context, rootNavigator: false).push(
-                    MaterialPageRoute(
-                      builder: (_) => SavingTrendReportScreen(),
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(height: 14),
-
-              // Card 4: Chi tiêu lũy kế so với hạn mức
-              _buildReportMenuCard(
-                icon: Icons.speed_rounded,
-                iconColor: const Color(0xFFFF9800),
-                iconBgColor: const Color(0xFFFFF3E0),
-                title: 'Chi tiêu lũy kế so với hạn mức',
-                subtitle: 'Kiểm soát tốc độ đốt hạn mức & cảnh báo vượt ngân sách',
-                onTap: () {
-                  Navigator.of(context, rootNavigator: false).push(
-                    MaterialPageRoute(
-                      builder: (_) => CumulativeBudgetReportScreen(),
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(height: 14),
-
-              // Card 5: So sánh cộng đồng
-              _buildReportMenuCard(
-                icon: Icons.groups_rounded,
-                iconColor: const Color(0xFF673AB7),
-                iconBgColor: const Color(0xFFEDE7F6),
-                title: 'So sánh cộng đồng',
-                subtitle: 'Đối chiếu chi tiêu của bạn với nhóm người có cùng độ tuổi và công việc',
-                onTap: () {
-                  Navigator.of(context, rootNavigator: false).push(
-                    MaterialPageRoute(
-                      builder: (_) => PeerCompareReportScreen(),
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(height: 32),
-            ],
-          ),
-        ),
-            ],
+            ),
           ),
         ),
       ),
