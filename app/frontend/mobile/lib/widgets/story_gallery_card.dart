@@ -1,14 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import '../theme/app_colors.dart';
 import '../theme/categories.dart';
-import '../theme/app_radii.dart';
-import '../theme/app_palette.dart';
 import '../utils/formatters.dart';
-import '../utils/mimo_emotion.dart';
 import '../routes/app_routes.dart';
-import '../services/api_client.dart';
 
 class StoryGalleryCard extends StatelessWidget {
   final Map<String, dynamic> story;
@@ -18,7 +13,7 @@ class StoryGalleryCard extends StatelessWidget {
 
   /// Vị trí của story hiện tại trong [allStoryIds].
   final int initialIndex;
-  const StoryGalleryCard({
+  const StoryGalleryCard({super.key, 
     required this.story,
     this.allStoryIds,
     this.initialIndex = 0,

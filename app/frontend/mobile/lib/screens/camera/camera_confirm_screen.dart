@@ -259,7 +259,8 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
               color: ctx.palette.card,
               borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadii.xl)),
             ),
-            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            child: SingleChildScrollView(
+              child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
               Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(2)))),
               const SizedBox(height: 16),
               Text('Chỉnh sửa giao dịch', style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
@@ -275,7 +276,7 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
               Text('Danh mục', style: Theme.of(ctx).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
-                value: editCategory,
+                initialValue: editCategory,
                 decoration: InputDecoration(
                   contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadii.md)),
@@ -355,6 +356,7 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
                 ),
               ),
             ]),
+           ),
           ),
         ),
       ),

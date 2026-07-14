@@ -350,6 +350,8 @@ _SearchResultPreview? _searchPreviewFromNlu(Map<String, dynamic> nlu) {
 _ReportStoryPreview? _reportPreviewFromNlu(Map<String, dynamic> nlu) {
   final ar = nluMap(nlu['action_result']);
   if (ar == null) return null;
+  // Only treat as report if it has report_kind or by_category data
+  if (ar['report_kind'] == null && ar['by_category'] == null) return null;
   final cats = (ar['by_category'] as List<dynamic>? ?? []).map((c) {
     final m = nluMap(c) ?? {};
     return _ReportCategoryRow(
@@ -385,15 +387,17 @@ _ReportStoryPreview? _reportPreviewFromNlu(Map<String, dynamic> nlu) {
 }
 
 class ChatScreen extends StatefulWidget {
-  /// Optional sessionId passed from ChatHistoryScreen (CHH-02)
   final String? sessionId;
   final String? walletId;
   final bool forceNew;
+  final String? initialMessage;
+
   const ChatScreen({
     super.key,
     this.sessionId,
     this.walletId,
     this.forceNew = false,
+    this.initialMessage,
   });
 
   @override
@@ -461,7 +465,11 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     _generateRandomSuggestions();
     _scrollCtrl.addListener(_onScrollLoadOlder);
     chatLlmUpdateNotifier.addListener(_onChatLlmUpdateNotifier);
-    _initSession();
+    _initSession().then((_) {
+      if (mounted && widget.initialMessage != null && widget.initialMessage!.isNotEmpty) {
+        _sendMessage(widget.initialMessage!);
+      }
+    });
     _loadAiPersonality();
   }
 
@@ -482,10 +490,11 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       if (_llmPendingMessageId == update.messageId) {
         _waitingForLlm = false;
         _llmPendingMessageId = null;
+      }
 
-        if (update.content != null && update.content!.isNotEmpty) {
-          bool found = false;
-          for (final msg in _messages) {
+      if (update.content != null && update.content!.isNotEmpty) {
+        bool found = false;
+        for (final msg in _messages) {
             if (msg.backendMessageId == update.messageId) {
               if (update.intentAction != null &&
                   update.intentAction!['action_executed'] == true) {
@@ -541,7 +550,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
             _messages.insert(0, confirmMsg);
           }
         }
-      }
+
 
       for (final msg in _messages) {
         if (msg.backendMessageId == update.messageId) {
@@ -1409,11 +1418,12 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
               SafeArea(
                 child: Column(
                   children: [
-                    _ChatHeader(
-                      verbalStyle: _verbalStyle,
-                      personalityLabel: personalityLabelFromStyle(_verbalStyle),
-                      walletId: _walletId,
-                    ),
+                    if (!(MediaQuery.of(context).viewInsets.bottom > 0 && MediaQuery.of(context).size.height < 500))
+                      _ChatHeader(
+                        verbalStyle: _verbalStyle,
+                        personalityLabel: personalityLabelFromStyle(_verbalStyle),
+                        walletId: _walletId,
+                      ),
                     Expanded(
                       child: ListView.builder(
                         controller: _scrollCtrl,
@@ -2542,19 +2552,23 @@ class _ReportStoryCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.baseline,
                   textBaseline: TextBaseline.alphabetic,
                   children: [
-                    Text(
-                      preview.reportKind != null &&
-                              preview.reportKind!.toUpperCase().contains(
-                                'INCOME',
-                              )
-                          ? formatVnd(preview.totalIncome)
-                          : formatVnd(preview.totalExpense),
-                      style: Theme.of(context).textTheme.headlineSmall
-                          ?.copyWith(
-                            fontWeight: FontWeight.w800,
-                            color: context.palette.textPrimary,
-                            letterSpacing: -0.5,
-                          ),
+                    Flexible(
+                      child: Text(
+                        preview.reportKind != null &&
+                                preview.reportKind!.toUpperCase().contains(
+                                  'INCOME',
+                                )
+                            ? formatVnd(preview.totalIncome)
+                            : formatVnd(preview.totalExpense),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.headlineSmall
+                            ?.copyWith(
+                              fontWeight: FontWeight.w800,
+                              color: context.palette.textPrimary,
+                              letterSpacing: -0.5,
+                            ),
+                      ),
                     ),
                     if (preview.comparePercent != 0) ...[
                       const SizedBox(width: 8),
@@ -2695,19 +2709,22 @@ class _ReportStoryCard extends StatelessWidget {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
                                     children: [
-                                      Text(
-                                        style.label,
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .bodyMedium
-                                            ?.copyWith(
-                                              fontWeight: FontWeight.w600,
-                                              fontSize: 13,
-                                            ),
+                                      Flexible(
+                                        child: Text(
+                                          style.label,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .bodyMedium
+                                              ?.copyWith(
+                                                fontWeight: FontWeight.w600,
+                                                fontSize: 13,
+                                              ),
+                                        ),
                                       ),
+                                      const SizedBox(width: 8),
                                       Text(
                                         formatVnd(c.total),
                                         style: Theme.of(context)
@@ -4202,14 +4219,18 @@ class _ChatBubble extends StatelessWidget {
 
         // 1. Text bubble (chỉ hiển thị nếu có text hoặc đang soạn thêm)
         if (hasText || (!message.isUser && message.llmPending))
-          Container(
-            margin: EdgeInsets.only(
-              bottom: hasSpecialCard ? AppSpacing.sm : AppSpacing.md,
-              left: message.isUser ? 60 : 0,
-              right: message.isUser ? 0 : 60,
+          ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: MediaQuery.of(context).size.width * 0.75,
             ),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            decoration: BoxDecoration(
+            child: Container(
+              margin: EdgeInsets.only(
+                bottom: hasSpecialCard ? AppSpacing.sm : AppSpacing.md,
+                left: message.isUser ? 60 : 0,
+                right: message.isUser ? 0 : 60,
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
               color: bubbleColor,
               borderRadius: BorderRadius.only(
                 topLeft: const Radius.circular(AppRadii.lg),
@@ -4259,18 +4280,23 @@ class _ChatBubble extends StatelessWidget {
               ],
             ),
           ),
+        ),
 
         // 2. Special Component Card bubble
         if (hasSpecialCard)
-          Container(
-            margin: const EdgeInsets.only(
-              bottom: AppSpacing.md,
-              left: 0,
-              right: 60,
+          ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: MediaQuery.of(context).size.width * 0.85,
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+            child: Container(
+              margin: const EdgeInsets.only(
+                bottom: AppSpacing.md,
+                left: 0,
+                right: 60,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                 if (message.reportPreview != null)
                   _ReportStoryCard(
                     preview: message.reportPreview!,
@@ -4334,6 +4360,7 @@ class _ChatBubble extends StatelessWidget {
               ],
             ),
           ),
+        ),
 
         // 3. Suggested Actions Chips
         if (!message.isUser &&
@@ -4693,6 +4720,9 @@ class _DailyCompareChart extends StatelessWidget {
                 enabled: true,
                 touchTooltipData: LineTouchTooltipData(
                   tooltipRoundedRadius: 8,
+                  fitInsideHorizontally: true,
+                  fitInsideVertically: true,
+                  maxContentWidth: 180,
                   getTooltipItems: (touchedSpots) {
                     return touchedSpots.map((spot) {
                       final isCurr = spot.barIndex == 0;

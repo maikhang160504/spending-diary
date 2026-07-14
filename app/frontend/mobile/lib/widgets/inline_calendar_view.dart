@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../theme/app_colors.dart';
 import '../theme/categories.dart';
@@ -7,10 +6,6 @@ import '../theme/app_radii.dart';
 import '../theme/app_palette.dart';
 import '../theme/app_spacing.dart';
 import '../utils/formatters.dart';
-import 'transaction_story_card.dart';
-import '../utils/mimo_emotion.dart';
-import '../routes/app_routes.dart';
-import '../services/api_client.dart';
 
 class InlineCalendarView extends StatefulWidget {
   final List<dynamic> byDay;
@@ -30,7 +25,7 @@ class InlineCalendarView extends StatefulWidget {
 class InlineCalendarViewState extends State<InlineCalendarView> {
   DateTime _focus = DateTime(DateTime.now().year, DateTime.now().month);
   int? _selectedDay;
-  
+
   Map<int, Map<String, dynamic>> get _dayMap {
     final result = <int, Map<String, dynamic>>{};
     for (final entry in widget.byDay) {
@@ -81,74 +76,73 @@ class InlineCalendarViewState extends State<InlineCalendarView> {
                   _selectedDay = null;
                 }),
               ),
-              
             ],
           ),
           const SizedBox(height: 12),
-          
-            Row(
-              children: ['S', 'M', 'T', 'W', 'T', 'F', 'S']
-                  .map(
-                    (d) => Expanded(
-                      child: Center(
-                        child: Text(
-                          d,
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: AppColors.muted,
-                            fontWeight: FontWeight.w600,
-                          ),
+
+          Row(
+            children: ['S', 'M', 'T', 'W', 'T', 'F', 'S']
+                .map(
+                  (d) => Expanded(
+                    child: Center(
+                      child: Text(
+                        d,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.muted,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
-                  )
-                  .toList(),
-            ),
-            const SizedBox(height: 8),
-            GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: startWeekday + daysInMonth,
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 7,
-                mainAxisSpacing: 4,
-                crossAxisSpacing: 4,
-                childAspectRatio: 0.58,
-              ),
-              itemBuilder: (ctx, i) {
-                if (i < startWeekday) return const SizedBox();
-                final day = i - startWeekday + 1;
-                final isSelected = _selectedDay == day;
-                final isToday =
-                    _focus.month == DateTime.now().month &&
-                    _focus.year == DateTime.now().year &&
-                    day == DateTime.now().day;
-
-                final dayTxList = widget.transactions.where((tx) {
-                  final dateStr =
-                      tx['occurredAt'] as String? ??
-                      tx['occurred_at'] as String? ??
-                      tx['createdAt'] as String? ??
-                      tx['created_at'] as String? ??
-                      '';
-                  if (dateStr.isEmpty) return false;
-                  try {
-                    final dt = DateTime.parse(dateStr).toLocal();
-                    return dt.year == _focus.year &&
-                        dt.month == _focus.month &&
-                        dt.day == day;
-                  } catch (_) {
-                    return false;
-                  }
-                }).toList();
-
-                return GestureDetector(
-                  onTap: () => setState(
-                    () => _selectedDay = _selectedDay == day ? null : day,
                   ),
-                  child: _buildDayCell(day, dayTxList, isSelected, isToday),
-                );
-              },
+                )
+                .toList(),
+          ),
+          const SizedBox(height: 8),
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: startWeekday + daysInMonth,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 7,
+              mainAxisSpacing: 4,
+              crossAxisSpacing: 4,
+              childAspectRatio: 0.58,
             ),
+            itemBuilder: (ctx, i) {
+              if (i < startWeekday) return const SizedBox();
+              final day = i - startWeekday + 1;
+              final isSelected = _selectedDay == day;
+              final isToday =
+                  _focus.month == DateTime.now().month &&
+                  _focus.year == DateTime.now().year &&
+                  day == DateTime.now().day;
+
+              final dayTxList = widget.transactions.where((tx) {
+                final dateStr =
+                    tx['occurredAt'] as String? ??
+                    tx['occurred_at'] as String? ??
+                    tx['createdAt'] as String? ??
+                    tx['created_at'] as String? ??
+                    '';
+                if (dateStr.isEmpty) return false;
+                try {
+                  final dt = DateTime.parse(dateStr).toLocal();
+                  return dt.year == _focus.year &&
+                      dt.month == _focus.month &&
+                      dt.day == day;
+                } catch (_) {
+                  return false;
+                }
+              }).toList();
+
+              return GestureDetector(
+                onTap: () => setState(
+                  () => _selectedDay = _selectedDay == day ? null : day,
+                ),
+                child: _buildDayCell(day, dayTxList, isSelected, isToday),
+              );
+            },
+          ),
           if (_selectedDay != null && dayMap[_selectedDay!] != null) ...[
             const SizedBox(height: 16),
             Row(
@@ -204,7 +198,9 @@ class InlineCalendarViewState extends State<InlineCalendarView> {
                   }
                 })
                 .map((tx) {
-                  return CalendarTransactionListItem(tx: Map<String, dynamic>.from(tx as Map));
+                  return CalendarTransactionListItem(
+                    tx: Map<String, dynamic>.from(tx as Map),
+                  );
                 }),
           ],
           const SizedBox(height: 24),
@@ -448,7 +444,7 @@ class InlineCalendarViewState extends State<InlineCalendarView> {
 
 class CalendarTransactionListItem extends StatelessWidget {
   final Map<String, dynamic> tx;
-  const CalendarTransactionListItem({required this.tx});
+  const CalendarTransactionListItem({super.key, required this.tx});
 
   @override
   Widget build(BuildContext context) {
@@ -460,8 +456,11 @@ class CalendarTransactionListItem extends StatelessWidget {
         tx['category_code'] as String? ??
         'Other';
     final note = tx['note'] as String? ?? '';
-    final originalText = tx['originalText'] as String? ?? tx['original_text'] as String? ?? '';
-    final label = originalText.isNotEmpty ? originalText : (note.isNotEmpty ? note : 'Giao dịch');
+    final originalText =
+        tx['originalText'] as String? ?? tx['original_text'] as String? ?? '';
+    final label = originalText.isNotEmpty
+        ? originalText
+        : (note.isNotEmpty ? note : 'Giao dịch');
     final displayTime = txTimestampIso(tx) ?? '';
     final isExpense = type.toLowerCase() == 'expense';
     final catStyle = CategoryTheme.of(category);
@@ -470,7 +469,8 @@ class CalendarTransactionListItem extends StatelessWidget {
     if (displayTime.isNotEmpty) {
       final dt = parseToLocalDateTime(displayTime);
       if (dt != null) {
-        timeStr = '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+        timeStr =
+            '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
       }
     }
 
@@ -492,9 +492,7 @@ class CalendarTransactionListItem extends StatelessWidget {
               color: catStyle.color.withValues(alpha: 0.12),
               shape: BoxShape.circle,
             ),
-            child: Center(
-              child: CategoryTheme.iconOf(category, size: 20),
-            ),
+            child: Center(child: CategoryTheme.iconOf(category, size: 20)),
           ),
           const SizedBox(width: 12),
           // Info Column
@@ -673,188 +671,6 @@ class _DraftReminderBannerState extends State<_DraftReminderBanner>
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-// ─── Draft List Sheet ──────────────────────────────────────────────────────────
-
-class _DraftListSheet extends StatelessWidget {
-  final List<dynamic> drafts;
-  final void Function(String txId, String label) onFillAmount;
-
-  const _DraftListSheet({required this.drafts, required this.onFillAmount});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.55,
-      ),
-      decoration: BoxDecoration(
-        color: context.palette.card,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const SizedBox(height: 12),
-          Container(
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-              color: AppColors.muted.withValues(alpha: 0.3),
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Row(
-              children: [
-                const Text('⚡', style: TextStyle(fontSize: 20)),
-                const SizedBox(width: 8),
-                Text(
-                  'Giao dịch chờ điền tiền',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const Spacer(),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 3,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFEF3C7),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    '${drafts.length}',
-                    style: const TextStyle(
-                      color: Color(0xFFB45309),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          Flexible(
-            child: ListView.separated(
-              shrinkWrap: true,
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-              itemCount: drafts.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 8),
-              itemBuilder: (ctx, i) {
-                final tx = drafts[i] as Map<String, dynamic>;
-                final category =
-                    tx['category_name'] as String? ??
-                    tx['categoryCode'] as String? ??
-                    tx['category_code'] as String? ??
-                    'Others';
-                final note = tx['note'] as String? ?? '';
-                final displayTime = txTimestampIso(tx) ?? '';
-                final catStyle = CategoryTheme.of(category);
-                final label = note.isNotEmpty ? note : catStyle.label;
-                final txId = tx['id'] as String? ?? '';
-
-                String timeAgo = '';
-                if (displayTime.isNotEmpty) {
-                  final dt = parseToLocalDateTime(displayTime);
-                  if (dt != null) {
-                    final diff = DateTime.now().difference(dt);
-                    if (diff.inDays > 0) {
-                      timeAgo = '${diff.inDays} ngày trước';
-                    } else if (diff.inHours > 0) {
-                      timeAgo = '${diff.inHours} giờ trước';
-                    } else {
-                      timeAgo = '${diff.inMinutes} phút trước';
-                    }
-                  }
-                }
-
-                return GestureDetector(
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    onFillAmount(txId, label);
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFFFBEB),
-                      borderRadius: BorderRadius.circular(AppRadii.md),
-                      border: Border.all(color: const Color(0xFFFDE68A)),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: catStyle.color.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Center(
-                            child: CategoryTheme.iconOf(category, size: 22),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                label,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 14,
-                                  color: Color(0xFF78350F),
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              if (timeAgo.isNotEmpty)
-                                Text(
-                                  timeAgo,
-                                  style: const TextStyle(
-                                    color: Color(0xFFB45309),
-                                    fontSize: 11,
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF59E0B),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Text(
-                            'Điền ngay',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
       ),
     );
   }

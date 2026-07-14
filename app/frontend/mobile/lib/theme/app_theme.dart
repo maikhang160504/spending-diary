@@ -151,6 +151,9 @@ class AppTheme {
         thickness: 1,
         space: AppSpacing.lg,
       ),
+      bottomSheetTheme: const BottomSheetThemeData(
+        constraints: BoxConstraints(maxWidth: 600),
+      ),
     );
   }
 }

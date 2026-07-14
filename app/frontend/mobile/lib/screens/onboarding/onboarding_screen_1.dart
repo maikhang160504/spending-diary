@@ -23,7 +23,19 @@ class _OnboardingStep1State extends State<OnboardingStep1> {
   @override
   void initState() {
     super.initState();
+    _prefillName();
     _checkOnboarding();
+  }
+
+  Future<void> _prefillName() async {
+    try {
+      final profile = await _api.getMe();
+      final user = profile['user'] as Map<String, dynamic>?;
+      final name = user?['username'] as String?;
+      if (name != null && name.isNotEmpty && mounted) {
+        _controller.text = name;
+      }
+    } catch (_) {}
   }
 
   Future<void> _checkOnboarding() async {

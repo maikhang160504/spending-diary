@@ -156,10 +156,11 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
         return StatefulBuilder(
           builder: (ctx, setSheetState) => Padding(
             padding: EdgeInsets.only(left: 20, right: 20, top: 20, bottom: MediaQuery.of(ctx).viewInsets.bottom + 20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                 Text(
                   isChallenge ? 'Cập nhật tiến độ thử thách' : 'Đóng góp cho mục tiêu',
                   style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
@@ -185,11 +186,12 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
                             setSheetState(() {
                               isSubmitting = true;
                             });
+                            final scaffoldMessenger = ScaffoldMessenger.of(context);
                             ctx.pop();
                             try {
                               await _api.contributeGoal(widget.goalId, amount);
-                              if (!ctx.mounted || !mounted) return;
-                              ScaffoldMessenger.of(context).showSnackBar(
+                              if (!mounted) return;
+                              scaffoldMessenger.showSnackBar(
                                 const SnackBar(
                                   content: Text('🎉 Thêm tiền thành công!'),
                                   backgroundColor: AppColors.teal,
@@ -198,7 +200,7 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
                               _loadGoalDetail();
                             } catch (e) {
                               if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
+                                scaffoldMessenger.showSnackBar(
                                   SnackBar(content: Text('Không thể thực hiện đóng góp: $e')),
                                 );
                               }
@@ -210,6 +212,7 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
                 ),
               ],
             ),
+           ),
           ),
         );
       },

@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -172,6 +173,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     } catch (_) {
       await _api.clearTokens();
     }
+    try { await GoogleSignIn().signOut(); } catch (_) {}
+    
     // Xoá cache để phiên đăng nhập mới không thấy dữ liệu của user cũ.
     AppQueries.clearAll();
     if (!mounted) return;
@@ -660,8 +663,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
                             ),
                             padding: const EdgeInsets.all(24),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
+                            child: SingleChildScrollView(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
                               children: [
                                 Container(
                                   width: 40,
@@ -719,6 +723,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 SizedBox(height: MediaQuery.paddingOf(context).bottom),
                               ],
                             ),
+                           ),
                           ),
                         );
                       },

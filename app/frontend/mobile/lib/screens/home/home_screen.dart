@@ -170,6 +170,7 @@ class _HomeScreenState extends State<HomeScreen> {
         extra: {'walletId': wallet['id'] as String? ?? ''},
       );
       ApiClient.lastSelectedWalletId = _selectedWalletId;
+      _loadData();
       return;
     }
     setState(() => _selectedWalletId = wallet['id'] as String?);
@@ -490,7 +491,8 @@ class _HomeScreenState extends State<HomeScreen> {
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final isWide = constraints.maxWidth >= 768;
+            final isLandscapeMobile = constraints.maxWidth > constraints.maxHeight && constraints.maxHeight < 600;
+            final isWide = constraints.maxWidth >= 768 || isLandscapeMobile;
 
             final headerDelegate = _HomeHeaderDelegate(
               userName: _userName,
@@ -754,21 +756,27 @@ class _HomeScreenState extends State<HomeScreen> {
       return [
         SliverPadding(
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
-          sliver: SliverGrid(
-            delegate: SliverChildBuilderDelegate(
-              (ctx, i) => _StoryGalleryCard(
-                story: galleryStories[i] as Map<String, dynamic>,
-                allStoryIds: galleryIds,
-                initialIndex: i,
-              ),
-              childCount: galleryStories.length,
-            ),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 3,
-              mainAxisSpacing: 5,
-              crossAxisSpacing: 5,
-              childAspectRatio: 1, // ô vuông 1:1 đồng nhất với ảnh story
-            ),
+          sliver: Builder(
+            builder: (context) {
+              final screenWidth = MediaQuery.of(context).size.width;
+              final columns = screenWidth > 900 ? 5 : (screenWidth > 600 ? 4 : 3);
+              return SliverGrid(
+                delegate: SliverChildBuilderDelegate(
+                  (ctx, i) => _StoryGalleryCard(
+                    story: galleryStories[i] as Map<String, dynamic>,
+                    allStoryIds: galleryIds,
+                    initialIndex: i,
+                  ),
+                  childCount: galleryStories.length,
+                ),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: columns,
+                  mainAxisSpacing: 5,
+                  crossAxisSpacing: 5,
+                  childAspectRatio: 1, // ô vuông 1:1 đồng nhất với ảnh story
+                ),
+              );
+            }
           ),
         ),
       ];
@@ -822,10 +830,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 top: Radius.circular(AppRadii.xl),
               ),
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                 Center(
                   child: Container(
                     width: 40,
@@ -957,6 +966,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ],
             ),
+           ),
           ),
         ),
       ),

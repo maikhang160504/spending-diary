@@ -333,7 +333,8 @@ class _StoryPageState extends State<_StoryPage> {
               color: Colors.white,
               borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadii.xl)),
             ),
-            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            child: SingleChildScrollView(
+              child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
               Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(2)))),
               const SizedBox(height: 16),
               Text('Chỉnh sửa giao dịch', style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
@@ -406,6 +407,7 @@ class _StoryPageState extends State<_StoryPage> {
                 ),
               ),
             ]),
+           ),
           ),
         ),
       ),

@@ -215,59 +215,70 @@ class _OnboardingStep4State extends State<OnboardingStep4> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(gradient: AppGradients.teal),
-        child: SafeArea(
-          child: Column(
-            children: [
-              const _ProgressHeader(label: 'Bước 4/4', percent: '100%', value: 1.0),
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
-                  child: Container(
-                    padding: const EdgeInsets.all(AppSpacing.xxl),
-                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(AppRadii.xl),
-                        boxShadow: const [BoxShadow(color: Color(0x33000000), blurRadius: 30, offset: Offset(0, 20))]),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(width: 60, height: 60,
-                            decoration: BoxDecoration(color: AppColors.teal, borderRadius: BorderRadius.circular(AppRadii.lg)),
-                            child: const Center(child: Text('👤', style: TextStyle(fontSize: 28)))),
-                        const SizedBox(height: 16),
-                        Text('Thông tin cá nhân', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
-                        const SizedBox(height: 8),
-                        Text('Để Mimo có thể tư vấn phù hợp với bạn nhất',
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary), textAlign: TextAlign.center),
-                        const SizedBox(height: 24),
-                        _sectionLabel(context, 'Độ tuổi của bạn'),
-                        const SizedBox(height: 12),
-                        _optionGrid(_ages, _ageEmojis, _selectedAge, (v) => setState(() => _selectedAge = v)),
-                        const SizedBox(height: 20),
-                        _sectionLabel(context, 'Nghề nghiệp'),
-                        const SizedBox(height: 12),
-                        _optionGrid(_jobs, _jobEmojis, _selectedJob, (v) => setState(() => _selectedJob = v)),
-                        const SizedBox(height: 16),
-                        Container(padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(color: const Color(0xFFE8F7F6), borderRadius: BorderRadius.circular(AppRadii.md)),
-                            child: Row(children: [
-                              const Text('💡', style: TextStyle(fontSize: 16)), const SizedBox(width: 8),
-                              Expanded(child: Text('Thông tin này giúp AI nhận xét chính xác hơn về chi tiêu của bạn',
-                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.tealDark))),
-                            ])),
-                      ],
+      body: Stack(
+        children: [
+          Container(
+            decoration: const BoxDecoration(gradient: AppGradients.teal),
+            child: SafeArea(
+              child: Column(
+                children: [
+                  const _ProgressHeader(label: 'Bước 4/4', percent: '100%', value: 1.0),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
+                      child: Container(
+                        padding: const EdgeInsets.all(AppSpacing.xxl),
+                        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(AppRadii.xl),
+                            boxShadow: const [BoxShadow(color: Color(0x33000000), blurRadius: 30, offset: Offset(0, 20))]),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(width: 60, height: 60,
+                                decoration: BoxDecoration(color: AppColors.teal, borderRadius: BorderRadius.circular(AppRadii.lg)),
+                                child: const Center(child: Text('👤', style: TextStyle(fontSize: 28)))),
+                            const SizedBox(height: 16),
+                            Text('Thông tin cá nhân', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+                            const SizedBox(height: 8),
+                            Text('Để Mimo có thể tư vấn phù hợp với bạn nhất',
+                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary), textAlign: TextAlign.center),
+                            const SizedBox(height: 24),
+                            _sectionLabel(context, 'Độ tuổi của bạn'),
+                            const SizedBox(height: 12),
+                            _optionGrid(_ages, _ageEmojis, _selectedAge, (v) => setState(() => _selectedAge = v)),
+                            const SizedBox(height: 20),
+                            _sectionLabel(context, 'Nghề nghiệp'),
+                            const SizedBox(height: 12),
+                            _optionGrid(_jobs, _jobEmojis, _selectedJob, (v) => setState(() => _selectedJob = v)),
+                            const SizedBox(height: 16),
+                            Container(padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(color: const Color(0xFFE8F7F6), borderRadius: BorderRadius.circular(AppRadii.md)),
+                                child: Row(children: [
+                                  const Text('💡', style: TextStyle(fontSize: 16)), const SizedBox(width: 8),
+                                  Expanded(child: Text('Thông tin này giúp AI nhận xét chính xác hơn về chi tiêu của bạn',
+                                      style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.tealDark))),
+                                ])),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
-                ),
+                  _NavButtons(
+                    onBack: () => context.pop(),
+                    onNext: _saving ? null : _finish,
+                    nextLabel: 'Hoàn thành 🎉',
+                  ),
+                ],
               ),
-              _NavButtons(
-                onBack: () => context.pop(),
-                onNext: _saving ? null : _finish,
-                nextLabel: _saving ? 'Đang lưu...' : 'Hoàn thành 🎉',
-              ),
-            ],
+            ),
           ),
-        ),
+          if (_saving)
+            Container(
+              color: Colors.black.withValues(alpha: 0.5),
+              child: const Center(
+                child: CircularProgressIndicator(color: AppColors.teal),
+              ),
+            ),
+        ],
       ),
     );
   }

@@ -39,6 +39,7 @@ class _AppShellState extends State<AppShell> {
   int _reconnectAttempt = 0;
   final _api = ApiClient();
   bool _showAiPopup = false;
+  bool _hasUnreadChat = false;
   final GlobalKey<AiAssistantPopupMenuState> _aiPopupKey = GlobalKey<AiAssistantPopupMenuState>();
 
   @override
@@ -66,6 +67,7 @@ class _AppShellState extends State<AppShell> {
         debugPrint('[BillProcessing] Navigation failed: $e');
       }
     };
+    chatLlmUpdateNotifier.addListener(_onChatLlmUpdated);
     _connectWebSocket();
     _requestPermissions();
     PushNotificationService.instance.initialize(
@@ -104,6 +106,7 @@ class _AppShellState extends State<AppShell> {
     mimoController.removeListener(_onMiMoChanged);
     inAppNotificationController.removeListener(_onNotificationChanged);
     BillProcessingService.instance.removeListener(_onBillJobsChanged);
+    chatLlmUpdateNotifier.removeListener(_onChatLlmUpdated);
     BillProcessingService.instance.onNavigate = null;
     _wsSub?.cancel();
     _reconnectTimer?.cancel();
@@ -114,6 +117,17 @@ class _AppShellState extends State<AppShell> {
   void _onMiMoChanged() => setState(() {});
   void _onNotificationChanged() => setState(() {});
   void _onBillJobsChanged() => setState(() {});
+
+  void _onChatLlmUpdated() {
+    if (chatLlmUpdateNotifier.value != null) {
+      // Show unread indicator if the AI popup isn't already open
+      if (!_showAiPopup && mounted) {
+        setState(() {
+          _hasUnreadChat = true;
+        });
+      }
+    }
+  }
 
   bool _isAndroid13OrHigher() {
     if (!Platform.isAndroid) return false;
@@ -182,7 +196,7 @@ class _AppShellState extends State<AppShell> {
               final payload = json['payload'] as Map<String, dynamic>? ?? {};
               final title = payload['title'] as String? ?? 'Cảnh báo ngân sách';
               final message = payload['message'] as String? ?? '';
-              final deepLink = payload['deepLink'] as String? ?? '/chat';
+              final deepLink = payload['deepLink'] as String? ?? AppRoutes.chat;
               inAppNotificationController.show(
                 InAppNotification(
                   title: title,
@@ -231,7 +245,7 @@ class _AppShellState extends State<AppShell> {
               final payload = json['payload'] as Map<String, dynamic>? ?? {};
               final title = payload['title'] as String? ?? 'Giao dịch định kỳ';
               final message = payload['message'] as String? ?? '';
-              final deepLink = payload['deepLink'] as String? ?? '/';
+              final deepLink = payload['deepLink'] as String? ?? AppRoutes.home;
               
               // Cập nhật UI ngay lập tức
               notifyTransactionChanged();
@@ -307,7 +321,10 @@ class _AppShellState extends State<AppShell> {
         setState(() => _showAiPopup = false);
       }
     } else {
-      setState(() => _showAiPopup = true);
+      setState(() {
+        _showAiPopup = true;
+        _hasUnreadChat = false;
+      });
     }
   }
 
@@ -397,6 +414,15 @@ class _AppShellState extends State<AppShell> {
                   extra: {'walletId': ApiClient.lastSelectedWalletId},
                 );
               },
+              onQuickSubmit: (text) {
+                context.push(
+                  AppRoutes.chat,
+                  extra: {
+                    'walletId': ApiClient.lastSelectedWalletId,
+                    'initialMessage': text,
+                  },
+                );
+              },
             ),
           ),
       ],
@@ -404,8 +430,10 @@ class _AppShellState extends State<AppShell> {
 
     return LayoutBuilder(builder: (context, constraints) {
       final isWide = constraints.maxWidth >= 600;
+      final isLandscapeMobile = constraints.maxWidth > constraints.maxHeight && constraints.maxHeight < 600;
+      final useRail = isWide || isLandscapeMobile;
 
-      if (isWide) {
+      if (useRail) {
         return Scaffold(
           backgroundColor: context.palette.bg,
           body: Row(
@@ -414,7 +442,7 @@ class _AppShellState extends State<AppShell> {
                 backgroundColor: context.palette.card,
                 selectedIndex: currentIndex,
                 onDestinationSelected: (idx) => _onTabTap(context, idx),
-                labelType: NavigationRailLabelType.all,
+                labelType: isWide ? NavigationRailLabelType.all : NavigationRailLabelType.none,
                 selectedLabelTextStyle: TextStyle(color: AppColors.teal, fontWeight: FontWeight.bold, fontSize: 12),
                 unselectedLabelTextStyle: TextStyle(color: context.palette.muted, fontSize: 12),
                 selectedIconTheme: IconThemeData(color: AppColors.teal),
@@ -472,7 +500,10 @@ class _AppShellState extends State<AppShell> {
                     left: 0,
                     right: 0,
                     child: Center(
-                      child: _AnimatedFab(onTap: () => _onFabTap(context)),
+                      child: _AnimatedFab(
+                        hasUnread: _hasUnreadChat,
+                        onTap: () => _onFabTap(context),
+                      ),
                     ),
                   ),
                 ],
@@ -524,7 +555,8 @@ class _NavItem extends StatelessWidget {
 
 class _AnimatedFab extends StatefulWidget {
   final VoidCallback onTap;
-  const _AnimatedFab({required this.onTap});
+  final bool hasUnread;
+  const _AnimatedFab({required this.onTap, this.hasUnread = false});
 
   @override
   State<_AnimatedFab> createState() => _AnimatedFabState();
@@ -572,32 +604,51 @@ class _AnimatedFabState extends State<_AnimatedFab> with SingleTickerProviderSta
           ],
         ),
         child: Center(
-          child: Container(
-            width: 50, height: 50,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF14B8A6), Color(0xFF06B6D4)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Container(
+                width: 50, height: 50,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF14B8A6), Color(0xFF06B6D4)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF14B8A6).withValues(alpha: 0.5),
+                      blurRadius: 16,
+                      spreadRadius: 1,
+                      offset: const Offset(0, 4),
+                    )
+                  ],
+                ),
+                child: AnimatedBuilder(
+                  animation: _rotation,
+                  builder: (_, child) => Transform.rotate(
+                    angle: _rotation.value * 0.785398, // 45 degrees
+                    child: child,
+                  ),
+                  child: const Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 26),
+                ),
               ),
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFF14B8A6).withValues(alpha: 0.5),
-                  blurRadius: 16,
-                  spreadRadius: 1,
-                  offset: const Offset(0, 4),
-                )
-              ],
-            ),
-            child: AnimatedBuilder(
-              animation: _rotation,
-              builder: (_, child) => Transform.rotate(
-                angle: _rotation.value * 0.785398, // 45 degrees
-                child: child,
-              ),
-              child: const Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 26),
-            ),
+              if (widget.hasUnread)
+                Positioned(
+                  top: -2,
+                  right: -2,
+                  child: Container(
+                    width: 14,
+                    height: 14,
+                    decoration: BoxDecoration(
+                      color: AppColors.danger,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: context.palette.card, width: 2),
+                    ),
+                  ),
+                ),
+            ],
           ),
         ),
       ),

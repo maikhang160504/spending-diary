@@ -77,11 +77,12 @@ class _HomeCalendarScreenState extends State<HomeCalendarScreen> {
       _userName = (me['user']?['username'] as String?) ?? 'bạn';
       _wallets = wallets;
       AppQueries.streak().result.then((s) {
-        if (mounted)
+        if (mounted) {
           setState(
             () =>
                 _streakDays = (s.data?['currentStreak'] as num?)?.toInt() ?? 0,
           );
+        }
       });
       if (_selectedWalletId == null && wallets.isNotEmpty) {
         _selectedWalletId = wallets[0]['id'] as String?;
@@ -120,13 +121,14 @@ class _HomeCalendarScreenState extends State<HomeCalendarScreen> {
     } catch (_) {}
   }
 
-  void _onWalletTap(dynamic wallet) {
+  void _onWalletTap(dynamic wallet) async {
     final walletType = wallet['type'] as String?;
     if (walletType == 'group') {
-      context.push(
+      await context.push(
         AppRoutes.shareWallet,
         extra: {'walletId': wallet['id'] as String? ?? ''},
       );
+      _loadData();
       return;
     }
     setState(() => _selectedWalletId = wallet['id'] as String?);

@@ -7,6 +7,7 @@ class AiAssistantPopupMenu extends StatefulWidget {
   final VoidCallback onSelectBill;
   final VoidCallback onSelectPhotoText;
   final VoidCallback onSelectChat;
+  final void Function(String)? onQuickSubmit;
 
   const AiAssistantPopupMenu({
     super.key,
@@ -14,6 +15,7 @@ class AiAssistantPopupMenu extends StatefulWidget {
     required this.onSelectBill,
     required this.onSelectPhotoText,
     required this.onSelectChat,
+    this.onQuickSubmit,
   });
 
   @override
@@ -23,8 +25,7 @@ class AiAssistantPopupMenu extends StatefulWidget {
 class AiAssistantPopupMenuState extends State<AiAssistantPopupMenu>
     with SingleTickerProviderStateMixin {
   late AnimationController _ctrl;
-  late Animation<double> _auraScale;
-  late Animation<double> _auraOpacity;
+  final TextEditingController _textCtrl = TextEditingController();
   late Animation<double> _cardSlideY;
   late Animation<double> _cardScale;
   late Animation<double> _backdropOpacity;
@@ -52,23 +53,6 @@ class AiAssistantPopupMenuState extends State<AiAssistantPopupMenu>
       ),
     );
 
-    // Multi-colored aura blooming animation
-    _auraScale = Tween<double>(begin: 0.2, end: 2.5).animate(
-      CurvedAnimation(
-        parent: _ctrl,
-        curve: const Interval(0.0, 0.45, curve: Curves.easeOutCubic),
-      ),
-    );
-    _auraOpacity = TweenSequence<double>([
-      TweenSequenceItem(tween: Tween<double>(begin: 0.0, end: 0.8), weight: 40),
-      TweenSequenceItem(tween: Tween<double>(begin: 0.8, end: 0.0), weight: 60),
-    ]).animate(
-      CurvedAnimation(
-        parent: _ctrl,
-        curve: const Interval(0.0, 0.5, curve: Curves.easeOut),
-      ),
-    );
-
     // Arc Card entry animation (Slide & Scale Y)
     _cardSlideY = Tween<double>(begin: 400.0, end: 0.0).animate(
       CurvedAnimation(
@@ -84,7 +68,7 @@ class AiAssistantPopupMenuState extends State<AiAssistantPopupMenu>
     );
 
     // Staggered list items animation
-    _itemSlideY = List.generate(3, (index) {
+    _itemSlideY = List.generate(4, (index) {
       final start = 0.4 + (index * 0.08);
       final end = (start + 0.25).clamp(0.0, 1.0);
       return Tween<double>(begin: 40.0, end: 0.0).animate(
@@ -95,7 +79,7 @@ class AiAssistantPopupMenuState extends State<AiAssistantPopupMenu>
       );
     });
 
-    _itemOpacity = List.generate(3, (index) {
+    _itemOpacity = List.generate(4, (index) {
       final start = 0.4 + (index * 0.08);
       final end = (start + 0.25).clamp(0.0, 1.0);
       return Tween<double>(begin: 0.0, end: 1.0).animate(
@@ -113,6 +97,7 @@ class AiAssistantPopupMenuState extends State<AiAssistantPopupMenu>
   @override
   void dispose() {
     _ctrl.dispose();
+    _textCtrl.dispose();
     super.dispose();
   }
 
@@ -161,7 +146,7 @@ class AiAssistantPopupMenuState extends State<AiAssistantPopupMenu>
               child: GestureDetector(
                 onTap: _close,
                 child: Container(
-                  color: Colors.black.withOpacity(_backdropOpacity.value * 0.65),
+                  color: Colors.black.withValues(alpha: _backdropOpacity.value * 0.65),
                   child: _backdropOpacity.value > 0.1
                       ? BackdropFilter(
                           filter: ImageFilter.blur(
@@ -214,8 +199,8 @@ class AiAssistantPopupMenuState extends State<AiAssistantPopupMenu>
               boxShadow: [
                 BoxShadow(
                   color: isDark
-                      ? Colors.black.withOpacity(0.5)
-                      : Colors.black.withOpacity(0.15),
+                      ? Colors.black.withValues(alpha: 0.5)
+                      : Colors.black.withValues(alpha: 0.15),
                   blurRadius: 24,
                   offset: const Offset(0, -8),
                 )
@@ -316,15 +301,90 @@ class AiAssistantPopupMenuState extends State<AiAssistantPopupMenu>
                         },
                         isDark: isDark,
                       ),
+                      const SizedBox(height: 12),
+                      _buildQuickInput(isDark),
                     ],
                   ),
                 ),
-                const SizedBox(height: 40),
+                // Avoid keyboard obscuring popup
+                SizedBox(height: MediaQuery.of(context).viewInsets.bottom > 0 ? 12 : 40),
               ],
             ),
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildQuickInput(bool isDark) {
+    return AnimatedBuilder(
+      animation: _ctrl,
+      builder: (context, child) {
+        return Opacity(
+          opacity: _itemOpacity[3].value,
+          child: Transform.translate(
+            offset: Offset(0.0, _itemSlideY[3].value),
+            child: child,
+          ),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        decoration: BoxDecoration(
+          color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF8FAFC),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isDark ? Colors.white12 : Colors.black.withValues(alpha: 0.05),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF06B6D4).withValues(alpha: 0.2),
+              blurRadius: 16,
+              spreadRadius: 1,
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.auto_awesome, color: Color(0xFF06B6D4), size: 20),
+            const SizedBox(width: 12),
+            Expanded(
+              child: TextField(
+                controller: _textCtrl,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+                decoration: InputDecoration(
+                  hintText: 'Nhập ghi chú nhanh...',
+                  hintStyle: TextStyle(
+                    color: isDark ? Colors.white54 : Colors.black38,
+                    fontSize: 14,
+                  ),
+                  border: InputBorder.none,
+                ),
+                textInputAction: TextInputAction.send,
+                onSubmitted: (text) {
+                  if (text.trim().isNotEmpty) {
+                    _close();
+                    widget.onQuickSubmit?.call(text.trim());
+                  }
+                },
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.send_rounded, color: Color(0xFF06B6D4)),
+              onPressed: () {
+                final text = _textCtrl.text.trim();
+                if (text.isNotEmpty) {
+                  _close();
+                  widget.onQuickSubmit?.call(text);
+                }
+              },
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -356,10 +416,10 @@ class AiAssistantPopupMenuState extends State<AiAssistantPopupMenu>
           child: Ink(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: isDark ? Colors.white.withOpacity(0.05) : const Color(0xFFF8FAFC),
+              color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF8FAFC),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: isDark ? Colors.white.withOpacity(0.08) : const Color(0xFFE2E8F0),
+                color: isDark ? Colors.white.withValues(alpha: 0.08) : const Color(0xFFE2E8F0),
                 width: 1,
               ),
             ),
@@ -368,7 +428,7 @@ class AiAssistantPopupMenuState extends State<AiAssistantPopupMenu>
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: color.withOpacity(0.15),
+                    color: color.withValues(alpha: 0.15),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(icon, color: color, size: 24),

@@ -33,7 +33,6 @@ class _GoalScreenState extends State<GoalScreen> with AutomaticKeepAliveClientMi
 
   final _api = ApiClient();
   List<dynamic> _goals = [];
-  List<dynamic> _wallets = [];
   bool _loading = true;
   String? _error;
 
@@ -53,14 +52,12 @@ class _GoalScreenState extends State<GoalScreen> with AutomaticKeepAliveClientMi
     try {
       final type = widget.isChallenge ? 'challenge' : 'personal';
       final goalResult = await _api.getGoals(type);
-      final walletResult = await _api.getWallets();
       _goals = goalResult.where((g) {
         final gType = g['type']?.toString() ?? 'personal';
         final isChallengeGoal = gType.startsWith('challenge');
         if (widget.isChallenge) return isChallengeGoal;
         return !isChallengeGoal;
       }).toList();
-      _wallets = walletResult;
     } on ApiException catch (e) {
       _error = e.localizedMessage;
     } catch (_) {
@@ -307,11 +304,12 @@ class _GoalScreenState extends State<GoalScreen> with AutomaticKeepAliveClientMi
                         final amount = double.tryParse(rawText);
                         if (amount == null || amount <= 0) return;
                         setSheetState(() { isSubmitting = true; });
+                        final scaffoldMessenger = ScaffoldMessenger.of(context);
                         ctx.pop();
                         try {
                           await _api.contributeGoal(goalId, amount);
-                          if (!ctx.mounted || !mounted) return;
-                          ScaffoldMessenger.of(context).showSnackBar(
+                          if (!mounted) return;
+                          scaffoldMessenger.showSnackBar(
                             const SnackBar(
                               content: Text('🎉 Thêm tiền thành công!'),
                               backgroundColor: AppColors.teal,
@@ -320,7 +318,7 @@ class _GoalScreenState extends State<GoalScreen> with AutomaticKeepAliveClientMi
                           _loadGoals();
                         } catch (e) {
                           if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
+                            scaffoldMessenger.showSnackBar(
                               SnackBar(
                                 content: Text('Thất bại: $e'),
                                 backgroundColor: AppColors.danger,
@@ -373,11 +371,12 @@ class _GoalScreenState extends State<GoalScreen> with AutomaticKeepAliveClientMi
                         final code = codeCtrl.text.trim();
                         if (code.isEmpty) return;
                         setSheetState(() { isSubmitting = true; errorMsg = null; });
+                        final scaffoldMessenger = ScaffoldMessenger.of(context);
                         try {
                           await _api.joinGoal(code);
-                          if (!ctx.mounted || !mounted) return;
-                          ctx.pop();
-                          ScaffoldMessenger.of(context).showSnackBar(
+                          if (!mounted) return;
+                          if (ctx.mounted) ctx.pop();
+                          scaffoldMessenger.showSnackBar(
                             SnackBar(content: Text(widget.isChallenge ? '🎉 Tham gia thử thách thành công!' : '🎉 Tham gia nhóm tiết kiệm thành công!'), backgroundColor: AppColors.teal),
                           );
                           _loadGoals();
@@ -614,40 +613,56 @@ class _GoalScreenState extends State<GoalScreen> with AutomaticKeepAliveClientMi
                                 child: Text(widget.isChallenge ? 'Tạo thử thách' : 'Tạo tiết kiệm'),
                               ),
                             )
-                          : Column(
-                              children: [
-                                ..._goals.map((g) => _ApiGoalCard(
-                                  goal: g,
-                                  onContribute: () => _showContribute(g['id'] as String, g['name'] as String),
-                                  onDelete: () => _deleteGoal(g['id'] as String),
-                                  onInvite: (widget.isChallenge || g['type'] == 'saving_group' || g['type'] == 'challenge_group' || g['inviteCode'] != null)
-                                      ? () => _showInviteGoal(g['id'] as String, g['name'] as String)
-                                      : null,
-                                  onTap: () async {
-                                    final reload = await Navigator.push<bool>(
-                                      context,
-                                      MaterialPageRoute(builder: (_) => GoalDetailScreen(goalId: g['id'] as String)),
-                                    );
-                                    if (reload == true) _loadGoals();
-                                  },
-                                )),
-                                const SizedBox(height: 8),
-                                // Footer pill add button
-                                SizedBox(
-                                  width: double.infinity,
-                                  child: OutlinedButton.icon(
-                                    onPressed: _showCreateGoal,
-                                    icon: const Icon(Icons.add_circle_outline, size: 20),
-                                    label: Text(widget.isChallenge ? '+ Thêm thử thách mới' : '+ Thêm khoản tiết kiệm mới'),
-                                    style: OutlinedButton.styleFrom(
-                                      foregroundColor: AppColors.teal,
-                                      side: BorderSide(color: AppColors.teal.withValues(alpha: 0.5), width: 1.5),
-                                      padding: const EdgeInsets.symmetric(vertical: 14),
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadii.lg)),
+                          : LayoutBuilder(
+                              builder: (context, constraints) {
+                                final w = constraints.maxWidth;
+                                final isWide = w >= 600;
+                                final columns = w > 900 ? 3 : (isWide ? 2 : 1);
+                                final cardWidth = columns == 1 ? w : (w - (columns - 1) * 16) / columns;
+
+                                return Column(
+                                  children: [
+                                    Wrap(
+                                      spacing: 16,
+                                      runSpacing: 16,
+                                      children: _goals.map((g) => SizedBox(
+                                        width: cardWidth,
+                                        child: _ApiGoalCard(
+                                          goal: g,
+                                          onContribute: () => _showContribute(g['id'] as String, g['name'] as String),
+                                          onDelete: () => _deleteGoal(g['id'] as String),
+                                          onInvite: (widget.isChallenge || g['type'] == 'saving_group' || g['type'] == 'challenge_group' || g['inviteCode'] != null)
+                                              ? () => _showInviteGoal(g['id'] as String, g['name'] as String)
+                                              : null,
+                                          onTap: () async {
+                                            final reload = await Navigator.push<bool>(
+                                              context,
+                                              MaterialPageRoute(builder: (_) => GoalDetailScreen(goalId: g['id'] as String)),
+                                            );
+                                            if (reload == true) _loadGoals();
+                                          },
+                                        ),
+                                      )).toList(),
                                     ),
-                                  ),
-                                ),
-                              ],
+                                    const SizedBox(height: 16),
+                                    // Footer pill add button
+                                    SizedBox(
+                                      width: double.infinity,
+                                      child: OutlinedButton.icon(
+                                        onPressed: _showCreateGoal,
+                                        icon: const Icon(Icons.add_circle_outline, size: 20),
+                                        label: Text(widget.isChallenge ? '+ Thêm thử thách mới' : '+ Thêm khoản tiết kiệm mới'),
+                                        style: OutlinedButton.styleFrom(
+                                          foregroundColor: AppColors.teal,
+                                          side: BorderSide(color: AppColors.teal.withValues(alpha: 0.5), width: 1.5),
+                                          padding: const EdgeInsets.symmetric(vertical: 14),
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadii.lg)),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              }
                             ),
                 ),
               ],
@@ -899,14 +914,20 @@ class _ApiGoalCard extends StatelessWidget {
             const SizedBox(height: 20),
 
             // ── Progress header ─────────────────────────────────────────
-            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+            Row(children: [
               Text(
                 '${(percent * 100).toStringAsFixed(0)}%',
                 style: TextStyle(color: progressColor, fontWeight: FontWeight.w800, fontSize: 16),
               ),
-              Text(
-                '${formatVnd(currentAmount)} / ${formatVnd(targetAmount)}',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(color: context.palette.textSecondary, fontSize: 11),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  '${formatVnd(currentAmount)} / ${formatVnd(targetAmount)}',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(color: context.palette.textSecondary, fontSize: 11),
+                  textAlign: TextAlign.right,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ]),
             const SizedBox(height: 8),

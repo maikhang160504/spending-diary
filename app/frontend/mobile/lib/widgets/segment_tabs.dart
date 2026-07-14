@@ -1,14 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import '../theme/app_colors.dart';
-import '../theme/categories.dart';
 import '../theme/app_radii.dart';
 import '../theme/app_palette.dart';
-import '../utils/formatters.dart';
-import '../utils/mimo_emotion.dart';
-import '../routes/app_routes.dart';
-import '../services/api_client.dart';
 
 class WalletChip extends StatelessWidget {
   final String label;
@@ -18,7 +11,7 @@ class WalletChip extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback? onLongPress;
 
-  const WalletChip({
+  const WalletChip({super.key, 
     required this.label,
     required this.icon,
     required this.isSelected,
@@ -84,7 +77,7 @@ class WalletChip extends StatelessWidget {
 class BalanceStat extends StatelessWidget {
   final String label, value;
   final Color color;
-  const BalanceStat({
+  const BalanceStat({super.key, 
     required this.label,
     required this.value,
     required this.color,
@@ -122,7 +115,7 @@ class SegmentItem extends StatelessWidget {
   final IconData icon;
   final bool isSelected;
   final VoidCallback onTap;
-  const SegmentItem({
+  const SegmentItem({super.key, 
     required this.label,
     required this.icon,
     required this.isSelected,
