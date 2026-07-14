@@ -1,4 +1,3 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -10,10 +9,7 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_palette.dart';
 import '../../theme/app_radii.dart';
 import '../../theme/app_spacing.dart';
-import '../../theme/categories.dart';
-import '../../services/transaction_notifier.dart';
 import '../../utils/formatters.dart';
-import '../../utils/mimo_emotion.dart';
 import '../../widgets/radial_menu_fab.dart';
 import '../../widgets/segment_tabs.dart';
 import '../../widgets/transaction_story_card.dart';
@@ -108,10 +104,9 @@ class _ShareWalletScreenState extends State<ShareWalletScreen> {
         _members = results[1] as List<dynamic>;
         
         final meResult = results[5];
-        if (meResult is dynamic) { // generic QueryResult
-           final data = (meResult as dynamic).data as Map<String, dynamic>?;
-           _currentUserId = data?['user']?['id'] as String?;
-        }
+ // generic QueryResult
+         final data = (meResult as dynamic).data as Map<String, dynamic>?;
+         _currentUserId = data?['user']?['id'] as String?;
         _stories = results[2] as List<dynamic>;
         _dashboard = results[3] as Map<String, dynamic>;
         _transactions = txs;

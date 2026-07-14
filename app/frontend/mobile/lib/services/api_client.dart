@@ -264,6 +264,34 @@ class ApiClient {
     );
   }
 
+  Future<void> forgotPassword(String email) async {
+    await _request(
+      'POST',
+      '/auth/forgot-password',
+      body: {'email': email},
+      requireAuth: false,
+    );
+  }
+
+  Future<Map<String, dynamic>> verifyResetOtp(String email, String otp) async {
+    final result = await _request(
+      'POST',
+      '/auth/verify-reset-otp',
+      body: {'email': email, 'otp': otp},
+      requireAuth: false,
+    );
+    return result['data'] as Map<String, dynamic>;
+  }
+
+  Future<void> resetPassword(String resetToken, String newPassword) async {
+    await _request(
+      'POST',
+      '/auth/reset-password',
+      body: {'resetToken': resetToken, 'newPassword': newPassword},
+      requireAuth: false,
+    );
+  }
+
   Future<Map<String, dynamic>> getStreak() async {
     final result = await _request('GET', '/users/me/streak');
     return result['data'] as Map<String, dynamic>;

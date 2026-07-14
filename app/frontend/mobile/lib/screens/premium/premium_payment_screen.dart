@@ -252,7 +252,7 @@ class _PremiumPaymentScreenState extends State<PremiumPaymentScreen> {
                               fit: BoxFit.contain,
                               loadingBuilder: (_, child, progress) =>
                                   progress == null ? child : const Center(child: CircularProgressIndicator()),
-                              errorBuilder: (_, __, ___) => const Center(
+                              errorBuilder: (_, _, _) => const Center(
                                 child: Icon(Icons.qr_code_2, size: 80, color: AppColors.teal),
                               ),
                             )
@@ -290,7 +290,7 @@ class _PremiumPaymentScreenState extends State<PremiumPaymentScreen> {
 
                 // Amount
                 Text(
-                  '${_formatVND(amount.toDouble())}',
+                  _formatVND(amount.toDouble()),
                   style: const TextStyle(
                     fontSize: 32,
                     fontWeight: FontWeight.w900,
@@ -473,7 +473,7 @@ class _PremiumPaymentScreenState extends State<PremiumPaymentScreen> {
               child: Image.asset(
                 'assets/MiMo/emotions/Thankful.png',
                 fit: BoxFit.contain,
-                errorBuilder: (_, __, ___) => const Icon(Icons.workspace_premium_rounded, color: Color(0xFFFFB347), size: 64),
+                errorBuilder: (_, _, _) => const Icon(Icons.workspace_premium_rounded, color: Color(0xFFFFB347), size: 64),
               ),
             ),
             const SizedBox(height: 24),
