@@ -110,7 +110,6 @@ function resolveMultipleCategoryCodes(text) {
   return Array.from(found);
 }
 
-/** Rule-based fixes for common NLU action_type confusions. */
 function disambiguateActionType(text, actionType) {
   const t = _norm(text || '');
   const upper = String(actionType || '').toUpperCase();
@@ -119,7 +118,12 @@ function disambiguateActionType(text, actionType) {
   const hasContribute = /\b(bu them|bo sung|cat them|gop them|contribute)\b/.test(t) || /\bbu\s+\d/.test(t);
   const hasSuggest = /\b(goi y|de xuat|suggest|recommend|khuyen)\b/.test(t);
   const hasBudget = /\b(han muc|chi tieu|budget|ngan sach)\b/.test(t);
+  const hasSearch = /\b(liet ke|tim|danh sach|search|tra cuu)\b/.test(t);
+  const hasCompare = /\b(so sanh|nhom|moi nguoi|sinh vien khac|dong trang lua|cung nhom|hon ai|thua ai)\b/.test(t);
 
+  if (hasCompare) return 'REPORT_COMPARE';
+  if (hasSearch && upper === 'REPORT_GENERAL') return 'SEARCH_RECORD';
+  
   if (hasSuggest && hasBudget) return 'SUGGEST_BUDGET';
   if (hasContribute && hasGoal) return 'ADD_GOAL';
   if (hasLimit && (upper.includes('GOAL') || upper === 'RECORD')) return 'SET_LIMIT';
@@ -763,14 +767,52 @@ async function executeSetGoal(userId, payload) {
   const actionDetails = payload.actionDetails || {};
   const toolType = payload.toolType || actionDetails.tool_type || actionDetails.toolType || null;
   const amount = resolveAmount(payload, actionDetails);
+  const verb = String(payload.verb || actionDetails.verb || '').toUpperCase();
+  const actionType = String(payload.actionType || '').toUpperCase();
+  const isAddAction = verb === 'ADD' || actionType === 'ADD_GOAL';
+
   if (!amount) throw ApiError.badRequest('Thiếu số tiền.');
 
+  // Handle LOAN
   if (toolType === 'loan' || payload.contactName || actionDetails.contact_name || actionDetails.loan_type) {
     const contactName = payload.contactName || actionDetails.contact_name || actionDetails.contactName || actionDetails.target || actionDetails.item || 'Người quen';
     const loanType = payload.loanType || actionDetails.loan_type || actionDetails.loanType || 'lend';
     const dueDate = payload.dueDate || actionDetails.due_date || actionDetails.dueDate || null;
     const note = payload.goalName || actionDetails.goal_name || actionDetails.goalName || '';
+    const normContact = _norm(contactName);
 
+    // If adding (contributing/repaying), search for existing loan first
+    if (isAddAction) {
+      const loans = await loansService.list(userId);
+      let bestLoan = null;
+      let maxSim = 0;
+      for (const l of loans) {
+        if (l.status === 'completed') continue;
+        const cn = _norm(l.contact_name || '');
+        if (cn === normContact || cn.includes(normContact) || normContact.includes(cn)) {
+          bestLoan = l;
+          maxSim = 1.0;
+          break;
+        }
+        const sim = stringSimilarity(normContact, cn);
+        if (sim > maxSim) {
+          maxSim = sim;
+          bestLoan = l;
+        }
+      }
+
+      if (bestLoan && maxSim > 0.6) {
+        const updatedLoan = await loansService.contribute(userId, bestLoan.id, amount, payload.walletId);
+        return {
+          kind: 'loan_contribute',
+          toolType: 'loan',
+          loan: updatedLoan,
+          message: `✅ Đã ghi nhận ${updatedLoan.type === 'lend' ? 'thu nợ' : 'trả nợ'} ${formatVnd(amount)}đ cho ${updatedLoan.contact_name}. Đã hoàn thành ${formatVnd(updatedLoan.paid_amount)}đ / ${formatVnd(updatedLoan.amount)}đ!`
+        };
+      }
+    }
+
+    // Otherwise create new loan
     const createdLoan = await loansService.create(userId, {
       contact_name: contactName,
       type: loanType,
@@ -788,57 +830,75 @@ async function executeSetGoal(userId, payload) {
     };
   }
 
+  // Handle GOAL (saving/challenge)
   const goalName = payload.goalName || actionDetails.goal_name || actionDetails.goalName || 'Mục tiêu tiết kiệm';
-
-  const goals = await goalsService.list(userId);
-  const normName = _norm(goalName);
-  let existing = null;
-  let maxSim = 0;
-
-  for (const g of goals) {
-    const gn = _norm(g.name || '');
-    if (gn === normName || gn.includes(normName) || normName.includes(gn)) {
-      existing = g;
-      maxSim = 1.0;
-      break;
-    }
-    const sim = stringSimilarity(normName, gn);
-    if (sim > maxSim) {
-      maxSim = sim;
-      existing = g;
-    }
-  }
-
-  if (existing && maxSim > 0.75 && existing.status === 'active') {
-    const updated = await goalsService.contribute(userId, existing.id, amount);
-    const displayAmount = existing.type === 'challenge'
-        ? Number(updated.myCurrentAmount || updated.current_amount || 0)
-        : Number(updated.current_amount || 0);
-    const percent = Math.min(100, Math.round((displayAmount / Number(updated.target_amount || 1)) * 100));
-
-    let msg = `Tuyệt vời! Mimo đã ghi nhận ${formatVnd(amount)}đ tích lũy vào mục tiêu '${existing.name}' của bạn rồi nhé! Hiện bạn đã đạt được ${formatVnd(displayAmount)}đ / ${formatVnd(updated.target_amount)}đ (${percent}%). Cố gắng lên nhé! 🚀`;
-    if (existing.type === 'challenge') {
-      msg = `🔥 Tuyệt vời! Mimo đã ghi nhận tiến độ ${formatVnd(amount)}đ vào thử thách '${existing.name}' của bạn! Bạn đã đạt ${formatVnd(displayAmount)}đ / ${formatVnd(updated.target_amount)}đ (${percent}%) trên bảng xếp hạng. Tiếp tục bứt phá nhé! 🚀`;
-    } else if (existing.type === 'saving_group') {
-      msg = `🤝 Tuyệt vời! Mimo đã ghi nhận đóng góp ${formatVnd(amount)}đ vào quỹ nhóm '${existing.name}'! Quỹ nhóm hiện có ${formatVnd(updated.current_amount)}đ / ${formatVnd(updated.target_amount)}đ (${percent}%). Cùng tiến tới mục tiêu nhé! 🌟`;
-    }
-    return {
-      kind: 'goal_contribute',
-      toolType: existing.type || 'saving_personal',
-      goal: updated,
-      message: msg,
-    };
-  }
-
-  let goalType = 'personal';
+  let goalType = 'saving_personal';
   if (toolType === 'saving_group' || payload.isGroup || actionDetails.is_group || actionDetails.isGroup) {
     goalType = 'saving_group';
   } else if (toolType === 'challenge_group') {
     goalType = 'challenge_group';
   } else if (toolType === 'challenge' || toolType === 'challenge_personal') {
     goalType = (payload.isGroup || actionDetails.is_group || actionDetails.isGroup) ? 'challenge_group' : 'challenge';
+  } else if (toolType === 'saving_personal' || toolType === 'personal') {
+    goalType = 'saving_personal'; // enforce saving
   }
 
+  const normName = _norm(goalName);
+  
+  if (isAddAction) {
+    const goals = await goalsService.list(userId);
+    let existing = null;
+    let maxSim = 0;
+
+    for (const g of goals) {
+      if (g.status !== 'active') continue;
+      const gn = _norm(g.name || '');
+      let baseSim = 0;
+      if (gn === normName) {
+        baseSim = 1.0;
+      } else if (gn.includes(normName) || normName.includes(gn)) {
+        baseSim = 0.9;
+      } else {
+        baseSim = stringSimilarity(normName, gn);
+      }
+
+      // Bonus if types match
+      const typeMatches = (g.type || 'saving_personal') === goalType;
+      if (typeMatches) {
+        baseSim += 0.2; // significant boost for matching type
+      } else if (toolType) {
+        baseSim -= 0.1; // penalty for mismatched type if user specified toolType
+      }
+
+      if (baseSim > maxSim) {
+        maxSim = baseSim;
+        existing = g;
+      }
+    }
+
+    if (existing && maxSim > 0.75) {
+      const updated = await goalsService.contribute(userId, existing.id, amount);
+      const displayAmount = existing.type === 'challenge'
+          ? Number(updated.myCurrentAmount || updated.current_amount || 0)
+          : Number(updated.current_amount || 0);
+      const percent = Math.min(100, Math.round((displayAmount / Number(updated.target_amount || 1)) * 100));
+
+      let msg = `Tuyệt vời! Mimo đã ghi nhận ${formatVnd(amount)}đ tích lũy vào mục tiêu '${existing.name}' của bạn rồi nhé! Hiện bạn đã đạt được ${formatVnd(displayAmount)}đ / ${formatVnd(updated.target_amount)}đ (${percent}%). Cố gắng lên nhé! 🚀`;
+      if (existing.type === 'challenge') {
+        msg = `🔥 Tuyệt vời! Mimo đã ghi nhận tiến độ ${formatVnd(amount)}đ vào thử thách '${existing.name}' của bạn! Bạn đã đạt ${formatVnd(displayAmount)}đ / ${formatVnd(updated.target_amount)}đ (${percent}%) trên bảng xếp hạng. Tiếp tục bứt phá nhé! 🚀`;
+      } else if (existing.type === 'saving_group') {
+        msg = `🤝 Tuyệt vời! Mimo đã ghi nhận đóng góp ${formatVnd(amount)}đ vào quỹ nhóm '${existing.name}'! Quỹ nhóm hiện có ${formatVnd(updated.current_amount)}đ / ${formatVnd(updated.target_amount)}đ (${percent}%). Cùng tiến tới mục tiêu nhé! 🌟`;
+      }
+      return {
+        kind: 'goal_contribute',
+        toolType: existing.type || 'saving_personal',
+        goal: updated,
+        message: msg,
+      };
+    }
+  }
+
+  // Create new goal
   const goal = await goalsService.create(userId, {
     walletId: payload.walletId || undefined,
     name: goalName,
@@ -1019,6 +1079,12 @@ async function executeSearch(userId, payload) {
   if (categoryCode) {
     values.push(categoryCode);
     where += ` AND t.category_code = $${values.length}`;
+  }
+  
+  const timeRange = payload.timeRange || inferTimeRangeFromText(payload.text || '');
+  if (timeRange && timeRange.from && timeRange.to) {
+    values.push(timeRange.from, timeRange.to);
+    where += ` AND t.occurred_at >= $${values.length - 1} AND t.occurred_at <= $${values.length}`;
   }
   
   const verb = (details.verb || '').toUpperCase();

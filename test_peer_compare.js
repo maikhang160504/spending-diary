@@ -1,0 +1,2 @@
+const { query } = require('./app/backend/src/config/db');
+query("SELECT u.id, SUM(amount) as total FROM transactions t JOIN wallet_members wm ON wm.wallet_id = t.wallet_id JOIN users u ON u.id = wm.user_id WHERE t.category_code = 'Housing' AND t.occurred_at >= '2026-07-01' AND t.occurred_at <= '2026-07-31' GROUP BY 1 ORDER BY 2 DESC LIMIT 5").then(res => console.log(res.rows)).catch(console.error).then(()=>process.exit(0));

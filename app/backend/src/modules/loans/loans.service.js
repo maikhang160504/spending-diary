@@ -80,4 +80,31 @@ async function remove(userId, loanId) {
   if (r.rowCount === 0) throw ApiError.notFound('Loan not found.');
 }
 
-module.exports = { list, getById, create, update, remove };
+async function contribute(userId, loanId, amount, walletId) {
+  const loan = await getById(userId, loanId);
+  const newPaidAmount = Number(loan.paid_amount || 0) + Number(amount);
+  const newStatus = newPaidAmount >= Number(loan.amount) ? 'completed' : loan.status;
+
+  const r = await query(
+    `UPDATE loans 
+     SET paid_amount = $1, status = $2, updated_at = NOW()
+     WHERE id = $3 AND user_id = $4
+     RETURNING *`,
+    [newPaidAmount, newStatus, loanId, userId]
+  );
+
+  if (walletId) {
+    const txType = loan.type === 'lend' ? 'income' : 'expense'; // Tra tien cho vay la thu nhap, tra no la chi phi
+    await transactionsService.create(userId, {
+      walletId: walletId,
+      categoryCode: 'Debt',
+      type: txType,
+      amount: amount,
+      note: (loan.type === 'lend' ? 'Thu nợ: ' : 'Trả nợ: ') + loan.contact_name
+    }).catch(e => console.error('Failed to create transaction for loan contribution:', e));
+  }
+
+  return r.rows[0];
+}
+
+module.exports = { list, getById, create, update, remove, contribute };

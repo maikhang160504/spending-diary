@@ -46,3 +46,18 @@ exports.updateProfile = asyncHandler(async (req, res) => {
   const user = await authService.updateProfile(req.user.id, req.body);
   res.json({ success: true, data: { user } });
 });
+
+exports.forgotPassword = asyncHandler(async (req, res) => {
+  await authService.forgotPassword(req.body.email);
+  res.json({ success: true, message: 'Nếu email hợp lệ, mã OTP đã được gửi.' });
+});
+
+exports.verifyResetOtp = asyncHandler(async (req, res) => {
+  const result = await authService.verifyResetOtp(req.body.email, req.body.otp);
+  res.json({ success: true, data: result });
+});
+
+exports.resetPassword = asyncHandler(async (req, res) => {
+  await authService.resetPassword(req.body.resetToken, req.body.newPassword);
+  res.json({ success: true, message: 'Đổi mật khẩu thành công.' });
+});

@@ -3,6 +3,8 @@
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const { OAuth2Client } = require('google-auth-library');
+const nodemailer = require('nodemailer');
+const jwt = require('jsonwebtoken');
 
 const { query, withTransaction } = require('../../config/db');
 const ApiError = require('../../utils/ApiError');
@@ -354,4 +356,112 @@ async function updateProfile(userId, payload) {
   return r.rows[0];
 }
 
-module.exports = { register, login, refresh, logout, findUserById, changePassword, getStreak, googleLogin, updateProfile };
+async function forgotPassword(email) {
+  const userRow = await findUserByEmail(email);
+  if (!userRow) {
+    throw ApiError.notFound('Email không tồn tại trong hệ thống.');
+  }
+
+  // Tạo mã OTP 6 số
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  // Set hết hạn 15 phút
+  const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+
+  await query(
+    'UPDATE users SET reset_otp = $1, reset_otp_expires = $2 WHERE id = $3',
+    [otp, expiresAt, userRow.id]
+  );
+
+  // Gửi email
+  if (!env.mail.user || !env.mail.pass) {
+    logger.warn('Nodemailer config is missing. OTP generated but cannot send email.');
+    if (env.nodeEnv !== 'production') {
+      logger.info(`[DEV] Mã OTP cho ${email} là: ${otp}`);
+      return; // Giả lập thành công ở dev mode
+    }
+    throw ApiError.internal('Hệ thống chưa cấu hình gửi email. Vui lòng liên hệ quản trị viên.');
+  }
+
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: env.mail.user,
+      pass: env.mail.pass,
+    },
+  });
+
+  const mailOptions = {
+    from: `"SpendDiary" <${env.mail.user}>`,
+    to: email,
+    subject: 'Mã xác nhận khôi phục mật khẩu',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #14B8A6;">SpendDiary</h2>
+        <p>Xin chào,</p>
+        <p>Bạn vừa yêu cầu khôi phục mật khẩu. Dưới đây là mã xác nhận (OTP) của bạn, có hiệu lực trong 15 phút:</p>
+        <h1 style="background: #F1F5F9; padding: 16px; text-align: center; font-size: 32px; letter-spacing: 4px; color: #1E293B; border-radius: 8px;">${otp}</h1>
+        <p>Nếu bạn không yêu cầu, vui lòng bỏ qua email này.</p>
+        <p>Trân trọng,<br/>Đội ngũ SpendDiary</p>
+      </div>
+    `,
+  };
+
+  await transporter.sendMail(mailOptions);
+  logger.info({ email }, 'Đã gửi email OTP khôi phục mật khẩu');
+}
+
+async function verifyResetOtp(email, otp) {
+  const userRow = await findUserByEmail(email);
+  if (!userRow) {
+    throw ApiError.badRequest('Email hoặc mã xác nhận không hợp lệ.');
+  }
+
+  if (userRow.reset_otp !== otp) {
+    throw ApiError.badRequest('Mã xác nhận không chính xác.');
+  }
+
+  if (new Date(userRow.reset_otp_expires) < new Date()) {
+    throw ApiError.badRequest('Mã xác nhận đã hết hạn. Vui lòng yêu cầu lại.');
+  }
+
+  // Xóa mã OTP để không dùng lại được
+  await query(
+    'UPDATE users SET reset_otp = NULL, reset_otp_expires = NULL WHERE id = $1',
+    [userRow.id]
+  );
+
+  // Cấp resetToken tạm thời có hạn 10 phút để người dùng đổi mật khẩu
+  const resetToken = jwt.sign(
+    { sub: userRow.id, intent: 'reset_password' },
+    env.jwt.secret,
+    { expiresIn: '10m' }
+  );
+
+  return { resetToken };
+}
+
+async function resetPassword(resetToken, newPassword) {
+  let payload;
+  try {
+    payload = jwt.verify(resetToken, env.jwt.secret);
+  } catch (e) {
+    throw ApiError.badRequest('Phiên đổi mật khẩu đã hết hạn hoặc không hợp lệ.');
+  }
+
+  if (payload.intent !== 'reset_password') {
+    throw ApiError.badRequest('Token không hợp lệ.');
+  }
+
+  const userId = payload.sub;
+  const userRow = await findUserById(userId);
+  if (!userRow) {
+    throw ApiError.notFound('Người dùng không tồn tại.');
+  }
+
+  const hashed = await bcrypt.hash(newPassword, 12);
+  await query('UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2', [hashed, userId]);
+  
+  logger.info({ userId }, 'Người dùng đã khôi phục mật khẩu thành công');
+}
+
+module.exports = { register, login, refresh, logout, findUserById, changePassword, getStreak, googleLogin, updateProfile, forgotPassword, verifyResetOtp, resetPassword };

@@ -8,6 +8,8 @@ const createGoalSchema = z.object({
   targetAmount: z.number().positive(),
   emoji: z.string().max(16).optional(),
   deadline: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  type: z.string().optional(),
+  isGroup: z.boolean().optional(),
 });
 
 const updateGoalSchema = createGoalSchema.partial();

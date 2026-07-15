@@ -104,6 +104,11 @@ const env = {
     description: process.env.SEPAY_DES || 'TKPMK',   // Tiền tố nội dung chuyển khoản
   },
 
+  mail: {
+    user: process.env.MAIL_USER || null,
+    pass: process.env.MAIL_PASS || null,
+  },
+
   isProd: process.env.NODE_ENV === 'production',
 };
 

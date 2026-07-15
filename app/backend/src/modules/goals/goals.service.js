@@ -13,7 +13,7 @@ async function list(userId, type) {
   }
 
   const r = await query(
-    `SELECT DISTINCT g.*, w.name AS wallet_name, w.type AS wallet_type FROM goals g
+    `SELECT DISTINCT g.*, g.invite_code AS "inviteCode", w.name AS wallet_name, w.type AS wallet_type FROM goals g
      LEFT JOIN wallets w ON w.id = g.wallet_id
      LEFT JOIN wallet_members wm ON wm.wallet_id = g.wallet_id AND wm.user_id = $1
      LEFT JOIN goal_members gm ON gm.goal_id = g.id AND gm.user_id = $1
@@ -262,7 +262,7 @@ async function contribute(userId, goalId, amount) {
   );
 
   let myCurrentAmount = 0;
-  if (goal.type === 'challenge') {
+  if (String(goal.type).startsWith('challenge')) {
     const memRes = await query(
       `INSERT INTO goal_members (goal_id, user_id, role, current_amount)
        VALUES ($1, $2, 'member', $3)
@@ -289,7 +289,7 @@ async function contribute(userId, goalId, amount) {
   const updatedGoal = r.rows[0];
   return {
     ...updatedGoal,
-    myCurrentAmount: goal.type === 'challenge' ? myCurrentAmount : Number(updatedGoal.current_amount),
+    myCurrentAmount: String(goal.type).startsWith('challenge') ? myCurrentAmount : Number(updatedGoal.current_amount),
   };
 }
 

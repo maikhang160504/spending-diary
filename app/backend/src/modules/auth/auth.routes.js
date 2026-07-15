@@ -161,4 +161,8 @@ router.patch('/me', requireAuth, controller.updateProfile);
 router.post('/change-password', requireAuth, validate({ body: changePasswordSchema }), controller.changePassword);
 router.post('/google', controller.googleLogin);
 
+router.post('/forgot-password', controller.forgotPassword);
+router.post('/verify-reset-otp', controller.verifyResetOtp);
+router.post('/reset-password', controller.resetPassword);
+
 module.exports = router;

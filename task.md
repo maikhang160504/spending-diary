@@ -1,0 +1,16 @@
+- [x] Cập nhật AppShell (app_shell.dart)
+  - Thêm breakpoint hỗ trợ Landscape Mobile (chiều cao hẹp) để dùng NavigationRail.
+  - Cập nhật NavigationRail cho Tablet dọc/ngang (Medium/Expanded).
+- [ ] Cập nhật Home Screen (home_screen.dart)
+  - Cải tiến layout Row cho Landscape Mobile (chia cột 40/60).
+  - Thiết lập ConstrainedBox cho Tablet dọc.
+  - Tăng số cột GalleryGrid trên Tablet ngang.
+- [ ] Cập nhật Chat Screen (chat_screen.dart)
+  - Chống vỡ layout khi bàn phím hiện trên màn hình ngang.
+  - Giới hạn maxWidth của Chat Bubble trên Tablet.
+- [ ] Cập nhật Report Screen (report_screen.dart)
+  - Xử lý Row layout thay cho Column trên Tablet / Điện thoại ngang.
+- [ ] Cập nhật Goals/Financial Tools
+  - Xử lý SliverGrid theo số cột tuỳ thuộc breakpoint.
+- [ ] Xử lý các BottomSheet / Card chung
+  - Giới hạn maxWidth cho BottomSheet trên Tablet để không bị kéo giãn quá mức.
