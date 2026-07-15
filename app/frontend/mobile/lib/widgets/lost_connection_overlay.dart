@@ -66,68 +66,73 @@ class _LostConnectionOverlayState extends State<LostConnectionOverlay> {
                 ),
               ],
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SizedBox(
-                  width: 160,
-                  height: 160,
-                  child: Lottie.asset(
-                    'assets/animations/LostConnection.json',
-                    repeat: true,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  'Mất Kết Nối',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.black87,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                const Text(
-                  'Không thể kết nối đến máy chủ. Vui lòng kiểm tra đường truyền mạng hoặc thử lại.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: AppColors.textSecondary,
-                    height: 1.4,
-                  ),
-                ),
-                const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton.icon(
-                    onPressed: _checking ? null : _retry,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: AppColors.teal,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(AppRadii.lg),
-                      ),
-                    ),
-                    icon: _checking
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Icon(Icons.refresh, color: Colors.white),
-                    label: Text(
-                      _checking ? 'Đang thử lại...' : 'Thử lại',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
-                      ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    width: 160,
+                    height: 160,
+                    child: Lottie.asset(
+                      'assets/animations/LostConnection.json',
+                      repeat: true,
                     ),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Mất Kết Nối',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  const Text(
+                    'Không thể kết nối đến máy chủ. Vui lòng kiểm tra đường truyền mạng hoặc thử lại.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppColors.textSecondary,
+                      height: 1.4,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: _checking ? null : _retry,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.teal,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(AppRadii.lg),
+                        ),
+                      ),
+                      icon: _checking
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(Icons.refresh, color: Colors.white),
+                      label: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          _checking ? 'Đang thử lại...' : 'Thử lại',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

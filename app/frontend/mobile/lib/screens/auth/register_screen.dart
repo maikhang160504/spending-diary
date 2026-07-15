@@ -1,5 +1,6 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../routes/app_routes.dart';
 import '../../services/api_client.dart';
@@ -21,6 +22,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _obscurePassword = true;
   bool _obscureConfirm = true;
   bool _loading = false;
+  bool _googleLoading = false;
   String? _emailError;
   String? _passError;
   String? _confirmError;
@@ -34,6 +36,80 @@ class _RegisterScreenState extends State<RegisterScreen> {
     super.dispose();
   }
 
+  Future<void> _loginWithGoogle() async {
+    setState(() {
+      _googleLoading = true;
+      _generalError = null;
+    });
+    String? idToken;
+
+    debugPrint('[GoogleSignIn LOG] Báº¯t Ä‘áº§u Ä‘Äƒng nháº­p báº±ng Google...');
+    try {
+      final googleSignIn = GoogleSignIn(
+        scopes: ['email', 'profile'],
+        serverClientId:
+            '388012082045-g1ctihjmrv6i478p4ceqjo8nia6r3fma.apps.googleusercontent.com',
+      );
+
+      final account = await googleSignIn.signIn();
+
+      if (account == null) {
+        setState(() => _googleLoading = false);
+        return;
+      }
+
+      final auth = await account.authentication;
+      idToken = auth.idToken;
+      if (idToken == null) {
+        await googleSignIn.signOut();
+        setState(() {
+          _generalError = 'ÄÄƒng nháº­p Google tháº¥t báº¡i. Vui lÃ²ng chá»n láº¡i tÃ i khoáº£n Google khÃ¡c.';
+          _googleLoading = false;
+        });
+        return;
+      }
+    } catch (e) {
+      debugPrint('[GoogleSignIn LOG] Lá»—i Ä‘Äƒng nháº­p Google: $e');
+      try {
+        await GoogleSignIn().signOut();
+      } catch (_) {}
+      setState(() {
+        _generalError = 'ÄÄƒng nháº­p Google tháº¥t báº¡i. Vui lÃ²ng chá»n láº¡i tÃ i khoáº£n Google khÃ¡c.';
+        _googleLoading = false;
+      });
+      return;
+    }
+
+    try {
+      final api = ApiClient();
+      await api.loginWithGoogle(idToken);
+      if (!mounted) return;
+
+      try {
+        final settings = await api.getSettings();
+        if (!mounted) return;
+        final ageGroup =
+            settings['ageGroup'] as String? ?? settings['age_group'] as String?;
+        final jobType =
+            settings['jobType'] as String? ?? settings['job_type'] as String?;
+        if ((ageGroup != null && ageGroup.isNotEmpty) ||
+            (jobType != null && jobType.isNotEmpty)) {
+          context.go(AppRoutes.home);
+          return;
+        }
+      } catch (_) {}
+
+      if (!mounted) return;
+      context.go(AppRoutes.onboarding);
+    } on ApiException catch (e) {
+      setState(() => _generalError = e.localizedMessage);
+    } catch (e) {
+      setState(() => _generalError = 'ÄÄƒng nháº­p Google tháº¥t báº¡i. Vui lÃ²ng thá»­ láº¡i.');
+    } finally {
+      if (mounted) setState(() => _googleLoading = false);
+    }
+  }
+
   bool _validate() {
     bool valid = true;
     setState(() {
@@ -45,15 +121,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     final email = _emailCtrl.text.trim();
     if (email.isEmpty || !email.contains('@')) {
-      setState(() => _emailError = 'Email không hợp lệ');
+      setState(() => _emailError = 'Email khÃ´ng há»£p lá»‡');
       valid = false;
     }
     if (_passCtrl.text.length < 8) {
-      setState(() => _passError = 'Mật khẩu phải có ít nhất 8 ký tự');
+      setState(() => _passError = 'Máº­t kháº©u pháº£i cÃ³ Ã­t nháº¥t 8 kÃ½ tá»±');
       valid = false;
     }
     if (_confirmCtrl.text != _passCtrl.text) {
-      setState(() => _confirmError = 'Mật khẩu xác nhận không khớp');
+      setState(() => _confirmError = 'Máº­t kháº©u xÃ¡c nháº­n khÃ´ng khá»›p');
       valid = false;
     }
     return valid;
@@ -70,7 +146,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     } on ApiException catch (e) {
       setState(() => _generalError = e.localizedMessage);
     } catch (e) {
-      setState(() => _generalError = 'Không thể kết nối đến máy chủ');
+      setState(() => _generalError = 'KhÃ´ng thá»ƒ káº¿t ná»‘i Ä‘áº¿n mÃ¡y chá»§');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -78,16 +154,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(gradient: AppGradients.teal),
         child: SafeArea(
-          child: SingleChildScrollView(
+          child: Center(
+            child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 480),
+            child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
             child: Column(
               children: [
-                const SizedBox(height: 24),
-                // Logo + Title card (white bg so logo is visible on teal)
+                SizedBox(height: isLandscape ? 12 : 24),
+                // Logo + Title card â€” áº©n khi landscape
+                if (!isLandscape)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 20),
                   decoration: BoxDecoration(
@@ -113,10 +194,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 8),
-                Text('Bắt đầu quản lý chi tiêu thôi! 🚀',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.white.withValues(alpha: 0.85))),
-                const SizedBox(height: 20),
+                if (!isLandscape) ...[
+                  const SizedBox(height: 8),
+                  Text('Báº¯t Ä‘áº§u quáº£n lÃ½ chi tiÃªu thÃ´i! ðŸš€',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.white.withValues(alpha: 0.85))),
+                ],
+                SizedBox(height: isLandscape ? 12 : 20),
                 Container(
                   padding: const EdgeInsets.all(AppSpacing.xxl),
                   decoration: BoxDecoration(
@@ -140,14 +223,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      Text('Mật khẩu', style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+                      Text('Máº­t kháº©u', style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
                       const SizedBox(height: 8),
                       TextField(
                         controller: _passCtrl,
                         obscureText: _obscurePassword,
                         textInputAction: TextInputAction.next,
                         decoration: InputDecoration(
-                          hintText: '••••••••',
+                          hintText: 'â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢',
                           prefixIcon: const Icon(Icons.lock_outline),
                           errorText: _passError,
                           suffixIcon: IconButton(
@@ -157,7 +240,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      Text('Xác nhận mật khẩu', style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+                      Text('XÃ¡c nháº­n máº­t kháº©u', style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
                       const SizedBox(height: 8),
                       TextField(
                         controller: _confirmCtrl,
@@ -165,7 +248,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         textInputAction: TextInputAction.done,
                         onSubmitted: (_) => _register(),
                         decoration: InputDecoration(
-                          hintText: '••••••••',
+                          hintText: 'â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢',
                           prefixIcon: const Icon(Icons.lock_outline),
                           errorText: _confirmError,
                           suffixIcon: IconButton(
@@ -175,8 +258,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                       ),
                       const SizedBox(height: 6),
-                      Text('Mật khẩu phải có ít nhất 8 ký tự',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.muted)),
+                      Text('Máº­t kháº©u pháº£i cÃ³ Ã­t nháº¥t 8 kÃ½ tá»±',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.black54)),
                       // General error
                       if (_generalError != null) ...[
                         const SizedBox(height: 8),
@@ -201,7 +284,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
                           child: _loading
                               ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                              : const Text('Đăng ký', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                              : const Text('ÄÄƒng kÃ½', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -210,7 +293,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           const Expanded(child: Divider(color: AppColors.border)),
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 12),
-                            child: Text('hoặc', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.muted)),
+                            child: Text('hoáº·c', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.muted)),
                           ),
                           const Expanded(child: Divider(color: AppColors.border)),
                         ],
@@ -219,26 +302,33 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       SizedBox(
                         width: double.infinity,
                         child: OutlinedButton(
-                          onPressed: () {},
+                          onPressed: _googleLoading ? null : _loginWithGoogle,
                           style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 13)),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Text('G', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Color(0xFF4285F4))),
-                              const SizedBox(width: 8),
-                              Text('Đăng ký với Google', style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
-                            ],
-                          ),
+                          child: _googleLoading
+                              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                              : Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Image.network(
+                                      'https://upload.wikimedia.org/wikipedia/commons/thumb/5/53/Google_%22G%22_Logo.svg/512px-Google_%22G%22_Logo.svg.png',
+                                      width: 20,
+                                      height: 20,
+                                      errorBuilder: (context, error, stack) => const Text('G', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Color(0xFF4285F4))),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Text('ÄÄƒng kÃ½ vá»›i Google', style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+                                  ],
+                                ),
                         ),
                       ),
                       const SizedBox(height: 16),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Text('Đã có tài khoản? ', style: Theme.of(context).textTheme.bodySmall),
+                          Text('ÄÃ£ cÃ³ tÃ i khoáº£n? ', style: Theme.of(context).textTheme.bodySmall),
                           GestureDetector(
                             onTap: () => context.push(AppRoutes.login),
-                            child: const Text('Đăng nhập', style: TextStyle(color: AppColors.teal, fontWeight: FontWeight.w600, fontSize: 12)),
+                            child: const Text('ÄÄƒng nháº­p', style: TextStyle(color: AppColors.teal, fontWeight: FontWeight.w600, fontSize: 12)),
                           ),
                         ],
                       ),
@@ -247,6 +337,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
                 const SizedBox(height: 32),
               ],
+            ),
+            ),
             ),
           ),
         ),

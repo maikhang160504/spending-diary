@@ -120,6 +120,8 @@ class _RecurringRulesScreenState extends State<RecurringRulesScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
+      constraints: const BoxConstraints(maxWidth: 600),
       backgroundColor: Colors.transparent,
       builder: (ctx) => AddRecurringRuleSheet(
         editRule: rule,

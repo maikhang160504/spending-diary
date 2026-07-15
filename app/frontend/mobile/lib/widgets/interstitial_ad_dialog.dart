@@ -70,8 +70,9 @@ class _InterstitialAdDialogState extends State<InterstitialAdDialog>
             children: [
               // ── Ad content ──────────────────────────────────────────
               Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     // Mock Ad Banner
                     Container(
@@ -158,6 +159,7 @@ class _InterstitialAdDialogState extends State<InterstitialAdDialog>
                   ],
                 ),
               ),
+            ),
 
               // ── Close button / Countdown ─────────────────────────────
               Positioned(

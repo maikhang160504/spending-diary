@@ -204,9 +204,12 @@ class _CategoryDetailReportScreenState extends State<CategoryDetailReportScreen>
       body: SafeArea(
         child: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(AppSpacing.lg),
-              child: Column(
+          : Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 800),
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Toggle Tất cả / Theo tháng
@@ -445,6 +448,8 @@ class _CategoryDetailReportScreenState extends State<CategoryDetailReportScreen>
                       );
                     }),
                 ],
+              ),
+                ),
               ),
             ),
       ),

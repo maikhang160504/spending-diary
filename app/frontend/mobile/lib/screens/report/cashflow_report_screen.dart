@@ -86,9 +86,12 @@ class _CashflowReportScreenState extends State<CashflowReportScreen> {
         ),
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          child: Column(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 800),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Bộ lọc thời gian & toggle So với cùng kỳ
@@ -211,6 +214,8 @@ class _CashflowReportScreenState extends State<CashflowReportScreen> {
               // Danh sách danh mục (Thu/Chi) hoặc Bảng chênh lệch Thu - Chi theo tuần/tháng
               _buildBottomDetailSection(),
             ],
+          ),
+            ),
           ),
         ),
       ),
@@ -484,7 +489,7 @@ class _CashflowReportScreenState extends State<CashflowReportScreen> {
           ),
           const SizedBox(height: 20),
           SizedBox(
-            height: 230,
+            height: MediaQuery.of(context).orientation == Orientation.landscape ? 180 : 230,
             child: BarChart(
               BarChartData(
                 alignment: BarChartAlignment.spaceAround,

@@ -69,8 +69,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _monthlyIncome = inc is num ? inc.toInt() : 0;
         _ageGroup = (settings['age_group'] as String?) ?? '';
         _jobType = (settings['job_type'] as String?) ?? '';
-        _verbalStyle = (settings['verbal_style'] as String?) ?? (settings['verbalStyle'] as String?) ?? 'dui_de';
+        
+        String dbStyle = (settings['verbal_style'] as String?) ?? (settings['verbalStyle'] as String?) ?? 'dui_de';
+        if (dbStyle == 'funny') dbStyle = 'dui_de';
+        if (dbStyle == 'gentle') dbStyle = 'ngot_ngao';
+        if (dbStyle == 'serious' || dbStyle == 'sarcastic') dbStyle = 'kho_tinh';
+        
+        _verbalStyle = dbStyle;
         _selectedPersonality = _verbalStyle == 'dan_doi' ? 'Dận Dỗi' : (_verbalStyle == 'kho_tinh' ? 'Khó Tính' : (_verbalStyle == 'ngot_ngao' ? 'Ngọt Ngào' : 'Dui Dẻ'));
+        
         _notificationsEnabled =
             (settings['notifications_enabled'] as bool?) ?? true;
       });
@@ -344,14 +351,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             'incomeAmount': int.tryParse(incomeCtrl.text.trim()) ?? _monthlyIncome,
                           });
                           await _api.updateSettings({
-                            'ageGroup': selectedAge ?? '',
-                            'jobType': selectedJob ?? '',
+                            if (selectedAge != null) 'ageGroup': selectedAge!,
+                            if (selectedJob != null) 'jobType': selectedJob!,
                           });
                           if (!mounted) return;
                           setState(() {
                             _userName = name;
-                            _ageGroup = selectedAge ?? '';
-                            _jobType = selectedJob ?? '';
+                            if (selectedAge != null) _ageGroup = selectedAge!;
+                            if (selectedJob != null) _jobType = selectedJob!;
                             _monthlyIncome = int.tryParse(incomeCtrl.text.trim()) ?? _monthlyIncome;
                           });
                           if (ctx.mounted) ctx.pop();
@@ -401,53 +408,54 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
+          scrollable: true,
           title: const Text('Đổi mật khẩu'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               if (dialogError != null) ...[
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFEE2E2),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    dialogError!,
-                    style: const TextStyle(
-                      color: AppColors.danger,
-                      fontSize: 13,
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 8,
                     ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFEE2E2),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      dialogError!,
+                      style: const TextStyle(
+                        color: AppColors.danger,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                ],
+                TextField(
+                  controller: currentCtrl,
+                  obscureText: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Mật khẩu hiện tại',
                   ),
                 ),
                 const SizedBox(height: 8),
-              ],
-              TextField(
-                controller: currentCtrl,
-                obscureText: true,
-                decoration: const InputDecoration(
-                  labelText: 'Mật khẩu hiện tại',
+                TextField(
+                  controller: newCtrl,
+                  obscureText: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Mật khẩu mới (≥ 8 ký tự)',
+                  ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: newCtrl,
-                obscureText: true,
-                decoration: const InputDecoration(
-                  labelText: 'Mật khẩu mới (≥ 8 ký tự)',
+                const SizedBox(height: 8),
+                TextField(
+                  controller: confirmCtrl,
+                  obscureText: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Xác nhận mật khẩu',
+                  ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: confirmCtrl,
-                obscureText: true,
-                decoration: const InputDecoration(
-                  labelText: 'Xác nhận mật khẩu',
-                ),
-              ),
             ],
           ),
           actions: [
@@ -496,8 +504,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Scaffold(
       backgroundColor: context.palette.bg,
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.only(bottom: 110),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 600),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.only(bottom: 110),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -654,6 +665,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         showModalBottomSheet(
                           context: context,
                           isScrollControlled: true,
+                          useSafeArea: true,
+                          constraints: const BoxConstraints(maxWidth: 600),
                           backgroundColor: Colors.transparent,
                           builder: (ctx) => Container(
                             decoration: BoxDecoration(
@@ -987,27 +1000,33 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 const SizedBox(height: 12),
                                 _AiStyleSwapSelector(
                                   selected: _verbalStyle,
+                                  isPremium: _isPremium,
                                   onSelected: (style) async {
                                     if (style == _verbalStyle) return;
-                                    if ((style == 'kho_tinh' || style == 'ngot_ngao') && !_isPremium) {
-                                      showPremiumUpsellSheet(context);
-                                      return;
-                                    }
-                                    final prev = _verbalStyle;
-                                    await AiStyleCardFlipTransition.run(
-                                      context: context,
-                                      fromStyle: prev,
-                                      toStyle: style,
-                                      onComplete: () {
-                                        if (!mounted) return;
-                                        setState(() {
-                                          _verbalStyle = style;
-                                          _selectedPersonality = style == 'dan_doi' ? 'Dận Dỗi' : (style == 'kho_tinh' ? 'Khó Tính' : (style == 'ngot_ngao' ? 'Ngọt Ngào' : 'Dui Dẻ'));
-                                        });
-                                        _updateSetting('verbalStyle', style);
-                                        _api.updateProfile({'preferredVibe': style}).catchError((_) => <String, dynamic>{});
-                                      },
-                                    );
+                                    if ((style == 'kho_tinh' || style == 'ngot_ngao') && !_isPremium) return;
+                                      final prev = _verbalStyle;
+                                      await AiStyleCardFlipTransition.run(
+                                        context: context,
+                                        fromStyle: prev,
+                                        toStyle: style,
+                                        onComplete: () async {
+                                          if (!mounted) return;
+                                          setState(() {
+                                            _verbalStyle = style;
+                                            _selectedPersonality = style == 'dan_doi' ? 'Dận Dỗi' : (style == 'kho_tinh' ? 'Khó Tính' : (style == 'ngot_ngao' ? 'Ngọt Ngào' : 'Dui Dẻ'));
+                                          });
+                                          try {
+                                            await _updateSetting('verbalStyle', style);
+                                            await _api.updateProfile({'preferredVibe': style});
+                                          } catch (e) {
+                                            if (mounted) {
+                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                const SnackBar(content: Text('Không thể cập nhật phong cách. Vui lòng thử lại.')),
+                                              );
+                                            }
+                                          }
+                                        },
+                                      );
                                   },
                                 ),
                               ],
@@ -1302,6 +1321,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ],
           ),
         ),
+          ),
+        ),
       ),
     );
   }
@@ -1474,9 +1495,11 @@ class _SettingRow extends StatelessWidget {
 
 class _AiStyleSwapSelector extends StatelessWidget {
   final String selected; // 'funny' | 'strict' | 'kho_tinh' | 'ngot_ngao'
+  final bool isPremium;
   final Future<void> Function(String style) onSelected;
   const _AiStyleSwapSelector({
     required this.selected,
+    required this.isPremium,
     required this.onSelected,
   });
 
@@ -1517,7 +1540,14 @@ class _AiStyleSwapSelector extends StatelessWidget {
                 fallback: '🧐',
                 label: 'Khó Tính',
                 selected: selected == 'kho_tinh',
-                onTap: () => onSelected('kho_tinh'),
+                isLocked: !isPremium,
+                onTap: isPremium 
+                    ? () => onSelected('kho_tinh') 
+                    : () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Vui lòng nâng cấp Premium để sử dụng tính năng này')),
+                        );
+                      },
               ),
             ),
             const SizedBox(width: gap),
@@ -1527,7 +1557,14 @@ class _AiStyleSwapSelector extends StatelessWidget {
                 fallback: '💖',
                 label: 'Ngọt Ngào',
                 selected: selected == 'ngot_ngao',
-                onTap: () => onSelected('ngot_ngao'),
+                isLocked: !isPremium,
+                onTap: isPremium 
+                    ? () => onSelected('ngot_ngao') 
+                    : () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Vui lòng nâng cấp Premium để sử dụng tính năng này')),
+                        );
+                      },
               ),
             ),
           ],
@@ -1542,12 +1579,14 @@ class _StyleCard extends StatelessWidget {
   final String fallback;
   final String label;
   final bool selected;
+  final bool isLocked;
   final VoidCallback onTap;
   const _StyleCard({
     required this.asset,
     required this.fallback,
     required this.label,
     required this.selected,
+    this.isLocked = false,
     required this.onTap,
   });
 
@@ -1581,24 +1620,43 @@ class _StyleCard extends StatelessWidget {
                   ]
                 : [],
           ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+          child: Stack(
+            alignment: Alignment.center,
             children: [
-              Image.asset(
-                asset,
-                width: 36,
-                height: 36,
-                errorBuilder: (_, _, _) =>
-                    Text(fallback, style: const TextStyle(fontSize: 24)),
+              Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Image.asset(
+                    asset,
+                    width: 36,
+                    height: 36,
+                    color: isLocked ? Colors.grey.withValues(alpha: 0.5) : null,
+                    colorBlendMode: isLocked ? BlendMode.saturation : null,
+                    errorBuilder: (_, _, _) =>
+                        Text(fallback, style: const TextStyle(fontSize: 24)),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    label,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: selected
+                          ? AppColors.teal
+                          : (isLocked ? Colors.grey : Theme.of(context).textTheme.bodySmall?.color),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 4),
-              Text(
-                label,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: selected ? AppColors.teal : Theme.of(context).textTheme.bodySmall?.color,
+              if (isLocked)
+                Positioned(
+                  top: 0,
+                  right: 8,
+                  child: Icon(
+                    Icons.lock,
+                    size: 16,
+                    color: Colors.grey.withValues(alpha: 0.7),
+                  ),
                 ),
-              ),
             ],
           ),
         ),

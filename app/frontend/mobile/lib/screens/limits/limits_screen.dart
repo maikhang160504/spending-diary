@@ -96,6 +96,8 @@ class _LimitsScreenState extends State<LimitsScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: context.palette.card,
+      useSafeArea: true,
+      constraints: const BoxConstraints(maxWidth: 600),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadii.xl)),
       ),
@@ -401,6 +403,8 @@ class _LimitsScreenState extends State<LimitsScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
+      constraints: const BoxConstraints(maxWidth: 600),
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadii.xl))),
       builder: (ctx) {
         bool isSubmitting = false;
@@ -413,63 +417,65 @@ class _LimitsScreenState extends State<LimitsScreen> {
 
           return Padding(
             padding: EdgeInsets.only(left: 20, right: 20, top: 20, bottom: MediaQuery.of(ctx).viewInsets.bottom + 20),
-            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('Thêm giới hạn mới', style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                initialValue: selectedCategory,
-                hint: const Text('Chọn danh mục'),
-                items: available.map((e) => DropdownMenuItem(
-                  value: e.key,
-                  child: Row(children: [
-                    CategoryTheme.iconOf(e.key, size: 22),
-                    const SizedBox(width: 8),
-                    Text(e.value.label),
-                  ]),
-                )).toList(),
-                onChanged: (v) => setModalState(() => selectedCategory = v),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: amountCtrl,
-                keyboardType: TextInputType.number,
-                inputFormatters: [MoneyTextInputFormatter()],
-                decoration: const InputDecoration(labelText: 'Số tiền giới hạn', hintText: 'VD: 2,000,000', suffixText: 'đ'),
-              ),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: isSubmitting
-                      ? null
-                      : () async {
-                          if (selectedCategory == null) return;
-                          final rawText = amountCtrl.text.replaceAll(',', '').trim();
-                          final amount = int.tryParse(rawText);
-                          if (amount == null || amount <= 0) return;
-                          setModalState(() {
-                            isSubmitting = true;
-                          });
-                          ctx.pop();
-                          try {
-                            // Get first wallet
-                            final wallets = await _api.getWallets();
-                            if (wallets.isEmpty) return;
-                            await _api.createBudget({
-                              'walletId': wallets[0]['id'],
-                              'categoryCode': selectedCategory,
-                              'amountLimit': amount,
-                              'period': 'month',
-                              'startDate': DateTime.now().toIso8601String().split('T')[0],
-                            });
-                            _loadBudgets();
-                          } catch (_) {}
-                        },
-                  style: FilledButton.styleFrom(backgroundColor: AppColors.teal, padding: const EdgeInsets.symmetric(vertical: 14)),
-                  child: const Text('Tạo giới hạn'),
+            child: SingleChildScrollView(
+              child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('Thêm giới hạn mới', style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  initialValue: selectedCategory,
+                  hint: const Text('Chọn danh mục'),
+                  items: available.map((e) => DropdownMenuItem(
+                    value: e.key,
+                    child: Row(children: [
+                      CategoryTheme.iconOf(e.key, size: 22),
+                      const SizedBox(width: 8),
+                      Text(e.value.label),
+                    ]),
+                  )).toList(),
+                  onChanged: (v) => setModalState(() => selectedCategory = v),
                 ),
-              ),
-            ]),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: amountCtrl,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [MoneyTextInputFormatter()],
+                  decoration: const InputDecoration(labelText: 'Số tiền giới hạn', hintText: 'VD: 2,000,000', suffixText: 'đ'),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: isSubmitting
+                        ? null
+                        : () async {
+                            if (selectedCategory == null) return;
+                            final rawText = amountCtrl.text.replaceAll(',', '').trim();
+                            final amount = int.tryParse(rawText);
+                            if (amount == null || amount <= 0) return;
+                            setModalState(() {
+                              isSubmitting = true;
+                            });
+                            ctx.pop();
+                            try {
+                              // Get first wallet
+                              final wallets = await _api.getWallets();
+                              if (wallets.isEmpty) return;
+                              await _api.createBudget({
+                                'walletId': wallets[0]['id'],
+                                'categoryCode': selectedCategory,
+                                'amountLimit': amount,
+                                'period': 'month',
+                                'startDate': DateTime.now().toIso8601String().split('T')[0],
+                              });
+                              _loadBudgets();
+                            } catch (_) {}
+                          },
+                    style: FilledButton.styleFrom(backgroundColor: AppColors.teal, padding: const EdgeInsets.symmetric(vertical: 14)),
+                    child: const Text('Tạo giới hạn'),
+                  ),
+                ),
+              ]),
+            ),
           );
         });
       },
@@ -480,6 +486,8 @@ class _LimitsScreenState extends State<LimitsScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
+      constraints: const BoxConstraints(maxWidth: 600),
       backgroundColor: Colors.transparent,
       builder: (_) => _EditLimitSheet(item: item, onSave: (newLimit) async {
         setState(() => item.limit = newLimit);
@@ -701,7 +709,7 @@ class _SummaryChip extends StatelessWidget {
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(label, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white70)),
           const SizedBox(height: 2),
-          Text(value, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.white, fontWeight: FontWeight.w700)),
+          Text(value, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.white, fontWeight: FontWeight.w700), maxLines: 1, overflow: TextOverflow.ellipsis),
         ]),
       ),
     );
@@ -809,51 +817,55 @@ class _EditLimitSheetState extends State<_EditLimitSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: context.palette.card,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadii.xl)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(children: [
-            SizedBox(width: 28, height: 28, child: CategoryTheme.iconOf(widget.item.categoryCode, size: 28)),
-            const SizedBox(width: 10),
-            Text('Sửa giới hạn ${widget.item.label}', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
-          ]),
-          const SizedBox(height: 16),
-          Text('Số tiền giới hạn (đ)', style: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _controller,
-            keyboardType: TextInputType.number,
-            autofocus: true,
-            inputFormatters: [MoneyTextInputFormatter()],
-            decoration: const InputDecoration(hintText: '0'),
+    return SafeArea(
+      minimum: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: context.palette.card,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadii.xl)),
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(children: [
+                SizedBox(width: 28, height: 28, child: CategoryTheme.iconOf(widget.item.categoryCode, size: 28)),
+                const SizedBox(width: 10),
+                Expanded(child: Text('Sửa giới hạn ${widget.item.label}', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700), maxLines: 1, overflow: TextOverflow.ellipsis)),
+              ]),
+              const SizedBox(height: 16),
+              Text('Số tiền giới hạn (đ)', style: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _controller,
+                keyboardType: TextInputType.number,
+                autofocus: true,
+                inputFormatters: [MoneyTextInputFormatter()],
+                decoration: const InputDecoration(hintText: '0'),
+              ),
+              const SizedBox(height: 20),
+              Row(children: [
+                Expanded(child: OutlinedButton(onPressed: _isSubmitting ? null : () => context.pop(), child: const Text('Hủy'))),
+                const SizedBox(width: 12),
+                Expanded(child: FilledButton(
+                  onPressed: _isSubmitting
+                      ? null
+                      : () {
+                          setState(() {
+                            _isSubmitting = true;
+                          });
+                          final rawText = _controller.text.replaceAll(',', '').trim();
+                          widget.onSave(int.tryParse(rawText) ?? widget.item.limit);
+                          context.pop();
+                        },
+                  child: const Text('Lưu'),
+                )),
+              ]),
+            ],
           ),
-          const SizedBox(height: 20),
-          Row(children: [
-            Expanded(child: OutlinedButton(onPressed: _isSubmitting ? null : () => context.pop(), child: const Text('Hủy'))),
-            const SizedBox(width: 12),
-            Expanded(child: FilledButton(
-              onPressed: _isSubmitting
-                  ? null
-                  : () {
-                      setState(() {
-                        _isSubmitting = true;
-                      });
-                      final rawText = _controller.text.replaceAll(',', '').trim();
-                      widget.onSave(int.tryParse(rawText) ?? widget.item.limit);
-                      context.pop();
-                    },
-              child: const Text('Lưu'),
-            )),
-          ]),
-        ],
+        ),
       ),
     );
   }

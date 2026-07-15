@@ -104,9 +104,12 @@ class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScr
         ),
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          child: Column(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 800),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Bộ lọc Theo tuần / Theo tháng
@@ -219,6 +222,8 @@ class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScr
               // Biểu đồ lũy kế vs Hạn mức lý tưởng
               _buildCumulativeChartCard(),
             ],
+          ),
+            ),
           ),
         ),
       ),
@@ -473,7 +478,7 @@ class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScr
           ),
           const SizedBox(height: 18),
           SizedBox(
-            height: 240,
+            height: MediaQuery.of(context).orientation == Orientation.landscape ? 180 : 240,
             child: LineChart(
               LineChartData(
                 minY: 0,

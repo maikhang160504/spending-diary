@@ -1750,6 +1750,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
+      constraints: const BoxConstraints(maxWidth: 600),
       backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSheetState) => Padding(
@@ -4221,7 +4223,7 @@ class _ChatBubble extends StatelessWidget {
         if (hasText || (!message.isUser && message.llmPending))
           ConstrainedBox(
             constraints: BoxConstraints(
-              maxWidth: MediaQuery.of(context).size.width * 0.75,
+              maxWidth: math.min(MediaQuery.of(context).size.width * 0.75, 400),
             ),
             child: Container(
               margin: EdgeInsets.only(
@@ -4286,7 +4288,7 @@ class _ChatBubble extends StatelessWidget {
         if (hasSpecialCard)
           ConstrainedBox(
             constraints: BoxConstraints(
-              maxWidth: MediaQuery.of(context).size.width * 0.85,
+              maxWidth: math.min(MediaQuery.of(context).size.width * 0.85, 460),
             ),
             child: Container(
               margin: const EdgeInsets.only(
@@ -4713,7 +4715,7 @@ class _DailyCompareChart extends StatelessWidget {
         ),
         const SizedBox(height: 14),
         SizedBox(
-          height: 160,
+          height: MediaQuery.of(context).orientation == Orientation.landscape ? 120 : 160,
           child: LineChart(
             LineChartData(
               lineTouchData: LineTouchData(

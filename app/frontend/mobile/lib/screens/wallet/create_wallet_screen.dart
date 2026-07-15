@@ -15,6 +15,8 @@ class CreateWalletScreen extends StatefulWidget {
     return showModalBottomSheet<Map<String, dynamic>>(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
+      constraints: const BoxConstraints(maxWidth: 600),
       backgroundColor: Colors.transparent,
       builder: (_) => const CreateWalletScreen(),
     );

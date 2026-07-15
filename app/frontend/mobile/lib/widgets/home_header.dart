@@ -42,15 +42,17 @@ class HomeHeader extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(_formattedDate(), style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white70)),
-            const SizedBox(height: 4),
-            Row(children: [
-              Text('Chào $userName!', style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.white, fontWeight: FontWeight.w700)),
-              const SizedBox(width: 4),
-              const Text('👋', style: TextStyle(fontSize: 18)),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(_formattedDate(), style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white70)),
+              const SizedBox(height: 4),
+              Row(children: [
+                Flexible(child: Text('Chào $userName!', style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.white, fontWeight: FontWeight.w700), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                const SizedBox(width: 4),
+                const Text('👋', style: TextStyle(fontSize: 18)),
+              ]),
             ]),
-          ]),
+          ),
           GestureDetector(
             onTap: onStreakTap,
             child: Container(

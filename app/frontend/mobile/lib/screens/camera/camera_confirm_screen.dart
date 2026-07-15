@@ -249,6 +249,8 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
+      constraints: const BoxConstraints(maxWidth: 600),
       backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSheetState) => Padding(
@@ -383,163 +385,203 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
     final isReviewBill = widget.extractedData?['reviewBill'] == true;
 
     return Scaffold(
-      body: Stack(
-        children: [
-          Positioned.fill(child: _buildBackground()),
-          Positioned.fill(
-            child: Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [Color(0xAA000000), Color(0xFF000000)],
+      backgroundColor: Colors.black,
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isLandscape = constraints.maxWidth > constraints.maxHeight || constraints.maxWidth >= 600;
+
+          final contentColumn = SafeArea(
+            left: !isLandscape,
+            right: !isLandscape,
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.xl),
+              child: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    // Top bar
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        IconButton(
+                          onPressed: () => context.pop(),
+                          icon: const Icon(Icons.close, color: Colors.white),
+                        ),
+                        Text(
+                          isReviewBill ? 'Kiểm tra bill' : 'AI xác nhận',
+                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: Colors.white, fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(width: 40),
+                      ],
+                    ),
+                    // Confidence badge
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: _confidenceColor.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(color: _confidenceColor.withValues(alpha: 0.5)),
+                      ),
+                      child: Row(mainAxisSize: MainAxisSize.min, children: [
+                        Icon(Icons.auto_awesome, color: _confidenceColor, size: 14),
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            'AI nhận dạng với độ chính xác $confidencePct%',
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(color: _confidenceColor, fontWeight: FontWeight.w600),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ]),
+                    ),
+                    // Low confidence warning
+                    if (isLowConfidence) ...[
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: AppColors.danger.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(AppRadii.md),
+                        ),
+                        child: Row(mainAxisSize: MainAxisSize.min, children: [
+                          const Icon(Icons.warning_amber, color: AppColors.danger, size: 14),
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text('Độ chính xác thấp — hãy kiểm tra lại', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.danger), overflow: TextOverflow.ellipsis),
+                          ),
+                        ]),
+                      ),
+                    ],
+                    SizedBox(height: isLandscape ? 24 : constraints.maxHeight * 0.1),
+                    // Error banner
+                    if (_saveError != null)
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: Colors.red.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(AppRadii.md),
+                        ),
+                        child: Text(_saveError!, style: const TextStyle(color: Colors.white, fontSize: 13)),
+                      ),
+                    // Transaction card
+                    Container(
+                      padding: const EdgeInsets.all(AppSpacing.xl),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(AppRadii.lg),
+                        border: Border.all(color: Colors.white24),
+                      ),
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Row(children: [
+                          Container(
+                            width: 48, height: 48,
+                            decoration: BoxDecoration(color: AppColors.teal.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(AppRadii.md)),
+                            child: Center(child: CategoryTheme.iconOf(_category, size: 32)),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Text('Giao dịch mới', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white70)),
+                            const SizedBox(height: 4),
+                            Text(_note.isNotEmpty ? _note : CategoryTheme.of(_category).label,
+                                style: Theme.of(context).textTheme.titleSmall?.copyWith(color: Colors.white, fontWeight: FontWeight.w700),
+                                maxLines: 1, overflow: TextOverflow.ellipsis),
+                          ])),
+                          Text(formatVnd(_amount), style: Theme.of(context).textTheme.titleMedium?.copyWith(color: AppColors.teal, fontWeight: FontWeight.w700)),
+                        ]),
+                        const SizedBox(height: 16),
+                        const Divider(color: Colors.white24, height: 1),
+                        const SizedBox(height: 16),
+                        _DetailRow(label: 'Danh mục', value: CategoryTheme.of(_category).label),
+                        _DetailRow(label: 'Số tiền', value: formatVnd(_amount)),
+                        if (_note.isNotEmpty) _DetailRow(label: 'Ghi chú', value: _note),
+                        if (_targetWalletName != null) _DetailRow(label: 'Ví lưu', value: _targetWalletName!),
+                        _DetailRow(label: 'Thời gian', value: _formatNow()),
+                      ]),
+                    ),
+                    const SizedBox(height: 20),
+                    if (!needsUserConfirm && _saving)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 12),
+                        child: Text('Độ chính xác cao — đang lưu tự động...', style: TextStyle(color: Colors.white70)),
+                      ),
+                    if (needsUserConfirm)
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: _saving ? null : _showEditSheet,
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.white,
+                                side: const BorderSide(color: Colors.white54),
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadii.lg)),
+                              ),
+                              child: const Text('Chỉnh sửa'),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: FilledButton(
+                              onPressed: _saving ? null : _onConfirm,
+                              style: FilledButton.styleFrom(
+                                backgroundColor: AppColors.teal,
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadii.lg)),
+                              ),
+                              child: _saving
+                                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                                  : const Text('Xác nhận ✓', style: TextStyle(fontWeight: FontWeight.w700)),
+                            ),
+                          ),
+                        ],
+                      ),
+                  ],
                 ),
               ),
             ),
-          ),
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(AppSpacing.xl),
-              child: Column(
-                children: [
-                  // Top bar
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      IconButton(
-                        onPressed: () => context.pop(),
-                        icon: const Icon(Icons.close, color: Colors.white),
-                      ),
-                      Text(
-                        isReviewBill ? 'Kiểm tra bill' : 'AI xác nhận',
-                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: Colors.white, fontWeight: FontWeight.w600),
-                      ),
-                      const SizedBox(width: 40),
-                    ],
+          );
+
+          if (isLandscape) {
+            return Row(
+              children: [
+                Expanded(
+                  flex: 4,
+                  child: ClipRect(
+                    child: _buildBackground(),
                   ),
-                  // Confidence badge
-                  const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: _confidenceColor.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(999),
-                      border: Border.all(color: _confidenceColor.withValues(alpha: 0.5)),
+                ),
+                Expanded(
+                  flex: 6,
+                  child: Container(
+                    decoration: const BoxDecoration(
+                      color: Color(0xFF111827), // Dark slate
                     ),
-                    child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      Icon(Icons.auto_awesome, color: _confidenceColor, size: 14),
-                      const SizedBox(width: 6),
-                      Text(
-                        'AI nhận dạng với độ chính xác $confidencePct%',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(color: _confidenceColor, fontWeight: FontWeight.w600),
-                      ),
-                    ]),
+                    child: contentColumn,
                   ),
-                  // Low confidence warning
-                  if (isLowConfidence) ...[
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: AppColors.danger.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(AppRadii.md),
-                      ),
-                      child: Row(mainAxisSize: MainAxisSize.min, children: [
-                        const Icon(Icons.warning_amber, color: AppColors.danger, size: 14),
-                        const SizedBox(width: 6),
-                        Text('Độ chính xác thấp — hãy kiểm tra lại', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.danger)),
-                      ]),
+                ),
+              ],
+            );
+          }
+
+          return Stack(
+            children: [
+              Positioned.fill(child: _buildBackground()),
+              Positioned.fill(
+                child: Container(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Color(0xAA000000), Color(0xFF000000)],
                     ),
-                  ],
-                  const Spacer(),
-                  // Error banner
-                  if (_saveError != null)
-                    Container(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: Colors.red.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(AppRadii.md),
-                      ),
-                      child: Text(_saveError!, style: const TextStyle(color: Colors.white, fontSize: 13)),
-                    ),
-                  // Transaction card
-                  Container(
-                    padding: const EdgeInsets.all(AppSpacing.xl),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(AppRadii.lg),
-                      border: Border.all(color: Colors.white24),
-                    ),
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Row(children: [
-                        Container(
-                          width: 48, height: 48,
-                          decoration: BoxDecoration(color: AppColors.teal.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(AppRadii.md)),
-                          child: Center(child: CategoryTheme.iconOf(_category, size: 32)),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Text('Giao dịch mới', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white70)),
-                          const SizedBox(height: 4),
-                          Text(_note.isNotEmpty ? _note : CategoryTheme.of(_category).label,
-                              style: Theme.of(context).textTheme.titleSmall?.copyWith(color: Colors.white, fontWeight: FontWeight.w700),
-                              maxLines: 1, overflow: TextOverflow.ellipsis),
-                        ])),
-                        Text(formatVnd(_amount), style: Theme.of(context).textTheme.titleMedium?.copyWith(color: AppColors.teal, fontWeight: FontWeight.w700)),
-                      ]),
-                      const SizedBox(height: 16),
-                      const Divider(color: Colors.white24, height: 1),
-                      const SizedBox(height: 16),
-                      _DetailRow(label: 'Danh mục', value: CategoryTheme.of(_category).label),
-                      _DetailRow(label: 'Số tiền', value: formatVnd(_amount)),
-                      if (_note.isNotEmpty) _DetailRow(label: 'Ghi chú', value: _note),
-                      if (_targetWalletName != null) _DetailRow(label: 'Ví lưu', value: _targetWalletName!),
-                      _DetailRow(label: 'Thời gian', value: _formatNow()),
-                    ]),
                   ),
-                  const SizedBox(height: 20),
-                  if (!needsUserConfirm && _saving)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 12),
-                      child: Text('Độ chính xác cao — đang lưu tự động...', style: TextStyle(color: Colors.white70)),
-                    ),
-                  if (needsUserConfirm)
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: _saving ? null : _showEditSheet,
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: Colors.white,
-                              side: const BorderSide(color: Colors.white54),
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadii.lg)),
-                            ),
-                            child: const Text('Chỉnh sửa'),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: FilledButton(
-                            onPressed: _saving ? null : _onConfirm,
-                            style: FilledButton.styleFrom(
-                              backgroundColor: AppColors.teal,
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadii.lg)),
-                            ),
-                            child: _saving
-                                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                                : const Text('Xác nhận ✓', style: TextStyle(fontWeight: FontWeight.w700)),
-                          ),
-                        ),
-                      ],
-                    ),
-                ],
+                ),
               ),
-            ),
-          ),
-        ],
+              contentColumn,
+            ],
+          );
+        },
       ),
     );
   }

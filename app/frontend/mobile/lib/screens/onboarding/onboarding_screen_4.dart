@@ -30,6 +30,8 @@ class _OnboardingStep4State extends State<OnboardingStep4> {
     final walletConfig = await showModalBottomSheet<Map<String, dynamic>>(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
+      constraints: const BoxConstraints(maxWidth: 600),
       backgroundColor: Colors.transparent,
       builder: (ctx) {
         final nameCtrl = TextEditingController(text: 'Ví cá nhân');

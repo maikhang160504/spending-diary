@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
@@ -145,19 +144,23 @@ class _LoginScreenState extends State<LoginScreen> {
       if (mounted) setState(() => _loading = false);
     }
   }
-
   @override
   Widget build(BuildContext context) {
+    final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(gradient: AppGradients.teal),
         child: SafeArea(
-          child: SingleChildScrollView(
+          child: Center(
+            child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 480),
+            child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
             child: Column(
               children: [
-                const SizedBox(height: 32),
-                // Logo + Title card (white bg so logo is visible on teal)
+                SizedBox(height: isLandscape ? 16 : 32),
+                // Logo + Title card — ẩn khi landscape để tiết kiệm không gian
+                if (!isLandscape)
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 32,
@@ -205,7 +208,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 32),
+                SizedBox(height: isLandscape ? 0 : 32),
                 // Login card
                 Container(
                   padding: const EdgeInsets.all(AppSpacing.xxl),
@@ -306,12 +309,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         alignment: Alignment.centerRight,
                         child: TextButton(
                           onPressed: () {
-                            // TODO: implement forgot password flow
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Tính năng đang phát triển'),
-                              ),
-                            );
+                            context.push(AppRoutes.forgotPassword);
                           },
                           child: const Text(
                             'Quên mật khẩu?',
@@ -383,23 +381,24 @@ class _LoginScreenState extends State<LoginScreen> {
                               : Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    const Text(
-                                      'G',
-                                      style: TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.w700,
-                                        color: Color(0xFF4285F4),
-                                      ),
+                                    Image.network(
+                                      'https://upload.wikimedia.org/wikipedia/commons/thumb/5/53/Google_%22G%22_Logo.svg/512px-Google_%22G%22_Logo.svg.png',
+                                      width: 20,
+                                      height: 20,
+                                      errorBuilder: (context, error, stack) => const Text('G', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Color(0xFF4285F4))),
                                     ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      'Đăng nhập với Google',
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodyMedium
-                                          ?.copyWith(
-                                            fontWeight: FontWeight.w600,
-                                          ),
+                                    const SizedBox(width: 10),
+                                    Flexible(
+                                      child: Text(
+                                        'Đăng nhập với Google',
+                                        overflow: TextOverflow.ellipsis,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodyMedium
+                                            ?.copyWith(
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -432,6 +431,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 32),
               ],
             ),
+          ),
+          ),
           ),
         ),
       ),

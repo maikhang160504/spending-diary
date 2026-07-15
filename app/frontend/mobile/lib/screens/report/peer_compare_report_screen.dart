@@ -19,6 +19,7 @@ class PeerCompareReportScreen extends StatefulWidget {
 
 class _PeerCompareReportScreenState extends State<PeerCompareReportScreen> {
   bool _isLoading = true;
+  bool _hasError = false;
   String? _errorMsg;
 
   bool _hasProfile = false;
@@ -37,6 +38,7 @@ class _PeerCompareReportScreenState extends State<PeerCompareReportScreen> {
   Future<void> _loadData() async {
     setState(() {
       _isLoading = true;
+      _hasError = false;
       _errorMsg = null;
     });
     try {
@@ -63,7 +65,8 @@ class _PeerCompareReportScreenState extends State<PeerCompareReportScreen> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _errorMsg = 'Không thể tải dữ liệu so sánh.';
+          _hasError = true;
+          _errorMsg = 'Không thể tải dữ liệu so sánh. Vui lòng thử lại sau.';
           _isLoading = false;
         });
       }
@@ -87,13 +90,64 @@ class _PeerCompareReportScreenState extends State<PeerCompareReportScreen> {
         ),
       ),
       body: SafeArea(
-        child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : _hasProfile == false
-                ? _buildUpdateProfileState()
-                : _notEnoughPeers
-                    ? _buildNotEnoughDataState()
-                    : _buildContent(),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 800),
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _hasError
+                    ? _buildErrorState()
+                    : _hasProfile == false
+                        ? _buildUpdateProfileState()
+                        : _notEnoughPeers
+                            ? _buildNotEnoughDataState()
+                            : _buildContent(),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.xl),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: AppColors.danger.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.error_outline_rounded, size: 40, color: AppColors.danger),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'Đã xảy ra lỗi',
+              style: TextStyle(color: context.palette.textPrimary, fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              _errorMsg ?? 'Không thể kết nối đến máy chủ.',
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: AppColors.muted, fontSize: 14, height: 1.5),
+            ),
+            const SizedBox(height: 32),
+            FilledButton.icon(
+              onPressed: _loadData,
+              icon: const Icon(Icons.refresh_rounded, size: 18),
+              label: const Text('Thử lại'),
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.teal,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadii.lg)),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -121,7 +175,7 @@ class _PeerCompareReportScreenState extends State<PeerCompareReportScreen> {
             ),
             const SizedBox(height: 12),
             Text(
-              _errorMsg ?? 'Cập nhật độ tuổi và nghề nghiệp của bạn để MiMo có thể so sánh ẩn danh mức chi tiêu của bạn với những người có cùng hồ sơ.',
+              'Vào Cài đặt > Chọn "Thông tin cá nhân" để cập nhật đầy đủ Độ tuổi và Nghề nghiệp. Sau đó MiMo mới có thể so sánh chi tiêu của bạn với cộng đồng nhé!',
               textAlign: TextAlign.center,
               style: const TextStyle(color: AppColors.muted, fontSize: 14, height: 1.5),
             ),

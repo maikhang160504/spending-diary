@@ -6,7 +6,7 @@ import 'package:intl/intl.dart';
 
 class LoanFormScreen extends StatefulWidget {
   final String? walletId;
-  const LoanFormScreen({Key? key, this.walletId}) : super(key: key);
+  const LoanFormScreen({super.key, this.walletId});
 
   @override
   _LoanFormScreenState createState() => _LoanFormScreenState();
@@ -150,7 +150,7 @@ class _LoanFormScreenState extends State<LoanFormScreen> {
                 value: _createTransaction,
                 onChanged: (v) => setState(() => _createTransaction = v),
                 contentPadding: EdgeInsets.zero,
-                activeColor: AppColors.teal,
+                activeThumbColor: AppColors.teal,
               ),
               const SizedBox(height: 32),
               SizedBox(

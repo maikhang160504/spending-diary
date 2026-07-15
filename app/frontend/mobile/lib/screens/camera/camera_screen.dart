@@ -218,163 +218,206 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
     return Scaffold(
       backgroundColor: Colors.black,
       body: SafeArea(
-        child: Column(
-          children: [
-            // ── Top Bar ──────────────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Row(children: [
-                GestureDetector(
-                  onTap: () => context.pop(),
-                  child: Container(
-                    width: 40, height: 40,
-                    decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.15), shape: BoxShape.circle),
-                    child: const Icon(Icons.close, color: Colors.white, size: 20),
-                  ),
+        child: LayoutBuilder(builder: (context, constraints) {
+          final isLandscapeOrWide = constraints.maxWidth >= 600 || constraints.maxWidth > constraints.maxHeight;
+
+          final topBar = Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(children: [
+              GestureDetector(
+                onTap: () => context.pop(),
+                child: Container(
+                  width: 40, height: 40,
+                  decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.15), shape: BoxShape.circle),
+                  child: const Icon(Icons.close, color: Colors.white, size: 20),
                 ),
-                const Spacer(),
-                // Mode toggle
-                Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.18),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Row(children: [
-                    _ModeChip(label: 'Ảnh', selected: _mode == 'Ảnh', onTap: () => setState(() => _mode = 'Ảnh')),
-                    _ModeChip(label: 'Bill', selected: _mode == 'Bill', onTap: () => setState(() => _mode = 'Bill')),
-                  ]),
-                ),
-                const Spacer(),
-                GestureDetector(
-                  onTap: _toggleFlash,
-                  child: Container(
-                    width: 40, height: 40,
-                    decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.15), shape: BoxShape.circle),
-                    child: Icon(
-                      _flashMode == FlashMode.off ? Icons.flash_off : Icons.flash_on,
-                      color: _flashMode == FlashMode.off ? Colors.white54 : Colors.yellow,
-                      size: 20,
-                    ),
-                  ),
-                ),
-              ]),
-            ),
-            // Bill mode tip banner
-            if (_mode == 'Bill')
+              ),
+              const Spacer(),
+              // Mode toggle
               Container(
-                margin: const EdgeInsets.symmetric(horizontal: 16),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
-                  color: Colors.yellow.withValues(alpha: 0.18),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: Colors.yellow.withValues(alpha: 0.4)),
+                  color: Colors.white.withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(999),
                 ),
-                child: const Row(children: [
-                  Icon(Icons.receipt_long, color: Colors.yellow, size: 16),
-                  SizedBox(width: 8),
-                  Expanded(child: Text(
-                    'Hãy chụp thẳng vào toàn bộ hóa đơn, giữ phẳng và đủ ánh sáng',
-                    style: TextStyle(color: Colors.yellow, fontSize: 11, fontWeight: FontWeight.w500),
-                  )),
+                child: Row(children: [
+                  _ModeChip(label: 'Ảnh', selected: _mode == 'Ảnh', onTap: () => setState(() => _mode = 'Ảnh')),
+                  _ModeChip(label: 'Bill', selected: _mode == 'Bill', onTap: () => setState(() => _mode = 'Bill')),
                 ]),
               ),
+              const Spacer(),
+              GestureDetector(
+                onTap: _toggleFlash,
+                child: Container(
+                  width: 40, height: 40,
+                  decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.15), shape: BoxShape.circle),
+                  child: Icon(
+                    _flashMode == FlashMode.off ? Icons.flash_off : Icons.flash_on,
+                    color: _flashMode == FlashMode.off ? Colors.white54 : Colors.yellow,
+                    size: 20,
+                  ),
+                ),
+              ),
+            ]),
+          );
 
-            // ── Camera Viewfinder (tỉ lệ 4:3, bo góc 16, không khung) ──
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                child: Center(
-                  child: AspectRatio(
-                    aspectRatio: 3 / 4, // ảnh đứng tỉ lệ 4:3
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(16),
-                      child: GestureDetector(
-                        onScaleUpdate: (d) => _setZoom(d.scale),
-                        child: LayoutBuilder(builder: (ctx, box) {
-                          return GestureDetector(
-                            onTapDown: (d) => _onTapToFocus(d, box),
-                            child: Stack(
-                              fit: StackFit.expand,
-                              children: [
-                                // Real camera preview or loading indicator
-                                if (_isInitialized && _controller != null)
-                                  FittedBox(
-                                    fit: BoxFit.cover,
-                                    child: SizedBox(
-                                      width: _controller!.value.previewSize?.height ?? box.maxWidth,
-                                      height: _controller!.value.previewSize?.width ?? (box.maxWidth * _controller!.value.aspectRatio),
-                                      child: CameraPreview(_controller!),
-                                    ),
-                                  )
-                                else
-                                  Container(
-                                    color: const Color(0xFF0D1117),
-                                    child: const Center(child: CircularProgressIndicator(color: AppColors.teal, strokeWidth: 2)),
+          final cameraPreview = Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: Center(
+                child: AspectRatio(
+                  aspectRatio: 3 / 4, // ảnh đứng tỉ lệ 4:3
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: GestureDetector(
+                      onScaleUpdate: (d) => _setZoom(d.scale),
+                      child: LayoutBuilder(builder: (ctx, box) {
+                        return GestureDetector(
+                          onTapDown: (d) => _onTapToFocus(d, box),
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              // Real camera preview or loading indicator
+                              if (_isInitialized && _controller != null)
+                                FittedBox(
+                                  fit: BoxFit.cover,
+                                  child: SizedBox(
+                                    width: _controller!.value.previewSize?.height ?? box.maxWidth,
+                                    height: _controller!.value.previewSize?.width ?? (box.maxWidth * _controller!.value.aspectRatio),
+                                    child: CameraPreview(_controller!),
                                   ),
+                                )
+                              else
+                                Container(
+                                  color: const Color(0xFF0D1117),
+                                  child: const Center(child: CircularProgressIndicator(color: AppColors.teal, strokeWidth: 2)),
+                                ),
 
-                                if (_mode == 'Bill')
-                                  const _BillScanFrameOverlay(),
-
-                                // Focus ring
-                                if (_focusPoint != null && _showFocusRing)
-                                  Positioned(
-                                    left: _focusPoint!.dx - 30,
-                                    top: _focusPoint!.dy - 30,
-                                    child: Container(
-                                      width: 60, height: 60,
-                                      decoration: BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        border: Border.all(color: Colors.yellow, width: 1.5),
+                              if (_mode == 'Bill')
+                                const _BillScanFrameOverlay(),
+                                
+                              // Premium Tip Banner for Bill Mode
+                              if (_mode == 'Bill')
+                                Positioned(
+                                  top: 16,
+                                  left: 0,
+                                  right: 0,
+                                  child: Center(
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(999),
+                                      child: Container(
+                                        color: Colors.black.withValues(alpha: 0.5),
+                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: const [
+                                            Icon(Icons.document_scanner_outlined, color: Colors.white, size: 16),
+                                            SizedBox(width: 8),
+                                            Flexible(
+                                              child: Text(
+                                                'Căn chỉnh hóa đơn vào khung',
+                                                style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500),
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
                                       ),
                                     ),
                                   ),
+                                ),
 
-                                // Bill error banner
-                                if (_billError != null)
-                                  Positioned(top: 12, left: 16, right: 16,
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                                      decoration: BoxDecoration(color: Colors.red.withValues(alpha: 0.85), borderRadius: BorderRadius.circular(8)),
-                                      child: Row(children: [
-                                        const Icon(Icons.error_outline, color: Colors.white, size: 16),
-                                        const SizedBox(width: 8),
-                                        Expanded(child: Text(_billError!, style: const TextStyle(color: Colors.white, fontSize: 12))),
-                                        GestureDetector(onTap: () => setState(() => _billError = null),
-                                          child: const Icon(Icons.close, color: Colors.white, size: 16)),
-                                      ]),
+                              // Focus ring
+                              if (_focusPoint != null && _showFocusRing)
+                                Positioned(
+                                  left: _focusPoint!.dx - 30,
+                                  top: _focusPoint!.dy - 30,
+                                  child: Container(
+                                    width: 60, height: 60,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      border: Border.all(color: Colors.yellow, width: 1.5),
                                     ),
                                   ),
+                                ),
 
-                                // Zoom indicator
-                                if (_zoomLevel > 1.05)
-                                  Positioned(bottom: 16, left: 0, right: 0,
-                                    child: Center(child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                      decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(999)),
-                                      child: Text('${_zoomLevel.toStringAsFixed(1)}×', style: const TextStyle(color: Colors.white, fontSize: 13)),
-                                    )),
+                              // Bill error banner
+                              if (_billError != null)
+                                Positioned(top: 12, left: 16, right: 16,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                    decoration: BoxDecoration(color: Colors.red.withValues(alpha: 0.85), borderRadius: BorderRadius.circular(8)),
+                                    child: Row(children: [
+                                      const Icon(Icons.error_outline, color: Colors.white, size: 16),
+                                      const SizedBox(width: 8),
+                                      Expanded(child: Text(_billError!, style: const TextStyle(color: Colors.white, fontSize: 12))),
+                                      GestureDetector(onTap: () => setState(() => _billError = null),
+                                        child: const Icon(Icons.close, color: Colors.white, size: 16)),
+                                    ]),
                                   ),
-                              ],
-                            ),
-                          );
-                        }),
-                      ),
+                                ),
+
+                              // Zoom indicator
+                              if (_zoomLevel > 1.05)
+                                Positioned(bottom: 16, left: 0, right: 0,
+                                  child: Center(child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                    decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(999)),
+                                    child: Text('${_zoomLevel.toStringAsFixed(1)}×', style: const TextStyle(color: Colors.white, fontSize: 13)),
+                                  )),
+                                ),
+                            ],
+                          ),
+                        );
+                      }),
                     ),
                   ),
                 ),
               ),
             ),
+          );
 
-            // ── Bottom Controls ───────────────────────────────────
-            Container(
-              color: Colors.black,
-              padding: const EdgeInsets.fromLTRB(40, 20, 40, 28),
-              child: Column(
-                children: [
+          final bottomControls = Container(
+            color: Colors.black,
+            padding: EdgeInsets.fromLTRB(20, 20, 20, isLandscapeOrWide ? 20 : 28),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (isLandscapeOrWide) ...[
+                  // If landscape, arrange vertically
+                  _CtrlBtn(icon: Icons.photo_library_outlined, label: 'Thư viện', onTap: _pickFromGallery),
+                  const SizedBox(height: 32),
+                  GestureDetector(
+                    onTap: _takePhoto,
+                    child: Container(
+                      width: 72, height: 72,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: _mode == 'Bill' ? Colors.yellow : AppColors.teal,
+                          width: 3,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: (_mode == 'Bill' ? Colors.yellow : AppColors.teal).withValues(alpha: 0.35),
+                            blurRadius: 16,
+                            spreadRadius: 2,
+                          ),
+                        ],
+                      ),
+                      child: Center(
+                        child: _isTakingPhoto
+                            ? const SizedBox(width: 32, height: 32, child: CircularProgressIndicator(color: AppColors.teal, strokeWidth: 2))
+                            : Container(width: 56, height: 56, decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+                  _CtrlBtn(icon: Icons.cameraswitch_outlined, label: 'Xoay cam', onTap: _flipCamera),
+                ] else ...[
+                  // Portrait layout
                   Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
                     _CtrlBtn(icon: Icons.photo_library_outlined, label: 'Thư viện', onTap: _pickFromGallery),
-                    // Capture button
                     GestureDetector(
                       onTap: _takePhoto,
                       child: Container(
@@ -402,23 +445,51 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
                     ),
                     _CtrlBtn(icon: Icons.cameraswitch_outlined, label: 'Xoay cam', onTap: _flipCamera),
                   ]),
-                  if (_mode == 'Bill') ...[
-                    const SizedBox(height: 12),
-                    Text(
-                      _isTakingPhoto ? 'Mimso đang đọc hóa đơn...' : 'Chụp để xử lý tự động',
-                      style: TextStyle(
-                        color: _isTakingPhoto ? Colors.yellow : Colors.white54,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
                 ],
-              ),
+                if (_mode == 'Bill') ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    _isTakingPhoto ? 'Mimso đang đọc hóa đơn...' : 'Chụp để xử lý tự động',
+                    style: TextStyle(
+                      color: _isTakingPhoto ? Colors.yellow : Colors.white54,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ],
             ),
-          ],
-        ),
+          );
+
+          if (isLandscapeOrWide) {
+            return Row(
+              children: [
+                Expanded(
+                  flex: 7,
+                  child: Column(
+                    children: [
+                      topBar,
+                      cameraPreview,
+                    ],
+                  ),
+                ),
+                SizedBox(
+                  width: 140,
+                  child: bottomControls,
+                ),
+              ],
+            );
+          }
+
+          return Column(
+            children: [
+              topBar,
+              cameraPreview,
+              bottomControls,
+            ],
+          );
+        }),
       ),
     );
   }
@@ -506,7 +577,7 @@ class _BillScanFrameOverlayState extends State<_BillScanFrameOverlay> with Singl
             // Darkened background outside the frame
             ColorFiltered(
               colorFilter: ColorFilter.mode(
-                Colors.black.withOpacity(0.5),
+                Colors.black.withValues(alpha: 0.7), // Tối hơn để nổi bật khung
                 BlendMode.srcOut,
               ),
               child: Stack(
@@ -531,15 +602,19 @@ class _BillScanFrameOverlayState extends State<_BillScanFrameOverlay> with Singl
                 ],
               ),
             ),
-            // Yellow frame border
+            // Corner brackets frame
             Align(
               alignment: Alignment.center,
-              child: Container(
+              child: SizedBox(
                 width: frameW,
                 height: frameH,
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.yellow, width: 2),
-                  borderRadius: BorderRadius.circular(16),
+                child: CustomPaint(
+                  painter: _ScannerCornersPainter(
+                    color: Colors.white, // Trắng sang trọng thay vì vàng
+                    strokeWidth: 4.5,
+                    cornerLength: 40.0,
+                    radius: 16.0,
+                  ),
                 ),
               ),
             ),
@@ -547,19 +622,27 @@ class _BillScanFrameOverlayState extends State<_BillScanFrameOverlay> with Singl
             AnimatedBuilder(
               animation: _controller,
               builder: (context, child) {
+                // To avoid drawing outside the frame, we constrain the Y
                 final currentY = top + (frameH * _controller.value);
                 return Positioned(
-                  left: left + 10,
+                  left: left,
                   top: currentY,
                   child: Container(
-                    width: frameW - 20,
+                    width: frameW,
                     height: 3,
                     decoration: BoxDecoration(
-                      color: Colors.yellow,
+                      gradient: const LinearGradient(
+                        colors: [
+                          Color(0x0014B8A6), // AppColors.teal trong suốt
+                          Color(0xFF14B8A6), // AppColors.teal
+                          Color(0x0014B8A6),
+                        ],
+                        stops: [0.0, 0.5, 1.0],
+                      ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.yellow.withOpacity(0.8),
-                          blurRadius: 8,
+                          color: const Color(0xFF14B8A6).withValues(alpha: 0.6),
+                          blurRadius: 16,
                           spreadRadius: 2,
                         ),
                       ],
@@ -573,4 +656,60 @@ class _BillScanFrameOverlayState extends State<_BillScanFrameOverlay> with Singl
       },
     );
   }
+}
+
+class _ScannerCornersPainter extends CustomPainter {
+  final Color color;
+  final double strokeWidth;
+  final double cornerLength;
+  final double radius;
+
+  _ScannerCornersPainter({
+    required this.color,
+    this.strokeWidth = 4.0,
+    this.cornerLength = 32.0,
+    this.radius = 16.0,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = strokeWidth
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+
+    final path = Path();
+    final w = size.width;
+    final h = size.height;
+
+    // Top-Left
+    path.moveTo(0, cornerLength);
+    path.lineTo(0, radius);
+    path.arcToPoint(Offset(radius, 0), radius: Radius.circular(radius));
+    path.lineTo(cornerLength, 0);
+
+    // Top-Right
+    path.moveTo(w - cornerLength, 0);
+    path.lineTo(w - radius, 0);
+    path.arcToPoint(Offset(w, radius), radius: Radius.circular(radius));
+    path.lineTo(w, cornerLength);
+
+    // Bottom-Left
+    path.moveTo(0, h - cornerLength);
+    path.lineTo(0, h - radius);
+    path.arcToPoint(Offset(radius, h), radius: Radius.circular(radius), clockwise: false);
+    path.lineTo(cornerLength, h);
+
+    // Bottom-Right
+    path.moveTo(w - cornerLength, h);
+    path.lineTo(w - radius, h);
+    path.arcToPoint(Offset(w, h - radius), radius: Radius.circular(radius));
+    path.lineTo(w, h - cornerLength);
+
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

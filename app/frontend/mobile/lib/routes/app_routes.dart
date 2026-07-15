@@ -6,6 +6,9 @@ import '../services/api_client.dart';
 import '../services/bill_processing_service.dart';
 import '../screens/auth/login_screen.dart';
 import '../screens/auth/register_screen.dart';
+import '../screens/auth/forgot_password_screen.dart';
+import '../screens/auth/verify_otp_screen.dart';
+import '../screens/auth/reset_password_screen.dart';
 import '../screens/auth/splash_screen.dart';
 import '../screens/camera/camera_confirm_screen.dart';
 import '../screens/camera/camera_input_screen.dart';
@@ -42,6 +45,9 @@ class AppRoutes {
   static const onboardingStep4 = '/onboarding/step-4';
   static const login           = '/login';
   static const register        = '/register';
+  static const forgotPassword  = '/forgot-password';
+  static const verifyOtp       = '/verify-otp';
+  static const resetPassword   = '/reset-password';
 
   // Shell tabs
   static const home     = '/app/home';
@@ -93,6 +99,27 @@ Page<dynamic> _lottiePage(GoRouterState state, String lottiePath, Widget child) 
   );
 }
 
+/// Helper function to build a page with a slide transition
+Page<dynamic> _slidePage(GoRouterState state, Widget child) {
+  return CustomTransitionPage(
+    key: state.pageKey,
+    child: child,
+    transitionDuration: const Duration(milliseconds: 300),
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      return SlideTransition(
+        position: Tween<Offset>(
+          begin: const Offset(1, 0),
+          end: Offset.zero,
+        ).animate(CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeOutCubic,
+        )),
+        child: child,
+      );
+    },
+  );
+}
+
 /// go_router instance — được dùng trong MaterialApp.router
 final GlobalKey<NavigatorState> shellNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -138,15 +165,15 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: AppRoutes.onboardingStep2,
-      pageBuilder: (context, state) => _lottiePage(state, 'assets/animations/Loading.json', const OnboardingStep2()),
+      pageBuilder: (context, state) => _slidePage(state, const OnboardingStep2()),
     ),
     GoRoute(
       path: AppRoutes.onboardingStep3,
-      pageBuilder: (context, state) => _lottiePage(state, 'assets/animations/Loading.json', const OnboardingStep3()),
+      pageBuilder: (context, state) => _slidePage(state, const OnboardingStep3()),
     ),
     GoRoute(
       path: AppRoutes.onboardingStep4,
-      pageBuilder: (context, state) => _lottiePage(state, 'assets/animations/Loading.json', const OnboardingStep4()),
+      pageBuilder: (context, state) => _slidePage(state, const OnboardingStep4()),
     ),
     GoRoute(
       path: AppRoutes.login,
@@ -155,6 +182,24 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: AppRoutes.register,
       pageBuilder: (context, state) => _lottiePage(state, 'assets/animations/Loading.json', const RegisterScreen()),
+    ),
+    GoRoute(
+      path: AppRoutes.forgotPassword,
+      builder: (context, state) => const ForgotPasswordScreen(),
+    ),
+    GoRoute(
+      path: AppRoutes.verifyOtp,
+      builder: (context, state) {
+        final email = state.extra as String? ?? '';
+        return VerifyOtpScreen(email: email);
+      },
+    ),
+    GoRoute(
+      path: AppRoutes.resetPassword,
+      builder: (context, state) {
+        final resetToken = state.extra as String? ?? '';
+        return ResetPasswordScreen(resetToken: resetToken);
+      },
     ),
 
     // ── Shell (bottom nav) ───────────────────────────────────

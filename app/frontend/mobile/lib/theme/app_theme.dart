@@ -154,6 +154,11 @@ class AppTheme {
       bottomSheetTheme: const BottomSheetThemeData(
         constraints: BoxConstraints(maxWidth: 600),
       ),
+      dialogTheme: const DialogThemeData(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(AppRadii.lg)),
+        ),
+      ),
     );
   }
 }

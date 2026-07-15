@@ -63,12 +63,17 @@ class _DetailStoryScreenState extends State<DetailStoryScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF0D1117),
-      body: PageView.builder(
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 500),
+          child: PageView.builder(
         controller: _pageController,
         itemCount: _ids.length,
         itemBuilder: (ctx, i) => _StoryPage(
           key: ValueKey(_ids[i]),
           storyId: _ids[i],
+        ),
+          ),
         ),
       ),
     );
@@ -171,6 +176,8 @@ class _StoryPageState extends State<_StoryPage> {
 
     final picked = await showModalBottomSheet<String>(
       context: context,
+      useSafeArea: true,
+      constraints: const BoxConstraints(maxWidth: 600),
       builder: (ctx) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -323,6 +330,8 @@ class _StoryPageState extends State<_StoryPage> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
+      constraints: const BoxConstraints(maxWidth: 600),
       backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSheetState) => Padding(

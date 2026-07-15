@@ -195,8 +195,11 @@ class _CategorySpendingReportScreenState extends State<CategorySpendingReportScr
         ),
       ),
       body: SafeArea(
-        child: Column(
-          children: [
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 800),
+            child: Column(
+              children: [
             Container(
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: 4),
               child: Row(children: [
@@ -310,6 +313,8 @@ class _CategorySpendingReportScreenState extends State<CategorySpendingReportScr
                     ),
             ),
           ],
+        ),
+          ),
         ),
       ),
     );

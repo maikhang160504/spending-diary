@@ -77,6 +77,8 @@ class _GoalScreenState extends State<GoalScreen> with AutomaticKeepAliveClientMi
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
+      constraints: const BoxConstraints(maxWidth: 600),
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadii.xl))),
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSheet) => Padding(
@@ -279,59 +281,63 @@ class _GoalScreenState extends State<GoalScreen> with AutomaticKeepAliveClientMi
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
+      constraints: const BoxConstraints(maxWidth: 600),
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadii.xl))),
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSheetState) => Padding(
           padding: EdgeInsets.only(left: 20, right: 20, top: 20, bottom: MediaQuery.of(ctx).viewInsets.bottom + 20),
-          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('Thêm tiền vào "$goalName"', style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
-            const SizedBox(height: 16),
-            TextField(
-              controller: amountCtrl,
-              keyboardType: TextInputType.number,
-              autofocus: true,
-              inputFormatters: [MoneyTextInputFormatter()],
-              decoration: const InputDecoration(labelText: 'Số tiền', hintText: 'VD: 500,000', suffixText: 'đ'),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: isSubmitting
-                    ? null
-                    : () async {
-                        final rawText = amountCtrl.text.replaceAll(',', '').replaceAll('.', '').trim();
-                        final amount = double.tryParse(rawText);
-                        if (amount == null || amount <= 0) return;
-                        setSheetState(() { isSubmitting = true; });
-                        final scaffoldMessenger = ScaffoldMessenger.of(context);
-                        ctx.pop();
-                        try {
-                          await _api.contributeGoal(goalId, amount);
-                          if (!mounted) return;
-                          scaffoldMessenger.showSnackBar(
-                            const SnackBar(
-                              content: Text('🎉 Thêm tiền thành công!'),
-                              backgroundColor: AppColors.teal,
-                            ),
-                          );
-                          _loadGoals();
-                        } catch (e) {
-                          if (mounted) {
+          child: SingleChildScrollView(
+            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('Thêm tiền vào "$goalName"', style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+              const SizedBox(height: 16),
+              TextField(
+                controller: amountCtrl,
+                keyboardType: TextInputType.number,
+                autofocus: true,
+                inputFormatters: [MoneyTextInputFormatter()],
+                decoration: const InputDecoration(labelText: 'Số tiền', hintText: 'VD: 500,000', suffixText: 'đ'),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: isSubmitting
+                      ? null
+                      : () async {
+                          final rawText = amountCtrl.text.replaceAll(',', '').replaceAll('.', '').trim();
+                          final amount = double.tryParse(rawText);
+                          if (amount == null || amount <= 0) return;
+                          setSheetState(() { isSubmitting = true; });
+                          final scaffoldMessenger = ScaffoldMessenger.of(context);
+                          ctx.pop();
+                          try {
+                            await _api.contributeGoal(goalId, amount);
+                            if (!mounted) return;
                             scaffoldMessenger.showSnackBar(
-                              SnackBar(
-                                content: Text('Thất bại: $e'),
-                                backgroundColor: AppColors.danger,
+                              const SnackBar(
+                                content: Text('🎉 Thêm tiền thành công!'),
+                                backgroundColor: AppColors.teal,
                               ),
                             );
+                            _loadGoals();
+                          } catch (e) {
+                            if (mounted) {
+                              scaffoldMessenger.showSnackBar(
+                                SnackBar(
+                                  content: Text('Thất bại: $e'),
+                                  backgroundColor: AppColors.danger,
+                                ),
+                              );
+                            }
                           }
-                        }
-                      },
-                style: FilledButton.styleFrom(backgroundColor: AppColors.teal, padding: const EdgeInsets.symmetric(vertical: 14)),
-                child: const Text('Thêm tiền'),
+                        },
+                  style: FilledButton.styleFrom(backgroundColor: AppColors.teal, padding: const EdgeInsets.symmetric(vertical: 14)),
+                  child: const Text('Thêm tiền'),
+                ),
               ),
-            ),
-          ]),
+            ]),
+          ),
         ),
       ),
     );
@@ -344,66 +350,70 @@ class _GoalScreenState extends State<GoalScreen> with AutomaticKeepAliveClientMi
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
+      constraints: const BoxConstraints(maxWidth: 600),
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadii.xl))),
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSheetState) => Padding(
           padding: EdgeInsets.only(left: 20, right: 20, top: 20, bottom: MediaQuery.of(ctx).viewInsets.bottom + 20),
-          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(widget.isChallenge ? 'Nhập mã tham gia thử thách' : 'Nhập mã tham gia nhóm tiết kiệm', style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
-            const SizedBox(height: 16),
-            TextField(
-              controller: codeCtrl,
-              textCapitalization: TextCapitalization.characters,
-              autofocus: true,
-              decoration: InputDecoration(
-                labelText: 'Mã mời (6 ký tự)',
-                hintText: 'VD: A1B2C3',
-                errorText: errorMsg,
+          child: SingleChildScrollView(
+            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(widget.isChallenge ? 'Nhập mã tham gia thử thách' : 'Nhập mã tham gia nhóm tiết kiệm', style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+              const SizedBox(height: 16),
+              TextField(
+                controller: codeCtrl,
+                textCapitalization: TextCapitalization.characters,
+                autofocus: true,
+                decoration: InputDecoration(
+                  labelText: 'Mã mời (6 ký tự)',
+                  hintText: 'VD: A1B2C3',
+                  errorText: errorMsg,
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: isSubmitting
-                    ? null
-                    : () async {
-                        final code = codeCtrl.text.trim();
-                        if (code.isEmpty) return;
-                        setSheetState(() { isSubmitting = true; errorMsg = null; });
-                        final scaffoldMessenger = ScaffoldMessenger.of(context);
-                        try {
-                          await _api.joinGoal(code);
-                          if (!mounted) return;
-                          if (ctx.mounted) ctx.pop();
-                          scaffoldMessenger.showSnackBar(
-                            SnackBar(content: Text(widget.isChallenge ? '🎉 Tham gia thử thách thành công!' : '🎉 Tham gia nhóm tiết kiệm thành công!'), backgroundColor: AppColors.teal),
-                          );
-                          _loadGoals();
-                        } on ApiException catch (e) {
-                          if (e.message.contains('PREMIUM_REQUIRED_GOAL_LIMIT')) {
-                            if (ctx.mounted) {
-                              ctx.pop();
-                              showPremiumUpsellSheet(context);
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: isSubmitting
+                      ? null
+                      : () async {
+                          final code = codeCtrl.text.trim();
+                          if (code.isEmpty) return;
+                          setSheetState(() { isSubmitting = true; errorMsg = null; });
+                          final scaffoldMessenger = ScaffoldMessenger.of(context);
+                          try {
+                            await _api.joinGoal(code);
+                            if (!mounted) return;
+                            if (ctx.mounted) ctx.pop();
+                            scaffoldMessenger.showSnackBar(
+                              SnackBar(content: Text(widget.isChallenge ? '🎉 Tham gia thử thách thành công!' : '🎉 Tham gia nhóm tiết kiệm thành công!'), backgroundColor: AppColors.teal),
+                            );
+                            _loadGoals();
+                          } on ApiException catch (e) {
+                            if (e.message.contains('PREMIUM_REQUIRED_GOAL_LIMIT')) {
+                              if (ctx.mounted) {
+                                ctx.pop();
+                                showPremiumUpsellSheet(context);
+                              }
+                            } else {
+                              setSheetState(() {
+                                isSubmitting = false;
+                                errorMsg = e.localizedMessage;
+                              });
                             }
-                          } else {
+                          } catch (e) {
                             setSheetState(() {
                               isSubmitting = false;
-                              errorMsg = e.localizedMessage;
+                              errorMsg = e.toString().replaceAll('Exception: ', '');
                             });
                           }
-                        } catch (e) {
-                          setSheetState(() {
-                            isSubmitting = false;
-                            errorMsg = e.toString().replaceAll('Exception: ', '');
-                          });
-                        }
-                      },
-                style: FilledButton.styleFrom(backgroundColor: AppColors.teal, padding: const EdgeInsets.symmetric(vertical: 14)),
-                child: const Text('Tham gia ngay'),
+                        },
+                  style: FilledButton.styleFrom(backgroundColor: AppColors.teal, padding: const EdgeInsets.symmetric(vertical: 14)),
+                  child: const Text('Tham gia ngay'),
+                ),
               ),
-            ),
-          ]),
+            ]),
+          ),
         ),
       ),
     );

@@ -135,8 +135,11 @@ class _GoalRecapScreenState extends State<GoalRecapScreen> with SingleTickerProv
               ),
             ),
           ),
-          SafeArea(
-            child: Column(
+          Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 500),
+              child: SafeArea(
+                child: Column(
               children: [
                 // Top header & progress dots
                 Padding(
@@ -225,6 +228,8 @@ class _GoalRecapScreenState extends State<GoalRecapScreen> with SingleTickerProv
                   ),
                 ),
               ],
+            ),
+              ),
             ),
           ),
         ],

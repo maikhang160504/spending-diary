@@ -33,6 +33,8 @@ class TransactionStoryCard extends StatelessWidget {
     final api = ApiClient();
     final picked = await showModalBottomSheet<String>(
       context: context,
+      useSafeArea: true,
+      constraints: const BoxConstraints(maxWidth: 600),
       builder: (ctx) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -87,6 +89,8 @@ class TransactionStoryCard extends StatelessWidget {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
+      constraints: const BoxConstraints(maxWidth: 600),
       backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSheetState) => Padding(

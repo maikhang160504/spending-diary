@@ -511,6 +511,7 @@ class _HomeScreenState extends State<HomeScreen> {
               onStreakTap: () => context.push(AppRoutes.streak),
               onCreateWallet: _onCreateWallet,
               onJoinWallet: _joinWalletByCode,
+              isCompact: isLandscapeMobile,
             );
 
             Widget mainContent;
@@ -518,8 +519,9 @@ class _HomeScreenState extends State<HomeScreen> {
               mainContent = Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    flex: 4,
+                  // Bên trái: header info (cố định, không scroll vì header compact)
+                  SizedBox(
+                    width: isLandscapeMobile ? 240 : constraints.maxWidth * 0.38,
                     child: RefreshIndicator(
                       onRefresh: _loadData,
                       color: AppColors.teal,
@@ -533,17 +535,51 @@ class _HomeScreenState extends State<HomeScreen> {
                             SliverToBoxAdapter(
                               child: ErrorBanner(message: _error!, onRetry: _loadData),
                             ),
-                          const SliverToBoxAdapter(child: SizedBox(height: 100)),
+                          const SliverToBoxAdapter(child: SizedBox(height: 20)),
                         ],
                       ),
                     ),
                   ),
                   const VerticalDivider(width: 1),
+                  // Bên phải: nội dung giao dịch + segment tabs
                   Expanded(
-                    flex: 6,
                     child: CustomScrollView(
                       slivers: [
-                        const SliverToBoxAdapter(child: SizedBox(height: 16)),
+                        // Segment tab nằm ở đầu bên phải trong landscape
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: context.palette.surfaceAlt,
+                                borderRadius: BorderRadius.circular(AppRadii.lg),
+                              ),
+                              child: Row(
+                                children: [
+                                  _SegmentItem(
+                                    label: 'Story',
+                                    icon: Icons.article_outlined,
+                                    isSelected: _tab == 'Story',
+                                    onTap: () => setState(() => _tab = 'Story'),
+                                  ),
+                                  _SegmentItem(
+                                    label: 'Gallery',
+                                    icon: Icons.grid_view,
+                                    isSelected: _tab == 'Gallery',
+                                    onTap: () => setState(() => _tab = 'Gallery'),
+                                  ),
+                                  _SegmentItem(
+                                    label: 'Calendar',
+                                    icon: Icons.calendar_month,
+                                    isSelected: _tab == 'Calendar',
+                                    onTap: () => setState(() => _tab = 'Calendar'),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
                         if (_draftTransactions.isNotEmpty)
                           SliverToBoxAdapter(
                             child: _DraftReminderBanner(
@@ -591,9 +627,10 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 mainContent,
                 // Chat FAB
-                Positioned(
-                  right: AppSpacing.xxl,
-                  bottom: 24,
+                if (!isWide)
+                  Positioned(
+                    right: AppSpacing.xxl,
+                    bottom: 24,
                   child: GestureDetector(
                     onTap: () => context.push(
                       AppRoutes.chat,
@@ -797,6 +834,8 @@ class _HomeScreenState extends State<HomeScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
+      constraints: const BoxConstraints(maxWidth: 600),
       backgroundColor: Colors.transparent,
       builder: (ctx) {
         return _DraftListSheet(
@@ -816,6 +855,8 @@ class _HomeScreenState extends State<HomeScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
+      constraints: const BoxConstraints(maxWidth: 600),
       backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSheetState) => Padding(
@@ -995,6 +1036,8 @@ class _HomeHeaderDelegate extends SliverPersistentHeaderDelegate {
   final VoidCallback onStreakTap;
   final VoidCallback onCreateWallet;
   final VoidCallback onJoinWallet;
+  /// Chế độ compact: dùng khi màn hình ngang (landscape mobile) để giảm maxExtent
+  final bool isCompact;
 
   _HomeHeaderDelegate({
     required this.userName,
@@ -1013,16 +1056,19 @@ class _HomeHeaderDelegate extends SliverPersistentHeaderDelegate {
     required this.onStreakTap,
     required this.onCreateWallet,
     required this.onJoinWallet,
+    this.isCompact = false,
   });
 
-  static const double _segmentH = 64; // dải segment tabs (ghim đáy)
+  // Khi isCompact (landscape mobile): ẩn dải ví và segment tab trong header
+  // segment tab sẽ được render ở cột phải thay vào đó.
+  double get _segmentH => isCompact ? 0 : 64;
   static const double _greetingTop = 18;
-  static const double _fadeTop = 78;
+  static const double _fadeTop = 62;
 
   @override
-  double get minExtent => 70 + _segmentH; // chỉ greeting + tabs (thoáng hơn khi cuộn)
+  double get minExtent => isCompact ? 68 : 70 + 64;
   @override
-  double get maxExtent => 298 + _segmentH; // greeting + ngày + ví + số dư + tabs
+  double get maxExtent => isCompact ? 230 : 298 + 64;
 
   @override
   Widget build(
@@ -1300,12 +1346,13 @@ class _HomeHeaderDelegate extends SliverPersistentHeaderDelegate {
             ),
           ),
 
-          // GIỮ: segment tabs (ghim đáy, luôn hiển thị)
+          // GIỮ: segment tabs (ghim đáy, luôn hiển thị — ẩn khi compact vì đã render ở cột phải)
+          if (!isCompact)
           Positioned(
             bottom: 0,
             left: 0,
             right: 0,
-            height: _segmentH,
+            height: 64,
             child: Container(
               color: context.palette.bg,
               padding: const EdgeInsets.fromLTRB(
@@ -1363,7 +1410,8 @@ class _HomeHeaderDelegate extends SliverPersistentHeaderDelegate {
         old.expense != expense ||
         old.tab != tab ||
         old.onJoinWallet != onJoinWallet ||
-        old.onWalletLongPress != onWalletLongPress;
+        old.onWalletLongPress != onWalletLongPress ||
+        old.isCompact != isCompact;
   }
 }
 
@@ -1385,6 +1433,8 @@ class _TransactionStoryCard extends StatelessWidget {
     final api = ApiClient();
     final picked = await showModalBottomSheet<String>(
       context: context,
+      useSafeArea: true,
+      constraints: const BoxConstraints(maxWidth: 600),
       builder: (ctx) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -1439,6 +1489,8 @@ class _TransactionStoryCard extends StatelessWidget {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
+      constraints: const BoxConstraints(maxWidth: 600),
       backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSheetState) => Padding(
@@ -2089,11 +2141,15 @@ class _BalanceStat extends StatelessWidget {
             ).textTheme.bodySmall?.copyWith(color: context.palette.textSecondary),
           ),
           const SizedBox(height: 4),
-          Text(
-            value,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: color,
-              fontWeight: FontWeight.w700,
+          Flexible(
+            child: Text(
+              value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: color,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         ],
@@ -2135,11 +2191,15 @@ class _SegmentItem extends StatelessWidget {
                 color: isSelected ? AppColors.teal : AppColors.muted,
               ),
               const SizedBox(width: 6),
-              Text(
-                label,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: isSelected ? AppColors.teal : AppColors.muted,
-                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: isSelected ? AppColors.teal : AppColors.muted,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                  ),
                 ),
               ),
             ],

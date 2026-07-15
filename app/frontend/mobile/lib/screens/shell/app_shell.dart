@@ -438,30 +438,35 @@ class _AppShellState extends State<AppShell> {
           backgroundColor: context.palette.bg,
           body: Row(
             children: [
-              NavigationRail(
-                backgroundColor: context.palette.card,
-                selectedIndex: currentIndex,
-                onDestinationSelected: (idx) => _onTabTap(context, idx),
-                labelType: isWide ? NavigationRailLabelType.all : NavigationRailLabelType.none,
-                selectedLabelTextStyle: TextStyle(color: AppColors.teal, fontWeight: FontWeight.bold, fontSize: 12),
-                unselectedLabelTextStyle: TextStyle(color: context.palette.muted, fontSize: 12),
-                selectedIconTheme: IconThemeData(color: AppColors.teal),
-                unselectedIconTheme: IconThemeData(color: context.palette.muted),
-                leading: Padding(
-                  padding: const EdgeInsets.only(bottom: 24, top: 16),
-                  child: FloatingActionButton(
-                    backgroundColor: AppColors.teal,
-                    foregroundColor: Colors.white,
-                    onPressed: () => _onFabTap(context),
-                    child: const Icon(Icons.add),
+              SingleChildScrollView(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                  child: IntrinsicHeight(
+                    child: NavigationRail(
+                      backgroundColor: context.palette.card,
+                      selectedIndex: currentIndex,
+                      onDestinationSelected: (idx) => _onTabTap(context, idx),
+                      labelType: isWide ? NavigationRailLabelType.all : NavigationRailLabelType.none,
+                      selectedLabelTextStyle: TextStyle(color: AppColors.teal, fontWeight: FontWeight.bold, fontSize: 12),
+                      unselectedLabelTextStyle: TextStyle(color: context.palette.muted, fontSize: 12),
+                      selectedIconTheme: IconThemeData(color: AppColors.teal),
+                      unselectedIconTheme: IconThemeData(color: context.palette.muted),
+                      leading: Padding(
+                        padding: const EdgeInsets.only(bottom: 24, top: 16),
+                        child: _AnimatedFab(
+                          onTap: () => _onFabTap(context),
+                          hasUnread: _hasUnreadChat,
+                        ),
+                      ),
+                      destinations: const [
+                        NavigationRailDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home_rounded), label: Text('Trang chủ')),
+                        NavigationRailDestination(icon: Icon(Icons.insights_outlined), selectedIcon: Icon(Icons.insights_rounded), label: Text('Báo cáo')),
+                        NavigationRailDestination(icon: Icon(Icons.savings_outlined), selectedIcon: Icon(Icons.savings_rounded), label: Text('Công cụ')),
+                        NavigationRailDestination(icon: Icon(Icons.settings_outlined), selectedIcon: Icon(Icons.settings_rounded), label: Text('Cài đặt')),
+                      ],
+                    ),
                   ),
                 ),
-                destinations: const [
-                  NavigationRailDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home_rounded), label: Text('Trang chủ')),
-                  NavigationRailDestination(icon: Icon(Icons.insights_outlined), selectedIcon: Icon(Icons.insights_rounded), label: Text('Báo cáo')),
-                  NavigationRailDestination(icon: Icon(Icons.savings_outlined), selectedIcon: Icon(Icons.savings_rounded), label: Text('Công cụ')),
-                  NavigationRailDestination(icon: Icon(Icons.settings_outlined), selectedIcon: Icon(Icons.settings_rounded), label: Text('Cài đặt')),
-                ],
               ),
               const VerticalDivider(thickness: 1, width: 1),
               Expanded(child: mainContent),

@@ -150,6 +150,8 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
+      constraints: const BoxConstraints(maxWidth: 600),
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadii.xl))),
       builder: (ctx) {
         final isChallenge = _goal['type'] == 'challenge';
@@ -240,6 +242,8 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
+      constraints: const BoxConstraints(maxWidth: 600),
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadii.xl))),
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSheet) => Padding(
@@ -416,9 +420,12 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
     return Scaffold(
       backgroundColor: context.palette.bg,
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.only(bottom: 40),
-          child: Column(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 800),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.only(bottom: 40),
+              child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Header
@@ -999,6 +1006,8 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
                   ),
                 ),
             ],
+          ),
+            ),
           ),
         ),
       ),

@@ -8,6 +8,7 @@ import '../../services/api_client.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_radii.dart';
 import '../../widgets/loading_indicator.dart';
+import '../../widgets/responsive_container.dart';
 import '../../services/bill_processing_service.dart';
 
 class CameraInputScreen extends StatefulWidget {
@@ -122,8 +123,9 @@ class _CameraInputScreenState extends State<CameraInputScreen> {
           ),
           // Content
           SafeArea(
-            child: Column(
-              children: [
+            child: ResponsiveMaxWidthContainer(
+              child: Column(
+                children: [
                 // Compact top bar
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -273,6 +275,7 @@ class _CameraInputScreenState extends State<CameraInputScreen> {
                 ),
               ],
             ),
+          ),
           ),
           // Loading overlay
           if (_isLoading)

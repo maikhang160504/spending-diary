@@ -126,6 +126,8 @@ class _ShareWalletScreenState extends State<ShareWalletScreen> {
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
+      constraints: const BoxConstraints(maxWidth: 600),
       backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) {
