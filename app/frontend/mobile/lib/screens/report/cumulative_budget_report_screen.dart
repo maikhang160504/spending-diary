@@ -25,11 +25,48 @@ class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScr
   String? _selectedWalletId;
   final ApiClient _api = ApiClient();
 
+  bool _isLoading = true;
+  double _limit = 0;
+  List<dynamic> _dailyCumulative = [];
+
   @override
   void initState() {
     super.initState();
     _selectedWalletId = widget.initialWalletId ?? ApiClient.lastSelectedWalletId;
-    _loadWallets();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    await _loadWallets();
+    await _loadReportData();
+  }
+
+  Future<void> _loadReportData() async {
+    setState(() {
+      _isLoading = true;
+      _aiInsight = null;
+    });
+    try {
+      final timeRange = _selectedPeriod == 'Theo tuần' ? 'week' : 'month';
+      final data = await _api.getStatsCumulativeVsBudget(
+        walletId: _selectedWalletId == 'Tất cả ví' ? null : _selectedWalletId,
+        timeRange: timeRange,
+        periodOffset: _periodOffset,
+      );
+      if (mounted) {
+        setState(() {
+          _limit = (data['limit'] as num?)?.toDouble() ?? 0;
+          _dailyCumulative = data['dailyCumulative'] as List<dynamic>? ?? [];
+          _isLoading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   String _getPeriodLabel() {
@@ -84,10 +121,32 @@ class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScr
 
   @override
   Widget build(BuildContext context) {
-    const totalBudget = 15000000;
-    const currentSpent = 9200000;
-    const remaining = totalBudget - currentSpent;
-    final pct = (currentSpent / totalBudget * 100).clamp(0, 100);
+    if (_isLoading) {
+      return Scaffold(
+        backgroundColor: context.palette.bg,
+        appBar: AppBar(
+          backgroundColor: context.palette.bg,
+          elevation: 0,
+          leading: IconButton(
+            icon: Icon(Icons.arrow_back_ios_new_rounded, color: context.palette.textPrimary, size: 20),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+          title: Text(
+            'Chi tiêu mức lũy kế',
+            style: TextStyle(color: context.palette.textPrimary, fontSize: 18, fontWeight: FontWeight.w700),
+          ),
+        ),
+        body: const Center(child: CircularProgressIndicator(color: AppColors.teal)),
+      );
+    }
+
+    final double totalBudget = _limit > 0 ? _limit : 1; // Avoid division by zero
+    double currentSpent = 0;
+    if (_dailyCumulative.isNotEmpty) {
+      currentSpent = (_dailyCumulative.last['cumulative'] as num?)?.toDouble() ?? 0;
+    }
+    final double remaining = (_limit - currentSpent) > 0 ? (_limit - currentSpent) : 0;
+    final double pct = _limit > 0 ? (currentSpent / _limit * 100).clamp(0, 100) : 0;
 
     return Scaffold(
       backgroundColor: context.palette.bg,
@@ -127,9 +186,11 @@ class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScr
                         children: [
                           _buildPeriodBtn('Theo tuần', _selectedPeriod == 'Theo tuần', () {
                             setState(() { _selectedPeriod = 'Theo tuần'; _periodOffset = 0; });
+                            _loadReportData();
                           }),
                           _buildPeriodBtn('Theo tháng', _selectedPeriod == 'Theo tháng', () {
                             setState(() { _selectedPeriod = 'Theo tháng'; _periodOffset = 0; });
+                            _loadReportData();
                           }),
                         ],
                       ),
@@ -146,6 +207,7 @@ class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScr
                       icon: Icon(Icons.chevron_left_rounded, color: context.palette.textPrimary),
                       onPressed: () {
                         setState(() => _periodOffset++);
+                        _loadReportData();
                       },
                     ),
                     Text(
@@ -156,6 +218,7 @@ class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScr
                       icon: Icon(Icons.chevron_right_rounded, color: _periodOffset > 0 ? context.palette.textPrimary : AppColors.muted),
                       onPressed: _periodOffset > 0 ? () {
                         setState(() => _periodOffset--);
+                        _loadReportData();
                       } : null,
                     ),
                   ],
@@ -193,7 +256,7 @@ class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScr
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      formatVnd(totalBudget),
+                      formatVnd(_limit.toInt()),
                       style: TextStyle(color: context.palette.textPrimary, fontSize: 24, fontWeight: FontWeight.w800),
                     ),
                     const SizedBox(height: 14),
@@ -209,9 +272,9 @@ class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScr
                     const SizedBox(height: 14),
                     Row(
                       children: [
-                        Expanded(child: _buildStatCol('Đã chi lũy kế', formatVnd(currentSpent), AppColors.danger, isRight: false)),
+                        Expanded(child: _buildStatCol('Đã chi lũy kế', formatVnd(currentSpent.toInt()), AppColors.danger, isRight: false)),
                         const SizedBox(width: 12),
-                        Expanded(child: _buildStatCol('Còn lại an toàn', formatVnd(remaining), AppColors.teal, isRight: true)),
+                        Expanded(child: _buildStatCol('Còn lại an toàn', formatVnd(remaining.toInt()), AppColors.teal, isRight: true)),
                       ],
                     ),
                   ],
@@ -274,7 +337,7 @@ class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScr
             _selectedWalletId = walletId;
             ApiClient.lastSelectedWalletId = walletId;
           });
-          // _loadReportData();
+          _loadReportData();
         },
         borderRadius: BorderRadius.circular(AppRadii.full),
         child: AnimatedContainer(
@@ -447,15 +510,40 @@ class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScr
   }
 
   Widget _buildCumulativeChartCard() {
-    final days = [1, 5, 10, 15, 20, 25, 30];
-    final idealSpots = days.map((d) => FlSpot(d.toDouble(), d * 500000.0)).toList();
-    final actualSpots = [
-      const FlSpot(1, 400000),
-      const FlSpot(5, 2200000),
-      const FlSpot(10, 4500000),
-      const FlSpot(15, 7100000),
-      const FlSpot(20, 9200000),
-    ];
+    final int totalDays = _dailyCumulative.isNotEmpty ? _dailyCumulative.length : 1;
+    final double dailyIdeal = _limit / totalDays;
+
+    final idealSpots = <FlSpot>[];
+    final actualSpots = <FlSpot>[];
+    double maxCumulative = 0;
+
+    for (int i = 0; i < totalDays; i++) {
+      final double dayNum = (i + 1).toDouble();
+      idealSpots.add(FlSpot(dayNum, dailyIdeal * dayNum));
+      
+      final dayData = _dailyCumulative[i];
+      final cumulative = (dayData['cumulative'] as num?)?.toDouble() ?? 0;
+      if (cumulative > maxCumulative) maxCumulative = cumulative;
+      
+      // Stop adding actual spots if the day is in the future
+      if (dayData['day'] != null) {
+        try {
+          final date = DateTime.parse(dayData['day'].toString());
+          if (date.isAfter(DateTime.now())) {
+            continue; // Future day, don't show actual line
+          }
+        } catch (_) {}
+      }
+      actualSpots.add(FlSpot(dayNum, cumulative));
+    }
+    
+    // Fallback if empty
+    if (actualSpots.isEmpty) {
+      actualSpots.add(const FlSpot(1, 0));
+    }
+
+    final maxY = (_limit > maxCumulative ? _limit : maxCumulative) * 1.1; // 10% padding
+
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
@@ -482,7 +570,7 @@ class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScr
             child: LineChart(
               LineChartData(
                 minY: 0,
-                maxY: 16500000,
+                maxY: maxY > 0 ? maxY : 100000,
                 lineTouchData: LineTouchData(
                   enabled: true,
                   touchTooltipData: LineTouchTooltipData(
@@ -524,8 +612,9 @@ class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScr
                   bottomTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
-                      interval: 5,
+                      interval: totalDays > 7 ? 5 : 1,
                       getTitlesWidget: (val, meta) {
+                        if (val > totalDays) return const SizedBox.shrink();
                         return Padding(
                           padding: const EdgeInsets.only(top: 6),
                           child: Text('N${val.toInt()}', style: const TextStyle(color: AppColors.muted, fontSize: 11)),

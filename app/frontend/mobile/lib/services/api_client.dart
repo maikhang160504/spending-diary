@@ -839,7 +839,7 @@ class ApiClient {
     final result = await _request(
       'GET',
       '/stories',
-      queryParams: {'walletId': ?walletId},
+      queryParams: {if (walletId != null) 'walletId': walletId},
     );
     return result['data'] as List<dynamic>;
   }
@@ -922,12 +922,14 @@ class ApiClient {
     return result['data'] as List<dynamic>;
   }
 
-  Future<Map<String, dynamic>> getStatsCumulativeVsBudget({String? walletId}) async {
+  Future<Map<String, dynamic>> getStatsCumulativeVsBudget({String? walletId, String? timeRange, int? periodOffset}) async {
     final result = await _request(
       'GET',
       '/stats/cumulative-vs-budget',
       queryParams: {
-        'walletId':? walletId,
+        if (walletId != null) 'walletId': walletId,
+        if (timeRange != null) 'timeRange': timeRange,
+        if (periodOffset != null) 'periodOffset': periodOffset.toString(),
       },
     );
     return result['data'] as Map<String, dynamic>;

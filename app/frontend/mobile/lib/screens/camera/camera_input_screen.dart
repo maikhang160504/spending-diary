@@ -71,6 +71,7 @@ class _CameraInputScreenState extends State<CameraInputScreen> {
           transactionId: txId,
           walletId: targetId,
           localImagePath: widget.imagePath,
+          isText: true,
         );
       }
 

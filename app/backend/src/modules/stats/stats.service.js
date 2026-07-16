@@ -289,9 +289,26 @@ async function getMoMComparison(userId, { walletId } = {}) {
   }));
 }
 
-async function getCumulativeVsBudget(userId, { walletId } = {}) {
+async function getCumulativeVsBudget(userId, { walletId, timeRange = 'month', periodOffset = 0 } = {}) {
   let budgetQuery, txQuery;
   const now = new Date();
+
+  let startDate, endDate;
+  if (timeRange === 'week') {
+    const day = now.getDay();
+    const diffToMonday = now.getDate() - day + (day === 0 ? -6 : 1);
+    const startOfWeek = new Date(now.getFullYear(), now.getMonth(), diffToMonday);
+    startOfWeek.setDate(startOfWeek.getDate() - 7 * periodOffset);
+    startDate = new Date(Date.UTC(startOfWeek.getFullYear(), startOfWeek.getMonth(), startOfWeek.getDate()));
+    endDate = new Date(startDate);
+    endDate.setDate(endDate.getDate() + 6);
+  } else {
+    startDate = new Date(Date.UTC(now.getFullYear(), now.getMonth() - periodOffset, 1));
+    endDate = new Date(Date.UTC(startDate.getFullYear(), startDate.getMonth() + 1, 0));
+  }
+
+  const startDateStr = startDate.toISOString().split('T')[0];
+  const endDateStr = endDate.toISOString().split('T')[0];
 
   if (walletId) {
     budgetQuery = query(
@@ -299,9 +316,9 @@ async function getCumulativeVsBudget(userId, { walletId } = {}) {
        FROM budgets
        WHERE wallet_id = $1
          AND is_active = TRUE
-         AND start_date <= CURRENT_DATE
-         AND (end_date IS NULL OR end_date >= CURRENT_DATE)`,
-      [walletId]
+         AND start_date <= $2
+         AND (end_date IS NULL OR end_date >= $3)`,
+      [walletId, endDateStr, startDateStr]
     );
 
     txQuery = query(
@@ -312,9 +329,10 @@ async function getCumulativeVsBudget(userId, { walletId } = {}) {
          AND t.type = 'expense'
          AND (category_code IS NULL OR category_code != 'Saving')
          AND t.wallet_id = $1
-         AND date_trunc('month', t.occurred_at) = date_trunc('month', NOW())
+         AND t.occurred_at >= $2::timestamp
+         AND t.occurred_at < $3::timestamp + interval '1 day'
        GROUP BY day ORDER BY day`,
-      [walletId]
+      [walletId, startDateStr, endDateStr]
     );
   } else {
     budgetQuery = query(
@@ -323,9 +341,9 @@ async function getCumulativeVsBudget(userId, { walletId } = {}) {
        WHERE user_id = $1
          AND wallet_id IN (SELECT id FROM wallets WHERE owner_id = $1 AND type = 'personal')
          AND is_active = TRUE
-         AND start_date <= CURRENT_DATE
-         AND (end_date IS NULL OR end_date >= CURRENT_DATE)`,
-      [userId]
+         AND start_date <= $2
+         AND (end_date IS NULL OR end_date >= $3)`,
+      [userId, endDateStr, startDateStr]
     );
 
     txQuery = query(
@@ -336,19 +354,22 @@ async function getCumulativeVsBudget(userId, { walletId } = {}) {
          AND t.type = 'expense'
          AND (category_code IS NULL OR category_code != 'Saving')
          AND t.wallet_id IN (SELECT id FROM wallets WHERE owner_id = $1 AND type = 'personal')
-         AND date_trunc('month', t.occurred_at) = date_trunc('month', NOW())
+         AND t.occurred_at >= $2::timestamp
+         AND t.occurred_at < $3::timestamp + interval '1 day'
        GROUP BY day ORDER BY day`,
-      [userId]
+      [userId, startDateStr, endDateStr]
     );
   }
 
   const [budgetRes, txRes] = await Promise.all([budgetQuery, txQuery]);
-  const limit = Number(budgetRes.rows[0]?.total_limit || 0);
+  let limit = Number(budgetRes.rows[0]?.total_limit || 0);
 
-  const startOfMonth = new Date(Date.UTC(now.getFullYear(), now.getMonth(), 1));
-  const endOfMonth = new Date(Date.UTC(now.getFullYear(), now.getMonth() + 1, 0));
-  
-  const allDays = generateDateRange(startOfMonth.toISOString(), endOfMonth.toISOString());
+  if (timeRange === 'week') {
+    const daysInMonth = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0).getDate();
+    limit = Math.round(limit * (7 / daysInMonth));
+  }
+
+  const allDays = generateDateRange(startDate.toISOString(), endDate.toISOString());
   const amountMap = new Map(txRes.rows.map(r => [r.day, Number(r.daily_amount)]));
 
   let cumulative = 0;

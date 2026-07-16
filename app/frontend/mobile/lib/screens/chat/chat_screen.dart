@@ -203,7 +203,10 @@ _ActionPreview _actionPreviewFromNlu(
   );
 }
 
-Map<String, dynamic> _executeBodyFromPreview(_ActionPreview preview, String? walletId) {
+Map<String, dynamic> _executeBodyFromPreview(
+  _ActionPreview preview,
+  String? walletId,
+) {
   final details = preview.actionDetails;
   final goalName =
       nluString(details?['goal_name']) ?? nluString(details?['goalName']);
@@ -467,7 +470,9 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     _scrollCtrl.addListener(_onScrollLoadOlder);
     chatLlmUpdateNotifier.addListener(_onChatLlmUpdateNotifier);
     _initSession().then((_) {
-      if (mounted && widget.initialMessage != null && widget.initialMessage!.isNotEmpty) {
+      if (mounted &&
+          widget.initialMessage != null &&
+          widget.initialMessage!.isNotEmpty) {
         _sendMessage(widget.initialMessage!);
       }
     });
@@ -477,7 +482,9 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   @override
   void didUpdateWidget(ChatScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.initialMessage != null && widget.initialMessage != oldWidget.initialMessage && widget.initialMessage!.isNotEmpty) {
+    if (widget.initialMessage != null &&
+        widget.initialMessage != oldWidget.initialMessage &&
+        widget.initialMessage!.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _sendMessage(widget.initialMessage!);
       });
@@ -505,68 +512,69 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       if (update.content != null && update.content!.isNotEmpty) {
         bool found = false;
         for (final msg in _messages) {
-            if (msg.backendMessageId == update.messageId) {
-              if (update.intentAction != null &&
-                  update.intentAction!['action_executed'] == true) {
-                final actionResult = update.intentAction!['action_result'];
-                final resultText = actionResult != null
-                    ? actionResult['message']
-                    : null;
-                if (resultText != null &&
-                    resultText.toString().isNotEmpty &&
-                    update.content! != resultText) {
-                  msg.text = '$resultText\n\n${update.content!}';
-                } else {
-                  msg.text = update.content!;
-                }
+          if (msg.backendMessageId == update.messageId) {
+            if (update.intentAction != null &&
+                update.intentAction!['action_executed'] == true) {
+              final actionResult = update.intentAction!['action_result'];
+              final resultText = actionResult != null
+                  ? actionResult['message']
+                  : null;
+              if (resultText != null &&
+                  resultText.toString().isNotEmpty &&
+                  update.content! != resultText) {
+                msg.text = '$resultText\n\n${update.content!}';
               } else {
                 msg.text = update.content!;
               }
-              if (update.mood != null && update.mood!.isNotEmpty) {
-                msg.chatEmotion = update.mood!;
-              }
-              if (update.intentAction != null) {
-                _updateMessagePreviews(msg, update.intentAction!);
-                if (msg.actionPreview != null &&
-                    !_actionNeedsConfirm(msg.actionPreview!.actionType) &&
-                    !msg.isConfirmed) {
-                  msg.isConfirmed = true;
-                  if (update.messageId != null && !_executedActionMessageIds.contains(update.messageId!)) {
-                    _executedActionMessageIds.add(update.messageId!);
-                    _runConfirmedAction(msg);
-                  }
-                }
-              }
-              found = true;
-              break;
+            } else {
+              msg.text = update.content!;
             }
-          }
-          if (!found) {
-            final confirmMsg = _ChatMsg(
-              text: update.content!,
-              isUser: false,
-              time: _now(),
-              chatEmotion: (update.mood != null && update.mood!.isNotEmpty)
-                  ? update.mood
-                  : 'Happy',
-              backendMessageId: update.messageId,
-            );
+            if (update.mood != null && update.mood!.isNotEmpty) {
+              msg.chatEmotion = update.mood!;
+            }
             if (update.intentAction != null) {
-              _updateMessagePreviews(confirmMsg, update.intentAction!);
-              if (confirmMsg.actionPreview != null &&
-                  !_actionNeedsConfirm(confirmMsg.actionPreview!.actionType) &&
-                  !confirmMsg.isConfirmed) {
-                confirmMsg.isConfirmed = true;
-                if (update.messageId != null && !_executedActionMessageIds.contains(update.messageId!)) {
+              _updateMessagePreviews(msg, update.intentAction!);
+              if (msg.actionPreview != null &&
+                  !_actionNeedsConfirm(msg.actionPreview!.actionType) &&
+                  !msg.isConfirmed) {
+                msg.isConfirmed = true;
+                if (update.messageId != null &&
+                    !_executedActionMessageIds.contains(update.messageId!)) {
                   _executedActionMessageIds.add(update.messageId!);
-                  _runConfirmedAction(confirmMsg);
+                  _runConfirmedAction(msg);
                 }
               }
             }
-            _messages.insert(0, confirmMsg);
+            found = true;
+            break;
           }
         }
-
+        if (!found) {
+          final confirmMsg = _ChatMsg(
+            text: update.content!,
+            isUser: false,
+            time: _now(),
+            chatEmotion: (update.mood != null && update.mood!.isNotEmpty)
+                ? update.mood
+                : 'Happy',
+            backendMessageId: update.messageId,
+          );
+          if (update.intentAction != null) {
+            _updateMessagePreviews(confirmMsg, update.intentAction!);
+            if (confirmMsg.actionPreview != null &&
+                !_actionNeedsConfirm(confirmMsg.actionPreview!.actionType) &&
+                !confirmMsg.isConfirmed) {
+              confirmMsg.isConfirmed = true;
+              if (update.messageId != null &&
+                  !_executedActionMessageIds.contains(update.messageId!)) {
+                _executedActionMessageIds.add(update.messageId!);
+                _runConfirmedAction(confirmMsg);
+              }
+            }
+          }
+          _messages.insert(0, confirmMsg);
+        }
+      }
 
       for (final msg in _messages) {
         if (msg.backendMessageId == update.messageId) {
@@ -577,7 +585,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                 !_actionNeedsConfirm(msg.actionPreview!.actionType) &&
                 !msg.isConfirmed) {
               msg.isConfirmed = true;
-              if (update.messageId != null && !_executedActionMessageIds.contains(update.messageId!)) {
+              if (update.messageId != null &&
+                  !_executedActionMessageIds.contains(update.messageId!)) {
                 _executedActionMessageIds.add(update.messageId!);
                 _runConfirmedAction(msg);
               }
@@ -881,9 +890,16 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
         isPremiumLocked: isPremiumLocked,
       );
       if (metadata != null) {
-        final createdAt = DateTime.tryParse(nluString(map['created_at']) ?? nluString(map['createdAt']) ?? '');
-        final isStale = createdAt != null && DateTime.now().difference(createdAt).inMinutes > 2;
-        newMsg.llmPending = metadata['llmPending'] == true && metadata['llmUpdated'] != true && !isStale;
+        final createdAt = DateTime.tryParse(
+          nluString(map['created_at']) ?? nluString(map['createdAt']) ?? '',
+        );
+        final isStale =
+            createdAt != null &&
+            DateTime.now().difference(createdAt).inMinutes > 2;
+        newMsg.llmPending =
+            metadata['llmPending'] == true &&
+            metadata['llmUpdated'] != true &&
+            !isStale;
         if (metadata['action_executed'] == true) {
           newMsg.isConfirmed = true;
         }
@@ -1076,7 +1092,9 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     final update = chatLlmUpdateNotifier.value;
     if (update != null && update.sessionId == _sessionId && !update.failed) {
       // If we have an active update that hasn't failed and isn't finished (no complete message saved)
-      bool hasMsg = _messages.any((m) => m.backendMessageId == update.messageId);
+      bool hasMsg = _messages.any(
+        (m) => m.backendMessageId == update.messageId,
+      );
       if (!hasMsg) {
         if (mounted) {
           setState(() {
@@ -1301,7 +1319,10 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       }
 
       final result = await _api.aiExecuteAction(
-        _executeBodyFromPreview(action, _walletId ?? widget.walletId ?? ApiClient.lastSelectedWalletId),
+        _executeBodyFromPreview(
+          action,
+          _walletId ?? widget.walletId ?? ApiClient.lastSelectedWalletId,
+        ),
       );
       await _api.aiConfirmAction(
         action.signature,
@@ -1458,10 +1479,13 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
               SafeArea(
                 child: Column(
                   children: [
-                    if (!(MediaQuery.of(context).viewInsets.bottom > 0 && MediaQuery.of(context).size.height < 500))
+                    if (!(MediaQuery.of(context).viewInsets.bottom > 0 &&
+                        MediaQuery.of(context).size.height < 500))
                       _ChatHeader(
                         verbalStyle: _verbalStyle,
-                        personalityLabel: personalityLabelFromStyle(_verbalStyle),
+                        personalityLabel: personalityLabelFromStyle(
+                          _verbalStyle,
+                        ),
                         walletId: _walletId,
                       ),
                     Expanded(
@@ -1518,8 +1542,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                       ),
                     ),
                     // Quick action chips
-                    if (_suggestions.isNotEmpty &&
-                        !_aiThinking)
+                    if (_suggestions.isNotEmpty && !_aiThinking)
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: 8),
                         child: ShaderMask(
@@ -1890,7 +1913,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
 
                           // Ghi nhận correction cho NLU learning khi đổi category
                           // Chỉ gửi nếu nguồn là 'chat' (không ghi bill/OCR)
-                          if (oldCategory != updatedCategory && preview.source == 'chat') {
+                          if (oldCategory != updatedCategory &&
+                              preview.source == 'chat') {
                             try {
                               await _api.aiCorrection({
                                 'text': preview.note,
@@ -2057,6 +2081,7 @@ class _TxPreview {
   String note;
   String recordType;
   String? transactionId;
+
   /// Nguồn tạo giao dịch: 'chat' (NLU text), 'bill' (OCR camera), 'manual' (nhập tay)
   final String source;
 
@@ -2378,7 +2403,9 @@ class _TypingBubbleIndicatorState extends State<_TypingBubbleIndicator>
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bubbleColor = isDark ? Colors.white.withValues(alpha: 0.1) : const Color(0xFFF1F5F9);
+    final bubbleColor = isDark
+        ? Colors.white.withValues(alpha: 0.1)
+        : const Color(0xFFF1F5F9);
     final dotColor = isDark ? Colors.white54 : AppColors.muted;
 
     Widget content = AnimatedBuilder(
@@ -2394,7 +2421,7 @@ class _TypingBubbleIndicatorState extends State<_TypingBubbleIndicator>
             final yOffset = relativePhase < 0.0 || relativePhase > 0.4
                 ? 0.0
                 : math.sin((relativePhase / 0.4) * math.pi) * -4.0;
-            
+
             return Padding(
               padding: const EdgeInsets.symmetric(horizontal: 2),
               child: Transform.translate(
@@ -2403,7 +2430,9 @@ class _TypingBubbleIndicatorState extends State<_TypingBubbleIndicator>
                   width: 5,
                   height: 5,
                   decoration: BoxDecoration(
-                    color: dotColor.withValues(alpha: 0.4 + (yOffset.abs() / 4.0) * 0.6),
+                    color: dotColor.withValues(
+                      alpha: 0.4 + (yOffset.abs() / 4.0) * 0.6,
+                    ),
                     shape: BoxShape.circle,
                   ),
                 ),
@@ -2930,12 +2959,20 @@ class _BudgetSuggestionCardState extends State<_BudgetSuggestionCard> {
                     return ActionChip(
                       label: Text(
                         p.$1,
-                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
-                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 0,
+                      ),
                       visualDensity: VisualDensity.compact,
                       backgroundColor: AppColors.teal.withValues(alpha: 0.08),
-                      side: BorderSide(color: AppColors.teal.withValues(alpha: 0.25)),
+                      side: BorderSide(
+                        color: AppColors.teal.withValues(alpha: 0.25),
+                      ),
                       onPressed: () {
                         setDialogState(() {
                           controller.text = p.$2.toString();
@@ -4265,50 +4302,52 @@ class _ChatBubble extends StatelessWidget {
               ),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               decoration: BoxDecoration(
-              color: bubbleColor,
-              borderRadius: BorderRadius.only(
-                topLeft: const Radius.circular(AppRadii.lg),
-                topRight: const Radius.circular(AppRadii.lg),
-                bottomLeft: Radius.circular(message.isUser ? AppRadii.lg : 4),
-                bottomRight: Radius.circular(message.isUser ? 4 : AppRadii.lg),
+                color: bubbleColor,
+                borderRadius: BorderRadius.only(
+                  topLeft: const Radius.circular(AppRadii.lg),
+                  topRight: const Radius.circular(AppRadii.lg),
+                  bottomLeft: Radius.circular(message.isUser ? AppRadii.lg : 4),
+                  bottomRight: Radius.circular(
+                    message.isUser ? 4 : AppRadii.lg,
+                  ),
+                ),
+                boxShadow: message.isUser
+                    ? null
+                    : const [
+                        BoxShadow(
+                          color: Color(0x12000000),
+                          blurRadius: 6,
+                          offset: Offset(0, 4),
+                        ),
+                      ],
               ),
-              boxShadow: message.isUser
-                  ? null
-                  : const [
-                      BoxShadow(
-                        color: Color(0x12000000),
-                        blurRadius: 6,
-                        offset: Offset(0, 4),
-                      ),
-                    ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (message.text.isNotEmpty)
-                  Text(
-                    message.text,
-                    style: Theme.of(
-                      context,
-                    ).textTheme.bodyMedium?.copyWith(color: textColor),
-                  ),
-                if (!message.isUser && message.llmPending) ...[
-                  if (message.text.isNotEmpty) const SizedBox(height: 6),
-                  const _TypingBubbleIndicator(showBackground: false),
-                ],
-                if (!hasSpecialCard) ...[
-                  const SizedBox(height: 6),
-                  Text(
-                    message.time,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: textColor.withValues(alpha: 0.7),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (message.text.isNotEmpty)
+                    Text(
+                      message.text,
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodyMedium?.copyWith(color: textColor),
                     ),
-                  ),
+                  if (!message.isUser && message.llmPending) ...[
+                    if (message.text.isNotEmpty) const SizedBox(height: 6),
+                    const _TypingBubbleIndicator(showBackground: false),
+                  ],
+                  if (!hasSpecialCard) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      message.time,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: textColor.withValues(alpha: 0.7),
+                      ),
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
-        ),
 
         // 2. Special Component Card bubble
         if (hasSpecialCard)
@@ -4325,70 +4364,79 @@ class _ChatBubble extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                if (message.reportPreview != null)
-                  _ReportStoryCard(
-                    preview: message.reportPreview!,
-                    onSendMessage: onSendMessage,
-                  ),
-                if (message.downloadUrl != null)
-                  _buildDownloadExcelCard(context),
-                if (message.actionPreview != null &&
-                    _actionNeedsConfirm(message.actionPreview!.actionType))
-                  _ActionConfirmCard(
-                    preview: message.actionPreview!,
-                    isConfirmed: message.isConfirmed,
-                    isRejected: message.isRejected,
-                    onConfirm: () => onConfirmAction?.call(message),
-                    onReject: () => onRejectAction?.call(message),
-                  ),
-                if (message.budgetSuggestionPreview != null)
-                  _BudgetSuggestionCard(
-                    preview: message.budgetSuggestionPreview!,
-                    isApplied: message.isBudgetApplied,
-                    isDismissed: message.isBudgetDismissed,
-                    onApply: (overrides) =>
-                        onApplyBudgetSuggestion?.call(message, overrides),
-                    onDismiss: () => onDismissBudgetSuggestion?.call(message),
-                  ),
-                if (message.searchPreview != null)
-                  _SearchResultCard(preview: message.searchPreview!),
-                if (message.txPreview != null) _buildSingleTxCard(context),
-                if (message.multiRecords != null &&
-                    message.multiRecords!.isNotEmpty)
-                  _buildMultiTxCard(context),
-                if (message.isPremiumLocked) ...[
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton.icon(
-                      onPressed: () => showPremiumUpsellSheet(context),
-                      icon: const Icon(
-                        Icons.workspace_premium_rounded,
-                        color: Colors.white,
-                        size: 18,
+                  if (message.reportPreview != null)
+                    _ReportStoryCard(
+                      preview: message.reportPreview!,
+                      onSendMessage: onSendMessage,
+                    ),
+                  if (message.downloadUrl != null)
+                    _buildDownloadExcelCard(context),
+                  if (message.actionPreview != null &&
+                      _actionNeedsConfirm(message.actionPreview!.actionType))
+                    _ActionConfirmCard(
+                      preview: message.actionPreview!,
+                      isConfirmed: message.isConfirmed,
+                      isRejected: message.isRejected,
+                      onConfirm: () => onConfirmAction?.call(message),
+                      onReject: () => onRejectAction?.call(message),
+                    ),
+                  if (message.budgetSuggestionPreview != null)
+                    _BudgetSuggestionCard(
+                      preview: message.budgetSuggestionPreview!,
+                      isApplied: message.isBudgetApplied,
+                      isDismissed: message.isBudgetDismissed,
+                      onApply: (overrides) =>
+                          onApplyBudgetSuggestion?.call(message, overrides),
+                      onDismiss: () => onDismissBudgetSuggestion?.call(message),
+                    ),
+                  if (message.searchPreview != null)
+                    _SearchResultCard(preview: message.searchPreview!),
+                  if (message.txPreview != null) _buildSingleTxCard(context),
+                  if (message.multiRecords != null &&
+                      message.multiRecords!.isNotEmpty)
+                    _buildMultiTxCard(context),
+                  if (message.isPremiumLocked) ...[
+                    const SizedBox(height: 12),
+                    ValueListenableBuilder<bool>(
+                      valueListenable: AdsService.instance.premiumNotifier,
+                      builder: (context, isPremium, child) {
+                        if (isPremium) return const SizedBox.shrink();
+                        return child!;
+                      },
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.icon(
+                          onPressed: () => showPremiumUpsellSheet(context),
+                          icon: const Icon(
+                            Icons.workspace_premium_rounded,
+                            color: Colors.white,
+                            size: 18,
+                          ),
+                          label: const Text(
+                            'Nâng cấp Premium',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: const Color(0xFFFFB347),
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
                       ),
-                      label: const Text(
-                        'Nâng cấp Premium',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: const Color(0xFFFFB347),
-                        foregroundColor: Colors.white,
+                    ),
+                  ],
+                  const SizedBox(height: 6),
+                  Text(
+                    message.time,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: context.palette.textSecondary.withValues(
+                        alpha: 0.7,
                       ),
                     ),
                   ),
                 ],
-                const SizedBox(height: 6),
-                Text(
-                  message.time,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: context.palette.textSecondary.withValues(alpha: 0.7),
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
-        ),
 
         // 3. Suggested Actions Chips
         if (!message.isUser &&
@@ -4741,7 +4789,9 @@ class _DailyCompareChart extends StatelessWidget {
         ),
         const SizedBox(height: 14),
         SizedBox(
-          height: MediaQuery.of(context).orientation == Orientation.landscape ? 120 : 160,
+          height: MediaQuery.of(context).orientation == Orientation.landscape
+              ? 120
+              : 160,
           child: LineChart(
             LineChartData(
               lineTouchData: LineTouchData(

@@ -68,9 +68,9 @@ exports.executeAction = asyncHandler(async (req, res) => {
 
 exports.aiChat = asyncHandler(async (req, res) => {
   const { sessionId } = req.params;
-  const { content, contextMeta } = req.body;
+  const { content, contextMeta, walletId } = req.body;
   if (!content || !content.trim()) throw ApiError.badRequest('content is required.');
-  const data = await service.aiChat(req.user.id, sessionId, content.trim(), contextMeta);
+  const data = await service.aiChat(req.user.id, sessionId, content.trim(), contextMeta, walletId);
   res.json({ success: true, data });
 });
 

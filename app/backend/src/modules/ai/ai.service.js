@@ -762,6 +762,11 @@ async function _processTextBackground(userId, transactionId, payload) {
       ]
     );
 
+    let storyId = null;
+    let summaryText = null;
+    let aiCommentContent = aiResponse.nlg?.response || null;
+    let aiEmotion = aiResponse.nlg?.emotion || 'Happy';
+
     // If completed (auto-saved), create story items
     if (!needsReview) {
       // Find wallet name
@@ -771,17 +776,22 @@ async function _processTextBackground(userId, transactionId, payload) {
         if (walletRes.rows[0]) sourceName = walletRes.rows[0].name;
       }
       const isIncome = recordType === 'income';
-      const summaryText = `${isIncome ? 'Thu' : 'Chi'} ${finalAmount.toLocaleString('vi-VN')}đ cho ${finalCategoryCode}`;
+      summaryText = `${isIncome ? 'Thu' : 'Chi'} ${finalAmount.toLocaleString('vi-VN')}đ cho ${finalCategoryCode}`;
+      
+      if (!aiCommentContent) {
+        aiCommentContent = summaryText;
+      }
 
+      const occurredAt = payload.occurredAt ? new Date(payload.occurredAt) : new Date();
       const storyRes = await query(
-        `INSERT INTO stories (user_id, wallet_id, type)
-         VALUES ($1, $2, 'single') RETURNING id`,
-        [userId, payload.walletId]
+        `INSERT INTO stories (user_id, wallet_id, title, total_amount, occurred_on)
+         VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+        [userId, payload.walletId, summaryText, finalAmount, occurredAt]
       );
-      const storyId = storyRes.rows[0].id;
+      storyId = storyRes.rows[0].id;
 
       const storyItemRes = await query(
-        `INSERT INTO story_items (story_id, raw_text, type)
+        `INSERT INTO story_items (story_id, raw_text, media_type)
          VALUES ($1, $2, 'text') RETURNING id`,
         [storyId, payload.text]
       );
@@ -793,12 +803,10 @@ async function _processTextBackground(userId, transactionId, payload) {
       );
 
       // Create AI Comment
-      const aiCommentContent = aiResponse.nlg?.response || summaryText;
-      const aiEmotion = aiResponse.nlg?.emotion || 'Happy';
       await query(
-        `INSERT INTO ai_comments (story_id, transaction_id, content_text, emotion)
+        `INSERT INTO ai_comments (story_id, content_text, visual_state, emotion)
          VALUES ($1, $2, $3, $4)`,
-        [storyId, transactionId, aiCommentContent, aiEmotion]
+        [storyId, aiCommentContent, aiEmotion, aiEmotion]
       );
       
       // Update wallet balance
@@ -828,8 +836,8 @@ async function _processTextBackground(userId, transactionId, payload) {
         categoryCode: finalCategoryCode,
         note: extracted.note || payload.text,
         storyId,
-        aiComment: aiResponse.nlg?.response || summaryText,
-        mascotMood: aiResponse.nlg?.emotion || 'Happy'
+        aiComment: aiCommentContent,
+        mascotMood: aiEmotion
       }
     });
   } catch (err) {
@@ -1434,7 +1442,7 @@ async function _runChatLlmFollowUp(userId, sessionId, messageId, context) {
     sendToUser(userId, { type: 'chat_llm_update', sessionId, messageId, failed: true });
   }
 }
-async function aiChat(userId, sessionId, userMessage, contextMeta) {
+async function aiChat(userId, sessionId, userMessage, contextMeta, passedWalletId) {
   const chatService = require('../chat/chat.service');
   const { sendToUser } = require('../../services/wsHub');
 
@@ -1447,7 +1455,7 @@ async function aiChat(userId, sessionId, userMessage, contextMeta) {
 
   // 2. Kích hoạt xử lý AI chạy ngầm
   setImmediate(() => {
-    _processAiChatBackground(userId, sessionId, userMessage, contextMeta, pendingMsg.id)
+    _processAiChatBackground(userId, sessionId, userMessage, contextMeta, pendingMsg.id, passedWalletId)
       .catch((err) => {
         logger.error({ err: err.message, userId, sessionId }, 'Background AI Chat failed');
         // Báo lỗi cho Frontend
@@ -1464,7 +1472,7 @@ async function aiChat(userId, sessionId, userMessage, contextMeta) {
   };
 }
 
-async function _processAiChatBackground(userId, sessionId, userMessage, contextMeta, messageId) {
+async function _processAiChatBackground(userId, sessionId, userMessage, contextMeta, messageId, passedWalletId) {
   const chatService = require('../chat/chat.service');
   
   // Get recent messages for context
@@ -1495,24 +1503,26 @@ async function _processAiChatBackground(userId, sessionId, userMessage, contextM
     } catch (_) {}
   }
 
-  let walletId = null;
-  try {
-    const sessionRes = await query(
-      `SELECT wallet_id FROM chat_sessions WHERE id = $1 AND user_id = $2`,
-      [sessionId, userId]
-    );
-    if (sessionRes.rows[0]?.wallet_id) {
-      walletId = sessionRes.rows[0].wallet_id;
-    } else {
-      const walletRes = await query(
-        `SELECT wallet_id FROM wallet_members WHERE user_id = $1 LIMIT 1`,
-        [userId]
+  let walletId = passedWalletId || null;
+  if (!walletId) {
+    try {
+      const sessionRes = await query(
+        `SELECT wallet_id FROM chat_sessions WHERE id = $1 AND user_id = $2`,
+        [sessionId, userId]
       );
-      if (walletRes.rows[0]) {
-        walletId = walletRes.rows[0].wallet_id;
+      if (sessionRes.rows[0]?.wallet_id) {
+        walletId = sessionRes.rows[0].wallet_id;
+      } else {
+        const walletRes = await query(
+          `SELECT wallet_id FROM wallet_members WHERE user_id = $1 LIMIT 1`,
+          [userId]
+        );
+        if (walletRes.rows[0]) {
+          walletId = walletRes.rows[0].wallet_id;
+        }
       }
-    }
-  } catch (_) {}
+    } catch (_) {}
+  }
 
   let profile = null;
   if (walletId) {

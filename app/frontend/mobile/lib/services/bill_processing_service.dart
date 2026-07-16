@@ -18,11 +18,13 @@ class BillJob {
     required this.transactionId,
     required this.walletId,
     this.localImagePath,
+    this.isText = false,
   });
 
   String transactionId;
   final String walletId;
   final String? localImagePath;
+  final bool isText;
 
   BillJobPhase phase = BillJobPhase.uploading;
   String? errorMessage;
@@ -118,12 +120,14 @@ class BillProcessingService extends ChangeNotifier {
     required String transactionId,
     required String walletId,
     String? localImagePath,
+    bool isText = false,
   }) {
     if (_jobs.any((j) => j.transactionId == transactionId)) return;
     final job = BillJob(
       transactionId: transactionId,
       walletId: walletId,
       localImagePath: localImagePath,
+      isText: isText,
     )..phase = BillJobPhase.processing
       ..progress = 0.2;
     _jobs.insert(0, job);

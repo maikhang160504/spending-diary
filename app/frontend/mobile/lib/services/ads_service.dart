@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../services/api_client.dart';
 
 /// AdsService — Singleton quản lý logic Mock Ads cho người dùng Free.
 ///
@@ -36,7 +38,7 @@ class AdsService {
   Timer? _usageTimer;
   int _usageSeconds = 0;
   static const int _timeThreshold = 600; // 10 minutes
-  
+
   final _adTriggerController = StreamController<void>.broadcast();
   Stream<void> get onAdTriggered => _adTriggerController.stream;
 
@@ -44,6 +46,14 @@ class AdsService {
     final prefs = await SharedPreferences.getInstance();
     _usageSeconds = prefs.getInt('ads_usage_seconds') ?? 0;
     _startUsageTimer();
+
+    // Fetch premium status from backend on launch
+    try {
+      final isPremiumStatus = await ApiClient().getMyPremiumStatus();
+      setPremium(isPremiumStatus);
+    } catch (_) {
+      // Ignore errors if not logged in or network error
+    }
   }
 
   void _startUsageTimer() {
@@ -53,7 +63,7 @@ class AdsService {
       _usageSeconds += 10;
       final prefs = await SharedPreferences.getInstance();
       await prefs.setInt('ads_usage_seconds', _usageSeconds);
-      
+
       if (_usageSeconds >= _timeThreshold) {
         _adTriggerController.add(null);
       }
@@ -75,9 +85,14 @@ class AdsService {
 
   /// Kiểm tra xem có nên disable ads (user Premium).
   bool _isPremium = false;
+  final ValueNotifier<bool> premiumNotifier = ValueNotifier(false);
 
   void setPremium(bool value) {
     _isPremium = value;
+    premiumNotifier.value = value;
+    SharedPreferences.getInstance().then((prefs) {
+      prefs.setBool('is_premium', value);
+    });
     if (value) reset(); // Premium users không cần đếm
   }
 

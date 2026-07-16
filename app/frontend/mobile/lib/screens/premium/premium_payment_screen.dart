@@ -175,7 +175,7 @@ class _PremiumPaymentScreenState extends State<PremiumPaymentScreen> {
     final order = _orderData!;
     final qrUrl = order['qrUrl'] as String? ?? '';
     final code  = order['code'] as String? ?? '';
-    final amount = order['amount'] as num? ?? 49000;
+    final amount = order['amount'] as num? ?? 5000;
     final transferContent = order['transferContent'] as String? ?? code;
     final bank    = order['bank'] as String? ?? '';
     final accNum  = order['accountNumber'] as String? ?? '';

@@ -5,7 +5,7 @@ const { query } = require('../../config/db');
 const env = require('../../config/env');
 const logger = require('../../config/logger');
 
-const PREMIUM_PRICE = 49000;
+const PREMIUM_PRICE = 5000;
 
 /**
  * Sinh mã đơn hàng độc nhất dạng SD + YYMMDDHHMMSS

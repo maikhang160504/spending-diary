@@ -17,13 +17,13 @@ class BillProcessingBanner extends StatelessWidget {
   String get _statusLabel {
     switch (job.phase) {
       case BillJobPhase.uploading:
-        return 'Đang gửi ảnh bill...';
+        return job.isText ? 'Đang gửi thông tin...' : 'Đang gửi ảnh bill...';
       case BillJobPhase.processing:
-        return 'MiMo đang đọc bill...';
+        return job.isText ? 'MiMo đang phân tích...' : 'MiMo đang đọc bill...';
       case BillJobPhase.done:
-        return 'Bill đã xử lý xong';
+        return job.isText ? 'Phân tích hoàn tất' : 'Bill đã xử lý xong';
       case BillJobPhase.failed:
-        return 'Bill xử lý thất bại';
+        return job.isText ? 'Phân tích thất bại' : 'Bill xử lý thất bại';
     }
   }
 
@@ -95,7 +95,7 @@ class BillProcessingBanner extends StatelessWidget {
               Text(
                 job.phase == BillJobPhase.uploading
                     ? 'Bạn có thể tiếp tục dùng app'
-                    : 'Đang phân tích OCR · ${job.elapsedSeconds}s',
+                    : (job.isText ? 'Đang phân tích thông minh · ${job.elapsedSeconds}s' : 'Đang phân tích OCR · ${job.elapsedSeconds}s'),
                 style: theme.textTheme.bodySmall?.copyWith(
                   fontSize: 11,
                   color: isDark ? Colors.white60 : Colors.black54,

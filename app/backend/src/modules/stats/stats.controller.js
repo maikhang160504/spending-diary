@@ -42,6 +42,8 @@ exports.mom = asyncHandler(async (req, res) => {
 exports.cumulativeVsBudget = asyncHandler(async (req, res) => {
   const data = await service.getCumulativeVsBudget(req.user.id, {
     walletId: req.query.walletId,
+    timeRange: req.query.timeRange,
+    periodOffset: req.query.periodOffset ? parseInt(req.query.periodOffset, 10) : 0,
   });
   res.json({ success: true, data });
 });
