@@ -661,85 +661,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     const SizedBox(height: 24),
                     // ── Premium section ────────────────────────────
                     GestureDetector(
-                      onTap: _isPremium ? null : () {
-                        showModalBottomSheet(
-                          context: context,
-                          isScrollControlled: true,
-                          useSafeArea: true,
-                          constraints: const BoxConstraints(maxWidth: 600),
-                          backgroundColor: Colors.transparent,
-                          builder: (ctx) => Container(
-                            decoration: BoxDecoration(
-                              color: Theme.of(context).brightness == Brightness.dark 
-                                  ? const Color(0xFF1E293B) 
-                                  : Colors.white,
-                              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-                            ),
-                            padding: const EdgeInsets.all(24),
-                            child: SingleChildScrollView(
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Container(
-                                  width: 40,
-                                  height: 4,
-                                  decoration: BoxDecoration(
-                                    color: Colors.grey.withValues(alpha: 0.3),
-                                    borderRadius: BorderRadius.circular(2),
-                                  ),
-                                ),
-                                const SizedBox(height: 24),
-                                Container(
-                                  padding: const EdgeInsets.all(16),
-                                  decoration: const BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    gradient: LinearGradient(
-                                      colors: [Color(0xFFFFB347), Color(0xFFFFCC02)],
-                                      begin: Alignment.topLeft,
-                                      end: Alignment.bottomRight,
-                                    ),
-                                  ),
-                                  child: const Icon(Icons.workspace_premium_rounded, size: 48, color: Colors.white),
-                                ),
-                                const SizedBox(height: 16),
-                                Text(
-                                  'SpendDiary Premium',
-                                  style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'Mở khóa toàn bộ sức mạnh quản lý chi tiêu',
-                                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.muted),
-                                ),
-                                const SizedBox(height: 32),
-                                _buildBenefitRow(context, Icons.block_flipped, 'Không có quảng cáo', 'Trải nghiệm mượt mà không bị làm phiền'),
-                                const SizedBox(height: 16),
-                                _buildBenefitRow(context, Icons.all_inclusive_rounded, 'Vô hạn số lượng ví', 'Tạo và quản lý bao nhiêu ví tùy thích'),
-                                const SizedBox(height: 16),
-                                _buildBenefitRow(context, Icons.insert_drive_file_outlined, 'Xuất dữ liệu Excel/CSV', 'Báo cáo chi tiết cho cá nhân và công việc'),
-                                const SizedBox(height: 32),
-                                SizedBox(
-                                  width: double.infinity,
-                                  child: FilledButton(
-                                    onPressed: () {
-                                      Navigator.pop(ctx);
-                                      context.push(AppRoutes.premiumPayment);
-                                    },
-                                    style: FilledButton.styleFrom(
-                                      backgroundColor: const Color(0xFFFFB347),
-                                      padding: const EdgeInsets.symmetric(vertical: 16),
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                                    ),
-                                    child: const Text('Thanh toán ngay — 49.000đ', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
-                                  ),
-                                ),
-                                SizedBox(height: MediaQuery.paddingOf(context).bottom),
-                              ],
-                            ),
-                           ),
-                          ),
-                        );
-                      },
+                      onTap: _isPremium ? null : () => showPremiumUpsellSheet(context),
                       child: Builder(
                         builder: (context) {
                           final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -1001,6 +923,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 _AiStyleSwapSelector(
                                   selected: _verbalStyle,
                                   isPremium: _isPremium,
+                                  onPremiumLocked: () => showPremiumUpsellSheet(context),
                                   onSelected: (style) async {
                                     if (style == _verbalStyle) return;
                                     if ((style == 'kho_tinh' || style == 'ngot_ngao') && !_isPremium) return;
@@ -1497,10 +1420,12 @@ class _AiStyleSwapSelector extends StatelessWidget {
   final String selected; // 'funny' | 'strict' | 'kho_tinh' | 'ngot_ngao'
   final bool isPremium;
   final Future<void> Function(String style) onSelected;
+  final VoidCallback onPremiumLocked;
   const _AiStyleSwapSelector({
     required this.selected,
     required this.isPremium,
     required this.onSelected,
+    required this.onPremiumLocked,
   });
 
   @override
@@ -1543,11 +1468,7 @@ class _AiStyleSwapSelector extends StatelessWidget {
                 isLocked: !isPremium,
                 onTap: isPremium 
                     ? () => onSelected('kho_tinh') 
-                    : () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Vui lòng nâng cấp Premium để sử dụng tính năng này')),
-                        );
-                      },
+                    : onPremiumLocked,
               ),
             ),
             const SizedBox(width: gap),
@@ -1560,11 +1481,7 @@ class _AiStyleSwapSelector extends StatelessWidget {
                 isLocked: !isPremium,
                 onTap: isPremium 
                     ? () => onSelected('ngot_ngao') 
-                    : () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Vui lòng nâng cấp Premium để sử dụng tính năng này')),
-                        );
-                      },
+                    : onPremiumLocked,
               ),
             ),
           ],

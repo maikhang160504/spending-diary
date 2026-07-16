@@ -240,7 +240,9 @@ class _TaglineRow extends StatelessWidget {
           style: GoogleFonts.nunito(
             fontSize: 13,
             fontWeight: FontWeight.w500,
-            color: const Color(0xFF64748B),
+            color: Theme.of(context).brightness == Brightness.dark 
+                ? const Color(0xFF94A3B8) 
+                : const Color(0xFF64748B),
           ),
         ),
         const SizedBox(width: 6),

@@ -203,7 +203,7 @@ _ActionPreview _actionPreviewFromNlu(
   );
 }
 
-Map<String, dynamic> _executeBodyFromPreview(_ActionPreview preview) {
+Map<String, dynamic> _executeBodyFromPreview(_ActionPreview preview, String? walletId) {
   final details = preview.actionDetails;
   final goalName =
       nluString(details?['goal_name']) ?? nluString(details?['goalName']);
@@ -229,6 +229,7 @@ Map<String, dynamic> _executeBodyFromPreview(_ActionPreview preview) {
       'contactName': contactName,
     if (dueDate != null && dueDate.isNotEmpty) 'dueDate': dueDate,
     if (query != null && query.isNotEmpty) 'query': query,
+    if (walletId != null) 'walletId': walletId,
     'text': preview.originalText,
     if (preview.actionDetails != null) 'actionDetails': preview.actionDetails,
     if (timeLabel != null && timeLabel.isNotEmpty)
@@ -409,11 +410,11 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   final _inputCtrl = TextEditingController();
   final _scrollCtrl = ScrollController();
   final List<_ChatMsg> _messages = [];
+  final Set<String> _executedActionMessageIds = {};
 
   bool _aiThinking = false;
   bool _loadingOlder = false;
   bool _hasMoreHistory = false;
-  bool _waitingForLlm = false;
   bool _showConfetti = false;
   String? _llmPendingMessageId;
 
@@ -474,6 +475,16 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   }
 
   @override
+  void didUpdateWidget(ChatScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialMessage != null && widget.initialMessage != oldWidget.initialMessage && widget.initialMessage!.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _sendMessage(widget.initialMessage!);
+      });
+    }
+  }
+
+  @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       if (_sessionId != null) {
@@ -488,7 +499,6 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     if (update.sessionId != _sessionId) return;
     setState(() {
       if (_llmPendingMessageId == update.messageId) {
-        _waitingForLlm = false;
         _llmPendingMessageId = null;
       }
 
@@ -521,7 +531,10 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                     !_actionNeedsConfirm(msg.actionPreview!.actionType) &&
                     !msg.isConfirmed) {
                   msg.isConfirmed = true;
-                  _runConfirmedAction(msg);
+                  if (update.messageId != null && !_executedActionMessageIds.contains(update.messageId!)) {
+                    _executedActionMessageIds.add(update.messageId!);
+                    _runConfirmedAction(msg);
+                  }
                 }
               }
               found = true;
@@ -544,7 +557,10 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                   !_actionNeedsConfirm(confirmMsg.actionPreview!.actionType) &&
                   !confirmMsg.isConfirmed) {
                 confirmMsg.isConfirmed = true;
-                _runConfirmedAction(confirmMsg);
+                if (update.messageId != null && !_executedActionMessageIds.contains(update.messageId!)) {
+                  _executedActionMessageIds.add(update.messageId!);
+                  _runConfirmedAction(confirmMsg);
+                }
               }
             }
             _messages.insert(0, confirmMsg);
@@ -561,7 +577,10 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                 !_actionNeedsConfirm(msg.actionPreview!.actionType) &&
                 !msg.isConfirmed) {
               msg.isConfirmed = true;
-              _runConfirmedAction(msg);
+              if (update.messageId != null && !_executedActionMessageIds.contains(update.messageId!)) {
+                _executedActionMessageIds.add(update.messageId!);
+                _runConfirmedAction(msg);
+              }
             }
           }
         }
@@ -700,6 +719,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       String? chatEmotion;
       var displayText = nluString(map['content']) ?? '';
       bool isPremiumLocked = false;
+      bool isBudgetApplied = false;
+      bool isBudgetDismissed = false;
 
       if (metadata != null && role != 'user') {
         final statusEvent = nluMap(metadata['budget_status_event']);
@@ -859,8 +880,13 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
         suggestedActions: suggestedActions,
         isPremiumLocked: isPremiumLocked,
       );
-      if (metadata != null && metadata['action_executed'] == true) {
-        newMsg.isConfirmed = true;
+      if (metadata != null) {
+        final createdAt = DateTime.tryParse(nluString(map['created_at']) ?? nluString(map['createdAt']) ?? '');
+        final isStale = createdAt != null && DateTime.now().difference(createdAt).inMinutes > 2;
+        newMsg.llmPending = metadata['llmPending'] == true && metadata['llmUpdated'] != true && !isStale;
+        if (metadata['action_executed'] == true) {
+          newMsg.isConfirmed = true;
+        }
       }
 
       // Nếu tin nhắn hiện tại là tin xác nhận đã lưu ("saved": true)
@@ -1042,6 +1068,24 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
         await _loadMessagesPage();
       }
     } catch (_) {}
+
+    _checkOngoingGeneration();
+  }
+
+  void _checkOngoingGeneration() {
+    final update = chatLlmUpdateNotifier.value;
+    if (update != null && update.sessionId == _sessionId && !update.failed) {
+      // If we have an active update that hasn't failed and isn't finished (no complete message saved)
+      bool hasMsg = _messages.any((m) => m.backendMessageId == update.messageId);
+      if (!hasMsg) {
+        if (mounted) {
+          setState(() {
+            _aiThinking = true;
+          });
+          _scrollToBottom();
+        }
+      }
+    }
   }
 
   String _formatMsgTime(String? iso) => VnTime.formatHmFromIso(iso);
@@ -1122,10 +1166,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       final parsed = _parseMessagesFromApi([assistantMsgMap]);
       if (parsed.isNotEmpty) {
         final confirmMsg = parsed.first;
-        if (chatRes['llmPending'] == true) {
-          confirmMsg.llmPending =
-              false; // Do not show inline "Mimo đang soạn thêm..."
-          _waitingForLlm = true;
+        if (intentAction['llmPending'] == true) {
+          confirmMsg.llmPending = true;
           _llmPendingMessageId = chatRes['messageId'] as String?;
         }
         if (chatRes['messageId'] != null) {
@@ -1184,7 +1226,6 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       if (!mounted) return;
       setState(() {
         _aiThinking = false;
-        _waitingForLlm = false;
         _messages.insert(
           0,
           _ChatMsg(text: e.localizedMessage, isUser: false, time: _now()),
@@ -1196,7 +1237,6 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       if (!mounted) return;
       setState(() {
         _aiThinking = false;
-        _waitingForLlm = false;
         _messages.insert(
           0,
           _ChatMsg(
@@ -1261,7 +1301,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       }
 
       final result = await _api.aiExecuteAction(
-        _executeBodyFromPreview(action),
+        _executeBodyFromPreview(action, _walletId ?? widget.walletId ?? ApiClient.lastSelectedWalletId),
       );
       await _api.aiConfirmAction(
         action.signature,
@@ -1477,43 +1517,9 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                         },
                       ),
                     ),
-                    if (_waitingForLlm)
-                      Padding(
-                        padding: const EdgeInsets.only(
-                          left: 20,
-                          top: 8,
-                          bottom: 4,
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.start,
-                          children: [
-                            Image.asset(
-                              'assets/MiMo/emotions/Thinking.png',
-                              width: 18,
-                              height: 18,
-                              errorBuilder: (_, _, _) => const Text(
-                                '🤔',
-                                style: TextStyle(fontSize: 12),
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              'MiMo đang soạn tin nhắn',
-                              style: Theme.of(context).textTheme.bodySmall
-                                  ?.copyWith(
-                                    color: AppColors.muted,
-                                    fontStyle: FontStyle.italic,
-                                  ),
-                            ),
-                            const SizedBox(width: 4),
-                            const _DotsAnimation(),
-                          ],
-                        ),
-                      ),
                     // Quick action chips
                     if (_suggestions.isNotEmpty &&
-                        !_aiThinking &&
-                        !_waitingForLlm)
+                        !_aiThinking)
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: 8),
                         child: ShaderMask(
@@ -1554,7 +1560,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                       ),
                     _ChatComposer(
                       controller: _inputCtrl,
-                      isSending: _aiThinking || _waitingForLlm,
+                      isSending: _aiThinking,
                       onSend: () {
                         final t = _inputCtrl.text.trim();
                         if (t.isEmpty) return;
@@ -2333,7 +2339,7 @@ class _TypingIndicator extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 4),
-              const _DotsAnimation(),
+              const _TypingBubbleIndicator(),
             ],
           ),
         ),
@@ -2342,14 +2348,15 @@ class _TypingIndicator extends StatelessWidget {
   }
 }
 
-class _DotsAnimation extends StatefulWidget {
-  const _DotsAnimation();
+class _TypingBubbleIndicator extends StatefulWidget {
+  final bool showBackground;
+  const _TypingBubbleIndicator({this.showBackground = true});
 
   @override
-  State<_DotsAnimation> createState() => _DotsAnimationState();
+  State<_TypingBubbleIndicator> createState() => _TypingBubbleIndicatorState();
 }
 
-class _DotsAnimationState extends State<_DotsAnimation>
+class _TypingBubbleIndicatorState extends State<_TypingBubbleIndicator>
     with SingleTickerProviderStateMixin {
   late AnimationController _ctrl;
 
@@ -2370,23 +2377,33 @@ class _DotsAnimationState extends State<_DotsAnimation>
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bubbleColor = isDark ? Colors.white.withValues(alpha: 0.1) : const Color(0xFFF1F5F9);
+    final dotColor = isDark ? Colors.white54 : AppColors.muted;
+
+    Widget content = AnimatedBuilder(
       animation: _ctrl,
       builder: (_, _) {
         final phase = _ctrl.value;
         return Row(
           mainAxisSize: MainAxisSize.min,
           children: List.generate(3, (i) {
-            final offset = ((phase * 3 - i) % 3).clamp(0.0, 1.0);
+            // Bouncing math
+            final delay = i * 0.2;
+            final relativePhase = (phase - delay) % 1.0;
+            final yOffset = relativePhase < 0.0 || relativePhase > 0.4
+                ? 0.0
+                : math.sin((relativePhase / 0.4) * math.pi) * -4.0;
+            
             return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 1),
-              child: Opacity(
-                opacity: 0.3 + 0.7 * (1 - offset),
+              padding: const EdgeInsets.symmetric(horizontal: 2),
+              child: Transform.translate(
+                offset: Offset(0, yOffset),
                 child: Container(
-                  width: 4,
-                  height: 4,
-                  decoration: const BoxDecoration(
-                    color: AppColors.muted,
+                  width: 5,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: dotColor.withValues(alpha: 0.4 + (yOffset.abs() / 4.0) * 0.6),
                     shape: BoxShape.circle,
                   ),
                 ),
@@ -2395,6 +2412,21 @@ class _DotsAnimationState extends State<_DotsAnimation>
           }),
         );
       },
+    );
+
+    if (widget.showBackground) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: bubbleColor,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: content,
+      );
+    }
+    return Padding(
+      padding: const EdgeInsets.only(top: 4, bottom: 2),
+      child: content,
     );
   }
 }
@@ -4262,13 +4294,7 @@ class _ChatBubble extends StatelessWidget {
                   ),
                 if (!message.isUser && message.llmPending) ...[
                   if (message.text.isNotEmpty) const SizedBox(height: 6),
-                  Text(
-                    'Mimo đang soạn thêm…',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: textColor.withValues(alpha: 0.65),
-                      fontStyle: FontStyle.italic,
-                    ),
-                  ),
+                  const _TypingBubbleIndicator(showBackground: false),
                 ],
                 if (!hasSpecialCard) ...[
                   const SizedBox(height: 6),

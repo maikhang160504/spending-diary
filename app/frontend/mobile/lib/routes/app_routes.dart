@@ -302,6 +302,7 @@ final GoRouter appRouter = GoRouter(
             sessionId: extra?['sessionId'] as String?,
             walletId: extra?['walletId'] as String?,
             forceNew: extra?['forceNew'] as bool? ?? false,
+            initialMessage: extra?['initialMessage'] as String?,
           ),
         );
       },

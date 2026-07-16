@@ -1387,6 +1387,7 @@ async function _runChatLlmFollowUp(userId, sessionId, messageId, context) {
     const intentActionPatch = {
       mood,
       llmUpdated: true,
+      llmPending: false,
       nlu: mergedNlu,
     };
 
@@ -1403,7 +1404,8 @@ async function _runChatLlmFollowUp(userId, sessionId, messageId, context) {
       completeIntentAction.multi_records = mergedNlu.multi_records.map(r => ({
         text: r.text || '',
         amount: Number(r.amount) || 0,
-        category: r.category || 'Other',
+
+        category: r.category || 'Other',
         record_type: r.record_type || 'Expense',
       }));
     }

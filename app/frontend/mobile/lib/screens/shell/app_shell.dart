@@ -175,6 +175,12 @@ class _AppShellState extends State<AppShell> {
     _wsSub?.cancel();
     _reconnectTimer?.cancel();
     try {
+      // Dummy request to ensure the access token is valid and refresh it if expired
+      // This prevents the WebSocket from constantly failing due to an expired token.
+      try {
+        await _api.getSettings();
+      } catch (_) {}
+
       final token = await _api.accessToken;
       if (token == null) {
         _scheduleReconnect();
@@ -341,22 +347,30 @@ class _AppShellState extends State<AppShell> {
         widget.child,
         if (billJobs.isNotEmpty)
           Positioned(
-            left: 16,
-            right: 16,
+            left: 0,
+            right: 0,
             top: billBannerTop,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: billJobs.map((job) {
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: BillProcessingBanner(
-                    job: job,
-                    onDismiss: job.phase == BillJobPhase.failed
-                        ? () => BillProcessingService.instance.dismissJob(job.transactionId)
-                        : null,
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 600),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: billJobs.map((job) {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: BillProcessingBanner(
+                          job: job,
+                          onDismiss: job.phase == BillJobPhase.failed
+                              ? () => BillProcessingService.instance.dismissJob(job.transactionId)
+                              : null,
+                        ),
+                      );
+                    }).toList(),
                   ),
-                );
-              }).toList(),
+                ),
+              ),
             ),
           ),
         // MiMo overlay — góc phải dưới, ngay trên nav bar
@@ -373,11 +387,19 @@ class _AppShellState extends State<AppShell> {
         if (inAppNotificationController.current != null)
           Positioned(
             top: topInset + 12,
-            left: 16,
-            right: 16,
-            child: InAppNotificationBanner(
-              notification: inAppNotificationController.current!,
-              onDismiss: inAppNotificationController.dismiss,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 600),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: InAppNotificationBanner(
+                    notification: inAppNotificationController.current!,
+                    onDismiss: inAppNotificationController.dismiss,
+                  ),
+                ),
+              ),
             ),
           ),
         // AI Assistant Speed Dial Popup overlay
@@ -409,19 +431,38 @@ class _AppShellState extends State<AppShell> {
                 );
               },
               onSelectChat: () {
-                context.push(
-                  AppRoutes.chat,
-                  extra: {'walletId': ApiClient.lastSelectedWalletId},
-                );
+                final loc = GoRouterState.of(context).uri.toString();
+                if (loc.startsWith(AppRoutes.chat)) {
+                  context.go(
+                    AppRoutes.chat,
+                    extra: {'walletId': ApiClient.lastSelectedWalletId},
+                  );
+                } else {
+                  context.push(
+                    AppRoutes.chat,
+                    extra: {'walletId': ApiClient.lastSelectedWalletId},
+                  );
+                }
               },
               onQuickSubmit: (text) {
-                context.push(
-                  AppRoutes.chat,
-                  extra: {
-                    'walletId': ApiClient.lastSelectedWalletId,
-                    'initialMessage': text,
-                  },
-                );
+                final loc = GoRouterState.of(context).uri.toString();
+                if (loc.startsWith(AppRoutes.chat)) {
+                  context.go(
+                    AppRoutes.chat,
+                    extra: {
+                      'walletId': ApiClient.lastSelectedWalletId,
+                      'initialMessage': text,
+                    },
+                  );
+                } else {
+                  context.push(
+                    AppRoutes.chat,
+                    extra: {
+                      'walletId': ApiClient.lastSelectedWalletId,
+                      'initialMessage': text,
+                    },
+                  );
+                }
               },
             ),
           ),

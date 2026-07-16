@@ -190,6 +190,22 @@ function inferTimeRangeFromText(text) {
     const from = new Date(now.getFullYear(), now.getMonth(), 1);
     return { period_label: label('Tháng này', from, now), from: fmt(from), to: fmt(endOfDay(now)), granularity: 'month' };
   }
+  if (/\bthang truoc\b/.test(t)) {
+    const from = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const to = new Date(now.getFullYear(), now.getMonth(), 0); // Last day of last month
+    return { period_label: label('Tháng trước', from, to), from: fmt(from), to: fmt(endOfDay(to)), granularity: 'month' };
+  }
+  const monthMatch = t.match(/\bthang\s+(\d{1,2})\b/i);
+  if (monthMatch) {
+    let m = parseInt(monthMatch[1], 10);
+    if (m >= 1 && m <= 12) {
+      let y = now.getFullYear();
+      if (m > now.getMonth() + 1) y -= 1; // Assume past month if it's in the future
+      const from = new Date(y, m - 1, 1);
+      const to = new Date(y, m, 0); // Last day of the month
+      return { period_label: label(`Tháng ${m}`, from, to), from: fmt(from), to: fmt(endOfDay(to)), granularity: 'month' };
+    }
+  }
   if (/\bhom nay\b/.test(t)) {
     const from = startOfDay(now);
     const pad = (n) => String(n).padStart(2, '0');
@@ -207,6 +223,31 @@ function inferTimeRangeFromText(text) {
   }
   const from = new Date(now.getFullYear(), now.getMonth(), 1);
   return { period_label: label('Tháng này', from, now), from: fmt(from), to: fmt(endOfDay(now)), granularity: 'month' };
+}
+
+function getPreviousPeriodRange(fromStr, toStr, granularity) {
+  const from = new Date(fromStr);
+  const to = new Date(toStr);
+  const fmt = (d) => d.toISOString();
+  
+  if (granularity === 'month') {
+    const prevFrom = new Date(from.getFullYear(), from.getMonth() - 1, 1);
+    const prevTo = new Date(from.getFullYear(), from.getMonth(), 0, 23, 59, 59);
+    return { from: fmt(prevFrom), to: fmt(prevTo) };
+  } else if (granularity === 'week' || granularity === 'rolling_7d') {
+    const prevFrom = new Date(from.getTime() - 7 * 24 * 3600000);
+    const prevTo = new Date(to.getTime() - 7 * 24 * 3600000);
+    return { from: fmt(prevFrom), to: fmt(prevTo) };
+  } else if (granularity === 'day') {
+    const prevFrom = new Date(from.getTime() - 24 * 3600000);
+    const prevTo = new Date(to.getTime() - 24 * 3600000);
+    return { from: fmt(prevFrom), to: fmt(prevTo) };
+  }
+  
+  const diffTime = to.getTime() - from.getTime();
+  const prevFrom = new Date(from.getTime() - diffTime - 24 * 3600000);
+  const prevTo = new Date(from.getTime() - 1000);
+  return { from: fmt(prevFrom), to: fmt(prevTo) };
 }
 
 function formatMonthYear(y, m) {
@@ -411,7 +452,7 @@ async function executeReport(userId, { timeRange, categoryCode, reportKind, text
     range = inferTimeRangeFromText(text || '');
   }
 
-  const dash = await statsService.dashboard(userId, { from: range.from, to: range.to });
+  const dash = await statsService.dashboard(userId, { from: range.from, to: range.to, walletId: payload.walletId || undefined });
   const kind = reportKind || detectReportKind(text, null);
   const resolvedCategory = resolveCategoryCode(categoryCode, actionDetails, text);
   const multipleCategories = resolveMultipleCategoryCodes(text || '');
@@ -431,11 +472,12 @@ async function executeReport(userId, { timeRange, categoryCode, reportKind, text
          FROM transactions t
          WHERE t.is_deleted = FALSE
            AND t.wallet_id IN (SELECT wallet_id FROM wallet_members WHERE user_id = $1)
+           AND ($4::uuid IS NULL OR t.wallet_id = $4::uuid)
            AND t.occurred_at BETWEEN $2 AND $3
            AND type = 'income'
          GROUP BY COALESCE(category_code, 'Others')
          ORDER BY total DESC`,
-        [userId, range.from, range.to]
+        [userId, range.from, range.to, payload.walletId || null]
       );
       byCategory = r.rows.map((row) => ({
         categoryCode: row.category_code,
@@ -453,9 +495,10 @@ async function executeReport(userId, { timeRange, categoryCode, reportKind, text
          FROM transactions t
          WHERE t.is_deleted = FALSE
            AND t.wallet_id IN (SELECT wallet_id FROM wallet_members WHERE user_id = $1)
+           AND ($4::uuid IS NULL OR t.wallet_id = $4::uuid)
            AND t.occurred_at BETWEEN $2 AND $3
            AND category_code = 'Saving'`,
-        [userId, range.from, range.to]
+        [userId, range.from, range.to, payload.walletId || null]
       );
       totalExpense = Number(r.rows[0].total);
       txCount = r.rows[0].count;
@@ -1046,15 +1089,18 @@ async function executeSetTone(userId, payload) {
 
 async function executeSearch(userId, payload) {
   const details = payload.actionDetails || {};
-  let q = (payload.query || details.query || '').trim();
+  const slots = payload.slots || payload.nlu?.slots || {};
+  let q = (payload.query || slots.query || slots.item || details.query || details.item || '').trim();
+  let usedFallback = false;
   if (!q && payload.text) {
+    usedFallback = true;
     q = payload.text
       .replace(/^(tim|tìm|kiem|kiểm)\s*(các\s*)?(giao\s*dich|giao\s*dịch|khoan|khoản)\s*/i, '')
       .replace(/\b(tren|trên|duoi|dưới)\s+\d[\d.,kkmtr]*\s*(dong|đ|đồng)?\b/gi, '')
       .trim();
   }
-  const minAmount = payload.amount ?? details.amount ?? (payload.minAmount ? Number(payload.minAmount) : resolveAmount(payload, details));
-  const categoryCode = resolveCategoryCode(payload.categoryCode, details, payload.text);
+  const minAmount = payload.amount ?? slots.amount ?? details.amount ?? (payload.minAmount ? Number(payload.minAmount) : resolveAmount(payload, details));
+  const categoryCode = resolveCategoryCode(payload.categoryCode || slots.category, details, payload.text);
 
   if (categoryCode && q) {
     const aliases = [];
@@ -1074,8 +1120,13 @@ async function executeSearch(userId, payload) {
 
   const values = [userId];
   let where = `t.is_deleted = FALSE
-    AND t.wallet_id IN (SELECT wallet_id FROM wallet_members WHERE user_id = $1)`;
+    AND t.wallet_id IN (SELECT wallet_id FROM wallet_members WHERE user_id = $1)
+           AND ($4::uuid IS NULL OR t.wallet_id = $4::uuid)`;
 
+  if (payload.walletId) {
+    values.push(payload.walletId);
+    where += ` AND t.wallet_id = $${values.length}`;
+  }
   if (categoryCode) {
     values.push(categoryCode);
     where += ` AND t.category_code = $${values.length}`;
@@ -1098,6 +1149,13 @@ async function executeSearch(userId, payload) {
     }
   }
   
+  if (usedFallback && q.split(' ').length > 4) {
+    // If the query is conversational and long, and we found a category, ignore the text for exact ILIKE matching
+    if (categoryCode) {
+      q = '';
+    }
+  }
+
   if (q && !q.includes('>') && !q.includes('<')) {
     values.push(`%${q.slice(0, 80)}%`);
     where += ` AND (t.note ILIKE $${values.length} OR t.category_code ILIKE $${values.length})`;

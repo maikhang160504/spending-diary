@@ -380,90 +380,93 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
           final bottomControls = Container(
             color: Colors.black,
             padding: EdgeInsets.fromLTRB(20, 20, 20, isLandscapeOrWide ? 20 : 28),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                if (isLandscapeOrWide) ...[
-                  // If landscape, arrange vertically
-                  _CtrlBtn(icon: Icons.photo_library_outlined, label: 'Thư viện', onTap: _pickFromGallery),
-                  const SizedBox(height: 32),
-                  GestureDetector(
-                    onTap: _takePhoto,
-                    child: Container(
-                      width: 72, height: 72,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: _mode == 'Bill' ? Colors.yellow : AppColors.teal,
-                          width: 3,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: (_mode == 'Bill' ? Colors.yellow : AppColors.teal).withValues(alpha: 0.35),
-                            blurRadius: 16,
-                            spreadRadius: 2,
-                          ),
-                        ],
-                      ),
-                      child: Center(
-                        child: _isTakingPhoto
-                            ? const SizedBox(width: 32, height: 32, child: CircularProgressIndicator(color: AppColors.teal, strokeWidth: 2))
-                            : Container(width: 56, height: 56, decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle)),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-                  _CtrlBtn(icon: Icons.cameraswitch_outlined, label: 'Xoay cam', onTap: _flipCamera),
-                ] else ...[
-                  // Portrait layout
-                  Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                    _CtrlBtn(icon: Icons.photo_library_outlined, label: 'Thư viện', onTap: _pickFromGallery),
-                    GestureDetector(
-                      onTap: _takePhoto,
-                      child: Container(
-                        width: 72, height: 72,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: _mode == 'Bill' ? Colors.yellow : AppColors.teal,
-                            width: 3,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: (_mode == 'Bill' ? Colors.yellow : AppColors.teal).withValues(alpha: 0.35),
-                              blurRadius: 16,
-                              spreadRadius: 2,
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                    if (isLandscapeOrWide) ...[
+                      // If landscape, arrange vertically
+                      _CtrlBtn(icon: Icons.photo_library_outlined, label: 'Thư viện', onTap: _pickFromGallery),
+                      const SizedBox(height: 32),
+                      GestureDetector(
+                        onTap: _takePhoto,
+                        child: Container(
+                          width: 72, height: 72,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: _mode == 'Bill' ? Colors.yellow : AppColors.teal,
+                              width: 3,
                             ),
-                          ],
-                        ),
-                        child: Center(
-                          child: _isTakingPhoto
-                              ? const SizedBox(width: 32, height: 32, child: CircularProgressIndicator(color: AppColors.teal, strokeWidth: 2))
-                              : Container(width: 56, height: 56, decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle)),
+                            boxShadow: [
+                              BoxShadow(
+                                color: (_mode == 'Bill' ? Colors.yellow : AppColors.teal).withValues(alpha: 0.35),
+                                blurRadius: 16,
+                                spreadRadius: 2,
+                              ),
+                            ],
+                          ),
+                          child: Center(
+                            child: _isTakingPhoto
+                                ? const SizedBox(width: 32, height: 32, child: CircularProgressIndicator(color: AppColors.teal, strokeWidth: 2))
+                                : Container(width: 56, height: 56, decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle)),
+                          ),
                         ),
                       ),
-                    ),
-                    _CtrlBtn(icon: Icons.cameraswitch_outlined, label: 'Xoay cam', onTap: _flipCamera),
-                  ]),
-                ],
-                if (_mode == 'Bill') ...[
-                  const SizedBox(height: 12),
-                  Text(
-                    _isTakingPhoto ? 'Mimso đang đọc hóa đơn...' : 'Chụp để xử lý tự động',
-                    style: TextStyle(
-                      color: _isTakingPhoto ? Colors.yellow : Colors.white54,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ],
+                      const SizedBox(height: 32),
+                      _CtrlBtn(icon: Icons.cameraswitch_outlined, label: 'Xoay cam', onTap: _flipCamera),
+                    ] else ...[
+                      // Portrait layout
+                      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                        _CtrlBtn(icon: Icons.photo_library_outlined, label: 'Thư viện', onTap: _pickFromGallery),
+                        GestureDetector(
+                          onTap: _takePhoto,
+                          child: Container(
+                            width: 72, height: 72,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: _mode == 'Bill' ? Colors.yellow : AppColors.teal,
+                                width: 3,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: (_mode == 'Bill' ? Colors.yellow : AppColors.teal).withValues(alpha: 0.35),
+                                  blurRadius: 16,
+                                  spreadRadius: 2,
+                                ),
+                              ],
+                            ),
+                            child: Center(
+                              child: _isTakingPhoto
+                                  ? const SizedBox(width: 32, height: 32, child: CircularProgressIndicator(color: AppColors.teal, strokeWidth: 2))
+                                  : Container(width: 56, height: 56, decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle)),
+                            ),
+                          ),
+                        ),
+                        _CtrlBtn(icon: Icons.cameraswitch_outlined, label: 'Xoay cam', onTap: _flipCamera),
+                      ]),
+                    ],
+                    if (_mode == 'Bill') ...[
+                      const SizedBox(height: 12),
+                      Text(
+                        _isTakingPhoto ? 'Mimso đang đọc hóa đơn...' : 'Chụp để xử lý tự động',
+                        style: TextStyle(
+                          color: _isTakingPhoto ? Colors.yellow : Colors.white54,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ],
+              ),
             ),
           );
 
           if (isLandscapeOrWide) {
             return Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Expanded(
                   flex: 7,

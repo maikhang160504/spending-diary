@@ -122,10 +122,27 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
   @override
   Widget build(BuildContext context) {
-    const iconSize = 110.0;
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg = isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FFFE);
+    
+    // Responsive sizing
+    final double iconSize;
+    final double baseWordScale;
+    
+    if (screenWidth < 360) {
+      iconSize = 90.0;
+      baseWordScale = 0.85;
+    } else if (screenWidth > 600) {
+      iconSize = 150.0;
+      baseWordScale = 1.35;
+    } else {
+      iconSize = 110.0;
+      baseWordScale = 1.0;
+    }
 
     return Scaffold(
-      backgroundColor: _bg,
+      backgroundColor: bg,
       body: AnimatedBuilder(
         animation: _master,
         builder: (context, _) {
@@ -146,7 +163,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                     ),
                   ),
                 ),
-                const SizedBox(height: 20),
+                SizedBox(height: screenWidth > 600 ? 30 : 20),
                 // Wordmark — xuất hiện ngay sau logo
                 if (glow > 0)
                   Container(
@@ -160,7 +177,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                       ],
                     ),
                     child: SpendDiaryWordmark(
-                      scale: _wordScale.value,
+                      scale: _wordScale.value * baseWordScale,
                       opacity: _wordOpacity.value,
                       blurSigma: _wordBlur.value,
                       textShimmer: _wordTextShimmer.value,
@@ -169,7 +186,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                   )
                 else
                   SpendDiaryWordmark(
-                    scale: _wordScale.value,
+                    scale: _wordScale.value * baseWordScale,
                     opacity: _wordOpacity.value,
                     blurSigma: _wordBlur.value,
                     textShimmer: _wordTextShimmer.value,

@@ -111,7 +111,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ApiClient.lastSelectedWalletId = _selectedWalletId;
 
       // Load dashboard + transactions for selected wallet
-      await _loadWalletData();
+      await _loadWalletData(forceRefetch: true);
       if (mounted) {
         // ignore: unawaited_futures
         StreakCelebration.instance.checkBrokenOnLaunch(context);
@@ -517,7 +517,7 @@ class _HomeScreenState extends State<HomeScreen> {
             Widget mainContent;
             if (isWide) {
               mainContent = Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   // Bên trái: header info (cố định, không scroll vì header compact)
                   SizedBox(
@@ -1068,7 +1068,7 @@ class _HomeHeaderDelegate extends SliverPersistentHeaderDelegate {
   @override
   double get minExtent => isCompact ? 68 : 70 + 64;
   @override
-  double get maxExtent => isCompact ? 230 : 298 + 64;
+  double get maxExtent => isCompact ? 310 : 298 + 64;
 
   @override
   Widget build(
@@ -2141,15 +2141,13 @@ class _BalanceStat extends StatelessWidget {
             ).textTheme.bodySmall?.copyWith(color: context.palette.textSecondary),
           ),
           const SizedBox(height: 4),
-          Flexible(
-            child: Text(
-              value,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: color,
-                fontWeight: FontWeight.w700,
-              ),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: color,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ],
