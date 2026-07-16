@@ -1,4 +1,4 @@
-# Báo cáo công nghệ — MoneyStory (Quản lý chi tiêu + AI)
+# Báo cáo công nghệ — Spending Diary (Quản lý chi tiêu + AI)
 
 > Tài liệu mô tả **công nghệ sử dụng**, **cách thức triển khai**, **khó khăn gặp phải** và **hướng tối ưu** cho ba thành phần chính: Backend, Frontend Mobile và module nghiên cứu `expense-ocr-nlu`.  
 > Không chứa mã nguồn — chỉ giải thích bằng ngôn ngữ dễ hiểu.
@@ -73,7 +73,7 @@ Backend đóng vai **orchestrator** — không tự train model, mà điều ph�
 |-------|-----------------|------------|
 | **Text** ("ăn phở 45k") | Có — NLU | BE gọi AI → trích amount + category → auto-save nếu confidence đủ |
 | **Story** (ảnh + user nhập tay) | Không | Lưu trực tiếp amount/category user nhập kèm URL ảnh |
-| **Scan bill** (ảnh hóa đơn) | Có — OCR + NLU | BE trả HTTP 202 ngay → xử lý nền → push WebSocket → user confirm/sửa **amount + category** trên app |
+| **Scan bill** (ảnh hóa đơn) | Có — OCR + NLU | BE trả HTTP 202 ngay → xử lý nền → thông báo (Polling / Notification) → user confirm/sửa **amount + category** trên app |
 
 **Luồng chat AI (Intent):**
 
@@ -101,7 +101,7 @@ Backend đóng vai **orchestrator** — không tự train model, mà điều ph�
 
 ### 2.3. Khó khăn gặp phải
 
-1. **Đồng bộ async OCR**: User upload bill cần phản hồi nhanh nhưng OCR mất vài giây → giải pháp HTTP 202 + WebSocket push thay vì chờ đồng bộ.
+1. **Đồng bộ async OCR**: User upload bill cần phản hồi nhanh nhưng OCR mất vài giây → giải pháp HTTP 202 + HTTP Polling thay vì chờ đồng bộ.
 2. **Phân tách trách nhiệm AI vs nghiệp vụ**: NLU chỉ trả structured output (intent, amount, category); BE phải tự query DB cho báo cáo, đặt hạn mức, xóa giao dịch — tránh AI "bịa" số liệu.
 3. **CockroachDB vs PostgreSQL**: Schema viết tương thích cả hai; SSL cluster cloud đôi khi cần cấu hình `DATABASE_SSL=no-verify` khi thiếu CA cert.
 4. **Action popup & nhớ xác nhận**: Cần bảng `user_confirmed_actions` để không hỏi lại user mỗi lần cùng một loại hành động (ví dụ "xóa giao dịch gần nhất").
@@ -141,8 +141,6 @@ Backend Node.js mở rộng router chuyên biệt để cung cấp dữ liệu c
 | Ảnh mạng | cached_network_image | Cache thumbnail/list view |
 | Nén ảnh | flutter_image_compress | Giảm dung lượng trước upload |
 | Chụp ảnh | camera + image_picker | Story / scan bill |
-| Giọng nói | speech_to_text | Nhập câu bằng voice |
-| Real-time | web_socket_channel | Nhận kết quả OCR bill |
 | Animation | lottie | Hiệu ứng mascot MiMo |
 | Google login | google_sign_in | OAuth |
 | UI | Material 3 + google_fonts | Theme tùy chỉnh (AppColors, spacing, radii) |
@@ -166,7 +164,7 @@ Backend Node.js mở rộng router chuyên biệt để cung cấp dữ liệu c
 | Splash / Onboarding | Giới thiệu app, chọn vibe MiMo |
 | Auth (Login/Register) | JWT + Google Sign-In |
 | Home | Tổng quan chi tiêu, gallery story, lịch |
-| Chat | Nhập text/voice → NLU → hiển thị bubble + mascot emotion |
+| Chat | Nhập text → NLU → hiển thị bubble + mascot emotion |
 | Camera | Chụp story hoặc scan bill |
 | Report / Limits / Goals | Xem báo cáo, hạn mức, mục tiêu tiết kiệm |
 | Settings | Đổi giọng nói MiMo (Dui Dẻ / Dận Dữ) |
@@ -328,7 +326,7 @@ Khi active backend là `"llm"`, hệ thống chạy luồng xử lý NLU và NLG
 Khi active backend là `"encoder"` hoặc `"tfidf"`, hệ thống thực thi hai lượt suy luận riêng biệt:
 1. **Phân loại Intent**: Sử dụng PhoBERT encoder kết hợp Logistic Regression.
 2. **Trích xuất thực thể (NER)**: Chạy spaCy NER cục bộ trích xuất các slot `AMOUNT`, `TIME`, `PRODUCT`.
-3. **Sinh câu thoại NLG**: Chạy ngầm một Background Task gọi sang Gemini API kết hợp kịch bản persona từ `prompts.json` để viết câu thoại phản hồi, rồi đồng bộ lại kết quả qua WebSocket.
+3. **Sinh câu thoại NLG**: Chạy ngầm một Background Task gọi sang Gemini API kết hợp kịch bản persona từ `prompts.json` để viết câu thoại phản hồi, rồi đồng bộ lại kết quả qua Polling.
 
 **LLM backends:** Qwen2.5-14B-Instruct trên Modal GPU (suy luận chính), Google Gemini API (fallback và phục vụ NLG cho chế độ PhoBERT).
 
@@ -515,7 +513,7 @@ Flutter → POST /ai/nlu
 Flutter chụp ảnh → nén → POST /ai/expense/from-bill
     → BE tạo tx pending, trả 202 + transactionId
     → Background: OCR → item-level category → Weighted Voting → amount + category
-    → BE update tx, gửi WebSocket transaction_done
+    → BE update tx, đổi trạng thái để Client polling được
     → Flutter CameraConfirmScreen: user sửa amount/category (± ví, ghi chú) → PATCH → lưu
     → Nếu sửa category: ghi user_corrections (chờ admin duyệt mới vào train)
 ```
@@ -598,7 +596,7 @@ Hỗ trợ **PostgreSQL** local và **CockroachDB** cloud (GCP asia-southeast1).
 
 | Thành phần | Điểm mạnh | Hạn chế hiện tại |
 |------------|-----------|------------------|
-| **Backend** | Orchestration rõ, JWT + R2 + WS async bill, API Admin tích hợp đầy đủ | Chưa hỗ trợ đa vùng thực tế cho cache |
+| **Backend** | Orchestration rõ, JWT + R2 + Polling async bill, API Admin tích hợp đầy đủ | Chưa hỗ trợ đa vùng thực tế cho cache |
 | **Frontend** | Flutter cross-platform mượt mà, chat + mascot UX sinh động | Logic chat screen còn dày, cần tách state |
 | **Web Admin** | Giao diện React 19 tối giản, Fusion telemetry, curation trực quan, retraining hot-reload tiện lợi | Giao diện quản lý phân quyền còn đơn giản |
 | **expense-ocr-nlu** | Pipeline NLU 3 intent + NER + OCR 2 tầng VN, Personalization Hybrid Layer tối ưu, Retraining hot-reload ngầm | PhoBERT nặng RAM; OCR rule-based |
@@ -663,26 +661,11 @@ Nhằm giảm thiểu dung lượng Token đẩy vào LLM (Gemini/Groq) trong c�
 
 *Cập nhật: 05/06/2026*
 
-## 10. Nhập liệu Giọng nói, Giao dịch chờ & Quản lý Quyền Graceful (Cập nhật 08/06/2026)
+## 10. Giao dịch chờ & Quản lý Quyền Graceful (Cập nhật 08/06/2026)
 
 Hệ thống đã tích hợp toàn diện module giọng nói kết hợp cơ chế xử lý giao dịch chờ (Draft) và kiến trúc cấp quyền động native trên ứng dụng di động:
 
-### 10.1. Xử lý âm thanh & Chuẩn hóa Từ lóng Tiếng Việt
-1. **Thu âm & STT cục bộ**:
-   - Để tối ưu hóa băng thông mạng và độ nhạy của phản hồi, Client sử dụng thư viện `speech_to_text` thực hiện Speech-to-Text trực tiếp trên thiết bị (Local STT).
-   - Thiết kế widget hoạt họa sóng âm `WaveformVisualizer` vẽ dải thanh biên độ động theo thời gian thực (Microphone amplitude) trong composer chat để tăng trải nghiệm tương tác.
-2. **Bộ chuẩn hóa từ lóng tiền tệ (Teencode Normalizer)**:
-   - Bản dịch thô được chuyển lên FastAPI NLU để đi qua bộ lọc `preprocess_slang` trong `text.py`.
-   - Sử dụng Regex kết hợp bảng ánh xạ để xử lý các từ lóng:
-     - `cành`, `k` -> nhân 1.000 (Ví dụ: `120 cành` -> `120.000`)
-     - `lít`, `xị`, `sị`, `loét` -> nhân 100.000 (Ví dụ: `3 loét` -> `300.000`)
-     - `củ`, `quả`, `mâm` -> nhân 1.000.000 (Ví dụ: `1.5 củ` -> `1.500.000`)
-     - `chục` -> nhân 10.000 (Ví dụ: `2 chục` -> `20.000`)
-     - `nửa triệu` / `nửa củ` -> `500.000`
-     - `củ rưỡi` / `triệu rưỡi` -> `1.500.000`
-     - Tự động map các chữ số tiếng Việt (`một`, `hai`, `ba`...) đứng trước đơn vị tiền tệ lóng sang chữ số tương ứng trước khi parse.
-
-### 10.2. Cơ chế Giao dịch chờ (Draft Fallback) & Timeline Card
+### 10.1. Cơ chế Giao dịch chờ (Draft Fallback) & Timeline Card
 1. **Fallback khi thiếu tiền**:
    - Nếu người dùng nói câu ghi chép chi tiêu nhưng quên hoặc không thể phát âm rõ số tiền (ví dụ: "đi mua sắm đồ Tết"), NLU vẫn phân tích intent là `Record` và category là `Shopping`.
    - Backend Node.js thực thi lưu giao dịch với `is_draft = true` và `amount = 0` thay vì bỏ qua hay báo lỗi.
@@ -690,11 +673,7 @@ Hệ thống đã tích hợp toàn diện module giọng nói kết hợp cơ c
    - Giao dịch nháp được biểu diễn bằng một thẻ màu vàng nổi bật kèm icon Micro và lời nhắc: *"Bạn quên chưa nhập số tiền, chạm vào đây để sửa nhanh nhé!"*.
    - Chạm vào thẻ sẽ mở Bottom Sheet điền nhanh số tiền (hỗ trợ nhập nhanh 50k, 100k, 200k, 500k) và lưu chính thức về thẻ thường tức thời qua API.
 
-### 10.3. Logic Fusion (Gộp Bill + Voice)
-- Khi chụp hóa đơn trong Camera, tại màn hình xác nhận (CameraConfirmScreen), người dùng có thể nhấn giữ nút Microphone để nói mô tả ngắn (ví dụ: "cái này ăn trưa với đồng nghiệp").
-- App gửi file text giọng nói lên `/ai/nlu` lấy `category` và `note` ghi đè vào form, đồng thời vẫn bảo toàn số tiền (`amount`) chính xác được bóc tách từ ảnh hóa đơn qua OCR.
-
-### 10.4. Quản lý Quyền hệ thống Graceful (Dynamic Permissions)
+### 10.2. Quản lý Quyền hệ thống Graceful (Dynamic Permissions)
 - Áp dụng triệt để nguyên tắc **Cấp quyền tại thời điểm sử dụng (Just-in-Time Request)** thay vì xin cấp quyền dồn dập lúc khởi động:
   - **Camera**: Chỉ kiểm tra và xin cấp khi mở tính năng chụp bill/story.
   - **Microphone**: Kiểm tra và yêu cầu khi nhấn giữ thu âm chat hoặc màn hình xác nhận hóa đơn.
@@ -706,13 +685,6 @@ Hệ thống đã tích hợp toàn diện module giọng nói kết hợp cơ c
 *Cập nhật: 08/06/2026*
 
 ## 11. Cải Thiện Trải Nghiệm & Ổn Định — Phase 1 (Cập nhật 08/06/2026)
-
-### 11.1. WebSocket Exponential Backoff Reconnect
-- Nâng cấp cơ chế kết nối lại WebSocket trong `AppShell` từ **delay cố định 5 giây** sang **Exponential Backoff + Jitter**:
-  - Công thức tính delay: `min(2^attempt × 1000ms + random(0..1000ms), 60000ms)`
-  - Lần thử 1: ~1-2s, lần 2: ~2-5s, lần 3: ~4-9s,... tối đa 60 giây.
-  - Khi kết nối thành công, counter `_reconnectAttempt` tự động reset về 0.
-- Sau mỗi lần reconnect thành công, client tự động gửi event `SYNC_STATUS` qua WebSocket để backend kiểm tra và đẩy lại các event đã bỏ lỡ trong thời gian mất kết nối (ví dụ: kết quả OCR bill đã xử lý xong).
 
 ### 11.2. Draft Reminder Banner (Nhắc nhở Giao dịch Chờ)
 - Thêm banner nổi bật hiển thị ở **đầu màn hình Home** (ngay dưới Dashboard summary, trước Timeline) khi có giao dịch chờ (Draft) chưa điền số tiền.
@@ -751,16 +723,15 @@ Hệ thống đã triển khai nhóm sửa lỗi giao diện, nghiệp vụ di �
    - Sửa đổi hiển thị vương miện (`showCrown`) trên danh sách story, chỉ gán biểu tượng vương miện cho người dùng là Chủ ví (`ownerId`), loại bỏ việc tự hiển thị cho mọi người dùng tự tạo story.
 4. **Cấp quyền Gallery Trực tiếp**:
    - Loại bỏ lớp kiểm tra quyền lưu trữ/ảnh thủ công khi đổi ảnh đại diện hay upload hóa đơn. Sử dụng trực tiếp trình chọn ảnh hệ thống của package `image_picker` (vốn tự động phân quyền context-less trên iOS và Android 10+), tránh các lỗi từ chối giả lập.
-5. **Mic Thu âm & Trạng thái Lưu Giao dịch**:
-   - Nút Mic thu âm được hiển thị mặc định, bổ sung SnackBar hướng dẫn khi hệ thống STT không hoạt động (như trên emulator).
+5. **Trạng thái Lưu Giao dịch**:
    - Nút "Lưu giao dịch" trong chat không bị ẩn đi sau khi lưu mà chuyển sang trạng thái vô hiệu hóa kèm nhãn `✓ Đã lưu` / `✓ Đã lưu tất cả` để tránh hiện tượng giật màn hình (layout jumping).
 
 ### 12.3. Đề xuất Kiến trúc Tối ưu hóa Tải dữ liệu & Đồng bộ hóa
 Nhằm giải quyết vấn đề ứng dụng phải gọi API và tải lại dữ liệu quá nhiều lần, chúng tôi đề xuất kiến trúc đồng bộ hóa chia làm 4 giai đoạn:
 1. **Giai đoạn 1: Query Caching**:
    - Chuyển đổi toàn bộ luồng load dữ liệu tại `ShareWalletScreen` sang thư viện `cached_query` (sử dụng các key cache động giống như trang Home). Dữ liệu sẽ được giữ trong bộ nhớ 10 phút và tự động cập nhật ngầm nếu quá 30 giây stale, triệt tiêu việc hiện vòng quay loading mỗi lần chuyển màn hình.
-2. **Giai đoạn 2: WebSocket Reactive Sync (Đồng bộ thời gian thực)**:
-   - Tận dụng kết nối WebSocket sẵn có tại `AppShell`. Khi backend nhận được yêu cầu thêm/sửa giao dịch từ bất kỳ user nào trong nhóm, backend sẽ broadcast một event `DB_UPDATE` qua WebSocket. Mobile nhận event này sẽ tự động gọi `AppQueries.invalidateWalletData()` để tải lại ngầm phần dữ liệu bị thay đổi mà không cần người dùng kéo thả refresh.
+2. **Giai đoạn 2: Bỏ qua (chờ nâng cấp Polling/SSE)**:
+   - Hệ thống dự kiến áp dụng Server-Sent Events hoặc HTTP Polling cho phép đồng bộ hóa dữ liệu thời gian thực trong tương lai.
 3. **Giai đoạn 3: Phân trang (Pagination / Lazy-load)**:
    - Triển khai cuộn vô hạn (infinite scroll) cho lịch sử giao dịch. Chỉ tải 15-20 giao dịch đầu tiên và tải tiếp trang sau khi user cuộn xuống cuối màn hình.
 4. **Giai đoạn 4: Đồng bộ hóa cơ sở dữ liệu cục bộ (Offline-First Local DB)**:
