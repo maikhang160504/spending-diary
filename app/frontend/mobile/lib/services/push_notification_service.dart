@@ -1,5 +1,6 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 
 class PushNotificationService {
   PushNotificationService._privateConstructor();
@@ -140,6 +141,11 @@ class PushNotificationService {
   }
 
   Future<void> cancelAll() async {
-    await _localNotifications.cancelAll();
+    if (kIsWeb) return;
+    try {
+      await _localNotifications.cancelAll();
+    } catch (_) {
+      // Ignore errors
+    }
   }
 }

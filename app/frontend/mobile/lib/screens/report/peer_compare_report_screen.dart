@@ -92,7 +92,7 @@ class _PeerCompareReportScreenState extends State<PeerCompareReportScreen> {
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 800),
+            constraints: const BoxConstraints(maxWidth: 600),
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _hasError
@@ -225,7 +225,7 @@ class _PeerCompareReportScreenState extends State<PeerCompareReportScreen> {
             ),
             const SizedBox(height: 12),
             Text(
-              _errorMsg ?? 'Hiện tại chưa có đủ dữ liệu từ những người dùng có cùng nhóm tuổi và nghề nghiệp như bạn. Vui lòng quay lại sau.',
+              _errorMsg ?? 'Hiện tại chưa có đủ dữ liệu từ những người dùng có cùng nhóm tuổi và nghề nghiệp như bạn. Vἱ lòng quay lại sau.',
               textAlign: TextAlign.center,
               style: const TextStyle(color: AppColors.muted, fontSize: 14, height: 1.5),
             ),

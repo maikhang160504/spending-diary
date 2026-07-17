@@ -10,6 +10,7 @@ import '../../utils/formatters.dart';
 import '../../services/app_queries.dart';
 import '../../services/ai_advisor_service.dart';
 import 'category_detail_report_screen.dart';
+import '../../widgets/report_filter_bar.dart';
 
 class CategorySpendingReportScreen extends StatefulWidget {
   final String? initialWalletId;
@@ -195,171 +196,109 @@ class _CategorySpendingReportScreenState extends State<CategorySpendingReportScr
         ),
       ),
       body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 800),
-            child: Column(
-              children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: 4),
-              child: Row(children: [
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: context.palette.card,
-                      borderRadius: BorderRadius.circular(AppRadii.lg),
-                      border: Border.all(color: context.palette.border),
-                    ),
-                    child: Row(children: [
-                      _buildTypeBtn('Chi tiêu', _recordType == 'expense', () {
-                        if (_recordType != 'expense') {
-                          setState(() => _recordType = 'expense');
-                          _loadReportData();
-                        }
-                      }),
-                      _buildTypeBtn('Thu nhập', _recordType == 'income', () {
-                        if (_recordType != 'income') {
-                          setState(() => _recordType = 'income');
-                          _loadReportData();
-                        }
-                      }),
-                    ]),
-                  ),
-                ),
-              ]),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: 4),
-              child: Row(children: [
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: context.palette.card,
-                      borderRadius: BorderRadius.circular(AppRadii.lg),
-                      border: Border.all(color: context.palette.border),
-                    ),
-                    child: Row(children: [
-                      _buildPeriodBtn('Theo tuần', _selectedPeriod == 'Tuần này', () {
-                        if (_selectedPeriod != 'Tuần này') {
-                          setState(() { _selectedPeriod = 'Tuần này'; _periodOffset = 0; });
-                          _loadReportData();
-                        }
-                      }),
-                      _buildPeriodBtn('Theo tháng', _selectedPeriod == 'Tháng này', () {
-                        if (_selectedPeriod != 'Tháng này') {
-                          setState(() { _selectedPeriod = 'Tháng này'; _periodOffset = 0; });
-                          _loadReportData();
-                        }
-                      }),
-                    ]),
-                  ),
-                ),
-              ]),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.xs),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  IconButton(
-                    icon: Icon(Icons.chevron_left_rounded, color: context.palette.textPrimary),
-                    onPressed: () {
-                      setState(() => _periodOffset++);
-                      _loadReportData();
-                    },
-                  ),
-                  Text(
-                    _getPeriodLabel(),
-                    style: TextStyle(color: context.palette.textPrimary, fontWeight: FontWeight.bold, fontSize: 14),
-                  ),
-                  IconButton(
-                    icon: Icon(Icons.chevron_right_rounded, color: _periodOffset > 0 ? context.palette.textPrimary : AppColors.muted),
-                    onPressed: _periodOffset > 0 ? () {
-                      setState(() => _periodOffset--);
-                      _loadReportData();
-                    } : null,
-                  ),
-                ],
-              ),
-            ),
-            _buildWalletSelectorBar(),
-            Expanded(
-              child: _isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : SingleChildScrollView(
-                      padding: const EdgeInsets.all(AppSpacing.lg),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final isLandscapePhone = constraints.maxWidth > constraints.maxHeight && constraints.maxHeight < 500;
+            return Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 600),
+                child: Column(
+                  children: [
+                    // ── Responsive filter bar ───────────────────────────────
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 4),
+                      child: ReportFilterBar(
+                        isLandscapePhone: isLandscapePhone,
                         children: [
-                          _buildAISection(_cats),
-                          const SizedBox(height: 16),
-                          _buildMinimalistDonutSection(_cats, _totalAmt),
-                          const SizedBox(height: 24),
-                          Text('Chi tiết danh mục',
-                            style: TextStyle(color: context.palette.textPrimary, fontSize: 16, fontWeight: FontWeight.w700)),
-                          const SizedBox(height: 12),
-                          if (_cats.isEmpty)
-                            Container(
-                              padding: const EdgeInsets.all(32),
-                              alignment: Alignment.center,
-                              child: const Text('Chưa có dữ liệu giao dịch', style: TextStyle(color: AppColors.muted)),
-                            )
-                          else
-                            ..._cats.map((cat) => _buildCategoryTile(cat)),
+                          // Filter 1: Loại (Chi tiêu / Thu nhập)
+                          FilterSegmentCompact(
+                            labels: const ['Chi tiêu', 'Thu nhập'],
+                            selected: _recordType == 'expense' ? 'Chi tiêu' : 'Thu nhập',
+                            onChanged: (val) {
+                              final t = val == 'Chi tiêu' ? 'expense' : 'income';
+                              if (t != _recordType) {
+                                setState(() => _recordType = t);
+                                _loadReportData();
+                              }
+                            },
+                          ),
+                          // Filter 2: Kỳ (Tuần / Tháng)
+                          FilterSegmentCompact(
+                            labels: const ['Theo tuần', 'Theo tháng'],
+                            selected: _selectedPeriod == 'Tuần này' ? 'Theo tuần' : 'Theo tháng',
+                            onChanged: (val) {
+                              final p = val == 'Theo tuần' ? 'Tuần này' : 'Tháng này';
+                              if (p != _selectedPeriod) {
+                                setState(() { _selectedPeriod = p; _periodOffset = 0; });
+                                _loadReportData();
+                              }
+                            },
+                          ),
+                          // Filter 3: Điều hướng kỳ
+                          FilterPeriodNavCompact(
+                            label: _getPeriodLabel(),
+                            onPrev: () { setState(() => _periodOffset++); _loadReportData(); },
+                            onNext: _periodOffset > 0 ? () { setState(() => _periodOffset--); _loadReportData(); } : null,
+                          ),
+                          // Filter 4: Ví (horizontal chips)
+                          if (!isLandscapePhone) _buildWalletSelectorBar()
+                          else _buildWalletSelectorBarCompact(),
                         ],
                       ),
                     ),
-            ),
-          ],
-        ),
-          ),
+                    // Wallet bar on portrait mode (already in filter bar on landscape)
+                    if (!isLandscapePhone) _buildWalletSelectorBar(),
+                    // ── Content ─────────────────────────────────────────────
+                    Expanded(
+                      child: _isLoading
+                          ? const Center(child: CircularProgressIndicator())
+                          : SingleChildScrollView(
+                              padding: const EdgeInsets.all(AppSpacing.lg),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _buildAISection(_cats),
+                                  const SizedBox(height: 16),
+                                  _buildMinimalistDonutSection(_cats, _totalAmt),
+                                  const SizedBox(height: 24),
+                                  Text('Chi tiết danh mục',
+                                    style: TextStyle(color: context.palette.textPrimary, fontSize: 16, fontWeight: FontWeight.w700)),
+                                  const SizedBox(height: 12),
+                                  if (_cats.isEmpty)
+                                    Container(
+                                      padding: const EdgeInsets.all(32),
+                                      alignment: Alignment.center,
+                                      child: const Text('Chưa có dữ liệu giao dịch', style: TextStyle(color: AppColors.muted)),
+                                    )
+                                  else
+                                    ..._cats.map((cat) => _buildCategoryTile(cat)),
+                                ],
+                              ),
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
         ),
       ),
     );
   }
 
-  Widget _buildTypeBtn(String label, bool active, VoidCallback onTap) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 6),
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: active ? AppColors.teal : Colors.transparent,
-            borderRadius: BorderRadius.circular(AppRadii.md),
-          ),
-          child: Text(label,
-            style: TextStyle(
-              color: active ? Colors.white : context.palette.textPrimary,
-              fontSize: 12,
-              fontWeight: active ? FontWeight.w700 : FontWeight.w500,
-            )),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPeriodBtn(String label, bool active, VoidCallback onTap) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 6),
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: active ? AppColors.teal : Colors.transparent,
-            borderRadius: BorderRadius.circular(AppRadii.md),
-          ),
-          child: Text(label,
-            style: TextStyle(
-              color: active ? Colors.white : context.palette.textPrimary,
-              fontSize: 12,
-              fontWeight: active ? FontWeight.w700 : FontWeight.w500,
-            )),
-        ),
+  Widget _buildWalletSelectorBarCompact() {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _buildWalletChipItem('Tất cả ví', null),
+          ..._walletsList.map((w) {
+            final id = w['id']?.toString();
+            final name = w['name']?.toString() ?? 'Ví';
+            return _buildWalletChipItem(name, id);
+          }),
+        ],
       ),
     );
   }
@@ -475,7 +414,7 @@ class _CategorySpendingReportScreenState extends State<CategorySpendingReportScr
         borderRadius: BorderRadius.circular(AppRadii.full),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 160),
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
             color: isSelected ? AppColors.teal : context.palette.card,
             borderRadius: BorderRadius.circular(AppRadii.full),
@@ -496,7 +435,7 @@ class _CategorySpendingReportScreenState extends State<CategorySpendingReportScr
                 label,
                 style: TextStyle(
                   color: isSelected ? Colors.white : context.palette.textPrimary,
-                  fontSize: 11,
+                  fontSize: 13,
                   fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                 ),
               ),

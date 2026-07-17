@@ -72,34 +72,29 @@ async function settlement(walletId, userId) {
     throw new Error('Not authorized to access this wallet');
   }
 
-  // Lấy danh sách thành viên trong nhóm
+  // Calculate contributed and spent per member
   const membersQuery = await query(`
-    SELECT u.id, u.username, u.email
+    SELECT u.id, u.username, u.email,
+      COALESCE((SELECT SUM(amount) FROM transactions WHERE wallet_id = $1 AND type = 'income' AND creator_id = u.id AND is_deleted = false), 0) as contributed,
+      COALESCE((SELECT SUM(amount) FROM transactions WHERE wallet_id = $1 AND type = 'expense' AND creator_id = u.id AND is_deleted = false AND (category_code IS NULL OR category_code != 'Saving')), 0) as spent
     FROM wallet_members wm
     JOIN users u ON wm.user_id = u.id
     WHERE wm.wallet_id = $1
   `, [walletId]);
 
-  // Lấy công nợ (debts) chưa thanh toán
-  const debtsQuery = await query(`
-    SELECT d.id, d.debtor_id, d.creditor_id, d.amount, d.status
-    FROM debts d
-    WHERE d.wallet_id = $1 AND d.status = 'unpaid'
-  `, [walletId]);
-
   return {
-    members: membersQuery.rows.map(r => ({
-      id: r.id,
-      name: r.username,
-      email: r.email
-    })),
-    debts: debtsQuery.rows.map(r => ({
-      id: r.id,
-      debtorId: r.debtor_id,
-      creditorId: r.creditor_id,
-      amount: Number(r.amount),
-      status: r.status
-    }))
+    memberBalances: membersQuery.rows.map(r => {
+      const contributed = Number(r.contributed);
+      const spent = Number(r.spent);
+      return {
+        id: r.id,
+        username: r.username,
+        email: r.email,
+        contributed: contributed,
+        spent: spent,
+        balance: contributed - spent
+      };
+    })
   };
 }
 

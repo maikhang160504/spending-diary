@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 
@@ -52,31 +53,35 @@ class _LostConnectionOverlayState extends State<LostConnectionOverlay> {
       child: Scaffold(
         backgroundColor: Colors.black54, // Dim background
         body: Center(
-          child: Container(
-            margin: const EdgeInsets.all(32),
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(AppRadii.xl),
-              boxShadow: const [
-                BoxShadow(
-                  color: Colors.black26,
-                  blurRadius: 24,
-                  offset: Offset(0, 8),
-                ),
-              ],
-            ),
-            child: SingleChildScrollView(
+          child: SingleChildScrollView(
+            child: Container(
+              margin: const EdgeInsets.all(32),
+              constraints: const BoxConstraints(maxWidth: 420),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(AppRadii.xl),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Colors.black26,
+                    blurRadius: 24,
+                    offset: Offset(0, 8),
+                  ),
+                ],
+              ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   SizedBox(
                     width: 160,
                     height: 160,
-                    child: Lottie.asset(
-                      'assets/animations/LostConnection.json',
-                      repeat: true,
-                    ),
+                    child: kIsWeb 
+                      ? const Icon(Icons.wifi_off_rounded, size: 80, color: AppColors.textSecondary)
+                      : Lottie.asset(
+                          'assets/animations/LostConnection.json',
+                          repeat: true,
+                          errorBuilder: (context, error, stack) => const Icon(Icons.wifi_off_rounded, size: 80, color: AppColors.textSecondary),
+                        ),
                   ),
                   const SizedBox(height: 16),
                   const Text(

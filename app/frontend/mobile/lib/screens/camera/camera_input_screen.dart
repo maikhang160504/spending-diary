@@ -125,11 +125,17 @@ class _CameraInputScreenState extends State<CameraInputScreen> {
           // Content
           SafeArea(
             child: ResponsiveMaxWidthContainer(
-              child: Column(
-                children: [
-                // Compact top bar
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  return SingleChildScrollView(
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                      child: IntrinsicHeight(
+                        child: Column(
+                          children: [
+                            // Compact top bar
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   child: Row(children: [
                     IconButton(
                       onPressed: () => context.pop(),
@@ -276,7 +282,12 @@ class _CameraInputScreenState extends State<CameraInputScreen> {
                 ),
               ],
             ),
-          ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
           ),
           // Loading overlay
           if (_isLoading)

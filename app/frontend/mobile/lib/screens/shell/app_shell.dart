@@ -336,199 +336,164 @@ class _AppShellState extends State<AppShell> {
 
   @override
   Widget build(BuildContext context) {
-    final currentIndex = _tabIndex(context);
-    final billJobs = BillProcessingService.instance.activeJobs;
-    final topInset = MediaQuery.of(context).padding.top;
-    final hasInAppNotification = inAppNotificationController.current != null;
-    final billBannerTop = topInset + 12 + (hasInAppNotification ? 92 : 0);
-
-    final mainContent = Stack(
-      children: [
-        widget.child,
-        if (billJobs.isNotEmpty)
-          Positioned(
-            left: 0,
-            right: 0,
-            top: billBannerTop,
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 600),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: billJobs.map((job) {
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: BillProcessingBanner(
-                          job: job,
-                          onDismiss: job.phase == BillJobPhase.failed
-                              ? () => BillProcessingService.instance.dismissJob(job.transactionId)
-                              : null,
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        // MiMo overlay — góc phải dưới, ngay trên nav bar
-        if (mimoController.current != null)
-          Positioned(
-            right: 12,
-            bottom: 88,
-            child: MiMoOverlay(
-              response: mimoController.current!,
-              onDismiss: mimoController.dismiss,
-            ),
-          ),
-        // In-App Floating Notification Banner — Top center of the screen
-        if (inAppNotificationController.current != null)
-          Positioned(
-            top: topInset + 12,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 600),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: InAppNotificationBanner(
-                    notification: inAppNotificationController.current!,
-                    onDismiss: inAppNotificationController.dismiss,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        // AI Assistant Speed Dial Popup overlay
-        if (_showAiPopup)
-          Positioned.fill(
-            child: AiAssistantPopupMenu(
-              key: _aiPopupKey,
-              onClose: () {
-                setState(() {
-                  _showAiPopup = false;
-                });
-              },
-              onSelectBill: () {
-                context.push(
-                  AppRoutes.camera,
-                  extra: {
-                    'walletId': ApiClient.lastSelectedWalletId,
-                    'initialMode': 'Bill',
-                  },
-                );
-              },
-              onSelectPhotoText: () {
-                context.push(
-                  AppRoutes.camera,
-                  extra: {
-                    'walletId': ApiClient.lastSelectedWalletId,
-                    'initialMode': 'Ảnh',
-                  },
-                );
-              },
-              onSelectChat: () {
-                final loc = GoRouterState.of(context).uri.toString();
-                if (loc.startsWith(AppRoutes.chat)) {
-                  context.go(
-                    AppRoutes.chat,
-                    extra: {'walletId': ApiClient.lastSelectedWalletId},
-                  );
-                } else {
-                  context.push(
-                    AppRoutes.chat,
-                    extra: {'walletId': ApiClient.lastSelectedWalletId},
-                  );
-                }
-              },
-              onQuickSubmit: (text) {
-                final loc = GoRouterState.of(context).uri.toString();
-                if (loc.startsWith(AppRoutes.chat)) {
-                  context.go(
-                    AppRoutes.chat,
-                    extra: {
-                      'walletId': ApiClient.lastSelectedWalletId,
-                      'initialMessage': text,
-                    },
-                  );
-                } else {
-                  context.push(
-                    AppRoutes.chat,
-                    extra: {
-                      'walletId': ApiClient.lastSelectedWalletId,
-                      'initialMessage': text,
-                    },
-                  );
-                }
-              },
-            ),
-          ),
-      ],
-    );
-
     return LayoutBuilder(builder: (context, constraints) {
-      final isWide = constraints.maxWidth >= 600;
-      final isLandscapeMobile = constraints.maxWidth > constraints.maxHeight && constraints.maxHeight < 600;
-      final useRail = isWide || isLandscapeMobile;
+      final isWide = constraints.maxWidth >= 600 || (constraints.maxWidth > constraints.maxHeight && constraints.maxHeight < 600);
 
-      if (useRail) {
-        return Scaffold(
-          backgroundColor: context.palette.bg,
-          body: Row(
-            children: [
-              SingleChildScrollView(
+      final currentIndex = _tabIndex(context);
+      final billJobs = BillProcessingService.instance.activeJobs;
+      final topInset = MediaQuery.of(context).padding.top;
+      final hasInAppNotification = inAppNotificationController.current != null;
+      final billBannerTop = topInset + 12 + (hasInAppNotification ? 92 : 0);
+
+      final mainContent = Stack(
+        children: [
+          widget.child,
+          if (billJobs.isNotEmpty)
+            Positioned(
+              left: 0,
+              right: 0,
+              top: billBannerTop,
+              child: Center(
                 child: ConstrainedBox(
-                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                  child: IntrinsicHeight(
-                    child: NavigationRail(
-                      backgroundColor: context.palette.card,
-                      selectedIndex: currentIndex,
-                      onDestinationSelected: (idx) => _onTabTap(context, idx),
-                      labelType: isWide ? NavigationRailLabelType.all : NavigationRailLabelType.none,
-                      selectedLabelTextStyle: TextStyle(color: AppColors.teal, fontWeight: FontWeight.bold, fontSize: 12),
-                      unselectedLabelTextStyle: TextStyle(color: context.palette.muted, fontSize: 12),
-                      selectedIconTheme: IconThemeData(color: AppColors.teal),
-                      unselectedIconTheme: IconThemeData(color: context.palette.muted),
-                      leading: Padding(
-                        padding: const EdgeInsets.only(bottom: 24, top: 16),
-                        child: _AnimatedFab(
-                          onTap: () => _onFabTap(context),
-                          hasUnread: _hasUnreadChat,
-                        ),
-                      ),
-                      destinations: const [
-                        NavigationRailDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home_rounded), label: Text('Trang chủ')),
-                        NavigationRailDestination(icon: Icon(Icons.insights_outlined), selectedIcon: Icon(Icons.insights_rounded), label: Text('Báo cáo')),
-                        NavigationRailDestination(icon: Icon(Icons.savings_outlined), selectedIcon: Icon(Icons.savings_rounded), label: Text('Công cụ')),
-                        NavigationRailDestination(icon: Icon(Icons.settings_outlined), selectedIcon: Icon(Icons.settings_rounded), label: Text('Cài đặt')),
-                      ],
+                  constraints: const BoxConstraints(maxWidth: 600),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: billJobs.map((job) {
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: BillProcessingBanner(
+                            job: job,
+                            onDismiss: job.phase == BillJobPhase.failed
+                                ? () => BillProcessingService.instance.dismissJob(job.transactionId)
+                                : null,
+                          ),
+                        );
+                      }).toList(),
                     ),
                   ),
                 ),
               ),
-              const VerticalDivider(thickness: 1, width: 1),
-              Expanded(child: mainContent),
-            ],
-          ),
-        );
-      }
+            ),
+          // MiMo overlay — góc phải dưới, ngay trên nav bar
+          if (mimoController.current != null)
+            Positioned(
+              right: 12,
+              bottom: 88,
+              child: MiMoOverlay(
+                response: mimoController.current!,
+                onDismiss: mimoController.dismiss,
+              ),
+            ),
+          // In-App Floating Notification Banner — Top center of the screen
+          if (inAppNotificationController.current != null)
+            Positioned(
+              top: topInset + 12,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 600),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: InAppNotificationBanner(
+                      notification: inAppNotificationController.current!,
+                      onDismiss: inAppNotificationController.dismiss,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          // AI Assistant Speed Dial Popup overlay
+          if (_showAiPopup)
+            Positioned.fill(
+              child: AiAssistantPopupMenu(
+                key: _aiPopupKey,
+                bottomInset: isWide ? 96.0 : 0.0,
+                onClose: () {
+                  setState(() {
+                    _showAiPopup = false;
+                  });
+                },
+                onSelectBill: () {
+                  context.push(
+                    AppRoutes.camera,
+                    extra: {
+                      'walletId': ApiClient.lastSelectedWalletId,
+                      'initialMode': 'Bill',
+                    },
+                  );
+                },
+                onSelectPhotoText: () {
+                  context.push(
+                    AppRoutes.camera,
+                    extra: {
+                      'walletId': ApiClient.lastSelectedWalletId,
+                      'initialMode': 'Ảnh',
+                    },
+                  );
+                },
+                onSelectChat: () {
+                  final loc = GoRouterState.of(context).uri.toString();
+                  if (loc.startsWith(AppRoutes.chat)) {
+                    context.go(
+                      AppRoutes.chat,
+                      extra: {'walletId': ApiClient.lastSelectedWalletId},
+                    );
+                  } else {
+                    context.push(
+                      AppRoutes.chat,
+                      extra: {'walletId': ApiClient.lastSelectedWalletId},
+                    );
+                  }
+                },
+                onQuickSubmit: (text) {
+                  final loc = GoRouterState.of(context).uri.toString();
+                  if (loc.startsWith(AppRoutes.chat)) {
+                    context.go(
+                      AppRoutes.chat,
+                      extra: {
+                        'walletId': ApiClient.lastSelectedWalletId,
+                        'initialMessage': text,
+                      },
+                    );
+                  } else {
+                    context.push(
+                      AppRoutes.chat,
+                      extra: {
+                        'walletId': ApiClient.lastSelectedWalletId,
+                        'initialMessage': text,
+                      },
+                    );
+                  }
+                },
+              ),
+            ),
+        ],
+      );
 
-      return Scaffold(
-        backgroundColor: context.palette.bg,
-        body: mainContent,
-        bottomNavigationBar: Container(
-          decoration: BoxDecoration(
-            color: context.palette.card,
-            border: Border(top: BorderSide(color: context.palette.border, width: 1)),
-            boxShadow: [BoxShadow(color: context.palette.shadow, blurRadius: 16, offset: const Offset(0, -4))],
-          ),
-          child: SafeArea(
-            top: false,
-            child: SizedBox(
-              height: 72,
+      final bottomNav = Container(
+        margin: isWide 
+            ? const EdgeInsets.only(left: 32, right: 32, bottom: 24)
+            : EdgeInsets.zero,
+        decoration: BoxDecoration(
+          color: context.palette.card,
+          borderRadius: isWide ? BorderRadius.circular(36) : BorderRadius.zero,
+          border: isWide ? null : Border(top: BorderSide(color: context.palette.border, width: 1)),
+          boxShadow: [
+            BoxShadow(
+              color: context.palette.shadow.withValues(alpha: isWide ? 0.08 : 0.04), 
+              blurRadius: isWide ? 24 : 16, 
+              offset: Offset(0, isWide ? 8 : -4)
+            )
+          ],
+        ),
+        child: SafeArea(
+          top: false,
+          bottom: !isWide, // If floating, don't add safe area padding inside the pill
+          child: SizedBox(
+            height: 72,
               child: Stack(
                 clipBehavior: Clip.none,
                 children: [
@@ -556,7 +521,13 @@ class _AppShellState extends State<AppShell> {
               ),
             ),
           ),
-        ),
+        );
+
+      return Scaffold(
+        backgroundColor: context.palette.bg,
+        body: mainContent,
+        extendBody: isWide, // Extend body behind the floating nav bar
+        bottomNavigationBar: bottomNav,
       );
     });
   }

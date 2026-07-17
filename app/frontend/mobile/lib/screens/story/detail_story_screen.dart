@@ -554,17 +554,22 @@ class _StoryPageState extends State<_StoryPage> {
           ),
         ),
         SafeArea(
-          child: _loading
-              ? Padding(
-                  padding: const EdgeInsets.all(AppSpacing.lg),
-                  child: _buildLoading(),
-                )
-              : _error != null
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 600),
+              child: _loading
                   ? Padding(
                       padding: const EdgeInsets.all(AppSpacing.lg),
-                      child: _buildError(),
+                      child: _buildLoading(),
                     )
-                  : _buildContent(title, amount, aiMessage, occurredAt, categoryCode, mascotMood, items, imageUrl),
+                  : _error != null
+                      ? Padding(
+                          padding: const EdgeInsets.all(AppSpacing.lg),
+                          child: _buildError(),
+                        )
+                      : _buildContent(title, amount, aiMessage, occurredAt, categoryCode, mascotMood, items, imageUrl),
+            ),
+          ),
         ),
       ],
     );
@@ -696,7 +701,7 @@ class _StoryPageState extends State<_StoryPage> {
             ),
             Container(
               decoration: BoxDecoration(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+                borderRadius: BorderRadius.circular(28),
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
@@ -725,29 +730,12 @@ class _StoryPageState extends State<_StoryPage> {
                 ],
               ),
               child: ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+                borderRadius: BorderRadius.circular(28),
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                  padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Center(
-                        child: Container(
-                          width: 40,
-                          height: 4,
-                          margin: const EdgeInsets.only(bottom: 16),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [
-                                catColor.withValues(alpha: 0.35),
-                                catColor,
-                                catColor.withValues(alpha: 0.35),
-                              ],
-                            ),
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                        ),
-                      ),
                       CategoryChip(category: category, size: CategoryChipSize.regular, onDark: true),
                       const SizedBox(height: 16),
                       Row(

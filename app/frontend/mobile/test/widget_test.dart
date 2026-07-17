@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mobile/screens/onboarding/onboarding_screen_1.dart';
+import 'package:SpendingDiary/screens/onboarding/onboarding_screen_1.dart';
 
 import 'helpers/test_app.dart';
 

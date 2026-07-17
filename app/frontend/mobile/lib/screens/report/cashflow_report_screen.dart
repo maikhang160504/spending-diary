@@ -9,6 +9,7 @@ import '../../theme/categories.dart';
 import '../../utils/formatters.dart';
 import '../../services/ai_advisor_service.dart';
 import '../../services/app_queries.dart';
+import '../../widgets/report_filter_bar.dart';
 
 class CashflowReportScreen extends StatefulWidget {
   final String? initialWalletId;
@@ -86,163 +87,134 @@ class _CashflowReportScreenState extends State<CashflowReportScreen> {
         ),
       ),
       body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 800),
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(AppSpacing.lg),
-              child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Bộ lọc thời gian & toggle So với cùng kỳ
-              Row(
-                children: [
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: context.palette.card,
-                        borderRadius: BorderRadius.circular(AppRadii.lg),
-                        border: Border.all(color: context.palette.border),
-                      ),
-                      child: Row(
-                        children: [
-                          _buildPeriodBtn('Theo tuần', _selectedPeriod == 'Theo tuần', () {
-                            setState(() { _selectedPeriod = 'Theo tuần'; _periodOffset = 0; });
-                          }),
-                          _buildPeriodBtn('Theo tháng', _selectedPeriod == 'Theo tháng', () {
-                            setState(() { _selectedPeriod = 'Theo tháng'; _periodOffset = 0; });
-                          }),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: 4),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final isLandscapePhone = constraints.maxWidth > constraints.maxHeight && constraints.maxHeight < 500;
+            return Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 600),
+                child: Column(
                   children: [
-                    Expanded(
-                      child: Row(
+                    // ── Responsive filter bar ─────────────────────────────
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 4),
+                      child: ReportFilterBar(
+                        isLandscapePhone: isLandscapePhone,
                         children: [
-                          IconButton(
-                            icon: Icon(Icons.chevron_left_rounded, color: context.palette.textPrimary),
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
-                            onPressed: () {
-                              setState(() => _periodOffset++);
+                          // Filter 1: Kỳ (Tuần / Tháng)
+                          FilterSegmentCompact(
+                            labels: const ['Theo tuần', 'Theo tháng'],
+                            selected: _selectedPeriod,
+                            onChanged: (val) {
+                              setState(() { _selectedPeriod = val; _periodOffset = 0; });
                             },
                           ),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: FittedBox(
-                              fit: BoxFit.scaleDown,
-                              alignment: Alignment.center,
-                              child: Text(
-                                _getPeriodLabel(),
-                                style: TextStyle(color: context.palette.textPrimary, fontWeight: FontWeight.bold, fontSize: 14),
+                          // Filter 2: Điều hướng kỳ
+                          FilterPeriodNavCompact(
+                            label: _getPeriodLabel(),
+                            onPrev: () => setState(() => _periodOffset++),
+                            onNext: _periodOffset > 0 ? () => setState(() => _periodOffset--) : null,
+                          ),
+                          // Filter 3: Toggle "So cùng kỳ"
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Text('So cùng kỳ', style: TextStyle(color: AppColors.muted, fontSize: 12, fontWeight: FontWeight.w600)),
+                              const SizedBox(width: 4),
+                              Transform.scale(
+                                scale: 0.75,
+                                child: Switch.adaptive(
+                                  value: _compareYoY,
+                                  activeTrackColor: AppColors.teal,
+                                  onChanged: (val) => setState(() => _compareYoY = val),
+                                ),
                               ),
-                            ),
+                            ],
                           ),
-                          const SizedBox(width: 4),
-                          IconButton(
-                            icon: Icon(Icons.chevron_right_rounded, color: _periodOffset > 0 ? context.palette.textPrimary : AppColors.muted),
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
-                            onPressed: _periodOffset > 0 ? () {
-                              setState(() => _periodOffset--);
-                            } : null,
-                          ),
+                          // Filter 4: Ví chips
+                          _buildWalletSelectorBarCompact(),
                         ],
                       ),
                     ),
-                    Row(
-                      children: [
-                        const Text('So cùng kỳ', style: TextStyle(color: AppColors.muted, fontSize: 12, fontWeight: FontWeight.w600)),
-                        const SizedBox(width: 4),
-                        Transform.scale(
-                          scale: 0.7,
-                          child: Switch.adaptive(
-                            value: _compareYoY,
-                            activeTrackColor: AppColors.teal,
-                            onChanged: (val) => setState(() => _compareYoY = val),
-                          ),
+                    if (!isLandscapePhone) _buildWalletSelectorBar(),
+                    // ── Content (always scrollable) ────────────────────────
+                    Expanded(
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 8, AppSpacing.lg, AppSpacing.lg),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Tabs Chi / Thu / Chênh lệch
+                            Center(
+                              child: ConstrainedBox(
+                                constraints: const BoxConstraints(maxWidth: 400),
+                                child: Row(
+                                  children: [
+                                    _buildTab('Chi'),
+                                    const SizedBox(width: 8),
+                                    _buildTab('Thu'),
+                                    const SizedBox(width: 8),
+                                    _buildTab('Chênh lệch'),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            _buildAISection(),
+                            const SizedBox(height: 16),
+                            _buildChartCard(),
+                            const SizedBox(height: 12),
+                            if (_compareYoY)
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  _buildLegendDot(AppColors.teal, 'Kỳ hiện tại'),
+                                  const SizedBox(width: 24),
+                                  _buildLegendDot(AppColors.warning, 'Cùng kỳ trước'),
+                                ],
+                              ),
+                            const SizedBox(height: 20),
+                            _buildBottomDetailSection(),
+                          ],
                         ),
-                      ],
+                      ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 8),
-              _buildWalletSelectorBar(),
-              const SizedBox(height: 12),
-
-              // Tabs Chi / Thu / Chênh lệch
-              Row(
-                children: [
-                  _buildTab('Chi'),
-                  const SizedBox(width: 8),
-                  _buildTab('Thu'),
-                  const SizedBox(width: 8),
-                  _buildTab('Chênh lệch'),
-                ],
-              ),
-              const SizedBox(height: 20),
-
-              // Box Phân tích AI từ MiMo
-              _buildAISection(),
-              const SizedBox(height: 20),
-
-              // Biểu đồ Biến động thu chi
-              _buildChartCard(),
-              const SizedBox(height: 16),
-
-              // Ghi chú giải thích màu cột
-              if (_compareYoY)
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    _buildLegendDot(AppColors.teal, 'Kỳ hiện tại'),
-                    const SizedBox(width: 24),
-                    _buildLegendDot(AppColors.warning, 'Cùng kỳ trước'),
-                  ],
-                ),
-              const SizedBox(height: 24),
-
-              // Danh sách danh mục (Thu/Chi) hoặc Bảng chênh lệch Thu - Chi theo tuần/tháng
-              _buildBottomDetailSection(),
-            ],
-          ),
-            ),
-          ),
+            );
+          },
         ),
       ),
     );
   }
 
-  Widget _buildPeriodBtn(String label, bool active, VoidCallback onTap) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 6),
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: active ? AppColors.teal : Colors.transparent,
-            borderRadius: BorderRadius.circular(AppRadii.md),
+  Widget _buildWalletSelectorBarCompact() {
+    return FutureBuilder(
+      future: AppQueries.wallets().result,
+      builder: (context, snapshot) {
+        final rawList = snapshot.data?.data ?? [];
+        final wallets = <Map<String, dynamic>>[];
+        if (snapshot.hasData) {
+          for (var item in rawList) {
+            if (item is Map<String, dynamic> && item['type'] != 'group') wallets.add(item);
+          }
+        }
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildWalletChipItem('Tất cả ví', null),
+              ...wallets.map((w) {
+                final id = w['id']?.toString();
+                final name = w['name']?.toString() ?? 'Ví';
+                return _buildWalletChipItem(name, id);
+              }),
+            ],
           ),
-          child: Text(
-            label,
-            style: TextStyle(
-              color: active ? Colors.white : context.palette.textPrimary,
-              fontSize: 12,
-              fontWeight: active ? FontWeight.w700 : FontWeight.w500,
-            ),
-          ),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -428,7 +400,7 @@ class _CashflowReportScreenState extends State<CashflowReportScreen> {
         borderRadius: BorderRadius.circular(AppRadii.full),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 160),
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
             color: isSelected ? AppColors.teal : context.palette.card,
             borderRadius: BorderRadius.circular(AppRadii.full),
@@ -449,7 +421,7 @@ class _CashflowReportScreenState extends State<CashflowReportScreen> {
                 label,
                 style: TextStyle(
                   color: isSelected ? Colors.white : context.palette.textPrimary,
-                  fontSize: 11,
+                  fontSize: 13,
                   fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                 ),
               ),

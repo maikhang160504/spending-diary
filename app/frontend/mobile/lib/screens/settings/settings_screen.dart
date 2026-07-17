@@ -50,12 +50,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void initState() {
     super.initState();
     _loadProfile();
-    AdsService.instance.premiumStateNotifier.addListener(_onAdsServiceChanged);
+    AdsService.instance.premiumNotifier.addListener(_onAdsServiceChanged);
   }
 
   @override
   void dispose() {
-    AdsService.instance.premiumStateNotifier.removeListener(_onAdsServiceChanged);
+    AdsService.instance.premiumNotifier.removeListener(_onAdsServiceChanged);
     super.dispose();
   }
 

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lottie/lottie.dart';
@@ -90,7 +91,7 @@ class _LottieTransitionBuilder extends StatelessWidget {
             ),
 
             // The thematic Lottie animation in the center
-            if (value < 0.9)
+            if (!kIsWeb && value < 0.9)
               IgnorePointer(
                 child: Opacity(
                   opacity: lottieOpacity,

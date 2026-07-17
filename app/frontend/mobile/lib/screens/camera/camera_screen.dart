@@ -219,46 +219,51 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
       backgroundColor: Colors.black,
       body: SafeArea(
         child: LayoutBuilder(builder: (context, constraints) {
-          final isLandscapeOrWide = constraints.maxWidth >= 600 || constraints.maxWidth > constraints.maxHeight;
+          final isLandscapeOrWide = constraints.maxWidth > constraints.maxHeight;
 
           final topBar = Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Row(children: [
-              GestureDetector(
-                onTap: () => context.pop(),
-                child: Container(
-                  width: 40, height: 40,
-                  decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.15), shape: BoxShape.circle),
-                  child: const Icon(Icons.close, color: Colors.white, size: 20),
-                ),
-              ),
-              const Spacer(),
-              // Mode toggle
-              Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.18),
-                  borderRadius: BorderRadius.circular(999),
-                ),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 600),
                 child: Row(children: [
-                  _ModeChip(label: 'Ảnh', selected: _mode == 'Ảnh', onTap: () => setState(() => _mode = 'Ảnh')),
-                  _ModeChip(label: 'Bill', selected: _mode == 'Bill', onTap: () => setState(() => _mode = 'Bill')),
+                  GestureDetector(
+                    onTap: () => context.pop(),
+                    child: Container(
+                      width: 40, height: 40,
+                      decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.15), shape: BoxShape.circle),
+                      child: const Icon(Icons.close, color: Colors.white, size: 20),
+                    ),
+                  ),
+                  const Spacer(),
+                  // Mode toggle
+                  Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.18),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Row(children: [
+                      _ModeChip(label: 'Ảnh', selected: _mode == 'Ảnh', onTap: () => setState(() => _mode = 'Ảnh')),
+                      _ModeChip(label: 'Bill', selected: _mode == 'Bill', onTap: () => setState(() => _mode = 'Bill')),
+                    ]),
+                  ),
+                  const Spacer(),
+                  GestureDetector(
+                    onTap: _toggleFlash,
+                    child: Container(
+                      width: 40, height: 40,
+                      decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.15), shape: BoxShape.circle),
+                      child: Icon(
+                        _flashMode == FlashMode.off ? Icons.flash_off : Icons.flash_on,
+                        color: _flashMode == FlashMode.off ? Colors.white54 : Colors.yellow,
+                        size: 20,
+                      ),
+                    ),
+                  ),
                 ]),
               ),
-              const Spacer(),
-              GestureDetector(
-                onTap: _toggleFlash,
-                child: Container(
-                  width: 40, height: 40,
-                  decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.15), shape: BoxShape.circle),
-                  child: Icon(
-                    _flashMode == FlashMode.off ? Icons.flash_off : Icons.flash_on,
-                    color: _flashMode == FlashMode.off ? Colors.white54 : Colors.yellow,
-                    size: 20,
-                  ),
-                ),
-              ),
-            ]),
+            ),
           );
 
           final cameraPreview = Expanded(
@@ -381,10 +386,11 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
             color: Colors.black,
             padding: EdgeInsets.fromLTRB(20, 20, 20, isLandscapeOrWide ? 20 : 28),
             child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                    if (isLandscapeOrWide) ...[
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                      if (isLandscapeOrWide) ...[
                       // If landscape, arrange vertically
                       _CtrlBtn(icon: Icons.photo_library_outlined, label: 'Thư viện', onTap: _pickFromGallery),
                       const SizedBox(height: 32),
@@ -417,35 +423,40 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
                       _CtrlBtn(icon: Icons.cameraswitch_outlined, label: 'Xoay cam', onTap: _flipCamera),
                     ] else ...[
                       // Portrait layout
-                      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                        _CtrlBtn(icon: Icons.photo_library_outlined, label: 'Thư viện', onTap: _pickFromGallery),
-                        GestureDetector(
-                          onTap: _takePhoto,
-                          child: Container(
-                            width: 72, height: 72,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: _mode == 'Bill' ? Colors.yellow : AppColors.teal,
-                                width: 3,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: (_mode == 'Bill' ? Colors.yellow : AppColors.teal).withValues(alpha: 0.35),
-                                  blurRadius: 16,
-                                  spreadRadius: 2,
+                      Center(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 600),
+                          child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                            _CtrlBtn(icon: Icons.photo_library_outlined, label: 'Thư viện', onTap: _pickFromGallery),
+                            GestureDetector(
+                              onTap: _takePhoto,
+                              child: Container(
+                                width: 72, height: 72,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: _mode == 'Bill' ? Colors.yellow : AppColors.teal,
+                                    width: 3,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: (_mode == 'Bill' ? Colors.yellow : AppColors.teal).withValues(alpha: 0.35),
+                                      blurRadius: 16,
+                                      spreadRadius: 2,
+                                    ),
+                                  ],
                                 ),
-                              ],
+                                child: Center(
+                                  child: _isTakingPhoto
+                                      ? const SizedBox(width: 32, height: 32, child: CircularProgressIndicator(color: AppColors.teal, strokeWidth: 2))
+                                      : Container(width: 56, height: 56, decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle)),
+                                ),
+                              ),
                             ),
-                            child: Center(
-                              child: _isTakingPhoto
-                                  ? const SizedBox(width: 32, height: 32, child: CircularProgressIndicator(color: AppColors.teal, strokeWidth: 2))
-                                  : Container(width: 56, height: 56, decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle)),
-                            ),
-                          ),
+                            _CtrlBtn(icon: Icons.cameraswitch_outlined, label: 'Xoay cam', onTap: _flipCamera),
+                          ]),
                         ),
-                        _CtrlBtn(icon: Icons.cameraswitch_outlined, label: 'Xoay cam', onTap: _flipCamera),
-                      ]),
+                      ),
                     ],
                     if (_mode == 'Bill') ...[
                       const SizedBox(height: 12),
@@ -460,6 +471,7 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
                       ),
                     ],
                   ],
+                ),
               ),
             ),
           );

@@ -30,7 +30,7 @@ class _ReportScreenState extends State<ReportScreen> {
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 800),
+            constraints: const BoxConstraints(maxWidth: 600),
             child: SingleChildScrollView(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -313,12 +313,16 @@ class _ReportHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: AppGradients.teal,
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(AppRadii.xl),
-          bottomRight: Radius.circular(AppRadii.xl),
-        ),
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(AppRadii.xl)),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.teal.withValues(alpha: 0.3),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
       padding: const EdgeInsets.fromLTRB(24, 20, 20, 24),
       child: Row(

@@ -50,76 +50,82 @@ class _FinancialToolsScreenState extends State<FinancialToolsScreen> {
           children: [
             const _ToolsHeader(),
             Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-              Text(
-                'Quản lý và lập kế hoạch tài chính hiệu quả hơn với các bộ công cụ thông minh.',
-                style: TextStyle(
-                  color: Colors.grey.shade600,
-                  fontSize: 14,
-                  height: 1.4,
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 600),
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Quản lý và lập kế hoạch tài chính hiệu quả hơn với các bộ công cụ thông minh.',
+                          style: TextStyle(
+                            color: Colors.grey.shade600,
+                            fontSize: 14,
+                            height: 1.4,
+                          ),
+                        ),
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            // Use >480 so 2-col activates inside the 600px constrained box
+                            final double cardWidth = constraints.maxWidth > 480
+                                ? (constraints.maxWidth - 16) / 2
+                                : constraints.maxWidth;
+                            return Wrap(
+                              spacing: 16,
+                              runSpacing: 16,
+                              children: [
+                                SizedBox(
+                                  width: cardWidth,
+                                  child: _buildToolCard(
+                                    context: context,
+                                    icon: Icons.savings_rounded,
+                                    iconColor: const Color(0xFF0D9488),
+                                    iconBgColor: const Color(0xFFCCFBF1),
+                                    title: 'Tiết kiệm',
+                                    subtitle: 'Tích lũy cho mục tiêu tương lai',
+                                    onTap: () => _openFeatureCard(const GoalScreen(isChallenge: false)),
+                                  ),
+                                ),
+                                SizedBox(
+                                  width: cardWidth,
+                                  child: _buildToolCard(
+                                    context: context,
+                                    icon: Icons.track_changes_rounded,
+                                    iconColor: const Color(0xFFD97706),
+                                    iconBgColor: const Color(0xFFFEF3C7),
+                                    title: 'Thử thách',
+                                    subtitle: 'Tiết kiệm cùng bạn bè...',
+                                    onTap: () => _openFeatureCard(
+                                      GoalScreen(
+                                        isChallenge: true,
+                                        initialJoinCode: widget.initialJoinCode,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                SizedBox(
+                                  width: cardWidth,
+                                  child: _buildToolCard(
+                                    context: context,
+                                    icon: Icons.handshake_rounded,
+                                    iconColor: const Color(0xFF6366F1),
+                                    iconBgColor: const Color(0xFFEDE9FE),
+                                    title: 'Vay mượn',
+                                    subtitle: 'Quản lý khoản vay và cho mượn',
+                                    onTap: () => _openFeatureCard(const LoansScreen()),
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
-                  LayoutBuilder(
-                    builder: (context, constraints) {
-                      final double cardWidth = constraints.maxWidth > 600
-                          ? (constraints.maxWidth - 16) / 2
-                          : constraints.maxWidth;
-                      return Wrap(
-                        spacing: 16,
-                        runSpacing: 16,
-                        children: [
-                          SizedBox(
-                            width: cardWidth,
-                            child: _buildToolCard(
-                              context: context,
-                              icon: Icons.savings_rounded,
-                              iconColor: const Color(0xFF0D9488),
-                              iconBgColor: const Color(0xFFCCFBF1),
-                              title: 'Tiết kiệm',
-                              subtitle: 'Tích lũy cho mục tiêu tương lai',
-                              onTap: () => _openFeatureCard(const GoalScreen(isChallenge: false)),
-                            ),
-                          ),
-                          SizedBox(
-                            width: cardWidth,
-                            child: _buildToolCard(
-                              context: context,
-                              icon: Icons.track_changes_rounded,
-                              iconColor: const Color(0xFFD97706),
-                              iconBgColor: const Color(0xFFFEF3C7),
-                              title: 'Thử thách',
-                              subtitle: 'Tiết kiệm cùng bạn bè...',
-                              onTap: () => _openFeatureCard(
-                                GoalScreen(
-                                  isChallenge: true,
-                                  initialJoinCode: widget.initialJoinCode,
-                                ),
-                              ),
-                            ),
-                          ),
-                          SizedBox(
-                            width: cardWidth,
-                            child: _buildToolCard(
-                              context: context,
-                              icon: Icons.handshake_rounded,
-                              iconColor: const Color(0xFF6366F1),
-                              iconBgColor: const Color(0xFFEDE9FE),
-                              title: 'Vay mượn',
-                              subtitle: 'Quản lý khoản vay và cho mượn',
-                              onTap: () => _openFeatureCard(const LoansScreen()),
-                            ),
-                          ),
-                        ],
-                      );
-                    }
-                  ),
-                ],
-              ),
-            ),
             ),
           ],
         ),
@@ -212,12 +218,16 @@ class _ToolsHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: AppGradients.teal,
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(AppRadii.xl),
-          bottomRight: Radius.circular(AppRadii.xl),
-        ),
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(AppRadii.xl)),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.teal.withValues(alpha: 0.3),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
       padding: const EdgeInsets.fromLTRB(24, 20, 20, 24),
       child: Row(

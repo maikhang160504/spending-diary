@@ -8,6 +8,7 @@ class AiAssistantPopupMenu extends StatefulWidget {
   final VoidCallback onSelectPhotoText;
   final VoidCallback onSelectChat;
   final void Function(String)? onQuickSubmit;
+  final double bottomInset;
 
   const AiAssistantPopupMenu({
     super.key,
@@ -16,6 +17,7 @@ class AiAssistantPopupMenu extends StatefulWidget {
     required this.onSelectPhotoText,
     required this.onSelectChat,
     this.onQuickSubmit,
+    this.bottomInset = 0.0,
   });
 
   @override
@@ -307,7 +309,7 @@ class AiAssistantPopupMenuState extends State<AiAssistantPopupMenu>
                   ),
                 ),
                 // Avoid keyboard obscuring popup
-                SizedBox(height: MediaQuery.of(context).viewInsets.bottom > 0 ? 12 : 40),
+                SizedBox(height: MediaQuery.of(context).viewInsets.bottom > 0 ? 12 : (40 + widget.bottomInset)),
               ],
             ),
           ),

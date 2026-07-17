@@ -586,18 +586,21 @@ class _GoalScreenState extends State<GoalScreen> with AutomaticKeepAliveClientMi
     return Scaffold(
       backgroundColor: context.palette.bg,
       body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: _loadGoals,
-          color: AppColors.teal,
-          child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.only(bottom: 32),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _GoalHeader(
-                  isChallenge: widget.isChallenge,
-                  onAdd: _showCreateGoal,
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 600),
+            child: RefreshIndicator(
+              onRefresh: _loadGoals,
+              color: AppColors.teal,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.only(bottom: 32),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _GoalHeader(
+                      isChallenge: widget.isChallenge,
+                      onAdd: _showCreateGoal,
                   onJoin: _showJoinGoal,
                 ),
                 if (_error != null)
@@ -680,6 +683,8 @@ class _GoalScreenState extends State<GoalScreen> with AutomaticKeepAliveClientMi
           ),
         ),
       ),
+        ),
+      ),
     );
   }
 }
@@ -695,12 +700,16 @@ class _GoalHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: AppGradients.teal,
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(AppRadii.xl),
-          bottomRight: Radius.circular(AppRadii.xl),
-        ),
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(AppRadii.xl)),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.teal.withValues(alpha: 0.3),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
       padding: const EdgeInsets.fromLTRB(24, 20, 20, 24),
       child: Row(

@@ -60,15 +60,15 @@ class _ShareWalletScreenState extends State<ShareWalletScreen> {
     super.dispose();
   }
 
+  Map<String, dynamic> _overview = {};
+
   int get _totalIncome {
-    final totals = _dashboard['totals'] as Map<String, dynamic>?;
-    final v = totals?['income'] ?? _dashboard['totalIncome'] ?? 0;
+    final v = _overview['totalFund'] ?? 0;
     return v is num ? v.toInt() : 0;
   }
 
   int get _totalExpense {
-    final totals = _dashboard['totals'] as Map<String, dynamic>?;
-    final v = totals?['expense'] ?? _dashboard['totalExpense'] ?? 0;
+    final v = _overview['totalSpent'] ?? 0;
     return v is num ? v.toInt() : 0;
   }
 
@@ -84,9 +84,10 @@ class _ShareWalletScreenState extends State<ShareWalletScreen> {
         _api.getWallet(id),
         _api.getWalletMembers(id),
         _api.getStories(walletId: id),
-        _api.getDashboard(walletId: id),
+        _api.getDashboard(walletId: id), // still needed for calendar
         _api.getTransactions(walletId: id, pageSize: 50),
         AppQueries.me().result,
+        _api.getGroupOverview(id),
       ]);
       if (!mounted) return;
       
@@ -110,6 +111,7 @@ class _ShareWalletScreenState extends State<ShareWalletScreen> {
         _stories = results[2] as List<dynamic>;
         _dashboard = results[3] as Map<String, dynamic>;
         _transactions = txs;
+        _overview = results[6] as Map<String, dynamic>;
         _loading = false;
       });
     } catch (e) {
@@ -489,7 +491,7 @@ class _ShareWalletScreenState extends State<ShareWalletScreen> {
 
   Widget _buildHeader() {
     final walletName = _wallet['name'] as String? ?? 'Ví chung';
-    final balance = (_wallet['balance'] as num?)?.toInt() ?? 0;
+    final remaining = (_overview['remaining'] as num?)?.toInt() ?? (_wallet['balance'] as num?)?.toInt() ?? 0;
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
@@ -542,11 +544,11 @@ class _ShareWalletScreenState extends State<ShareWalletScreen> {
             Row(children: [
               const Icon(Icons.auto_awesome, color: AppColors.teal, size: 16),
               const SizedBox(width: 6),
-              Text('Số dư ví chung', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary)),
+              Text('Còn lại', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary)),
             ]),
             const SizedBox(height: 8),
             Text(
-              formatVnd(balance),
+              formatVnd(remaining),
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.w700,
                     fontSize: 26,
@@ -554,9 +556,9 @@ class _ShareWalletScreenState extends State<ShareWalletScreen> {
             ),
             const SizedBox(height: 12),
             Row(children: [
-              Expanded(child: BalanceStat(label: 'Thu nhập', value: formatVnd(_totalIncome), color: AppColors.teal)),
+              Expanded(child: BalanceStat(label: 'Quỹ nhóm', value: formatVnd(_totalIncome), color: AppColors.teal)),
               Container(width: 1, height: 28, color: AppColors.border),
-              Expanded(child: BalanceStat(label: 'Chi tiêu', value: formatVnd(_totalExpense), color: AppColors.danger)),
+              Expanded(child: BalanceStat(label: 'Đã chi', value: formatVnd(_totalExpense), color: AppColors.danger)),
             ]),
           ]),
         ),

@@ -8,6 +8,7 @@ import '../../theme/app_spacing.dart';
 import '../../utils/formatters.dart';
 import '../../services/ai_advisor_service.dart';
 import '../../services/api_client.dart';
+import '../../widgets/report_filter_bar.dart';
 class CumulativeBudgetReportScreen extends StatefulWidget {
   final String? initialWalletId;
   const CumulativeBudgetReportScreen({super.key, this.initialWalletId});
@@ -140,7 +141,6 @@ class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScr
       );
     }
 
-    final double totalBudget = _limit > 0 ? _limit : 1; // Avoid division by zero
     double currentSpent = 0;
     if (_dailyCumulative.isNotEmpty) {
       currentSpent = (_dailyCumulative.last['cumulative'] as num?)?.toDouble() ?? 0;
@@ -163,82 +163,57 @@ class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScr
         ),
       ),
       body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 800),
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(AppSpacing.lg),
-              child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Bộ lọc Theo tuần / Theo tháng
-              Row(
-                children: [
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: context.palette.card,
-                        borderRadius: BorderRadius.circular(AppRadii.lg),
-                        border: Border.all(color: context.palette.border),
-                      ),
-                      child: Row(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final isLandscapePhone = constraints.maxWidth > constraints.maxHeight && constraints.maxHeight < 500;
+            return Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 600),
+                child: Column(
+                  children: [
+                    // ── Responsive filter bar ─────────────────────────────
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 4),
+                      child: ReportFilterBar(
+                        isLandscapePhone: isLandscapePhone,
                         children: [
-                          _buildPeriodBtn('Theo tuần', _selectedPeriod == 'Theo tuần', () {
-                            setState(() { _selectedPeriod = 'Theo tuần'; _periodOffset = 0; });
-                            _loadReportData();
-                          }),
-                          _buildPeriodBtn('Theo tháng', _selectedPeriod == 'Theo tháng', () {
-                            setState(() { _selectedPeriod = 'Theo tháng'; _periodOffset = 0; });
-                            _loadReportData();
-                          }),
+                          // Filter 1: Kỳ (Tuần / Tháng)
+                          FilterSegmentCompact(
+                            labels: const ['Theo tuần', 'Theo tháng'],
+                            selected: _selectedPeriod,
+                            onChanged: (val) {
+                              setState(() { _selectedPeriod = val; _periodOffset = 0; });
+                              _loadReportData();
+                            },
+                          ),
+                          // Filter 2: Điều hướng kỳ
+                          FilterPeriodNavCompact(
+                            label: _getPeriodLabel(),
+                            onPrev: () { setState(() => _periodOffset++); _loadReportData(); },
+                            onNext: _periodOffset > 0 ? () { setState(() => _periodOffset--); _loadReportData(); } : null,
+                          ),
+                          // Filter 3: Ví chips
+                          _buildWalletSelectorBarCompact(),
                         ],
                       ),
                     ),
-                  ),
-                ],
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    IconButton(
-                      icon: Icon(Icons.chevron_left_rounded, color: context.palette.textPrimary),
-                      onPressed: () {
-                        setState(() => _periodOffset++);
-                        _loadReportData();
-                      },
-                    ),
-                    Text(
-                      _getPeriodLabel(),
-                      style: TextStyle(color: context.palette.textPrimary, fontWeight: FontWeight.bold, fontSize: 14),
-                    ),
-                    IconButton(
-                      icon: Icon(Icons.chevron_right_rounded, color: _periodOffset > 0 ? context.palette.textPrimary : AppColors.muted),
-                      onPressed: _periodOffset > 0 ? () {
-                        setState(() => _periodOffset--);
-                        _loadReportData();
-                      } : null,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 12),
-              _buildWalletSelectorBar(),
-              const SizedBox(height: 20),
-
-              // AI Advisor MiMo
-              _buildAISection(),
-              const SizedBox(height: 20),
-
-              // Thẻ tổng quan Hạn mức
-              Container(
-                padding: const EdgeInsets.all(AppSpacing.lg),
-                decoration: BoxDecoration(
-                  color: context.palette.card,
-                  borderRadius: BorderRadius.circular(AppRadii.xl),
-                  boxShadow: context.palette.softShadow,
+                    if (!isLandscapePhone) _buildWalletSelectorBar(),
+                    // ── Content ───────────────────────────────────────────
+                    Expanded(
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 8, AppSpacing.lg, AppSpacing.lg),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildAISection(),
+                            const SizedBox(height: 20),
+                            // Thẻ tổng quan Hạn mức
+                            Container(
+                              padding: const EdgeInsets.all(AppSpacing.lg),
+                              decoration: BoxDecoration(
+                                color: context.palette.card,
+                                borderRadius: BorderRadius.circular(AppRadii.xl),
+                                boxShadow: context.palette.softShadow,
                   border: Border.all(color: AppColors.teal.withValues(alpha: 0.2)),
                 ),
                 child: Column(
@@ -282,16 +257,20 @@ class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScr
               ),
               const SizedBox(height: 20),
 
-              // Biểu đồ lũy kế vs Hạn mức lý tưởng
-              _buildCumulativeChartCard(),
-            ],
-          ),
-            ),
+                              _buildCumulativeChartCard(),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
           ),
         ),
-      ),
-    );
-  }
+      );
+    }
 
   Widget _buildStatCol(String label, String value, Color color, {bool isRight = false}) {
     return Column(
@@ -327,6 +306,23 @@ class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScr
     );
   }
 
+  Widget _buildWalletSelectorBarCompact() {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _buildWalletChipItem('Tất cả ví', null),
+          ..._wallets.map((w) {
+            final id = w['id']?.toString();
+            final name = w['name']?.toString() ?? 'Ví';
+            return _buildWalletChipItem(name, id);
+          }),
+        ],
+      ),
+    );
+  }
+
   Widget _buildWalletChipItem(String label, String? walletId) {
     final isSelected = _selectedWalletId == walletId;
     return Padding(
@@ -342,7 +338,7 @@ class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScr
         borderRadius: BorderRadius.circular(AppRadii.full),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 160),
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
             color: isSelected ? AppColors.teal : context.palette.card,
             borderRadius: BorderRadius.circular(AppRadii.full),
@@ -363,35 +359,11 @@ class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScr
                 label,
                 style: TextStyle(
                   color: isSelected ? Colors.white : context.palette.textPrimary,
-                  fontSize: 11,
+                  fontSize: 13,
                   fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                 ),
               ),
             ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPeriodBtn(String label, bool active, VoidCallback onTap) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 6),
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: active ? AppColors.teal : Colors.transparent,
-            borderRadius: BorderRadius.circular(AppRadii.md),
-          ),
-          child: Text(
-            label,
-            style: TextStyle(
-              color: active ? Colors.white : context.palette.textPrimary,
-              fontSize: 12,
-              fontWeight: active ? FontWeight.w700 : FontWeight.w500,
-            ),
           ),
         ),
       ),
@@ -612,9 +584,13 @@ class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScr
                   bottomTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
-                      interval: totalDays > 7 ? 5 : 1,
+                      interval: 1,
                       getTitlesWidget: (val, meta) {
-                        if (val > totalDays) return const SizedBox.shrink();
+                        if (val > totalDays || val < 1) return const SizedBox.shrink();
+                        if (totalDays > 7) {
+                          if (val != 1 && val != totalDays && val % 5 != 0) return const SizedBox.shrink();
+                          if (val == totalDays && totalDays % 5 <= 2) return const SizedBox.shrink(); // Prevent overlap with N30
+                        }
                         return Padding(
                           padding: const EdgeInsets.only(top: 6),
                           child: Text('N${val.toInt()}', style: const TextStyle(color: AppColors.muted, fontSize: 11)),

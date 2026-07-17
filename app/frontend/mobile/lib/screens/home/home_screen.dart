@@ -106,7 +106,16 @@ class _HomeScreenState extends State<HomeScreen> {
         }
       });
       if (_selectedWalletId == null && walletsList.isNotEmpty) {
-        _selectedWalletId = walletsList[0]['id'] as String?;
+        final personalWallets = walletsList.where((w) => w['type'] != 'group').toList();
+        _selectedWalletId = personalWallets.isNotEmpty 
+            ? personalWallets[0]['id'] as String? 
+            : walletsList[0]['id'] as String?;
+      }
+      if (walletsList.any((w) => w['id'] == _selectedWalletId && w['type'] == 'group')) {
+        final personalWallets = walletsList.where((w) => w['type'] != 'group').toList();
+        if (personalWallets.isNotEmpty) {
+          _selectedWalletId = personalWallets[0]['id'] as String?;
+        }
       }
       ApiClient.lastSelectedWalletId = _selectedWalletId;
 
@@ -169,7 +178,6 @@ class _HomeScreenState extends State<HomeScreen> {
         AppRoutes.shareWallet,
         extra: {'walletId': wallet['id'] as String? ?? ''},
       );
-      ApiClient.lastSelectedWalletId = _selectedWalletId;
       _loadData();
       return;
     }
@@ -492,7 +500,9 @@ class _HomeScreenState extends State<HomeScreen> {
         child: LayoutBuilder(
           builder: (context, constraints) {
             final isLandscapeMobile = constraints.maxWidth > constraints.maxHeight && constraints.maxHeight < 600;
-            final isWide = constraints.maxWidth >= 768 || isLandscapeMobile;
+            final isTabletLandscape = constraints.maxWidth >= 768 && constraints.maxWidth > constraints.maxHeight;
+            final isTabletPortrait = constraints.maxWidth >= 600 && constraints.maxWidth <= constraints.maxHeight;
+            final isWide = isTabletLandscape || isLandscapeMobile;
 
             final headerDelegate = _HomeHeaderDelegate(
               userName: _userName,
@@ -504,6 +514,7 @@ class _HomeScreenState extends State<HomeScreen> {
               balance: _balance,
               income: _totalIncome,
               expense: _totalExpense,
+              isGroupWallet: _wallets.any((w) => w['id'] == _selectedWalletId && w['type'] == 'group'),
               tab: _tab,
               onWalletTap: _onWalletTap,
               onWalletLongPress: _deleteWallet,
@@ -595,6 +606,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 ],
               );
             } else {
+              // Portrait phone/tablet: single-column scrollable layout
+              // On tablet portrait, add horizontal padding to constrain content width
+              final double sidepad = isTabletPortrait
+                  ? ((constraints.maxWidth - 600) / 2).clamp(0.0, double.infinity)
+                  : 0.0;
               mainContent = RefreshIndicator(
                 onRefresh: _loadData,
                 color: AppColors.teal,
@@ -608,15 +624,24 @@ class _HomeScreenState extends State<HomeScreen> {
                       SliverToBoxAdapter(
                         child: ErrorBanner(message: _error!, onRetry: _loadData),
                       ),
-                    const SliverToBoxAdapter(child: SizedBox(height: 16)),
+                    SliverToBoxAdapter(child: SizedBox(height: isTabletPortrait ? 20 : 16)),
                     if (_draftTransactions.isNotEmpty)
-                      SliverToBoxAdapter(
-                        child: _DraftReminderBanner(
-                          draftCount: _draftTransactions.length,
-                          onTap: () => _showDraftListSheet(context),
+                      SliverPadding(
+                        padding: EdgeInsets.symmetric(horizontal: sidepad),
+                        sliver: SliverToBoxAdapter(
+                          child: _DraftReminderBanner(
+                            draftCount: _draftTransactions.length,
+                            onTap: () => _showDraftListSheet(context),
+                          ),
                         ),
                       ),
-                    ..._buildTabContent(),
+                    if (sidepad > 0)
+                      ..._buildTabContent().map((sliver) => SliverPadding(
+                        padding: EdgeInsets.symmetric(horizontal: sidepad),
+                        sliver: sliver,
+                      ))
+                    else
+                      ..._buildTabContent(),
                     const SliverToBoxAdapter(child: SizedBox(height: 100)),
                   ],
                 ),
@@ -1029,6 +1054,7 @@ class _HomeHeaderDelegate extends SliverPersistentHeaderDelegate {
   final int balance;
   final int income;
   final int expense;
+  final bool isGroupWallet;
   final String tab;
   final void Function(dynamic wallet) onWalletTap;
   final void Function(dynamic wallet)? onWalletLongPress;
@@ -1049,6 +1075,7 @@ class _HomeHeaderDelegate extends SliverPersistentHeaderDelegate {
     required this.balance,
     required this.income,
     required this.expense,
+    this.isGroupWallet = false,
     required this.tab,
     required this.onWalletTap,
     this.onWalletLongPress,
@@ -1294,7 +1321,7 @@ class _HomeHeaderDelegate extends SliverPersistentHeaderDelegate {
                                 ),
                                 const SizedBox(width: 6),
                                 Text(
-                                  'Số dư hiện tại',
+                                  isGroupWallet ? 'Còn lại' : 'Số dư hiện tại',
                                   style: theme.textTheme.bodySmall?.copyWith(
                                     color: context.palette.textSecondary,
                                   ),
@@ -1317,7 +1344,7 @@ class _HomeHeaderDelegate extends SliverPersistentHeaderDelegate {
                               children: [
                                 Expanded(
                                   child: _BalanceStat(
-                                    label: 'Thu nhập',
+                                    label: isGroupWallet ? 'Quỹ nhóm' : 'Thu nhập',
                                     value: loading ? '...' : formatVnd(income),
                                     color: AppColors.teal,
                                   ),
@@ -1329,7 +1356,7 @@ class _HomeHeaderDelegate extends SliverPersistentHeaderDelegate {
                                 ),
                                 Expanded(
                                   child: _BalanceStat(
-                                    label: 'Chi tiêu',
+                                    label: isGroupWallet ? 'Đã chi' : 'Chi tiêu',
                                     value: loading ? '...' : formatVnd(expense),
                                     color: AppColors.danger,
                                   ),

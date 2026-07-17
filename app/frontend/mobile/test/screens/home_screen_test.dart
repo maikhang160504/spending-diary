@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mobile/screens/home/home_screen.dart';
-import 'package:mobile/widgets/skeleton.dart';
+import 'package:SpendingDiary/screens/home/home_screen.dart';
+import 'package:SpendingDiary/widgets/skeleton.dart';
 
 import '../helpers/test_app.dart';
 

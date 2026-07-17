@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mobile/screens/chat/chat_screen.dart';
+import 'package:SpendingDiary/screens/chat/chat_screen.dart';
 
 import '../helpers/test_app.dart';
 

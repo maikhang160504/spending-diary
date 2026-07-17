@@ -6,6 +6,8 @@ import '../../widgets/loading_indicator.dart';
 import '../../widgets/error_banner.dart';
 import '../../theme/app_radii.dart';
 import '../../theme/app_palette.dart';
+import '../../theme/categories.dart';
+import 'package:fl_chart/fl_chart.dart';
 
 class GroupAnalyticsScreen extends StatefulWidget {
   final String walletId;
@@ -96,8 +98,8 @@ class _GroupAnalyticsScreenState extends State<GroupAnalyticsScreen> {
   Widget _buildOverviewSection() {
     if (_overview == null) return const SizedBox.shrink();
     
-    final totalIncome = (_overview!['totalIncome'] as num?)?.toInt() ?? 0;
-    final totalExpense = (_overview!['totalExpense'] as num?)?.toInt() ?? 0;
+    final totalIncome = (_overview!['totalFund'] as num?)?.toInt() ?? 0;
+    final totalExpense = (_overview!['totalSpent'] as num?)?.toInt() ?? 0;
     final remaining = (_overview!['remaining'] as num?)?.toInt() ?? 0;
     
     // Calculate progress percentage
@@ -175,25 +177,48 @@ class _GroupAnalyticsScreenState extends State<GroupAnalyticsScreen> {
           Text('Chi tiêu theo danh mục', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
           const SizedBox(height: 16),
           ..._categories.take(5).map((cat) {
-            final name = cat['category_code'] as String? ?? 'Others';
+            final code = cat['categoryCode'] as String? ?? cat['category_code'] as String? ?? 'Others';
             final amount = (cat['total'] as num?)?.toInt() ?? 0;
+            final percent = (cat['percent'] as num?)?.toDouble() ?? 0.0;
+            final theme = CategoryTheme.of(code);
             return Padding(
               padding: const EdgeInsets.only(bottom: 12),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              child: Column(
                 children: [
                   Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Container(
-                        width: 32, height: 32,
-                        decoration: BoxDecoration(color: AppColors.muted.withValues(alpha: 0.1), shape: BoxShape.circle),
-                        child: const Icon(Icons.category, size: 16, color: AppColors.muted),
+                      Row(
+                        children: [
+                          Container(
+                            width: 32, height: 32,
+                            decoration: BoxDecoration(color: theme.color.withValues(alpha: 0.1), shape: BoxShape.circle),
+                            child: Icon(theme.icon, size: 16, color: theme.color),
+                          ),
+                          const SizedBox(width: 12),
+                          Text(theme.label, style: const TextStyle(fontWeight: FontWeight.w500)),
+                        ],
                       ),
-                      const SizedBox(width: 12),
-                      Text(name, style: const TextStyle(fontWeight: FontWeight.w500)),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(formatVnd(amount), style: const TextStyle(fontWeight: FontWeight.w600, color: AppColors.danger)),
+                          Text('${percent.toInt()}%', style: TextStyle(fontSize: 11, color: AppColors.muted, fontWeight: FontWeight.w600)),
+                        ],
+                      ),
                     ],
                   ),
-                  Text(formatVnd(amount), style: const TextStyle(fontWeight: FontWeight.w600, color: AppColors.danger)),
+                  const SizedBox(height: 8),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(
+                      value: percent / 100,
+                      minHeight: 6,
+                      backgroundColor: theme.color.withValues(alpha: 0.1),
+                      color: theme.color,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
                 ],
               ),
             );
@@ -218,7 +243,7 @@ class _GroupAnalyticsScreenState extends State<GroupAnalyticsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Tình trạng góp quỹ', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+          Text('Chi tiết Nộp/Chi của thành viên', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
           const SizedBox(height: 16),
           if (members.isEmpty)
             const Text('Chưa có dữ liệu thành viên', style: TextStyle(color: AppColors.muted)),
@@ -229,7 +254,7 @@ class _GroupAnalyticsScreenState extends State<GroupAnalyticsScreen> {
             final balance = (m['balance'] as num?)?.toInt() ?? 0;
             
             return Padding(
-              padding: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.only(bottom: 16),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -237,24 +262,24 @@ class _GroupAnalyticsScreenState extends State<GroupAnalyticsScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(name, style: const TextStyle(fontWeight: FontWeight.w600)),
-                        const SizedBox(height: 2),
-                        Text('Đóng: ${formatVnd(contributed)} | Tiêu: ${formatVnd(spent)}', style: const TextStyle(fontSize: 11, color: AppColors.muted)),
+                        Text(name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+                        const SizedBox(height: 4),
+                        Text('Đã nộp: ${formatVnd(contributed)}  •  Đã chi: ${formatVnd(spent)}', style: const TextStyle(fontSize: 12, color: AppColors.muted)),
                       ],
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
                       color: balance > 0 ? AppColors.teal.withValues(alpha: 0.1) : (balance < 0 ? AppColors.danger.withValues(alpha: 0.1) : context.palette.surfaceAlt),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
-                      balance > 0 ? '+${formatVnd(balance)}' : formatVnd(balance),
+                      balance > 0 ? 'Dư: +${formatVnd(balance)}' : (balance < 0 ? 'Thiếu: ${formatVnd(balance)}' : 'Đủ'),
                       style: TextStyle(
                         fontWeight: FontWeight.w700,
                         color: balance > 0 ? AppColors.teal : (balance < 0 ? AppColors.danger : AppColors.muted),
-                        fontSize: 13,
+                        fontSize: 12,
                       ),
                     ),
                   ),
@@ -270,6 +295,15 @@ class _GroupAnalyticsScreenState extends State<GroupAnalyticsScreen> {
   Widget _buildTimelineSection() {
     if (_timeline.isEmpty) return const SizedBox.shrink();
     
+    // Get up to last 7 days
+    final recent = _timeline.length > 7 ? _timeline.sublist(_timeline.length - 7) : _timeline;
+    double maxVal = 0;
+    for (var t in recent) {
+      final exp = (t['expense'] as num?)?.toDouble() ?? 0;
+      if (exp > maxVal) maxVal = exp;
+    }
+    if (maxVal == 0) maxVal = 100000;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -280,22 +314,71 @@ class _GroupAnalyticsScreenState extends State<GroupAnalyticsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Tốc độ chi tiêu', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
-          const SizedBox(height: 16),
-          ..._timeline.take(7).map((t) {
-            final day = t['day'] as String? ?? '';
-            final amount = (t['expense'] as num?)?.toInt() ?? 0;
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(day, style: const TextStyle(fontSize: 13)),
-                  Text(formatVnd(amount), style: const TextStyle(fontWeight: FontWeight.w600, color: AppColors.danger, fontSize: 13)),
-                ],
+          Text('Biểu đồ chi tiêu (7 ngày gần nhất)', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+          const SizedBox(height: 24),
+          SizedBox(
+            height: 200,
+            child: BarChart(
+              BarChartData(
+                alignment: BarChartAlignment.spaceAround,
+                maxY: maxVal * 1.2,
+                barTouchData: BarTouchData(
+                  touchTooltipData: BarTouchTooltipData(
+                    getTooltipColor: (_) => context.palette.card,
+                    getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                      return BarTooltipItem(
+                        formatVnd(rod.toY.toInt()),
+                        const TextStyle(color: AppColors.danger, fontWeight: FontWeight.bold),
+                      );
+                    },
+                  ),
+                ),
+                titlesData: FlTitlesData(
+                  show: true,
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      getTitlesWidget: (value, meta) {
+                        final index = value.toInt();
+                        if (index < 0 || index >= recent.length) return const SizedBox.shrink();
+                        final dayStr = recent[index]['day'] as String? ?? '';
+                        final shortDay = dayStr.length >= 10 ? '${dayStr.substring(8, 10)}/${dayStr.substring(5, 7)}' : dayStr;
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: Text(shortDay, style: const TextStyle(fontSize: 10, color: AppColors.muted)),
+                        );
+                      },
+                      reservedSize: 22,
+                    ),
+                  ),
+                  leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                ),
+                borderData: FlBorderData(show: false),
+                gridData: const FlGridData(show: false),
+                barGroups: List.generate(recent.length, (i) {
+                  final amount = (recent[i]['expense'] as num?)?.toDouble() ?? 0;
+                  return BarChartGroupData(
+                    x: i,
+                    barRods: [
+                      BarChartRodData(
+                        toY: amount,
+                        color: AppColors.danger,
+                        width: 16,
+                        borderRadius: BorderRadius.circular(4),
+                        backDrawRodData: BackgroundBarChartRodData(
+                          show: true,
+                          toY: maxVal * 1.2,
+                          color: context.palette.surfaceAlt,
+                        ),
+                      ),
+                    ],
+                  );
+                }),
               ),
-            );
-          }),
+            ),
+          ),
         ],
       ),
     );

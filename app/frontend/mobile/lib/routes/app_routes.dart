@@ -295,9 +295,8 @@ final GoRouter appRouter = GoRouter(
       path: AppRoutes.chat,
       pageBuilder: (context, state) {
         final extra = state.extra as Map<String, dynamic>?;
-        return _lottiePage(
+        return _slidePage(
           state,
-          'assets/animations/Chat.json',
           ChatScreen(
             sessionId: extra?['sessionId'] as String?,
             walletId: extra?['walletId'] as String?,
@@ -311,9 +310,8 @@ final GoRouter appRouter = GoRouter(
       path: AppRoutes.chatHistory,
       pageBuilder: (context, state) {
         final extra = state.extra as Map<String, dynamic>?;
-        return _lottiePage(
+        return _slidePage(
           state,
-          'assets/animations/Chat.json',
           ChatHistoryScreen(walletId: extra?['walletId'] as String?),
         );
       },
