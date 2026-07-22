@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -6,6 +8,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../utils/image_compressor.dart';
 import 'connection_manager.dart';
 import 'streak_celebration.dart';
+import '../routes/app_routes.dart';
 
 /// Centralized API client for all backend calls.
 /// Replaces old `BackendApiService` with proper JWT auth flow.
@@ -140,12 +143,21 @@ class ApiClient {
 
     if (response.statusCode >= 400) {
       final errMap = jsonBody['error'] as Map<String, dynamic>?;
+      final errorMessage = errMap?['message'] as String? ??
+            jsonBody['message'] as String? ??
+            'Request failed';
+            
+      // Handle User Banned
+      if (response.statusCode == 403 && errorMessage.toLowerCase().contains('banned')) {
+        appRouter.go(AppRoutes.banned, extra: errorMessage);
+        // We throw so it doesn't return data, but we DO NOT clearTokens() so they can appeal.
+      } else if (response.statusCode == 401 || response.statusCode == 403) {
+         // Other unhandled auth errors might clear token, but for now we let tryRefresh handle it.
+      }
+
       throw ApiException(
         statusCode: response.statusCode,
-        message:
-            errMap?['message'] as String? ??
-            jsonBody['message'] as String? ??
-            'Request failed',
+        message: errorMessage,
         code: errMap?['code'] as String? ?? jsonBody['code'] as String?,
       );
     }
@@ -235,6 +247,16 @@ class ApiClient {
     final data = result['data'] as Map<String, dynamic>;
     await _saveTokens(data['accessToken'], data['refreshToken']);
     return data;
+  }
+
+  Future<Map<String, dynamic>> submitAppeal(String reason) async {
+    final result = await _request(
+      'POST',
+      '/auth/appeals',
+      body: {'reason': reason},
+      requireAuth: true, // Throws 403 if it was not handled specially, but wait, requireAuth sends token.
+    );
+    return result;
   }
 
   Future<Map<String, dynamic>> getMe() async {

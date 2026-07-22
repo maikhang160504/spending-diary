@@ -107,7 +107,11 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
           context.go(AppRoutes.home);
           return;
         }
-      } catch (_) {}
+      } catch (e) {
+        if (e is ApiException && e.statusCode == 403 && e.message.toLowerCase().contains('banned')) {
+          return; // api_client has already routed to /banned
+        }
+      }
       context.go(AppRoutes.home);
     } else {
       context.go(AppRoutes.login);

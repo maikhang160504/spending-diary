@@ -10,6 +10,7 @@ import '../screens/auth/forgot_password_screen.dart';
 import '../screens/auth/verify_otp_screen.dart';
 import '../screens/auth/reset_password_screen.dart';
 import '../screens/auth/splash_screen.dart';
+import '../screens/auth/banned_screen.dart';
 import '../screens/camera/camera_confirm_screen.dart';
 import '../screens/camera/camera_input_screen.dart';
 import '../screens/camera/camera_screen.dart';
@@ -46,6 +47,7 @@ class AppRoutes {
   static const login           = '/login';
   static const register        = '/register';
   static const forgotPassword  = '/forgot-password';
+  static const banned          = '/banned';
   static const verifyOtp       = '/verify-otp';
   static const resetPassword   = '/reset-password';
 
@@ -189,10 +191,17 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: AppRoutes.verifyOtp,
-      builder: (context, state) {
-        final email = state.extra as String? ?? '';
-        return VerifyOtpScreen(email: email);
-      },
+      pageBuilder: (context, state) => LottieTransitionPage(
+        key: state.pageKey,
+        child: VerifyOtpScreen(email: state.extra as String?),
+      ),
+    ),
+    GoRoute(
+      path: AppRoutes.banned,
+      pageBuilder: (context, state) => LottieTransitionPage(
+        key: state.pageKey,
+        child: BannedScreen(banReason: state.extra as String?),
+      ),
     ),
     GoRoute(
       path: AppRoutes.resetPassword,

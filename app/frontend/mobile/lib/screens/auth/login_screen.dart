@@ -76,8 +76,13 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       final api = ApiClient();
-      await api.loginWithGoogle(idToken);
+      final data = await api.loginWithGoogle(idToken);
       if (!mounted) return;
+
+      if (data['user'] != null && data['user']['status'] == 'banned') {
+        context.go(AppRoutes.banned, extra: data['user']['banReason']);
+        return;
+      }
 
       try {
         final settings = await api.getSettings();
@@ -117,8 +122,13 @@ class _LoginScreenState extends State<LoginScreen> {
     });
     try {
       final api = ApiClient();
-      await api.login(email, pass);
+      final data = await api.login(email, pass);
       if (!mounted) return;
+
+      if (data['user'] != null && data['user']['status'] == 'banned') {
+        context.go(AppRoutes.banned, extra: data['user']['banReason']);
+        return;
+      }
 
       try {
         final settings = await api.getSettings();
