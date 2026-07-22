@@ -4,6 +4,7 @@ const express = require('express');
 
 const { requireAuth } = require('../../middlewares/auth');
 const validate = require('../../middlewares/validate');
+const idempotencyGuard = require('../../middlewares/idempotency');
 const controller = require('./transactions.controller');
 const {
   createTxSchema,
@@ -72,7 +73,7 @@ const router = express.Router();
 
 router.use(requireAuth);
 router.get('/', validate({ query: listTxQuerySchema }), controller.list);
-router.post('/', validate({ body: createTxSchema }), controller.create);
+router.post('/', idempotencyGuard(), validate({ body: createTxSchema }), controller.create);
 router.get('/export', controller.exportCsv);
 router.get('/:id', controller.get);
 router.patch('/:id', validate({ body: updateTxSchema }), controller.update);

@@ -21,6 +21,7 @@ const groupStatsRoutes = require('../modules/group_stats/group_stats.routes');
 const paymentsRoutes = require('../modules/payments/payments.routes');
 const authController = require('../modules/auth/auth.controller');
 const { requireAuth } = require('../middlewares/auth');
+const { autoBanSpam, autoBanCommunity } = require('../middlewares/autoBan');
 
 const router = express.Router();
 
@@ -41,16 +42,16 @@ router.get('/health', (_req, res) => {
 router.use('/auth', authRoutes);
 router.use('/categories', categoriesRoutes);
 router.use('/wallets', walletsRoutes);
-router.use('/transactions', transactionsRoutes);
+router.use('/transactions', requireAuth, autoBanSpam, transactionsRoutes);
 router.use('/budgets', budgetsRoutes);
 router.use('/stats', statsRoutes);
-router.use('/ai', aiRoutes);
-router.use('/upload', uploadRoutes);
+router.use('/ai', requireAuth, autoBanSpam, autoBanCommunity, aiRoutes);
+router.use('/upload', requireAuth, autoBanSpam, uploadRoutes);
 router.use('/users/me/settings', settingsRoutes);
 router.use('/users/me/streak', requireAuth, authController.getStreak);
 router.use('/goals', goalsRoutes);
 router.use('/stories', storiesRoutes);
-router.use('/chat', chatRoutes);
+router.use('/chat', requireAuth, autoBanSpam, autoBanCommunity, chatRoutes);
 router.use('/recurring', recurringRoutes);
 router.use('/users/me/fcm', fcmRoutes);
 router.use('/loans', loansRoutes);

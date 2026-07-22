@@ -29,7 +29,7 @@ async function findUserByEmail(email) {
 
 async function findUserById(id) {
   const r = await query(
-    `SELECT id, email, username, avatar_url, preferred_vibe, role, is_active, created_at,
+    `SELECT id, email, username, avatar_url, preferred_vibe, role, is_active, status, ban_reason, created_at,
             income_amount, job_title
      FROM users WHERE id = $1`,
     [id]
@@ -97,6 +97,8 @@ async function issueTokens(user) {
       role: user.role,
       preferredVibe: user.preferred_vibe,
       avatarUrl: user.avatar_url,
+      status: user.status,
+      banReason: user.ban_reason
     },
   };
 }
@@ -127,6 +129,8 @@ async function refresh({ refreshToken }) {
     preferred_vibe: user.preferred_vibe,
     username: user.username,
     avatar_url: user.avatar_url,
+    status: user.status,
+    ban_reason: user.ban_reason
   });
 }
 
@@ -464,4 +468,29 @@ async function resetPassword(resetToken, newPassword) {
   logger.info({ userId }, 'Người dùng đã khôi phục mật khẩu thành công');
 }
 
-module.exports = { register, login, refresh, logout, findUserById, changePassword, getStreak, googleLogin, updateProfile, forgotPassword, verifyResetOtp, resetPassword };
+async function createAppeal(userId, reason) {
+  if (!reason) {
+    throw ApiError.badRequest('Vui lòng nhập lý do khiếu nại.');
+  }
+  const result = await query(
+    'INSERT INTO ban_appeals (user_id, reason) VALUES ($1, $2) RETURNING id, status, created_at',
+    [userId, reason]
+  );
+  return result.rows[0];
+}
+
+module.exports = {
+  register,
+  login,
+  refresh,
+  logout,
+  findUserById,
+  updateProfile,
+  changePassword,
+  getStreak,
+  googleLogin,
+  forgotPassword,
+  verifyResetOtp,
+  resetPassword,
+  createAppeal
+};

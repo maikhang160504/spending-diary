@@ -109,6 +109,8 @@ const env = {
     pass: process.env.MAIL_PASS || null,
   },
 
+  passwordRetrain: process.env.PASSWORD_RETRAIN || null,
+
   isProd: process.env.NODE_ENV === 'production',
 };
 

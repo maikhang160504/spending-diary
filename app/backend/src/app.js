@@ -16,6 +16,7 @@ const { notFound, errorHandler } = require('./middlewares/errorHandler');
 
 const router = require('./routes');
 const adminRouter = require('./routes/admin.routes');
+const { requireAuth, requireRole } = require('./middlewares/auth');
 
 const app = express();
 
@@ -64,7 +65,7 @@ app.get('/', (_req, res) =>
 
 app.use('/hooks', require('./routes/hooks.routes'));
 app.use('/api/v1', router);
-app.use('/api/admin', adminRouter);
+app.use('/api/admin', requireAuth, requireRole('admin'), adminRouter);
 
 app.use(notFound);
 app.use(errorHandler);

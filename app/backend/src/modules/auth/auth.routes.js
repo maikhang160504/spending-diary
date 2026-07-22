@@ -3,7 +3,7 @@
 const express = require('express');
 
 const validate = require('../../middlewares/validate');
-const { requireAuth } = require('../../middlewares/auth');
+const { requireAuth, requireAuthWithoutBanCheck } = require('../../middlewares/auth');
 const controller = require('./auth.controller');
 const { registerSchema, loginSchema, refreshSchema, changePasswordSchema } = require('./auth.schema');
 
@@ -164,5 +164,7 @@ router.post('/google', controller.googleLogin);
 router.post('/forgot-password', controller.forgotPassword);
 router.post('/verify-reset-otp', controller.verifyResetOtp);
 router.post('/reset-password', controller.resetPassword);
+
+router.post('/appeals', requireAuthWithoutBanCheck, controller.createAppeal);
 
 module.exports = router;

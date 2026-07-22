@@ -136,31 +136,15 @@ async function runSimulation() {
       categoriesMap[row.code] = row.id;
     }
 
-    // 2. Update existing simulated users
-    console.log('Fixing demographics for existing simulated users (user_*)...');
-    const existingUsers = await client.query(`SELECT id, username FROM users WHERE username LIKE 'user_%'`);
-    let updatedCount = 0;
-    for (const u of existingUsers.rows) {
-      const { ageGroup, jobType } = getDemographic();
-      await client.query(`UPDATE user_settings SET age_group = $1, job_type = $2 WHERE user_id = $3`, [ageGroup, jobType, u.id]);
-      updatedCount++;
-    }
-    console.log(`Updated ${updatedCount} existing users with realistic age/job profiles.`);
-
-    // 3. Find highest existing index to avoid duplicate email errors
-    const highestIdxResult = await client.query(`
-      SELECT MAX(CAST(SUBSTRING(username FROM 6) AS INTEGER)) as max_idx 
-      FROM users 
-      WHERE username ~ '^user_[0-9]+$'
-    `);
+    // 2. Delete existing simulated users to avoid data corruption and scale perfectly
+    console.log('Cleaning up old simulated data...');
+    await client.query(`DELETE FROM transactions WHERE creator_id IN (SELECT id FROM users WHERE username LIKE 'user_%')`);
+    await client.query(`DELETE FROM wallet_members WHERE user_id IN (SELECT id FROM users WHERE username LIKE 'user_%')`);
+    await client.query(`DELETE FROM wallets WHERE owner_id IN (SELECT id FROM users WHERE username LIKE 'user_%')`);
+    await client.query(`DELETE FROM user_settings WHERE user_id IN (SELECT id FROM users WHERE username LIKE 'user_%')`);
+    await client.query(`DELETE FROM users WHERE username LIKE 'user_%'`);
     
-    // There might be users named user_student_1 etc from previous script.
-    const highestLegacyIdxResult = await client.query(`
-      SELECT COUNT(*) as cnt FROM users WHERE username LIKE 'user_%'
-    `);
-    
-    let startIndex = (parseInt(highestIdxResult.rows[0].max_idx) || parseInt(highestLegacyIdxResult.rows[0].cnt) || 0) + 1;
-    
+    let startIndex = 1;
     console.log(`Generating 150 NEW realistic users starting at index ${startIndex}...`);
     
     const newUsers = [];
@@ -252,20 +236,29 @@ async function runSimulation() {
         const date = new Date(now.getTime() - randomRange(0, 89) * 24 * 3600000 - randomRange(0, 23) * 3600000);
         let catOptions = ['Food', 'Food', 'Food', 'Transport', 'Shopping', 'Social', 'Others'];
         if (u.jobType !== 'Sinh viên') catOptions.push('Housing', 'Health');
-        else catOptions.push('Education');
+        else catOptions.push('Housing', 'Education', 'Health');
         
         const cat = randomChoice(catOptions);
         const noteList = notes[cat] || notes['Others'];
         const note = randomChoice(noteList);
         
         let amount = 0;
-        if (cat === 'Housing') amount = randomRange(30 * multi, 100 * multi) * 100000; // Rent/Bills
-        else if (cat === 'Shopping') amount = randomRange(3 * multi, 20 * multi) * 100000;
-        else if (cat === 'Food') amount = randomRange(30 * multi, 150 * multi) * 1000;
-        else if (cat === 'Transport') amount = randomRange(20 * multi, 100 * multi) * 1000;
-        else if (cat === 'Health') amount = randomRange(2 * multi, 15 * multi) * 100000;
-        else if (cat === 'Social') amount = randomRange(3 * multi, 10 * multi) * 100000;
-        else amount = randomRange(20 * multi, 100 * multi) * 1000; // Others, Education
+        if (u.jobType === 'Sinh viên') {
+          if (cat === 'Housing') amount = randomRange(25, 35) * 10000;
+          else if (cat === 'Food') amount = randomRange(10, 18) * 10000;
+          else if (cat === 'Transport') amount = randomRange(15, 22) * 10000;
+          else if (cat === 'Shopping') amount = randomRange(8, 14) * 10000;
+          else if (cat === 'Social') amount = randomRange(8, 14) * 10000;
+          else amount = randomRange(3, 7) * 10000;
+        } else {
+          if (cat === 'Housing') amount = randomRange(30 * multi, 100 * multi) * 100000;
+          else if (cat === 'Shopping') amount = randomRange(3 * multi, 20 * multi) * 100000;
+          else if (cat === 'Food') amount = randomRange(30 * multi, 150 * multi) * 1000;
+          else if (cat === 'Transport') amount = randomRange(20 * multi, 100 * multi) * 1000;
+          else if (cat === 'Health') amount = randomRange(2 * multi, 15 * multi) * 100000;
+          else if (cat === 'Social') amount = randomRange(3 * multi, 10 * multi) * 100000;
+          else amount = randomRange(20 * multi, 100 * multi) * 1000;
+        }
         
         txRows.push({ type: 'expense', category_code: cat, amount, note, occurred_at: date });
       }

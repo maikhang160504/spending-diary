@@ -86,14 +86,14 @@ async function seedGroupBenchmarks() {
   //   Food, Transport, Shopping, Entertainment, Housing, Essentials
   const profiles = {
     // ── 18-22 tuổi ──────────────────────────────────────────────────
-    '18-22 tuổi|Sinh viên':   { Food: [2800000, 3800000], Transport: [600000, 900000], Shopping: [800000, 1500000], Entertainment: [1500000, 2200000], Housing: [2000000, 3000000], Essentials: [500000, 800000] },
+    '18-22 tuổi|Sinh viên':   { Food: [1000000, 1800000], Transport: [450000, 750000], Shopping: [200000, 500000], Entertainment: [200000, 500000], Housing: [800000, 1200000], Essentials: [150000, 250000] },
     '18-22 tuổi|Văn phòng':   { Food: [3200000, 4200000], Transport: [800000, 1200000], Shopping: [1200000, 2000000], Entertainment: [1800000, 2800000], Housing: [2500000, 3500000], Essentials: [600000, 1000000] },
     '18-22 tuổi|Freelancer':  { Food: [3000000, 4000000], Transport: [500000, 800000], Shopping: [1000000, 1800000], Entertainment: [2000000, 3000000], Housing: [2200000, 3200000], Essentials: [550000, 900000] },
     '18-22 tuổi|Kinh doanh':  { Food: [3500000, 4500000], Transport: [1000000, 1500000], Shopping: [1500000, 2500000], Entertainment: [2200000, 3200000], Housing: [2800000, 4000000], Essentials: [700000, 1100000] },
     '18-22 tuổi|Khác':        { Food: [2500000, 3500000], Transport: [500000, 800000], Shopping: [700000, 1200000], Entertainment: [1200000, 2000000], Housing: [1800000, 2800000], Essentials: [450000, 750000] },
 
     // ── 23-30 tuổi ──────────────────────────────────────────────────
-    '23-30 tuổi|Sinh viên':   { Food: [3200000, 4200000], Transport: [700000, 1000000], Shopping: [1000000, 1800000], Entertainment: [1800000, 2600000], Housing: [2500000, 3500000], Essentials: [600000, 900000] },
+    '23-30 tuổi|Sinh viên':   { Food: [1200000, 2000000], Transport: [450000, 750000], Shopping: [200000, 500000], Entertainment: [200000, 500000], Housing: [800000, 1200000], Essentials: [150000, 250000] },
     '23-30 tuổi|Văn phòng':   { Food: [4500000, 6000000], Transport: [1200000, 1800000], Shopping: [2000000, 3500000], Entertainment: [3000000, 4200000], Housing: [4000000, 6000000], Essentials: [1000000, 1500000] },
     '23-30 tuổi|Freelancer':  { Food: [4000000, 5500000], Transport: [800000, 1200000], Shopping: [1800000, 3000000], Entertainment: [2800000, 4000000], Housing: [3500000, 5000000], Essentials: [900000, 1400000] },
     '23-30 tuổi|Kinh doanh':  { Food: [5500000, 7500000], Transport: [2000000, 3000000], Shopping: [3000000, 5000000], Entertainment: [3500000, 5000000], Housing: [5000000, 7000000], Essentials: [1200000, 1800000] },

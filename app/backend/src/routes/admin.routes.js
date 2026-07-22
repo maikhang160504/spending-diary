@@ -6,6 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
 const { randomUUID } = require('crypto');
+const { sendPushToUser } = require('../modules/fcm/fcm.service');
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -17,6 +18,19 @@ const aiClient = require('../services/aiClient');
 const r2Client = require('../services/r2Client');
 const env = require('../config/env');
 const logger = require('../config/logger');
+const authService = require('../modules/auth/auth.service');
+
+const requireRetrainPassword = (req, res, next) => {
+  const pwd = req.body.retrainPassword || req.headers['x-retrain-password'];
+  if (!env.passwordRetrain) {
+    logger.warn('PASSWORD_RETRAIN is not set in environment, skipping check');
+    return next();
+  }
+  if (!pwd || pwd !== env.passwordRetrain) {
+    return res.status(401).json({ message: 'Missing or invalid retrain password' });
+  }
+  next();
+};
 
 // 1. GET /api/admin/analytics
 router.get('/transactions/export', async (req, res, next) => {
@@ -175,6 +189,8 @@ router.get('/users', async (req, res, next) => {
         u.role,
         u.is_active AS "isActive",
         u.is_premium AS "isPremium",
+        u.status,
+        u.ban_reason AS "banReason",
         u.created_at AS "createdAt",
         s.age_group AS "ageGroup",
         s.job_type AS "jobType",
@@ -245,6 +261,26 @@ router.get('/user-inspector/:userId', async (req, res, next) => {
         date: r.createdAt
       }))
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// 3.5 POST /api/admin/create-admin
+router.post('/create-admin', async (req, res, next) => {
+  try {
+    const { email, password, username } = req.body;
+    if (!email || !password || !username) {
+      return res.status(400).json({ message: 'Vui lòng cung cấp đầy đủ email, password và username' });
+    }
+    
+    // Register as a normal user first to get wallets created properly
+    await authService.register({ email, password, username, preferredVibe: 'professional' });
+    
+    // Elevate to admin
+    await query("UPDATE users SET role = 'admin' WHERE email = $1", [email]);
+    
+    res.json({ success: true, message: `Tài khoản quản trị viên ${email} đã được tạo thành công.` });
   } catch (err) {
     next(err);
   }
@@ -514,7 +550,7 @@ router.post('/prompts/test', async (req, res, next) => {
 });
 
 // 12. POST /api/admin/train
-router.post('/train', async (req, res, next) => {
+router.post('/train', requireRetrainPassword, async (req, res, next) => {
   try {
     const { target } = req.body || {};
     const r = await aiClient.triggerTrain(target || 'local');
@@ -598,7 +634,7 @@ router.post('/train/kaggle/encoder/sync', async (req, res, next) => {
 });
 
 // 14.05 POST /api/admin/train/kaggle/encoder — train PhoBERT encoder on Kaggle GPU
-router.post('/train/kaggle/encoder', async (req, res, next) => {
+router.post('/train/kaggle/encoder', requireRetrainPassword, async (req, res, next) => {
   try {
     const result = await aiClient.trainEncoderKaggle();
     res.json(result);
@@ -617,7 +653,7 @@ router.get('/train/inference-backend', async (req, res, next) => {
   }
 });
 
-router.post('/train/inference-backend', async (req, res, next) => {
+router.post('/train/inference-backend', requireRetrainPassword, async (req, res, next) => {
   try {
     const backend = req.body?.backend;
     const result = await aiClient.setNluInferenceBackend(backend);
@@ -1219,7 +1255,7 @@ router.post('/bill-retrain/export', async (req, res, next) => {
   }
 });
 
-router.post('/train/llm-trigger', async (req, res, next) => {
+router.post('/train/llm-trigger', requireRetrainPassword, async (req, res, next) => {
   try {
     const { epochs, lr, batchSize } = req.body;
     const run = await aiClient.triggerLlmFinetune(epochs, lr, batchSize);
@@ -1229,7 +1265,7 @@ router.post('/train/llm-trigger', async (req, res, next) => {
   }
 });
 
-router.post('/bill-retrain/modal/trigger', async (req, res, next) => {
+router.post('/bill-retrain/modal/trigger', requireRetrainPassword, async (req, res, next) => {
   try {
     const { numEpochs, learningRate } = req.body;
     const result = await aiClient.billModalTrigger(numEpochs, learningRate);
@@ -1307,8 +1343,89 @@ router.post('/settings', async (req, res, next) => {
   }
 });
 
-module.exports = router;
+// Update user ban status
+router.put('/users/:id/status', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { status, banReason } = req.body;
+    
+    if (!['active', 'banned'].includes(status)) {
+      return res.status(400).json({ error: 'Invalid status' });
+    }
+    
+    const result = await query(
+      `UPDATE users SET status = $1, ban_reason = $2, updated_at = NOW() WHERE id = $3 RETURNING id, email, status`,
+      [status, status === 'banned' ? banReason : null, id]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    // Send push notification if user was banned
+    if (status === 'banned') {
+      try {
+        await sendPushToUser(id, {
+          title: 'Tài khoản đã bị khóa',
+          body: `Tài khoản của bạn đã bị khóa. Lý do: ${banReason || 'Vi phạm chính sách.'}`,
+          data: { type: 'BANNED', action: 'FORCE_LOGOUT' }
+        });
+        
+        if (result.rows[0].email) {
+          const { sendBanNotification } = require('../utils/mailer');
+          await sendBanNotification(result.rows[0].email, banReason);
+        }
+      } catch (err) {
+        logger.error({ err, userId: id }, 'Failed to send ban notification (push or email)');
+      }
+    }
+    
+    res.json({ success: true, user: result.rows[0] });
+  } catch (err) {
+    next(err);
+  }
+});
 
+
+// 8. GET /api/admin/appeals - Lấy danh sách khiếu nại
+router.get('/appeals', async (req, res, next) => {
+  try {
+    const result = await query(`
+      SELECT a.*, u.username, u.email, u.ban_reason
+      FROM ban_appeals a
+      JOIN users u ON a.user_id = u.id
+      ORDER BY a.created_at DESC
+    `);
+    res.json({ success: true, data: result.rows });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// 9. POST /api/admin/appeals/:id/resolve - Xử lý khiếu nại
+router.post('/appeals/:id/resolve', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body; // 'approved' or 'rejected'
+    if (!['approved', 'rejected'].includes(status)) {
+      return res.status(400).json({ error: 'Invalid status' });
+    }
+    
+    const appealRes = await query('UPDATE ban_appeals SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING user_id', [status, id]);
+    if (appealRes.rows.length === 0) {
+      return res.status(404).json({ error: 'Appeal not found' });
+    }
+    
+    if (status === 'approved') {
+      const userId = appealRes.rows[0].user_id;
+      await query('UPDATE users SET status = $1, ban_reason = NULL, updated_at = NOW() WHERE id = $2', ['active', userId]);
+    }
+    
+    res.json({ success: true, message: 'Appeal resolved successfully' });
+  } catch (err) {
+    next(err);
+  }
+});
 
 // ============================================================
 // MONETIZATION — Premium & Revenue Admin APIs
@@ -1364,3 +1481,5 @@ router.post('/users/:id/premium', async (req, res, next) => {
     next(err);
   }
 });
+
+module.exports = router;

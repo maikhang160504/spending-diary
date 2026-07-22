@@ -14,11 +14,21 @@ exports.get = asyncHandler(async (req, res) => {
 });
 
 exports.create = asyncHandler(async (req, res) => {
+  if (req.body.amount > 5000000000) {
+    const { banUser } = require('../../middlewares/autoBan');
+    await banUser(req.user.id, 'Nghi ngờ gian lận tài chính');
+    return res.status(403).json({ success: false, message: 'Your account has been banned due to suspected financial fraud.' });
+  }
   const data = await service.create(req.user.id, req.body);
   res.status(201).json({ success: true, data });
 });
 
 exports.update = asyncHandler(async (req, res) => {
+  if (req.body.amount > 5000000000) {
+    const { banUser } = require('../../middlewares/autoBan');
+    await banUser(req.user.id, 'Nghi ngờ gian lận tài chính');
+    return res.status(403).json({ success: false, message: 'Your account has been banned due to suspected financial fraud.' });
+  }
   const data = await service.update(req.user.id, req.params.id, req.body);
   res.json({ success: true, data });
 });

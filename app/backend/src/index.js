@@ -10,6 +10,7 @@ const { attachWsServer } = require('./services/wsHub');
 const { startScheduler, stopScheduler } = require('./modules/recurring/recurring.scheduler');
 const { startNotificationScheduler, stopNotificationScheduler } = require('./modules/fcm/notification.scheduler');
 const { initFinancialToolsReminderCron } = require('./cron/financialToolsReminder.cron');
+const { initDailyExpenseReminderCron } = require('./cron/dailyExpenseReminder.cron');
 
 async function start() {
   if (env.database.url) {
@@ -32,6 +33,7 @@ async function start() {
     startScheduler(); // Start checking for due recurring transaction rules
     startNotificationScheduler(); // Start checking for due dynamic story prompts
     initFinancialToolsReminderCron(); // Start checking for due savings, challenges & loans
+    initDailyExpenseReminderCron(); // Start checking for daily expense reminders
   });
 
   const shutdown = async (signal) => {

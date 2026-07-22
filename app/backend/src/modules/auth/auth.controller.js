@@ -61,3 +61,8 @@ exports.resetPassword = asyncHandler(async (req, res) => {
   await authService.resetPassword(req.body.resetToken, req.body.newPassword);
   res.json({ success: true, message: 'Đổi mật khẩu thành công.' });
 });
+
+exports.createAppeal = asyncHandler(async (req, res) => {
+  const result = await authService.createAppeal(req.user.id, req.body.reason);
+  res.status(201).json({ success: true, data: result });
+});
