@@ -193,6 +193,7 @@ final GoRouter appRouter = GoRouter(
       path: AppRoutes.verifyOtp,
       pageBuilder: (context, state) => LottieTransitionPage(
         key: state.pageKey,
+        lottiePath: 'assets/animations/Loading.json',
         child: VerifyOtpScreen(email: state.extra as String?),
       ),
     ),
@@ -200,6 +201,7 @@ final GoRouter appRouter = GoRouter(
       path: AppRoutes.banned,
       pageBuilder: (context, state) => LottieTransitionPage(
         key: state.pageKey,
+        lottiePath: 'assets/animations/Loading.json',
         child: BannedScreen(banReason: state.extra as String?),
       ),
     ),
