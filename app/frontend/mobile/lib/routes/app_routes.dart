@@ -194,7 +194,7 @@ final GoRouter appRouter = GoRouter(
       pageBuilder: (context, state) => LottieTransitionPage(
         key: state.pageKey,
         lottiePath: 'assets/animations/Loading.json',
-        child: VerifyOtpScreen(email: state.extra as String?),
+        child: VerifyOtpScreen(email: (state.extra as String?) ?? ''),
       ),
     ),
     GoRoute(
