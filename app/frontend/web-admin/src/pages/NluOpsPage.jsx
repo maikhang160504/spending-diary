@@ -377,13 +377,10 @@ function NluOpsPage() {
   // Trigger retraining in background
   const handleRetrain = (target = "local") => {
     const label = target === "encoder" ? "PhoBERT Encoder" : "TF-IDF & NLU";
-    const pw = window.prompt(`Bạn có chắc chắn muốn bắt đầu huấn luyện lại mô hình ${label} không?\nQuá trình này sẽ diễn ra chạy nền.\n\nNhập mật khẩu quản trị để xác nhận:`);
-    if (pw !== "admin") {
-      if (pw !== null) showToast("Mật khẩu không đúng! Hủy thao tác.");
-      return;
-    }
+    const pw = window.prompt(`Bạn có chắc chắn muốn bắt đầu huấn luyện lại mô hình ${label} không?\nQuá trình này sẽ diễn ra chạy nền.\n\nNhập mật khẩu quản trị hệ thống (PASSWORD_RETRAIN) để xác nhận:`);
+    if (!pw) return;
     setLoading(true);
-    triggerNluTrain(target)
+    triggerNluTrain(target, pw)
       .then((res) => {
         setIsTraining(true);
         showToast(res.message || `Đã bắt đầu retrain mô hình ${label} chạy nền!`);
@@ -412,13 +409,11 @@ function NluOpsPage() {
   };
 
   const handleLlmFinetune = () => {
-    const pw = window.prompt("Bắt đầu huấn luyện Fine-tune Qwen2.5-14B-Instruct trên GPU Modal H100?\n\nTác vụ này sẽ chạy nền trong khoảng 1 giờ và tiêu thụ tài nguyên đám mây.\n\nNhập mật khẩu quản trị để xác nhận:");
-    if (pw !== "admin") {
-      if (pw !== null) showToast("Mật khẩu không đúng! Hủy thao tác.");
-      return;
-    }
+    const pw = window.prompt("Bắt đầu huấn luyện Fine-tune Qwen2.5-14B-Instruct trên GPU Modal H100?\n\nTác vụ này sẽ chạy nền trong khoảng 1 giờ và tiêu thụ tài nguyên đám mây.\n\nNhập mật khẩu quản trị hệ thống (PASSWORD_RETRAIN) để xác nhận:");
+    if (!pw) return;
+
     setIsLlmTraining(true);
-    triggerLlmFinetune(llmTrainParams.epochs, llmTrainParams.lr, llmTrainParams.batchSize)
+    triggerLlmFinetune(llmTrainParams.epochs, llmTrainParams.lr, llmTrainParams.batchSize, pw)
       .then((res) => {
         showToast("Đã kích hoạt fine-tune Qwen2.5-14B-Instruct trên GPU Modal H100!");
         setIsLlmTraining(false);
@@ -436,8 +431,15 @@ function NluOpsPage() {
       : `Chuyển đổi bộ xử lý NLU mặc định thành mô hình ${backend.toUpperCase()}?`;
     if (!window.confirm(confirmMsg)) return;
 
+    const pwd = window.prompt("Yêu cầu nhập mật khẩu bảo mật hệ thống (Retrain Password):");
+    if (pwd === null) return;
+    if (!pwd) {
+      alert("Mật khẩu không được để trống!");
+      return;
+    }
+
     setSavingBackend(true);
-    setNluInferenceBackend(backend)
+    setNluInferenceBackend(backend, pwd)
       .then((res) => {
         setSavingBackend(false);
         const activeBackend = res.backend || backend;

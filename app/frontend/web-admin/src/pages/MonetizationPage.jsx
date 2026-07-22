@@ -15,16 +15,23 @@ function formatDate(value) {
 }
 
 async function fetchAPI(path) {
-  const res = await fetch(`${API}${path}`);
+  const token = localStorage.getItem("admin_token");
+  const res = await fetch(`${API}${path}`, {
+    headers: { Authorization: token ? `Bearer ${token}` : "" }
+  });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const json = await res.json();
   return json.data ?? json;
 }
 
 async function toggleUserPremium(userId, isPremium) {
+  const token = localStorage.getItem("admin_token");
   const res = await fetch(`${API}/api/admin/users/${userId}/premium`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { 
+      "Content-Type": "application/json",
+      Authorization: token ? `Bearer ${token}` : ""
+    },
     body: JSON.stringify({ isPremium }),
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);

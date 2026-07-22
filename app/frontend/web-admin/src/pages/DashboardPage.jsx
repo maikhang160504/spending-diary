@@ -101,10 +101,17 @@ function buildSmoothSvgPath(coords) {
 }
 
 function ModelSubChart({ title, modelKey, historyData }) {
-  const [selectedMetric, setSelectedMetric] = useState("accuracy");
+  const [selectedMetric, setSelectedMetric] = useState(modelKey === "ocr" ? "f1_score" : "accuracy");
   const [hoveredIndex, setHoveredIndex] = useState(null);
 
-  const metricLabels = {
+  const metricLabels = modelKey === "ocr" ? {
+    f1_score: "Overall F1",
+    precision: "Precision",
+    recall: "Recall",
+    address_f1: "Address F1",
+    seller_f1: "Seller F1",
+    total_cost_f1: "Total Cost F1"
+  } : {
     accuracy: "Accuracy",
     precision: "Precision",
     recall: "Recall",
@@ -113,6 +120,27 @@ function ModelSubChart({ title, modelKey, historyData }) {
   };
 
   const getMetricValue = (run, key, metric) => {
+    if (key === "ocr") {
+      // Special parsing for LayoutLMv3 OCR
+      if (["f1_score", "precision", "recall"].includes(metric)) {
+        const altMetric = metric === "f1_score" ? "f1" : metric;
+        if (run.metrics && run.metrics[altMetric] !== undefined) return run.metrics[altMetric];
+        if (run.metrics && run.metrics[metric] !== undefined) return run.metrics[metric];
+      }
+      if (metric.endsWith("_f1")) {
+        // e.g. address_f1 -> ADDRESS
+        const label = metric.split("_f1")[0].toUpperCase();
+        if (run.metrics && run.metrics.classification_report) {
+          const regex = new RegExp(`\\b${label}\\s+[0-9.]+\\s+[0-9.]+\\s+([0-9.]+)`);
+          const match = run.metrics.classification_report.match(regex);
+          if (match && match[1]) {
+            return parseFloat(match[1]) * 100;
+          }
+        }
+        return 0;
+      }
+    }
+
     if (run.metrics && run.metrics[metric] !== undefined && !run.metrics[key]) {
       return run.metrics[metric];
     }

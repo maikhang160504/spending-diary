@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, NavLink, Outlet } from "react-router-dom";
+import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { fetchBillKaggleJob, getSystemStatus } from "../services/api";
 
 const navItems = [
@@ -9,6 +9,7 @@ const navItems = [
   { path: "/users", label: "User Management" },
   { path: "/bot-prompts", label: "Bot Prompt Scenarios" },
   { path: "/monetization", label: "Monetization" },
+  { path: "/create-admin", label: "Create Admin" },
 ];
 
 const TERMINAL_JOB_STATUSES = new Set(["completed", "failed"]);
@@ -100,6 +101,12 @@ function useSystemStatus() {
 function Layout() {
   const activeKaggleJob = useActiveKaggleRetrainJob();
   const systemStatus = useSystemStatus();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    localStorage.removeItem("admin_token");
+    navigate("/login");
+  };
 
   const jobShortId = (activeKaggleJob?.id || activeKaggleJob?.job_id || "").slice(0, 8);
   const jobStatus = activeKaggleJob?.status?.replace(/_/g, " ") || "running";
@@ -154,6 +161,23 @@ function Layout() {
               {systemStatus.ocrLoaded ? "Loaded" : "Lazy Load"}
             </span>
           </div>
+          
+          <button 
+            onClick={handleLogout}
+            style={{
+              marginLeft: "16px",
+              padding: "4px 12px",
+              fontSize: "12px",
+              fontWeight: "600",
+              color: "var(--text-secondary)",
+              backgroundColor: "transparent",
+              border: "1px solid var(--border-color)",
+              borderRadius: "6px",
+              cursor: "pointer"
+            }}
+          >
+            Logout
+          </button>
         </div>
       </header>
       <nav className="app-nav" aria-label="Operations">

@@ -1,16 +1,32 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
 const BILL_OCR_TIMEOUT_MS = 300000;
 
+function getAuthToken() {
+  return localStorage.getItem("admin_token");
+}
+
+function handleAuthError(status) {
+  if (status === 401 || status === 403) {
+    localStorage.removeItem("admin_token");
+    window.location.href = "/login";
+  }
+}
+
 async function fetchMultipart(path, form, timeoutMs = BILL_OCR_TIMEOUT_MS) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const token = getAuthToken();
   try {
     const response = await fetch(`${API_BASE_URL}${path}`, {
       method: "POST",
       body: form,
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      },
       signal: controller.signal,
     });
     if (!response.ok) {
+      handleAuthError(response.status);
       const err = await response.json().catch(() => ({}));
       throw new Error(err.message || "Request failed");
     }
@@ -28,13 +44,19 @@ async function fetchMultipart(path, form, timeoutMs = BILL_OCR_TIMEOUT_MS) {
 async function fetchJson(path, options = {}, timeoutMs = 60000) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const token = getAuthToken();
   try {
     const response = await fetch(`${API_BASE_URL}${path}`, {
-      headers: { "Content-Type": "application/json", ...(options.headers || {}) },
+      headers: { 
+        "Content-Type": "application/json", 
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(options.headers || {}) 
+      },
       ...options,
       signal: controller.signal,
     });
     if (!response.ok) {
+      handleAuthError(response.status);
       const err = await response.json().catch(() => ({}));
       throw new Error(err.message || "API request failed");
     }
@@ -50,20 +72,41 @@ async function fetchJson(path, options = {}, timeoutMs = 60000) {
 }
 
 async function request(path, options = {}) {
+  const token = getAuthToken();
   const response = await fetch(`${API_BASE_URL}${path}`, {
     headers: {
       "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(options.headers || {})
     },
     ...options
   });
 
   if (!response.ok) {
+    handleAuthError(response.status);
     const errorPayload = await response.json().catch(() => ({}));
     throw new Error(errorPayload.message || "API request failed");
   }
 
   return response.json();
+}
+
+export async function loginAdmin(email, password) {
+  const res = await fetch(`${API_BASE_URL}/api/v1/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password })
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || "Login failed");
+  }
+  const data = await res.json();
+  if (data.data.user?.role !== "admin") {
+    throw new Error("Access denied: Not an admin");
+  }
+  localStorage.setItem("admin_token", data.data.accessToken);
+  return data.data;
 }
 
 export async function getAdminAnalytics() {
@@ -149,13 +192,13 @@ export async function testSystemPrompt(payload) {
   });
 }
 
-export async function triggerNluTrain(target = "local") {
+export async function triggerNluTrain(target = "local", retrainPassword) {
   return request("/api/admin/train", {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
     },
-    body: JSON.stringify({ target })
+    body: JSON.stringify({ target, retrainPassword })
   });
 }
 
@@ -179,10 +222,11 @@ export async function resumeNluKaggle() {
   });
 }
 
-export async function trainEncoderKaggle() {
+export async function trainEncoderKaggle(retrainPassword) {
   return request("/api/admin/train/kaggle/encoder", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ retrainPassword })
   });
 }
 
@@ -190,11 +234,11 @@ export async function getNluInferenceBackend() {
   return request("/api/admin/train/inference-backend");
 }
 
-export async function setNluInferenceBackend(backend) {
+export async function setNluInferenceBackend(backend, retrainPassword) {
   return request("/api/admin/train/inference-backend", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ backend }),
+    body: JSON.stringify({ backend, retrainPassword }),
   });
 }
 
@@ -323,10 +367,10 @@ export function runBillGoldenEval() {
   return request("/api/admin/bill-retrain/golden-eval");
 }
 
-export function triggerBillModal(numEpochs = 30, learningRate = 0.00002) {
+export function triggerBillModal(numEpochs = 30, learningRate = 0.00002, retrainPassword) {
   return request("/api/admin/bill-retrain/modal/trigger", {
     method: "POST",
-    body: JSON.stringify({ numEpochs, learningRate }),
+    body: JSON.stringify({ numEpochs, learningRate, retrainPassword }),
   });
 }
 
@@ -391,10 +435,10 @@ export function getOcrTrainHistory() {
   return request("/api/admin/bill-retrain/ocr-history");
 }
 
-export function triggerLlmFinetune(epochs = 3, lr = 0.0002, batchSize = 4) {
+export function triggerLlmFinetune(epochs = 3, lr = 0.0002, batchSize = 4, retrainPassword) {
   return request("/api/admin/train/llm-trigger", {
     method: "POST",
-    body: JSON.stringify({ epochs, lr, batchSize })
+    body: JSON.stringify({ epochs, lr, batchSize, retrainPassword })
   });
 }
 

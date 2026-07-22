@@ -78,6 +78,9 @@ function UserManagementPage() {
   const [filterAge, setFilterAge] = useState("all");
   const [filterJob, setFilterJob] = useState("all");
   const [page, setPage] = useState(1);
+  const [activeTab, setActiveTab] = useState('users');
+  const [appeals, setAppeals] = useState([]);
+  const [loadingAppeals, setLoadingAppeals] = useState(false);
 
   const loadUsers = useCallback(() => {
     setListLoading(true);
@@ -113,6 +116,47 @@ function UserManagementPage() {
   useEffect(() => {
     loadUsers();
   }, [loadUsers]);
+
+  const loadAppeals = useCallback(async () => {
+    setLoadingAppeals(true);
+    try {
+      const res = await fetch(`${API}/api/admin/appeals`, {
+        headers: { "Authorization": `Bearer ${localStorage.getItem("admin_token")}` }
+      });
+      if (!res.ok) throw new Error("Failed to load appeals");
+      const json = await res.json();
+      setAppeals(json.data || []);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingAppeals(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'appeals') {
+      loadAppeals();
+    }
+  }, [activeTab, loadAppeals]);
+
+  const handleResolveAppeal = async (id, status) => {
+    if (!window.confirm(`Xác nhận ${status === 'approved' ? 'chấp nhận' : 'từ chối'} khiếu nại này?`)) return;
+    try {
+      const res = await fetch(`${API}/api/admin/appeals/${id}/resolve`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${localStorage.getItem("admin_token")}`
+        },
+        body: JSON.stringify({ status })
+      });
+      if (!res.ok) throw new Error("Failed to resolve appeal");
+      loadAppeals();
+      loadUsers();
+    } catch (err) {
+      alert("Lỗi xử lý khiếu nại: " + err.message);
+    }
+  };
 
   const ageOptions = useMemo(() => mergeFilterOptions(AGE_FILTER_OPTIONS, users, "ageGroup"), [users]);
   const jobOptions = useMemo(() => mergeFilterOptions(JOB_FILTER_OPTIONS, users, "jobType"), [users]);
@@ -172,6 +216,18 @@ function UserManagementPage() {
   }, [users]);
 
   const [toggling, setToggling] = useState({});
+  const [banModal, setBanModal] = useState({ isOpen: false, userId: null, currentStatus: null });
+  const [banReasonOption, setBanReasonOption] = useState("Spam hoặc lạm dụng hệ thống");
+  const [banReasonCustom, setBanReasonCustom] = useState("");
+
+  const PREDEFINED_REASONS = [
+    "Spam hoặc lạm dụng hệ thống",
+    "Vi phạm tiêu chuẩn cộng đồng",
+    "Tạo giao dịch ảo/gian lận",
+    "Sử dụng ngôn từ không phù hợp",
+    "Tài khoản có dấu hiệu bị hack",
+    "other"
+  ];
 
   const handleTogglePremium = async (e, userId, currentPremium) => {
     e.stopPropagation();
@@ -179,12 +235,58 @@ function UserManagementPage() {
     try {
       const res = await fetch(`${API}/api/admin/users/${userId}/premium`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("admin_token")}` },
         body: JSON.stringify({ isPremium: !currentPremium }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setUsers((prev) =>
         prev.map((u) => u.id === userId ? { ...u, isPremium: !currentPremium } : u)
+      );
+    } catch (err) {
+      alert("Lỗi: " + err.message);
+    } finally {
+      setToggling((p) => ({ ...p, [userId]: false }));
+    }
+  };
+
+  const handleToggleBan = async (e, userId, currentStatus) => {
+    e.stopPropagation();
+    const isBanned = currentStatus === 'banned';
+    
+    if (!isBanned) {
+      setBanModal({ isOpen: true, userId, currentStatus });
+      return;
+    }
+    
+    if (isBanned && !window.confirm("Bạn có chắc muốn mở khóa tài khoản này?")) {
+      return;
+    }
+    
+    executeBanToggle(userId, 'active', null);
+  };
+
+  const submitBan = () => {
+    const reason = banReasonOption === 'other' ? banReasonCustom : banReasonOption;
+    if (!reason.trim()) {
+      alert("Phải nhập lý do khóa.");
+      return;
+    }
+    setBanModal({ isOpen: false, userId: null, currentStatus: null });
+    executeBanToggle(banModal.userId, 'banned', reason);
+  };
+
+  const executeBanToggle = async (userId, newStatus, reason) => {
+    setToggling((p) => ({ ...p, [userId]: true }));
+    try {
+      const res = await fetch(`${API}/api/admin/users/${userId}/status`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("admin_token")}` },
+        body: JSON.stringify({ status: newStatus, banReason: reason }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setUsers((prev) =>
+        prev.map((u) => u.id === userId ? { ...u, status: data.user.status, banReason: newStatus === 'active' ? null : reason } : u)
       );
     } catch (err) {
       alert("Lỗi: " + err.message);
@@ -232,6 +334,24 @@ function UserManagementPage() {
       </div>
 
       {/* Metrics Strip */}
+
+      <div style={{ display: 'flex', gap: '20px', marginBottom: '24px', borderBottom: '1px solid var(--border-color)' }}>
+        <button 
+          onClick={() => setActiveTab('users')}
+          style={{ background: 'none', border: 'none', padding: '12px 16px', fontSize: '15px', fontWeight: '600', cursor: 'pointer', color: activeTab === 'users' ? 'var(--text-primary)' : 'var(--text-muted)', borderBottom: activeTab === 'users' ? '2px solid var(--accent-blue)' : '2px solid transparent' }}
+        >
+          Người Dùng
+        </button>
+        <button 
+          onClick={() => setActiveTab('appeals')}
+          style={{ background: 'none', border: 'none', padding: '12px 16px', fontSize: '15px', fontWeight: '600', cursor: 'pointer', color: activeTab === 'appeals' ? 'var(--text-primary)' : 'var(--text-muted)', borderBottom: activeTab === 'appeals' ? '2px solid var(--accent-blue)' : '2px solid transparent' }}
+        >
+          Khiếu Nại
+        </button>
+      </div>
+
+      {activeTab === 'users' ? (
+        <>
       <div className="bill-stat-strip" style={{
         marginBottom: "30px",
         background: "var(--bg-obsidian-900)",
@@ -389,11 +509,11 @@ function UserManagementPage() {
                       <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "4px" }}>
                         <span style={{
                           fontSize: "10px", fontWeight: "700", padding: "2px 6px", borderRadius: "4px",
-                          background: user.isActive ? "rgba(16,185,129,0.1)" : "rgba(100,116,139,0.1)",
-                          color: user.isActive ? "var(--accent-emerald-hover)" : "var(--text-muted)",
-                          border: `1px solid ${user.isActive ? "rgba(16,185,129,0.2)" : "rgba(100,116,139,0.2)"}`
+                          background: user.status === 'banned' ? "rgba(239,68,68,0.1)" : user.isActive ? "rgba(16,185,129,0.1)" : "rgba(100,116,139,0.1)",
+                          color: user.status === 'banned' ? "var(--accent-rose)" : user.isActive ? "var(--accent-emerald-hover)" : "var(--text-muted)",
+                          border: `1px solid ${user.status === 'banned' ? "rgba(239,68,68,0.2)" : user.isActive ? "rgba(16,185,129,0.2)" : "rgba(100,116,139,0.2)"}`
                         }}>
-                          {user.isActive ? "ACTIVE" : "INACTIVE"}
+                          {user.status === 'banned' ? "BANNED" : user.isActive ? "ACTIVE" : "INACTIVE"}
                         </span>
                         {user.isPremium && (
                           <span style={{ fontSize: "12px" }} title="Premium User">👑</span>
@@ -406,20 +526,36 @@ function UserManagementPage() {
                         {user.ageGroup && <span style={{ fontSize: "10px", background: "var(--bg-obsidian-800)", color: "var(--text-secondary)", padding: "2px 6px", borderRadius: "4px", border: "1px solid var(--border-color)" }}>{user.ageGroup}</span>}
                         {user.jobType && <span style={{ fontSize: "10px", background: "var(--bg-obsidian-800)", color: "var(--text-secondary)", padding: "2px 6px", borderRadius: "4px", border: "1px solid var(--border-color)" }}>{user.jobType}</span>}
                       </div>
-                      <button
-                        type="button"
-                        onClick={(e) => handleTogglePremium(e, user.id, user.isPremium)}
-                        disabled={toggling[user.id]}
-                        style={{
-                          background: user.isPremium ? "rgba(167,139,250,0.12)" : "transparent",
-                          border: `1px solid ${user.isPremium ? "rgba(167,139,250,0.4)" : "rgba(255,255,255,0.1)"}`,
-                          color: user.isPremium ? "#c4b5fd" : "var(--text-muted)",
-                          fontSize: "11px", fontWeight: "600", padding: "4px 8px", borderRadius: "6px", cursor: "pointer",
-                          transition: "all 0.2s"
-                        }}
-                      >
-                        {toggling[user.id] ? "..." : user.isPremium ? "Hạ cấp" : "Nâng Premium"}
-                      </button>
+                      <div style={{ display: "flex", gap: "8px" }}>
+                        <button
+                          type="button"
+                          onClick={(e) => handleToggleBan(e, user.id, user.status)}
+                          disabled={toggling[user.id]}
+                          style={{
+                            background: user.status === 'banned' ? "rgba(16,185,129,0.12)" : "rgba(239,68,68,0.12)",
+                            border: `1px solid ${user.status === 'banned' ? "rgba(16,185,129,0.4)" : "rgba(239,68,68,0.4)"}`,
+                            color: user.status === 'banned' ? "var(--accent-emerald)" : "var(--accent-rose)",
+                            fontSize: "11px", fontWeight: "600", padding: "4px 8px", borderRadius: "6px", cursor: "pointer",
+                            transition: "all 0.2s"
+                          }}
+                        >
+                          {toggling[user.id] ? "..." : user.status === 'banned' ? "Mở Khóa" : "Khóa"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => handleTogglePremium(e, user.id, user.isPremium)}
+                          disabled={toggling[user.id]}
+                          style={{
+                            background: user.isPremium ? "rgba(167,139,250,0.12)" : "transparent",
+                            border: `1px solid ${user.isPremium ? "rgba(167,139,250,0.4)" : "rgba(255,255,255,0.1)"}`,
+                            color: user.isPremium ? "#c4b5fd" : "var(--text-muted)",
+                            fontSize: "11px", fontWeight: "600", padding: "4px 8px", borderRadius: "6px", cursor: "pointer",
+                            transition: "all 0.2s"
+                          }}
+                        >
+                          {toggling[user.id] ? "..." : user.isPremium ? "Hạ cấp" : "Nâng Premium"}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 );
@@ -540,6 +676,122 @@ function UserManagementPage() {
           </aside>
         )}
       </div>
+
+
+        </>
+      ) : (
+        <div className="panel" style={{ background: "var(--bg-obsidian-900)", border: "1px solid var(--border-color)", borderRadius: "16px", padding: "24px" }}>
+          <h2 style={{ fontSize: "20px", fontWeight: "600", marginBottom: "20px" }}>Danh sách khiếu nại</h2>
+          {loadingAppeals ? (
+            <p style={{ color: "var(--text-muted)" }}>Đang tải...</p>
+          ) : appeals.length === 0 ? (
+            <p style={{ color: "var(--text-muted)" }}>Không có khiếu nại nào.</p>
+          ) : (
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead>
+                  <tr style={{ borderBottom: "1px solid var(--border-color)", color: "var(--text-muted)", fontSize: "12px", textTransform: "uppercase" }}>
+                    <th style={{ padding: "12px", textAlign: "left" }}>Người dùng</th>
+                    <th style={{ padding: "12px", textAlign: "left" }}>Email</th>
+                    <th style={{ padding: "12px", textAlign: "left" }}>Lý do Bị Khóa</th>
+                    <th style={{ padding: "12px", textAlign: "left" }}>Lý do Khiếu nại</th>
+                    <th style={{ padding: "12px", textAlign: "left" }}>Ngày tạo</th>
+                    <th style={{ padding: "12px", textAlign: "right" }}>Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {appeals.map(a => (
+                    <tr key={a.id} style={{ borderBottom: "1px solid var(--border-color)", opacity: a.status !== 'pending' ? 0.6 : 1 }}>
+                      <td style={{ padding: "12px" }}>{a.username}</td>
+                      <td style={{ padding: "12px", color: "var(--text-muted)" }}>{a.email}</td>
+                      <td style={{ padding: "12px", color: "var(--accent-rose)", maxWidth: "150px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={a.ban_reason}>{a.ban_reason}</td>
+                      <td style={{ padding: "12px", maxWidth: "250px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={a.reason}>{a.reason}</td>
+                      <td style={{ padding: "12px" }}>{new Date(a.created_at).toLocaleString('vi-VN')}</td>
+                      <td style={{ padding: "12px", textAlign: "right" }}>
+                        {a.status === 'pending' ? (
+                          <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
+                            <button onClick={() => handleResolveAppeal(a.id, 'approved')} style={{ background: "var(--accent-emerald-hover)", color: "#fff", border: "none", padding: "6px 12px", borderRadius: "4px", cursor: "pointer", fontSize: "13px" }}>Duyệt</button>
+                            <button onClick={() => handleResolveAppeal(a.id, 'rejected')} style={{ background: "var(--accent-rose)", color: "#fff", border: "none", padding: "6px 12px", borderRadius: "4px", cursor: "pointer", fontSize: "13px" }}>Từ chối</button>
+                          </div>
+                        ) : (
+                          <span style={{ fontSize: "13px", fontWeight: "600", color: a.status === 'approved' ? 'var(--accent-emerald-hover)' : 'var(--accent-rose)' }}>
+                            {a.status === 'approved' ? 'Đã duyệt' : 'Đã từ chối'}
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+      {banModal.isOpen && (
+        <div style={{
+          position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+          background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)",
+          display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999
+        }}>
+          <div style={{
+            background: "var(--bg-obsidian-900)", border: "1px solid var(--border-color)",
+            padding: "24px", borderRadius: "16px", width: "400px", maxWidth: "90%",
+            boxShadow: "0 10px 40px rgba(0,0,0,0.4)"
+          }}>
+            <h3 style={{ margin: "0 0 16px 0", fontSize: "18px", color: "var(--text-primary)" }}>Khóa tài khoản</h3>
+            <p style={{ margin: "0 0 12px 0", fontSize: "14px", color: "var(--text-muted)" }}>Vui lòng chọn lý do khóa tài khoản người dùng này:</p>
+            
+            <select
+              value={banReasonOption}
+              onChange={(e) => setBanReasonOption(e.target.value)}
+              style={{
+                width: "100%", padding: "10px", borderRadius: "8px", border: "1px solid var(--border-color)",
+                background: "var(--bg-obsidian)", color: "var(--text-primary)", marginBottom: "12px", outline: "none"
+              }}
+            >
+              {PREDEFINED_REASONS.map((r, i) => (
+                <option key={i} value={r} style={{ background: "var(--bg-obsidian-900)", color: "var(--text-primary)" }}>
+                  {r === "other" ? "Lý do khác (Nhập thủ công)" : r}
+                </option>
+              ))}
+            </select>
+
+            {banReasonOption === "other" && (
+              <input
+                type="text"
+                placeholder="Nhập lý do khóa..."
+                value={banReasonCustom}
+                onChange={(e) => setBanReasonCustom(e.target.value)}
+                style={{
+                  width: "100%", padding: "10px", borderRadius: "8px", border: "1px solid var(--border-color)",
+                  background: "var(--bg-obsidian)", color: "var(--text-primary)", marginBottom: "16px", outline: "none"
+                }}
+              />
+            )}
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px", marginTop: "20px" }}>
+              <button
+                onClick={() => setBanModal({ isOpen: false, userId: null, currentStatus: null })}
+                style={{
+                  padding: "8px 16px", borderRadius: "8px", border: "1px solid var(--border-color)",
+                  background: "transparent", color: "var(--text-muted)", cursor: "pointer"
+                }}
+              >
+                Hủy
+              </button>
+              <button
+                onClick={submitBan}
+                style={{
+                  padding: "8px 16px", borderRadius: "8px", border: "none",
+                  background: "var(--accent-rose)", color: "#fff", cursor: "pointer", fontWeight: "600"
+                }}
+              >
+                Xác nhận Khóa
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
