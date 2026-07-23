@@ -348,7 +348,7 @@ function NluBenchmarkChart({ data }) {
   const backends = [
     { key: "tfidf", label: "TF-IDF + SVM (Local CPU)", color: "var(--accent-blue)", speed: "< 2 ms", tag: "Siêu nhanh" },
     { key: "phobert", label: "PhoBERT Encoder (Modal GPU)", color: "var(--accent-emerald)", speed: "~ 45 ms", tag: "Cân bằng" },
-    { key: "phogpt", label: "Qwen2.5-14B-Instruct (GPU 4-bit)", color: "#a855f7", speed: "~ 1480 ms", tag: "Suy luận sâu" }
+    { key: "qwen25_lora", label: "Qwen 2.5-14B LoRA (GPU 4-bit)", color: "#a855f7", speed: "~ 1480 ms", tag: "Suy luận sâu" }
   ];
   
   return (
