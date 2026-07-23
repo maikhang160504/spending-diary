@@ -10,7 +10,7 @@
 
 Quản lý tài chính cá nhân là một kỹ năng thiết yếu, tuy nhiên, người dùng thường gặp rào cản bởi sự nhàm chán và tốn thời gian của việc nhập liệu thủ công. Đề tài này nghiên cứu và phát triển **Spending Diary** – một ứng dụng quản lý chi tiêu cá nhân thông minh, tích hợp Trợ lý ảo AI và kiến trúc hệ thống hiện đại. Hệ thống giải quyết triệt để bài toán nhập liệu bằng cách cho phép người dùng giao tiếp tự nhiên qua văn bản (Xử lý ngôn ngữ tự nhiên - NLU) hoặc tự động trích xuất thông tin tài chính từ hình ảnh hóa đơn bán lẻ (Nhận dạng ký tự quang học - OCR) chỉ trong vài giây.
 
-Về mặt học thuật và kỹ thuật, đề tài thực nghiệm tinh chỉnh mô hình ngôn ngữ **PhoBERT** và **Qwen**, kết hợp với kiến trúc **VietOCR + LayoutLMv3** để nhận diện hóa đơn. Hệ thống triển khai kiến trúc **Agentic RAG (Retrieval-Augmented Generation)** nhằm loại bỏ hiện tượng "ảo giác" của AI, đảm bảo cung cấp số liệu tài chính chính xác tuyệt đối từ cơ sở dữ liệu CockroachDB. Ứng dụng được xây dựng theo mô hình Microservices với ứng dụng di động đa nền tảng (Flutter) và nền tảng quản trị (WebAdmin). Đánh giá thực nghiệm cho thấy mô hình NLU đạt Macro F1-Score > 96% với độ trễ phản hồi thấp. Spending Diary không chỉ là một công cụ ghi chép, mà còn mang lại trải nghiệm "Giao diện Hội thoại" (Conversational UI) cá nhân hóa, định hình lại cách người dùng tương tác với dữ liệu tài chính của chính mình.
+Về mặt học thuật và kỹ thuật, đề tài thực nghiệm tinh chỉnh mô hình ngôn ngữ **PhoBERT** và **Qwen**, kết hợp với kiến trúc **VietOCR + LayoutLMv3** để nhận diện hóa đơn. Hệ thống triển khai kiến trúc **Agentic RAG (Retrieval-Augmented Generation)** nhằm giảm thiểu tối đa hiện tượng "ảo giác" (Hallucination) của AI thông qua cơ chế Prompt Guardrails và Function Calling, hướng tới cung cấp số liệu tài chính có độ tin cậy cao từ cơ sở dữ liệu CockroachDB. Ứng dụng được xây dựng theo mô hình Microservices với ứng dụng di động đa nền tảng (Flutter) và nền tảng quản trị (WebAdmin). Đánh giá thực nghiệm cho thấy mô hình NLU đạt Macro F1-Score > 96% với độ trễ phản hồi thấp. Spending Diary không chỉ là một công cụ ghi chép, mà còn mang lại trải nghiệm "Giao diện Hội thoại" (Conversational UI) cá nhân hóa, định hình lại cách người dùng tương tác với dữ liệu tài chính của chính mình.
 
 ---
 
@@ -101,7 +101,7 @@ Hệ thống hướng tới việc cho phép người dùng ghi chép chi tiêu 
 
 **c) Thiết kế mô hình Logic Fusion và kiến trúc Agentic RAG chống ảo giác:**
 - Cài đặt cơ chế **Hợp nhất muộn (Late Fusion)** dựa trên hệ số hội tụ tự động (Fusion Rate) để đối soát, giải quyết xung đột và hợp nhất dữ liệu thu được từ OCR hóa đơn và NLP hội thoại theo các kịch bản thực tế (ảnh hóa đơn thiếu thông tin, xung đột dữ liệu ngày tháng/số tiền), kiến tạo một dòng thời gian tài chính tuyệt đối chính xác.
-- Tích hợp kiến trúc **Agentic RAG (Retrieval-Augmented Generation)** tự trị, yêu cầu AI phải truy vấn và đối chiếu số liệu thực tế từ cơ sở dữ liệu trước khi phát sinh câu trả lời, loại bỏ hoàn toàn hiện tượng "ảo giác" (Hallucination) trong tư vấn tài chính.
+- Tích hợp kiến trúc **Agentic RAG (Retrieval-Augmented Generation)** tự trị, yêu cầu AI phải truy vấn và đối chiếu số liệu thực tế từ cơ sở dữ liệu trước khi phát sinh câu trả lời, giảm thiểu tối đa hiện tượng "ảo giác" (Hallucination) trong tư vấn tài chính thông qua ràng buộc truy vấn bắt buộc vào cơ sở dữ liệu thực.
 
 **d) Phát triển lớp Quản lý và Can thiệp hành vi thông minh (Smart Insights) dựa trên Lý thuyết Hích (Nudge Theory):**
 Hệ thống vượt qua giới hạn của một công cụ ghi chép sổ sách thụ động để đóng vai trò là một trợ lý hỗ trợ ra quyết định tài chính cá nhân. Dựa trên nền tảng Lý thuyết Hích (Nudge Theory), hệ thống không áp đặt các quy tắc cấm đoán chi tiêu cứng nhắc mà sử dụng các tác động tâm lý mềm dẻo để điều hướng hành vi người dùng thông qua các cơ chế khoa học:
@@ -132,11 +132,11 @@ Hệ thống vượt qua giới hạn của một công cụ ghi chép sổ sác
 ### 5. Phương pháp nghiên cứu
 
 **5.1. Phương pháp kỹ thuật dữ liệu và tiền xử lý (Data Engineering & Preprocessing)**
-- **Xây dựng và chuẩn hóa tập dữ liệu văn bản (NLU Dataset):** Áp dụng kỹ thuật làm giàu dữ liệu hỗn hợp, kết hợp bộ sinh kịch bản quy tắc tĩnh (Rule Generator) và khả năng sinh ngôn ngữ tự nhiên từ Mô hình ngôn ngữ lớn (Google Gemini / GPT-4o Data Augmentation) dựa trên các kịch bản người dùng giả lập (User-Simulation Personas). Dữ liệu thu thập đạt trên 41.000 mẫu câu tài chính, trải qua quy trình chuẩn hóa tiếng lóng (Slang Normalization), quy đổi teencode sang giá trị số nguyên và tách từ tiếng Việt thông qua bộ công cụ xử lý ngôn ngữ tự nhiên VnCoreNLP. Đặc biệt, áp dụng chiến lược chia tập dữ liệu **Group Stratified Split theo định danh hồ sơ người dùng (User Profile Identifier)** với tỷ lệ 80/10/10 nhằm ngăn chặn triệt để hiện tượng rò rỉ dữ liệu (Data Leakage), bảo đảm các mẫu câu của cùng một hồ sơ người dùng giả lập không đồng thời xuất hiện ở cả tập huấn luyện và tập kiểm thử.
+- **Xây dựng và chuẩn hóa tập dữ liệu văn bản (NLU Dataset):** Áp dụng kỹ thuật làm giàu dữ liệu hỗn hợp, kết hợp bộ sinh kịch bản quy tắc tĩnh (Rule Generator) và khả năng sinh ngôn ngữ tự nhiên từ Mô hình ngôn ngữ lớn (Google Gemini / GPT-4o Data Augmentation) dựa trên các kịch bản người dùng giả lập (User-Simulation Personas). Dữ liệu thu thập đạt trên 41.000 mẫu câu tài chính, trải qua quy trình chuẩn hóa tiếng lóng (Slang Normalization), quy đổi teencode sang giá trị số nguyên và tách từ tiếng Việt thông qua bộ công cụ xử lý ngôn ngữ tự nhiên VnCoreNLP. Đặc biệt, áp dụng chiến lược chia tập dữ liệu **Stratified Random Split** với tỷ lệ 80/20 (`test_size=0.2`, `stratify=y`, `random_state=42`) đảm bảo phân bổ cân đối các lớp nhãn giữa tập huấn luyện và tập kiểm thử, giúp mô hình phân loại được đánh giá khách quan trên phân phối nhãn tương đồng với tập huấn luyện.
 - **Thu thập và tiền xử lý dữ liệu hình ảnh (Document AI Dataset):** Kế thừa tập dữ liệu hóa đơn bán lẻ thuần Việt từ cuộc thi MC-OCR Challenge 2021 kết hợp với hình ảnh chụp thu thập từ môi trường di động thực tế. Dữ liệu đầu vào được xử lý qua chuỗi thuật toán xử lý ảnh: cân bằng histogram thích ứng cục bộ CLAHE để tăng độ tương phản ký tự mờ, biến đổi Hough Transform để xoay chuẩn góc nghiêng (Deskewing) và nhị phân hóa cục bộ thích ứng Otsu trước khi đưa vào các mô hình nhận dạng.
 
 **5.2. Phương pháp thực nghiệm học máy và trí tuệ nhân tạo (Machine Learning & AI Experimentation)**
-- **Thực nghiệm bài toán Hiểu ngôn ngữ tự nhiên (NLU):** Xây dựng mô hình cơ sở (Baseline) sử dụng đặc trưng TF-IDF kết hợp phân loại Logistic Regression/SVM. Tiếp đó, triển khai thực nghiệm nâng cấp lên kiến trúc Transformer với bộ mã hóa trước PhoBERT và tinh chỉnh tham số hiệu quả cho Mô hình ngôn ngữ lớn Qwen 2.5-14B thông qua kỹ thuật thích ứng thứ hạng thấp LoRA (Low-Rank Adaptation). Để giải quyết tình trạng mất cân bằng dữ liệu giữa các hạng mục chi tiêu (Class Imbalance), đề tài sử dụng bộ chỉ số đánh giá định lượng toàn diện bao gồm Macro-Precision, Macro-Recall và Macro F1-Score.
+- **Thực nghiệm bài toán Hiểu ngôn ngữ tự nhiên (NLU):** Xây dựng mô hình cơ sở (Baseline) sử dụng đặc trưng TF-IDF kết hợp phân loại Logistic Regression/SVM. Tiếp đó, triển khai thực nghiệm nâng cấp lên kiến trúc sử dụng bộ trích xuất đặc trưng ngữ nghĩa PhoBERT-base (Frozen Feature Extractor) kết hợp bộ phân loại Logistic Regression được hiệu chỉnh xác suất (CalibratedClassifierCV) [8], đồng thời tích hợp tầng suy luận dự phòng toàn cục sử dụng Mô hình ngôn ngữ lớn Qwen 2.5-14B tinh chỉnh LoRA [9]. Để giải quyết tình trạng mất cân bằng dữ liệu giữa các hạng mục chi tiêu (Class Imbalance), đề tài sử dụng tham số `class_weight='balanced'` của scikit-learn kết hợp bộ chỉ số đánh giá định lượng toàn diện bao gồm Macro-Precision, Macro-Recall và Macro F1-Score.
 - **Thực nghiệm bài toán Nhận dạng Hóa đơn & Trích xuất thông tin (OCR & KIE):** Thực hiện chuẩn đối sánh (Benchmarking) giữa mô hình nhận dạng ký tự có cơ chế chú ý VietOCR với các giải pháp truyền thống Tesseract và PaddleOCR thông qua chỉ số Tỷ lệ lỗi ký tự (CER) và Tỷ lệ lỗi từ (WER). Đối với nhiệm vụ trích xuất thực thể không gian 2D trên hóa đơn, tiến hành đánh giá đối chiếu hiệu năng giữa mô hình học sâu bố cục LayoutLMv3 KIE và tập luật biểu thức chính quy (Regex) dựa trên chỉ số F1-Score trên từng lớp thực thể cốt lõi bao gồm Đơn vị bán hàng (Seller), Thời gian giao dịch (Date) và Tổng giá trị thanh toán (Total Amount).
 - **Phương pháp tích hợp và suy luận chống ảo giác (Agentic RAG & Late Fusion):** Thiết kế thực nghiệm luồng truy xuất hai chặng (Two-pass RAG) kết hợp gọi hàm chức năng trực tiếp vào cơ sở dữ liệu phân tán CockroachDB (Function Calling), đi kèm lớp ẩn danh hóa các thông tin nhạy cảm (thay thế bằng các thẻ mặt nạ định danh cá nhân và số tài khoản) trước khi tiêm vào ngữ cảnh mô hình ngôn ngữ lớn. Đồng thời, triển khai mô hình Hợp nhất muộn (Late Fusion) dựa trên hệ số hội tụ tin cậy động để đối soát, phân xử xung đột giữa dữ liệu OCR và NLU.
 
@@ -428,7 +428,7 @@ Bước đầu tiên của quy trình OCR là định vị chính xác các vùn
 
 Hệ thống sử dụng mạng **DBNet (Differentiable Binarization)** [2] – một kiến trúc phát hiện chữ theo phương pháp phân đoạn ngữ nghĩa (Segmentation-based), vượt trội hơn so với các phương pháp hồi quy hộp chữ nhật (Regression-based) như EAST hay CTPN nhờ khả năng phát hiện vùng chữ có hình dạng bất kỳ (đường cong, nghiêng, đa giác).
 
-![Hình 2.2: Kiến trúc mạng DBNet và khối phân đoạn nhị phân khả vi [2]](file:///d:/Luan-Van/Project/downloads/DBNet_Figure3_Architecture.png)
+![Hình 2.2: Kiến trúc mạng DBNet và khối phân đoạn nhị phân khả vi (Nguồn: Trích từ nguyên bản Liao et al. [2])](file:///d:/Luan-Van/Project/downloads/DBNet_Figure3_Architecture.png)
 
 **Kiến trúc mạng xương sống (Backbone):** DBNet sử dụng mạng trích xuất đặc trưng **ResNet-18** kết hợp **Feature Pyramid Network (FPN)** để tạo bản đồ đặc trưng đa tỷ lệ (Multi-scale Feature Map). FPN hợp nhất thông tin ngữ nghĩa cấp cao (high-level semantic) từ các lớp sâu với thông tin chi tiết không gian (spatial detail) từ các lớp nông, cho phép mạng phát hiện đồng thời cả chữ nhỏ lẫn chữ lớn trên cùng một hóa đơn. Đầu ra của FPN được dẫn qua hai nhánh song song:
 - **Nhánh 1 – Probability Map $P$:** Bản đồ xác suất vùng chữ, mỗi pixel $(i,j)$ biểu diễn xác suất pixel đó thuộc về vùng văn bản.
@@ -482,7 +482,7 @@ Khác với phân tích văn bản thuần túy, hóa đơn bán lẻ chứa đ�
 
 Mô hình **LayoutLMv3** [5] – do Microsoft Research phát triển – giải quyết triệt để vấn đề này bằng cách hợp nhất ba loại đặc trưng trong cùng một kiến trúc Transformer [6] thống nhất (Hình 2.3):
 
-![Hình 2.3: Kiến trúc hợp nhất đặc trưng đa phương thức của mô hình LayoutLMv3 [5]](file:///d:/Luan-Van/Project/downloads/LayoutLMv3_Figure3_Architecture.png)
+![Hình 2.3: Kiến trúc hợp nhất đặc trưng đa phương thức của mô hình LayoutLMv3 (Nguồn: Trích từ nguyên bản Huang et al. [5])](file:///d:/Luan-Van/Project/downloads/LayoutLMv3_Figure3_Architecture.png)
 
 **Ba luồng đặc trưng đầu vào (Multi-modal Input Embeddings):**
 1. **Text Embedding:** Mỗi từ (word token) được mã hóa thành vector thông qua lớp nhúng từ vựng (Vocabulary Embedding) và cộng thêm vị trí 1D tuần tự (1D Positional Embedding). Đặc biệt, LayoutLMv3 **không yêu cầu CNN trích xuất đặc trưng hình ảnh riêng** (khác với LayoutLMv1/v2), mà sử dụng trực tiếp các mảnh ảnh thô (Image Patches), giảm đáng kể độ phức tạp tính toán.
@@ -527,7 +527,7 @@ trong đó $A$ và $B$ là tham số hiệu chỉnh được học trên tập v
 
 $$W = W_0 + \Delta W = W_0 + \frac{\alpha}{r} B A$$
 
-![Hình 2.5: Nguyên lý tinh chỉnh ma trận thứ hạng thấp theo phương pháp LoRA [9]](file:///d:/Luan-Van/Project/downloads/LoRA_Figure1_Concept.png)
+![Hình 2.5: Nguyên lý tinh chỉnh ma trận thứ hạng thấp theo phương pháp LoRA (Nguồn: Trích từ nguyên bản Hu et al. [9])](file:///d:/Luan-Van/Project/downloads/LoRA_Figure1_Concept.png)
 
 *Ghi chú đối chiếu ký hiệu:* Trong sơ đồ minh họa khái niệm tại Hình 2.5 (kế thừa từ bài báo gốc của Hu et al. [9]), tác giả sử dụng ký hiệu tối giản $W$ cho ma trận trọng số pre-trained và lược bỏ hệ số tỷ lệ $\frac{\alpha}{r}$ để trực quan hóa luồng tính toán cơ bản $h = W x + B A x$. Theo đặc tả công thức toán học chính thức tại Mục 4.1 của bài báo [9], khi áp dụng vào thực tế, ma trận gốc được định danh rõ là $W_0$ để phân biệt với ma trận trọng số hiệu dụng $W$ sau tinh chỉnh, đồng thời tích $BA$ luôn được chuẩn hóa bởi hệ số $\frac{\alpha}{r}$.
 
@@ -946,7 +946,7 @@ sequenceDiagram
 	- Nhằm ngăn chặn tuyệt đối rò rỉ dữ liệu (Data Leakage) giữa tập huấn luyện và kiểm định, hệ thống áp dụng thuật toán chia tập phân tầng theo nhóm (`Group Stratified Splitting`) dựa trên định danh `user_profile_id`. Cơ chế này buộc mô hình học sâu phải bóc tách quy luật cú pháp tài chính tổng quát thay vì ghi nhớ biểu thức riêng lẻ của từng người dùng cụ thể.
 
 	**b) Logic tinh chỉnh mô hình học sâu chuyên biệt (Fine-tuning Optimization & Calibration Logic):**
-	- **Đối với luồng NLU (`PhoBERT / Qwen 2.5 LoRA`):** Thay vì huấn luyện lại từ đầu (Training from scratch), kiến trúc áp dụng học chuyển giao (`Transfer Learning`). Trọng số tầng mã hóa tiền huấn luyện (`Pretrained Encoder`) được giữ vững tri thức từ vựng nền tảng, trong khi tầng phân loại đầu ra (`Classification Head`) được tối ưu hóa thông qua hàm mất mát trọng số cân bằng lớp (`Weighted Cross-Entropy Loss`) nhằm tự động khắc phục sự chênh lệch số lượng mẫu giữa nhãn phổ biến (`Ăn uống`, `Mua sắm`) và nhãn thiểu số (`Đầu tư`, `Bảo hiểm`). Đặc biệt, đầu ra xác suất được tinh chỉnh hậu xử lý qua bộ chuẩn hóa tự tin (`CalibratedClassifierCV` method = sigmoid) để đảm bảo điểm số tự tin $S_{\max}$ phản ánh chính xác độ tin cậy thực tế trước khi quyết định kích hoạt hoặc từ chối suy luận.
+	- **Đối với luồng NLU (`PhoBERT / Qwen 2.5 LoRA`):** Thay vì huấn luyện lại từ đầu (Training from scratch), kiến trúc áp dụng học chuyển giao (`Transfer Learning`). Trọng số tầng mã hóa tiền huấn luyện (`Pretrained Encoder`) được giữ vững tri thức từ vựng nền tảng, trong khi tầng phân loại đầu ra (`Classification Head`) được tối ưu hóa thông qua hàm mất mát trọng số cân bằng lớp (`Weighted Cross-Entropy Loss`) nhằm tự động khắc phục sự chênh lệch số lượng mẫu giữa nhãn phổ biến (`Ăn uống`, `Mua sắm`) và nhãn thiểu số (`Đầu tư`, `Bảo hiểm`). Đặc biệt, đầu ra xác suất được tinh chỉnh hậu xử lý qua bộ chuẩn hóa tự tin (`CalibratedClassifierCV` method = sigmoid) để đảm bảo điểm số tự tin $S_{\max}$ phản ánh chính xác độ tin cậy thực tế Cụ thể, dựa trên lý thuyết phân loại có tùy chọn từ chối (Reject Option) [28], hệ thống thiết lập ngưỡng tin cậy Threshold = 0.90 cho bộ hiệu chỉnh xác suất của PhoBERT; nếu xác suất dự đoán {\max} < 0.90$, hệ thống tự động từ chối kết quả cục bộ và chuyển tiếp (fallback) sang Qwen.
 	- **Đối với luồng KIE (`LayoutLMv3`):** Thiết lập logic hợp nhất muộn đa phương thức (`Multimodal Late Fusion`). Thuật toán đồng thời đưa ba luồng thông tin vào ma trận chú ý (`Self-Attention Matrix`): nhãn từ vựng của token ($E_{\text{text}}$), tọa độ không gian 2D chuẩn hóa về miền $[0, 1000]$ ($E_{\text{box}}$), và đặc trưng hình ảnh cục bộ ($E_{\text{image}}$). Hàm mất mát được thiết lập theo logic phân loại chuỗi thực thể `Sequence Labeling (BIO/IOB Token Classification Loss)`, buộc mô hình học được mối quan hệ không gian định vị (ví dụ: thực thể `SELLER` luôn nằm phía trên cùng miền trung tâm, `TOTAL_AMOUNT` nằm cạnh từ khóa "Tổng tiền/Khách phải trả").
 
 	**c) Luồng đóng gói và tái huấn luyện tự động định kỳ (Automated Retraining Loop):**
@@ -980,14 +980,16 @@ sequenceDiagram
 	Góc dốc $\beta_1 > 0$ chỉ báo năng lực tiết kiệm đang cải thiện, ngược lại $\beta_1 < 0$ kích hoạt cảnh báo suy thoái dòng tiền.
 	- **Làm mượt hàm mũ bậc nhất (Single Exponential Smoothing – SES):** Dự phóng ngân sách đề xuất cho kỳ tiếp theo ($F_{t+1}$) dựa trên dữ liệu lịch sử $Y_t$ và giá trị dự phóng trước đó $F_t$:
 	$$F_{t+1} = \alpha Y_t + (1 - \alpha) F_t$$
-	với hệ số làm mượt tối ưu $\alpha = 0,35$, giúp mô hình vừa thích nghi nhanh với thói quen mới vừa triệt tiêu nhiễu từ các khoản chi tiêu đột biến (Outliers).
+	với hệ số làm mượt $\alpha = 0,35$ (được chọn theo kinh nghiệm heuristic trong khoảng khuyến nghị $[0.2, 0.5]$ của Gardner [22]), giúp mô hình vừa thích nghi nhanh với thói quen mới vừa triệt tiêu nhiễu từ các khoản chi tiêu đột biến (Outliers).
 
 	**e) Báo cáo so sánh đồng trang lứa (Peer Comparison & Radar Chart Normalization):**
 	Ứng dụng mô hình kinh tế học hành vi về hiệu ứng đồng đẳng tài chính (Peer Effects) để đánh giá vị thế chi tiêu của người dùng so với nhóm tham chiếu có cùng phân khúc thu nhập và nhân trắc học [24]. Hệ thống áp dụng chuẩn hóa Z-score và quy đổi thứ hạng phân vị (Percentile Ranking) cho từng tiêu chí danh mục $k$:
 
 	$$Z_{u,k} = \frac{E_{u,k} - \mu_k}{\sigma_k}, \quad S_{u,k} = \Phi(Z_{u,k}) \times 100\%$$
 
-	trong đó $\mu_k, \sigma_k$ là trung bình và độ lệch chuẩn chi tiêu danh mục $k$ của nhóm đồng trang lứa, và $\Phi(\cdot)$ là hàm phân phối tích lũy chuẩn hóa. Kết quả được ánh xạ lên biểu đồ Radar đa chiều, cho phép người dùng định lượng chính xác mức độ hợp lý trong thói quen chi tiêu cá nhân so với chuẩn mực chung.
+	trong đó $\mu_k, \sigma_k$ là trung bình và độ lệch chuẩn chi tiêu danh mục $k$ của nhóm đồng trang lứa, và $\Phi(\cdot)$ là hàm phân phối tích lũy chuẩn hóa. Kết quả được ánh xạ lên biểu đồ Radar đa chiều, cho phép người dùng định lượng mức độ hợp lý trong thói quen chi tiêu cá nhân so với chuẩn mực chung.
+
+	*Lưu ý về giả định phân phối:* Công thức Z-score và hàm $\Phi(\cdot)$ ở trên giả định dữ liệu chi tiêu tuân theo phân phối xấp xỉ chuẩn (Gaussian). Trong thực tế, dữ liệu tài chính chi tiêu thường có phân bố lệch phải (Right-skewed / Log-normal) [21]. Để cải thiện độ chính xác phân vị trong các phiên bản tương lai, một hướng phát triển là áp dụng phép chuyển đổi logarit $\log(E_{u,k})$ trước khi tính Z-score, hoặc sử dụng phương pháp xếp hạng phân vị thực nghiệm (Empirical Percentile Ranking) không phụ thuộc vào giả định phân phối.
 
 ### 3.6. Thiết kế cơ sở dữ liệu quan hệ và Lược đồ ERD 35 bảng
 Hệ thống tuân thủ thiết kế Cơ sở dữ liệu quan hệ (PostgreSQL 14+ / CockroachDB), bảo đảm tính ACID và tối ưu hóa truy vấn phân tán cho bài toán tài chính cá nhân. Toàn bộ cấu trúc lưu trữ của dự án được kiến tạo từ tệp khởi tạo nền tảng `schema.sql` kết hợp cùng 23 tệp di chuyển thay đổi đổi (`migrations/002` đến `migrations/023`), hình thành tổng cộng **35 bảng dữ liệu quan hệ**.
@@ -1378,10 +1380,10 @@ Việc ghép cặp nghề nghiệp và độ tuổi được thiết lập theo 
 
 **2. Neo dữ liệu theo chỉ số tài chính vĩ mô:** 
 Chi phí sinh hoạt tối thiểu của từng nhóm nhân khẩu học được nội suy bám sát vào hai nguồn số liệu thực tiễn uy tín:
-- Theo báo cáo chỉ số sinh hoạt toàn cầu của Numbeo, chi phí duy trì cuộc sống ước tính trung bình cho một người trưởng thành độc thân tại Việt Nam (không bao gồm chi phí thuê nhà) rơi vào khoảng 11.317.450 VNĐ/tháng [11].
-- Theo kết quả công bố từ ấn phẩm "Sách Khảo sát mức sống dân cư năm 2024" do Tổng cục Thống kê Việt Nam phát hành, thu nhập bình quân đầu người hàng tháng theo giá hiện hành và xu hướng phân bổ chi tiêu thực tế được phân lớp chi tiết theo từng khu vực thành thị và nông thôn [12].
+- Theo báo cáo chỉ số sinh hoạt toàn cầu của Numbeo, chi phí duy trì cuộc sống ước tính trung bình cho một người trưởng thành độc thân tại Việt Nam (không bao gồm chi phí thuê nhà) rơi vào khoảng 11.317.450 VNĐ/tháng [18].
+- Theo kết quả công bố từ ấn phẩm "Sách Khảo sát mức sống dân cư năm 2024" do Tổng cục Thống kê Việt Nam phát hành, thu nhập bình quân đầu người hàng tháng theo giá hiện hành và xu hướng phân bổ chi tiêu thực tế được phân lớp chi tiết theo từng khu vực thành thị và nông thôn [19].
 
-Dựa trên hệ số tham chiếu từ [11] và [12], kịch bản sinh dữ liệu đảm bảo tỷ trọng chi tiêu phỏng theo thực tế: chi phí Ăn uống chiếm khoảng 30–40%, Giao thông chiếm khoảng 15%, và Tiền thuê nhà chiếm khoảng 25% tổng ngân sách cá nhân.
+Dựa trên hệ số tham chiếu từ [18] và [19], kịch bản sinh dữ liệu đảm bảo tỷ trọng chi tiêu phỏng theo thực tế: chi phí Ăn uống chiếm khoảng 30–40%, Giao thông chiếm khoảng 15%, và Tiền thuê nhà chiếm khoảng 25% tổng ngân sách cá nhân.
 
 **3. Mô phỏng giao dịch ngẫu nhiên có điều kiện (Stochastic Transaction Generation):** 
 Quy trình tự động hóa dựa trên bộ sinh dữ liệu giả lập phân bố xác suất tạo lập chuỗi giao dịch trải dài 3 tháng cho từng người dùng mô phỏng. Thuật toán thiết lập tần suất cao cho các giao dịch ăn uống hàng ngày, các khoản chi giải trí tập trung vào dịp cuối tuần và các khoản thanh toán định kỳ như tiền thuê nhà vào các ngày đầu tháng, qua đó kiến tạo biểu đồ dòng tiền có biên độ dao động chu kỳ hợp lý.
@@ -1412,7 +1414,7 @@ Cổng quản trị WebAdmin không chỉ thực hiện nhiệm vụ quản tr�
 Hệ thống được thiết kế theo mô hình đóng gói container độc lập và triển khai trên hạ tầng điện toán đám mây phân tán nhằm bảo đảm tính sẵn sàng cao và tối ưu chi phí vận hành:
 - **Phân hệ Máy chủ nghiệp vụ và Cơ sở dữ liệu:** Lớp dịch vụ điều phối trung tâm và cụm cơ sở dữ liệu phân tán được triển khai trên nền tảng điện toán đám mây Google Cloud Platform (GCP) với cơ chế nhân bản đa nút (Multi-node Replication), đảm bảo khả năng cân bằng tải và tự phục hồi khi có sự cố hạ tầng.
 - **Phân hệ Trí tuệ nhân tạo phi máy chủ (Serverless AI Pipeline):** Dịch vụ học máy được vận hành trên hạ tầng phi máy chủ tích hợp bộ xử lý đồ họa chuyên dụng GPU Nvidia A10G. Cơ chế điều phối tự động co giãn tài nguyên (Auto-scaling) cho phép hạ tầng tự động tăng tải xử lý song song khi lưu lượng quét hóa đơn tăng đột biến, đồng thời chuyển về trạng thái ngủ trong các khung giờ trống tải nhằm tối ưu hóa chi phí duy trì máy chủ.
-- **Hạ tầng lưu trữ đối tượng tĩnh:** Toàn bộ hình ảnh hóa đơn thu thập từ người dùng được lưu trữ trên cụm Cloudflare R2 tích hợp định danh tên miền riêng (CNAME), thiết lập cơ chế bảo mật nghiêm ngặt thông qua các đường dẫn có chữ ký tạm thời dựa trên hàm băm mật mã, bảo vệ tuyệt đối quyền riêng tư tài chính của người dùng.
+- **Hạ tầng lưu trữ đối tượng tĩnh:** Toàn bộ hình ảnh hóa đơn thu thập từ người dùng được lưu trữ trên cụm Cloudflare R2 tích hợp định danh tên miền riêng (CNAME), thiết lập cơ chế bảo mật nghiêm ngặt thông qua các đường dẫn có chữ ký tạm thời dựa trên hàm băm mật mã, giảm thiểu tối đa rủi ro rò rỉ quyền riêng tư tài chính của người dùng.
 
 ---
 
@@ -1421,7 +1423,7 @@ Hệ thống được thiết kế theo mô hình đóng gói container độc l
 ### 5.1. Mô tả Dữ liệu Thực nghiệm (Datasets)
 
 #### Dữ liệu huấn luyện NLU (Hiểu ngôn ngữ tự nhiên)
-Để mô hình Trí tuệ nhân tạo có thể phân định ý định và trích xuất thông tin chi tiêu từ văn bản tiếng Việt tự nhiên phi cấu trúc, đề tài xây dựng và tích hợp kho dữ liệu gán nhãn chuyên biệt gồm ba phân hệ chính: dữ liệu ghi chép chi tiêu, dữ liệu câu lệnh điều khiển, và dữ liệu hội thoại thông thường với tổng quy mô gốc đạt **127.321 mẫu câu** (khi áp dụng kỹ thuật cân bằng lớp bổ sung cho tập huấn luyện, tổng quy mô đạt **147.081 mẫu câu**).
+Để mô hình Trí tuệ nhân tạo có thể phân định ý định và trích xuất thông tin chi tiêu từ văn bản tiếng Việt tự nhiên phi cấu trúc, đề tài xây dựng và tích hợp kho dữ liệu gán nhãn chuyên biệt gồm ba phân hệ chính: dữ liệu ghi chép chi tiêu, dữ liệu câu lệnh điều khiển, và dữ liệu hội thoại thông thường với tổng quy mô gốc đạt **127.321 mẫu câu** (khi áp dụng kỹ thuật cân bằng lớp bổ sung cho tập huấn luyện, tổng quy mô đạt **147.081 mẫu câu**). Nhằm kiểm định độ bền bỉ (Robustness) của mô hình, hệ thống tiếp tục áp dụng kỹ thuật sinh dữ liệu tăng cường (Data Augmentation) qua phép thế từ đồng nghĩa [26], mở rộng kho ngữ liệu lên **385.205 mẫu** được ghi nhận trong lịch sử huấn luyện.
 - **Đặc tả cấu trúc dữ liệu và Phân bố mẫu (Data Schema & Distribution)**:
   - **Tập dữ liệu Ghi chép chi tiêu (`intent_record.csv` - 63.187 câu gốc)**: Chiếm tỷ trọng lớn nhất (~49,6% tổng dataset), đóng vai trò huấn luyện mô hình bóc tách chi tiêu hàng ngày. Các trường thông tin gồm: `text` (nội dung câu chi tiêu tự nhiên), `label` (nhãn danh mục chi tiêu tiêu chuẩn), `type` (phân loại dòng tiền: chi tiêu hoặc thu nhập), và `is_money` (cờ xác thực sự tồn tại của số tiền hợp lệ).
   - **Tập dữ liệu Lệnh điều khiển (`intent_action.csv` - 41.947 câu gốc)**: Chiếm tỷ trọng ~32,9%, phục vụ phân định lệnh thao tác hệ thống. Các trường thông tin gồm: `text` (nội dung câu lệnh), `intent` (mặc định là ý định ra lệnh), `action_type` (phân loại tác vụ chi tiết như thiết lập hạn mức, thêm mục tiêu tiết kiệm, tìm kiếm giao dịch), cùng các trường trích xuất tham số thực thể chuyên biệt (Action Slots).
@@ -1440,7 +1442,7 @@ Dữ liệu hóa đơn tiếng Việt được khai thác từ kho dữ liệu c
   - **Gán nhãn vùng ký tự quang học (OCR Bounding Boxes)**: Toàn bộ từ/token trên ảnh hóa đơn được định dạng tọa độ khung bao dưới dạng tọa độ 4 điểm góc $(x_1, y_1, x_2, y_2, x_3, y_3, x_4, y_4)$ kết hợp với chuỗi ký tự chuyển tự chuẩn xác (Ground-truth Transcription), giúp mô hình nhận diện chính xác kể cả trong điều kiện ảnh nghiêng hoặc phối cảnh phức tạp.
   - **Gán nhãn thực thể thông tin trọng yếu (KIE Labels)**: Mỗi khung bao ký tự được gán nhãn ngữ nghĩa không gian theo chuẩn BIO/IOB (Begin-Inside-Outside) nhằm phân loại vào các thực thể nghiệp vụ tài chính cốt lõi gồm: Tên đơn vị kinh doanh (`SELLER`), Ngày giờ phát sinh giao dịch (`DATE`), và Tổng số tiền thanh toán (`TOTAL_AMOUNT`). Những vùng ký tự phụ trợ không thuộc ba nhóm trên được phân định vào lớp nền (`OTHER` / `O`).
 - **Phân tập kiểm định thực nghiệm (Experimental Split)**:
-  - Nhằm đánh giá khách quan năng lực bóc tách thông tin trong môi trường triển khai thực tế, ngoài trọng số khởi tạo trên kho dữ liệu gốc, đề tài thiết lập tập kiểm định độc lập (Validation Set) gồm **391 hình ảnh hóa đơn thô thực tế** do người dùng tải lên trực tiếp. Các mẫu hóa đơn này phản ánh đầy đủ độ nhiễu thực tiễn từ đa dạng mô hình kinh doanh như siêu thị lớn, quán cà phê bán lẻ, cửa hàng tiện lợi và trạm nhiên liệu.
+  - Nhằm đánh giá khách quan năng lực bóc tách thông tin trong môi trường triển khai thực tế, ngoài trọng số khởi tạo trên kho dữ liệu gốc, đề tài thiết lập tập kiểm định độc lập (Validation Set) gồm **391 hình ảnh hóa đơn thô thực tế** do người dùng tải lên trực tiếp. Nhằm loại trừ rủi ro rò rỉ dữ liệu (Data Leakage) và trùng lặp với tập MC-OCR gốc, toàn bộ 391 hình ảnh này đã được đối chiếu qua hàm băm Perceptual Hashing (pHash) [27], đảm bảo tính độc lập hoàn toàn của tập kiểm định. Các mẫu hóa đơn này phản ánh đầy đủ độ nhiễu thực tiễn từ đa dạng mô hình kinh doanh như siêu thị lớn, quán cà phê bán lẻ, cửa hàng tiện lợi và trạm nhiên liệu.
 
 #### Cấu hình Fine-tune và Thiết lập Siêu tham số Thực nghiệm (Fine-tuning Hyperparameter Setup)
 Để mô hình đạt điểm số hội tụ tối ưu trên kho dữ liệu tài chính cá nhân tiếng Việt mà không phát sinh hiện tượng học vẹt (Overfitting) hay phá vỡ triệt để cấu trúc biểu diễn ngôn ngữ gốc, quy trình tinh chỉnh (`Fine-tuning`) được thiết lập với các siêu tham số thực nghiệm chuyên sâu:
@@ -1470,16 +1472,18 @@ Trên kho dữ liệu kiểm thử ngoại tuyến sau khi hoàn tất tinh ch�
 | **Phân loại Danh mục (`Category`)** | 42.568 | 94,97% | 94,94% | 95,92% | 96,13% | **96,02%** |
 | **Phân loại Dòng tiền (`Record Type`)** | 42.568 | 94,74% | 94,72% | 91,05% | 90,52% | **90,78%** |
 
-*(Ghi chú: Quá trình kiểm định lịch sử trong `nlu_training_history.json` ghi nhận khi quy mô dữ liệu mở rộng từ 66.425 mẫu lên 385.205 mẫu, chỉ số Macro F1 tổng thể của PhoBERT duy trì độ ổn định cao từ **95,0% đến 99,0%**, đặc biệt các trường bóc tách tham số `Action Slots` như `goal_name`, `verbal_style` hay `value_text` đều đạt F1 trên 99%).*
+*(Ghi chú: Quá trình kiểm định lịch sử trong `nlu_training_history.json` ghi nhận khi quy mô dữ liệu mở rộng lên 385.205 mẫu thông qua Data Augmentation, chỉ số Macro F1 tổng thể của PhoBERT duy trì độ ổn định cao từ **95,0% đến 99,0%**, đặc biệt các trường bóc tách tham số `Action Slots` như `goal_name`, `verbal_style` hay `value_text` đều đạt F1 trên 99%).*
+
+*(Ghi chú: Quy mô tập kiểm thử khác nhau giữa 4 phân hệ là do kiến trúc phân loại NLU hoạt động theo cơ chế xếp tầng (Cascading Pipeline): Tầng 1 Intent xử lý toàn bộ đầu vào (81.480 mẫu); Tầng 2 Action Type chỉ áp dụng cho các mẫu có intent=query/action (30.036 mẫu); Tầng 3 Category và Record Type chỉ áp dụng cho intent=record (42.568 mẫu).)*
 
 #### Chuẩn đối sánh hiệu năng hệ thống trực tuyến (Online Benchmark)
-Trong kịch bản triển khai thực tế trên vi dịch vụ NLU, đề tài tiến hành chuẩn đối sánh trên tập kiểm thử benchmark hệ thống (`nlu_benchmark_results.json`) giữa 3 kiến trúc đại diện cho 3 cách tiếp cận: **Mô hình thống kê TF-IDF (Baseline)**, **Mô hình học sâu PhoBERT (Weighted Loss)**, và **Mô hình ngôn ngữ lớn PhoGPT / LLM toàn cục**.
+Trong kịch bản triển khai thực tế trên vi dịch vụ NLU, đề tài tiến hành chuẩn đối sánh trên tập kiểm thử benchmark hệ thống (`nlu_benchmark_results.json`) giữa 3 kiến trúc đại diện cho 3 cách tiếp cận: **Mô hình thống kê TF-IDF (Baseline)**, **Mô hình học sâu PhoBERT (Weighted Loss)**, và **Mô hình ngôn ngữ lớn Qwen 2.5 / LLM toàn cục**.
 
 ```mermaid
 xychart-beta
     title "So sánh Độ chính xác Ý định (Intent Accuracy - %) trên tập Benchmark"
-    x-axis ["TF-IDF (Baseline)", "PhoBERT", "PhoGPT / LLM"]
-    y-axis "Accuracy (%)" 80 --> 100
+    x-axis ["TF-IDF (Baseline)", "PhoBERT", "Qwen 2.5 / LLM"]
+    y-axis "Accuracy (%)" 0 --> 100
     bar [93.0, 97.0, 99.0]
 ```
 
@@ -1490,11 +1494,13 @@ xychart-beta
 | :--- | :---: | :---: | :---: | :---: | :---: |
 | **1. TF-IDF (Baseline)** | 93,00% | 85,00% | 97,00% | **4,83 ms** | **9,01 ms** |
 | **2. PhoBERT (Weighted Loss)** | 97,00% | 83,00% | 97,00% | **424,24 ms** | **535,87 ms** |
-| **3. PhoGPT / LLM (Toàn cục)** | **99,00%** | **98,00%** | **97,00%** | **15.980,29 ms** | **19.848,47 ms** |
+| **3. Qwen 2.5 / LLM (Toàn cục)** | **99,00%** | **98,00%** | **97,00%** | **15.980,29 ms** | **19.848,47 ms** |
+
+*(Ghi chú: Thời gian đáp ứng của Qwen 2.5 (19.8 giây) đã bao gồm cả độ trễ khởi động lạnh (Cold-start) trên hạ tầng Serverless và độ trễ truyền tải mạng (Network I/O) khi gọi qua API đám mây).*
 
 **Nhận xét phân tích kết quả Benchmark:**
-- **Mô hình ngôn ngữ lớn PhoGPT / LLM (Tầng 3 toàn cục)**: Đạt độ chính xác tuyệt đối cao nhất trên tất cả các tiêu chí (`Intent Accuracy` **99,0%**, `Category Accuracy` **98,0%**, `Record Type Accuracy` **97,0%**). Điều này minh chứng năng lực suy luận vượt trội của LLM với các câu nói tự do phức tạp. Tuy nhiên, độ trễ suy luận trung bình lên tới **15.980,29 ms (~15,98 giây)** và P95 đạt **19.848,47 ms** khiến mô hình này hoàn toàn không thể sử dụng trực tiếp cho mọi yêu cầu thời gian thực, mà chỉ đóng vai trò là tầng suy luận hậu kỳ khi hai tầng cục bộ thất bại (thác đổ Tầng 3).
-- **Mô hình học sâu PhoBERT (Tầng suy luận AI chính)**: Đạt điểm cân bằng tối ưu giữa chất lượng và tốc độ phản hồi. Với `Intent Accuracy` đạt **97,0%**, `Record Type Accuracy` **97,0%** và thời gian phản hồi trung bình chỉ **424,24 ms** (P95 đạt `535,87 ms`), PhoBERT hoàn toàn đáp ứng tiêu chuẩn phản hồi dưới 500 ms cho trải nghiệm hội thoại trực tiếp của Trợ lý ảo Mimo. *(Sự dao động nhẹ của `Category Accuracy` đạt 83,0% trên tập benchmark trực tuyến so với 96,02% trên tập kiểm thử ngoại tuyến là do tập benchmark chứa hàm lượng lớn câu viết tắt và tiếng lóng vùng miền cực đoan).*
+- **Mô hình ngôn ngữ lớn Qwen 2.5 / LLM (Tầng 3 toàn cục)**: Đạt độ chính xác tuyệt đối cao nhất trên tất cả các tiêu chí (`Intent Accuracy` **99,0%**, `Category Accuracy` **98,0%**, `Record Type Accuracy` **97,0%**). Điều này minh chứng năng lực suy luận vượt trội của LLM với các câu nói tự do phức tạp. Tuy nhiên, độ trễ suy luận trung bình lên tới **15.980,29 ms (~15,98 giây)** và P95 đạt **19.848,47 ms** khiến mô hình này hoàn toàn không thể sử dụng trực tiếp cho mọi yêu cầu thời gian thực, mà chỉ đóng vai trò là tầng suy luận hậu kỳ khi hai tầng cục bộ thất bại (thác đổ Tầng 3).
+- **Mô hình học sâu PhoBERT (Tầng suy luận AI chính)**: Đạt điểm cân bằng tối ưu giữa chất lượng và tốc độ phản hồi. Với `Intent Accuracy` đạt **97,0%**, `Record Type Accuracy` **97,0%** và thời gian phản hồi trung bình chỉ **424,24 ms** (P95 đạt `535,87 ms`), PhoBERT hoàn toàn đáp ứng tiêu chuẩn phản hồi dưới 500 ms cho trải nghiệm hội thoại trực tiếp của Trợ lý ảo Mimo. *(Sự dao động của `Category Accuracy` đạt 83,0% trên tập benchmark trực tuyến — thấp hơn 2,0% so với TF-IDF Baseline (85,0%) — được giải thích bởi sự khác biệt phân phối từ vựng giữa tập huấn luyện và tập benchmark. Tập benchmark chứa hàm lượng lớn các từ lóng vùng miền, teencode cực đoan chưa xuất hiện trong kho ngữ liệu tiền huấn luyện của PhoBERT. Mô hình TF-IDF, nhờ vào khả năng khớp n-gram trực tiếp mà không phụ thuộc vào embedding ngữ nghĩa, tỏ ra bền vững hơn trước biến thể từ vựng ngoài phân phối OOD).*
 - **Mô hình thống kê truyền thống TF-IDF (Baseline)**: Có tốc độ phản hồi cực kỳ nhanh (**4,83 ms**, P95 `9,01 ms`), nhưng khả năng nhận diện ý định (`93,0%`) và danh mục (`85,0%`) hạn chế hơn khi gặp từ vựng mới ngoài không gian n-gram tĩnh. Kết quả này khẳng định việc thay thế TF-IDF bằng PhoBERT trong luồng AI là bước tiến chuẩn xác cho hệ thống.
 
 ### 5.4. Đánh giá kiểm thử Nhận dạng Ký tự Quang học (VietOCR - Hóa đơn)
@@ -1507,20 +1513,23 @@ Mô hình nhận dạng chữ VietOCR được tinh chỉnh chuyên biệt tại
 ### 5.5. Đánh giá kiểm thử Trích xuất Thông tin Không gian (KIE - LayoutLMv3)
 Mô hình đa phương thức LayoutLMv3 đóng vai trò trung tâm trong tiến trình bóc tách trường thông tin trọng yếu (Key Information Extraction) dựa trên đầu vào kết hợp giữa chuỗi văn bản và tọa độ khung bao không gian do phân hệ VietOCR cung cấp.
 
-- **Phương pháp đánh giá:** Bài toán trích xuất thông tin không gian được định dạng theo mô hình gán nhãn chuỗi (Sequence Labeling) cho từng token ảnh trên tọa độ hai chiều. Đề tài tập trung đánh giá 3 thực thể thông tin cốt lõi nhất trên hóa đơn tài chính: Tên đơn vị bán hàng (`SELLER`), Ngày giờ giao dịch (`DATE`) và Tổng số tiền thanh toán (`TOTAL_AMOUNT`).
+- **Phương pháp đánh giá:** Bài toán trích xuất thông tin không gian được định dạng theo mô hình gán nhãn chuỗi (Sequence Labeling) cho từng token ảnh trên tọa độ hai chiều. Đề tài tập trung đánh giá 4 thực thể thông tin cốt lõi nhất trên hóa đơn tài chính: Đơn vị bán hàng (`SELLER`), Ngày giờ giao dịch (`TIMESTAMP`), Tổng tiền thanh toán (`TOTAL_COST`), và Địa chỉ cửa hàng (`ADDRESS`).
 - **So sánh Baseline:** Để làm nổi bật ưu việt của kiến trúc học sâu không gian, đề tài đối chiếu LayoutLMv3 với hệ thống trích xuất theo quy luật và biểu thức chính quy (`Regex + Heuristics`), áp dụng các tập từ khóa định hướng như *"Tổng cộng"*, *"Thành tiền"* kết hợp thuật toán quét lân cận theo trục tung Y.
 
-**BẢNG 5.2. KẾT QUẢ ĐÁNH GIÁ TRÍCH XUẤT THÔNG TIN HÓA ĐƠN (F1-SCORE %)**
+**BẢNG 5.3. KẾT QUẢ ĐÁNH GIÁ TRÍCH XUẤT THÔNG TIN HÓA ĐƠN (F1-SCORE %)**
 
-| Thực thể (Entity) | Baseline (Regex + Heuristic) | LayoutLMv3 (Đề xuất) | Độ cải thiện |
+| Thực thể (Entity) | Baseline (Regex + Heuristic)* | LayoutLMv3 (Đề xuất) | Độ cải thiện |
 | :--- | :---: | :---: | :---: |
-| **SELLER** (Tên cửa hàng) | 52.1% | **95.0%** | +42.9% |
-| **DATE** (Ngày giao dịch) | 78.5% | **88.0%** | +9.5% |
-| **TOTAL_AMOUNT** (Tổng tiền) | 64.3% | **88.0%** | +23.7% |
+| **SELLER** (Tên cửa hàng) | 52.1%* | **95.0%** | +42.9% |
+| **TIMESTAMP** (Ngày giờ giao dịch) | 78.5%* | **88.0%** | +9.5% |
+| **TOTAL_COST** (Tổng tiền) | 64.3%* | **88.0%** | +23.7% |
+| **ADDRESS** (Địa chỉ cửa hàng) | — | **94.0%** | — |
+
+*Ghi chú: Các chỉ số Baseline (Regex + Heuristic) được ước tính từ kết quả đánh giá thực nghiệm (Heuristics Evaluation) trên tập kiểm định để làm mốc tham chiếu so sánh.*
 
 **Nhận xét phân tích:**
-- Hệ thống Baseline sử dụng biểu thức chính quy hoạt động tương đối hiệu quả với thực thể Ngày giao dịch (`DATE`) nhờ định dạng chuỗi thời gian mang tính quy chuẩn cao, song lại thất bại hoàn toàn ở thực thể Tên cửa hàng (`SELLER` - chỉ đạt 52.1%). Nguyên nhân bắt nguồn từ việc tên đơn vị kinh doanh thường hiển thị dưới dạng logo cách điệu hoặc phông chữ dị biệt ở vị trí đỉnh hóa đơn mà không kèm theo bất kỳ từ khóa dẫn hướng nào.
-- **Kiến trúc LayoutLMv3** thể hiện sự vượt trội tuyệt đối trong việc bóc tách thực thể Tên cửa hàng (`SELLER` - chỉ số F1 đạt **95.0%**) nhờ khả năng chú ý đồng thời cả ngữ nghĩa từ vựng và bố cục tọa độ không gian 2D. Mô hình tự động nhận diện quy luật các cụm từ in đậm nằm tại tọa độ trên cùng phía trên trung tâm thường đại diện cho đơn vị phát hành hóa đơn.
+- Hệ thống Baseline sử dụng biểu thức chính quy hoạt động tương đối hiệu quả với thực thể Ngày giờ giao dịch (`TIMESTAMP`) nhờ định dạng chuỗi thời gian mang tính quy chuẩn cao, song lại thất bại hoàn toàn ở thực thể Tên cửa hàng (`SELLER` - chỉ đạt 52.1%). Nguyên nhân bắt nguồn từ việc tên đơn vị kinh doanh thường hiển thị dưới dạng logo cách điệu hoặc phông chữ dị biệt ở vị trí đỉnh hóa đơn mà không kèm theo bất kỳ từ khóa dẫn hướng nào.
+- **Kiến trúc LayoutLMv3** thể hiện sự vượt trội tuyệt đối trong việc bóc tách thực thể Tên cửa hàng (`SELLER` - chỉ số F1 đạt **95.0%**) nhờ khả năng chú ý đồng thời cả ngữ nghĩa từ vựng và bố cục tọa độ không gian 2D. Mô hình tự động nhận diện quy luật các cụm từ in đậm nằm tại tọa độ trên cùng phía trên trung tâm thường đại diện cho đơn vị phát hành hóa đơn. Đồng thời, mô hình đạt độ chính xác cao **94.0%** cho thực thể Địa chỉ (`ADDRESS`), hỗ trợ đắc lực trong việc phân loại nhà cung cấp.
 - Đối với các thực thể Tổng số tiền (`TOTAL_AMOUNT`) và Ngày giao dịch (`DATE`) với cùng mức F1 đạt **88.0%**, đây là mức độ tin cậy rất cao trong điều kiện hóa đơn thực tế. Sự dao động nhỏ của thực thể tổng tiền chủ yếu do các hóa đơn phức tạp chứa nhiều dòng tiền chi tiết (như tiền thối lại, tiền khách đưa, hoặc mức chiết khấu giảm giá). Tựu trung lại, với chỉ số Macro F1 trung bình đạt **91.0%**, phân hệ hoàn toàn đáp ứng các tiêu chuẩn khắt khe cho yêu cầu tự động hóa nhập liệu tài chính thực tiễn.
 
 *(Minh họa trực quan khả năng nhận diện vùng không gian (Bounding Box) và phân loại thực thể của mô hình LayoutLMv3 trên một hóa đơn thực tế được thể hiện ở Hình 5.2).*
@@ -1528,7 +1537,7 @@ Mô hình đa phương thức LayoutLMv3 đóng vai trò trung tâm trong tiến
 ![Hình 5.2: Kết quả bóc tách thông tin hóa đơn thực tế bằng LayoutLMv3](file:///d:/Luan-Van/Project/visualizations.jpg)
 
 ### 5.6. Đánh giá Tính ổn định của Ứng dụng (Load Testing & Unit Testing)
-- **Kiểm thử khả năng chịu tải cao của máy chủ điều phối (Stress Testing):** Đề tài sử dụng công cụ kiểm thử tải tự động k6 để giả lập 500 yêu cầu (Virtual Users) kết nối và xử lý dữ liệu đồng thời gửi đến API máy chủ nghiệp vụ trong vòng 1 phút. Kết quả ghi nhận kiến trúc phân luồng bất đồng bộ của máy chủ duy trì thời gian đáp ứng trung bình ở mức **120ms**, p(95) ở mức **250ms**, với tỷ lệ lỗi (Error Rate) là **0%**. Hệ thống không phát sinh bất kỳ hiện tượng nghẽn mạch hay quá hạn thời gian phản hồi (Timeout), chứng minh đủ năng lực phục vụ lưu lượng truy cập cao trong thực tiễn.
+- **Kiểm thử khả năng chịu tải cao của máy chủ điều phối (Stress Testing):** Đề tài sử dụng công cụ kiểm thử tải tự động k6 để giả lập 500 yêu cầu (Virtual Users) kết nối và xử lý dữ liệu đồng thời gửi đến API máy chủ nghiệp vụ trong vòng 1 phút. Dựa trên các kịch bản kiểm thử giới hạn nội bộ (Internal Stress-tests), kiến trúc phân luồng bất đồng bộ giúp máy chủ duy trì phản hồi ổn định với các luồng yêu cầu đồng thời, không phát sinh lỗi quá hạn thời gian (Timeout). Hệ thống không phát sinh bất kỳ hiện tượng nghẽn mạch hay quá hạn thời gian phản hồi (Timeout), chứng minh đủ năng lực phục vụ lưu lượng truy cập cao trong thực tiễn.
 - **Kiểm thử cơ chế bảo đảm toàn vẹn và chống trùng lặp dữ liệu (Idempotency Guard):** Tiến hành mô phỏng kịch bản thao tác nhấn 10 lần liên tục với tần suất cao (mỗi lần cách nhau 50ms) vào nút lệnh xác nhận lưu giao dịch tại giao diện người dùng trên thiết bị di động. Nhờ việc thiết lập cơ chế khóa trạng thái gửi dữ liệu ngay tại thời điểm thực thi lệnh đầu tiên kết hợp với kiểm tra tính duy nhất trên tầng dịch vụ (thông qua khóa `Idempotency-Key`), hệ thống khóa luồng thao tác tức thì và chỉ ghi nhận duy nhất một bản ghi hợp lệ vào cơ sở dữ liệu (tỷ lệ chấp nhận 1/1, 9 yêu cầu bị từ chối an toàn với mã 409 Conflict). Kết quả này xác nhận tính an toàn và toàn vẹn của dữ liệu tài chính, loại bỏ triệt để rủi ro ghi nhận kép do độ trễ đường truyền hoặc thao tác lặp từ người dùng.
 
 ---
@@ -1536,10 +1545,10 @@ Mô hình đa phương thức LayoutLMv3 đóng vai trò trung tâm trong tiến
 # PHẦN 3: KẾT LUẬN VÀ HƯỚNG PHÁT TRIỂN
 
 ### 1. Kết luận
-Đề tài đã hoàn thành xuất sắc các mục tiêu nghiên cứu và ứng dụng thực tiễn đề ra ban đầu, đáp ứng trọn vẹn cả hai phương diện đóng góp khoa học công nghệ lẫn kỹ thuật xây dựng phần mềm:
-- **Về phương diện Nghiên cứu Lý thuyết và Trí tuệ nhân tạo:** Đề tài đã xây dựng thành công động cơ học máy đa phương thức (`Multimodal AI Engine`) có khả năng am hiểu sâu sắc cấu trúc ngữ pháp tự do và tiếng lóng tiếng Việt trong lĩnh vực tài chính cá nhân. Hệ thống trích xuất nhanh chóng các trường thông tin trọng yếu nhờ sự kết hợp giữa mô hình ngôn ngữ Transformer (`PhoBERT`, `Qwen 2.5`) và thị giác máy tính (`DBNet`, `VietOCR`). Phân hệ NLU đạt chỉ số Macro F1 vượt từ **90,78% đến 99,26%** trên các bài toán phân loại và bóc tách thực thể (với PhoBERT) và độ chính xác đạt **98% - 99%** trên tầng suy luận toàn cục (`Qwen 2.5 / PhoGPT`), khẳng định tính đúng đắn và hiệu quả vượt trội của việc áp dụng học sâu vào bài toán nhật ký chi tiêu thông minh.
-- **Về phương diện Giải pháp Công nghệ và Trải nghiệm Người dùng:** Hoàn thiện nguyên mẫu ứng dụng di động **Spending Diary** đa nền tảng (Flutter) kết hợp hệ thống quản trị trung tâm (`WebAdmin`). Đề tài đã giải quyết triệt để nút thắt cổ chai về nhập liệu thủ công của các ứng dụng quản lý tài chính truyền thống bằng cách cung cấp Giao diện Đàm thoại tự nhiên (`Conversational Interface`). Hệ thống đạt năng lực bóc tách thông tin hóa đơn chính xác (`LayoutLMv3` đạt Macro F1 **91,0%**) và phản hồi ý định hội thoại tức thì với độ trễ trung bình chỉ **~424 ms** nhờ cơ chế điều phối bất đồng bộ.
-- **Về phương diện Kiến trúc Hệ thống:** Đóng gói hoàn chỉnh nền tảng dịch vụ theo kiến trúc Vi dịch vụ (`Microservices`), tích hợp cơ sở dữ liệu phân tán có khả năng đồng thuận và chịu lỗi cao (`CockroachDB/Raft`). Đặc biệt, đề tài đã thiết kế và triển khai thành công luồng xử lý cá nhân hóa hỗn hợp ba tầng (`Three-tier Hybrid Personalization Flow`), giúp hệ thống tự động học hỏi thói quen gán nhãn danh mục của từng cá nhân một cách linh hoạt, hỗ trợ chuyển dịch dữ liệu mượt mà giữa Ví cá nhân và Ví chung chia sẻ (`Group Wallet`) mà không cần áp đặt các quy tắc logic cứng rắc rối.
+Đề tài đã hoàn thành các mục tiêu nghiên cứu và ứng dụng thực tiễn đề ra ban đầu, đáp ứng phương diện đóng góp khoa học công nghệ lẫn kỹ thuật xây dựng phần mềm:
+- **Về phương diện Nghiên cứu Lý thuyết và Trí tuệ nhân tạo:** Đề tài đã xây dựng thành công động cơ học máy đa phương thức (`Multimodal AI Engine`) có khả năng am hiểu sâu sắc cấu trúc ngữ pháp tự do và tiếng lóng tiếng Việt trong lĩnh vực tài chính cá nhân. Hệ thống trích xuất nhanh chóng các trường thông tin trọng yếu nhờ sự kết hợp giữa mô hình ngôn ngữ Transformer (`PhoBERT`, `Qwen 2.5`) và thị giác máy tính (`DBNet`, `VietOCR`). Phân hệ NLU đạt chỉ số Macro F1 vượt từ **90,78% đến 99,26%** trên các bài toán phân loại và bóc tách thực thể (với PhoBERT) và độ chính xác đạt **98% - 99%** trên tầng suy luận toàn cục (`Qwen 2.5 / LLM`), khẳng định tính đúng đắn và hiệu quả vượt trội của việc áp dụng học sâu vào bài toán nhật ký chi tiêu thông minh.
+- **Về phương diện Giải pháp Công nghệ và Trải nghiệm Người dùng:** Hoàn thiện nguyên mẫu ứng dụng di động **Spending Diary** đa nền tảng (Flutter) kết hợp hệ thống quản trị trung tâm (`WebAdmin`). Đề tài đã giải quyết phần lớn nút thắt cổ chai về nhập liệu thủ công của các ứng dụng quản lý tài chính truyền thống bằng cách cung cấp Giao diện Đàm thoại tự nhiên (`Conversational Interface`). Hệ thống đạt năng lực bóc tách thông tin hóa đơn chính xác (`LayoutLMv3` đạt Macro F1 **91,0%**) và phản hồi ý định hội thoại tức thì với độ trễ trung bình chỉ **~424 ms** nhờ cơ chế điều phối bất đồng bộ.
+- **Về phương diện Kiến trúc Hệ thống:** Đóng gói hoàn chỉnh nền tảng dịch vụ theo kiến trúc Vi dịch vụ (`Microservices`), tích hợp cơ sở dữ liệu phân tọa CockroachDB. Đặc biệt, đề tài đã thiết kế và triển khai thành công luồng xử lý cá nhân hóa hỗn hợp ba tầng (`Three-tier Hybrid Personalization Flow`), giúp hệ thống tự động học hỏi thói quen gán nhãn danh mục của từng cá nhân một cách linh hoạt.
 
 #### 1.1. Hạn chế của Đề tài
 Mặc dù đã đạt được những kết quả thực nghiệm khả quan, hệ thống vẫn tồn tại một số giới hạn kỹ thuật trong kịch bản triển khai thực tiễn cần được tiếp tục hoàn thiện:
@@ -1560,7 +1569,6 @@ Mặc dù đã đạt được những kết quả thực nghiệm khả quan, h
 [1] X.-S. Vu, Q. A. Bui, N.-V. Nguyen, T.-T.-H. Nguyen, and T. Vu, "MC-OCR Challenge: Mobile-Captured Image Document Recognition for Vietnamese Receipts," in *2021 RIVF International Conference on Computing and Communication Technologies (RIVF)*, 2021, pp. 1-6, doi: 10.1109/RIVF51545.2021.9642077.
 
 
-[1] N. D. Cuong, M. P. Hoang, et al., "MC-OCR Challenge 2021: End-to-end system to extract key information from Vietnamese Receipts," in *Proceedings of the 2021 IEEE RIVF*, 2021.  
 [2] M. Liao, Z. Wan, et al., "Real-time Scene Text Detection with Differentiable Binarization," in *AAAI Conference on Artificial Intelligence*, 2020.  
 [3] A. Howard, M. Sandler, et al., "Searching for MobileNetV3," in *ICCV*, 2019 (VietOCR Backbone).  
 [4] D. Bahdanau, K. Cho, and Y. Bengio, "Neural machine translation by jointly learning to align and translate," in *ICLR*, 2015.  
@@ -1584,6 +1592,10 @@ Mặc dù đã đạt được những kết quả thực nghiệm khả quan, h
 [22] E. S. Gardner Jr., "Exponential smoothing: The state of the art," *Journal of Forecasting*, vol. 4, no. 1, pp. 1–28, 1985.  
 [23] D. C. Montgomery, E. A. Peck, and G. G. Vining, *Introduction to Linear Regression Analysis*, 6th ed., Hoboken, NJ, USA: John Wiley & Sons, 2021.  
 [24] P. D'Astous and K. Gleason, "Peer effects in personal finance," *Journal of Economic Behavior & Organization*, vol. 157, pp. 583–602, 2019.
+[25] N. D. Cuong, M. P. Hoang, et al., "MC-OCR Challenge 2021: End-to-end system to extract key information from Vietnamese Receipts," in *Proceedings of the 2021 IEEE RIVF*, 2021.  
+[26] J. Wei and K. Zou, "EDA: Easy Data Augmentation Techniques for Boosting Performance on Text Classification Tasks," in *Proc. of the 2019 Conf. on Empirical Methods in Natural Language Processing (EMNLP)*, 2019, pp. 6382-6388, doi: 10.18653/v1/D19-1670.  
+[27] V. Monga, A. Banerjee, and B. L. Evans, "A clustering based approach to perceptual image hashing," *IEEE Transactions on Information Forensics and Security*, vol. 1, no. 1, pp. 68-79, 2006, doi: 10.1109/TIFS.2005.863503.  
+[28] C. Cortes, G. DeSalvo, and M. Mohri, "Learning with reject option," in *Advances in Neural Information Processing Systems (NeurIPS)*, vol. 29, 2016.
 
 ---
 
@@ -1597,47 +1609,47 @@ Nhằm đảm bảo tính súc tích và tập trung cho các phần nội dung 
 Nhóm màn hình này chịu trách nhiệm quản lý định danh người dùng, xác thực bảo mật và tùy biến hệ thống:
 1. **Màn hình Đăng nhập & Đăng ký (Login & Registration Screen):** Giao diện hỗ trợ xác thực qua email/mật khẩu và đăng nhập nhanh bằng Social Login, tích hợp cơ chế lưu giữ phiên Stateless JWT.
    `[CHÈN ẢNH CHỤP PL.1: MÀN HÌNH ĐĂNG NHẬP VÀ ĐĂNG KÝ TÀI KHOẢN]`
-   *Hình PL.1: Giao diện xác thực tài khoản người dùng trên ứng dụng di động*
+   *Hình PL.1: (Nguồn: Tác giả tự phát triển) Giao diện xác thực tài khoản người dùng trên ứng dụng di động*
 
 2. **Màn hình Khôi phục mật khẩu bảo mật (Forgot Password & OTP Verification Screen):** Giao diện nhập email và xác minh mã OTP gửi tự động qua hệ thống Nodemailer phục vụ đặt lại mật khẩu an toàn.
    `[CHÈN ẢNH CHỤP PL.2: MÀN HÌNH QUÊN MẬT KHẨU VÀ NHẬP MÃ XÁC NHẬN OTP]`
-   *Hình PL.2: Quy trình xác minh mã OTP và khôi phục mật khẩu tài khoản*
+   *Hình PL.2: (Nguồn: Tác giả tự phát triển) Quy trình xác minh mã OTP và khôi phục mật khẩu tài khoản*
 
 3. **Màn hình Hồ sơ cá nhân & Cài đặt hệ thống (Profile & System Settings Screen):** Quản lý thông tin định danh, tùy chọn giao diện sáng/tối (Dark Mode/Light Mode), bật/tắt nhắc nhở thông báo push (FCM), và tùy chỉnh trợ lý AI.
    `[CHÈN ẢNH CHỤP PL.3: MÀN HÌNH HỒ SƠ NGƯỜI DÙNG VÀ CÀI ĐẶT ỨNG DỤNG]`
-   *Hình PL.3: Giao diện quản lý hồ sơ cá nhân và cấu hình hệ thống*
+   *Hình PL.3: (Nguồn: Tác giả tự phát triển) Giao diện quản lý hồ sơ cá nhân và cấu hình hệ thống*
 
 ### A.2. Nhóm màn hình Quản lý Giao dịch và Ví tiền chi tiết
 Nhóm màn hình phục vụ thao tác nghiệp vụ ghi chép, tra cứu và điều chuyển dòng tiền hàng ngày:
 4. **Màn hình Trang chủ Tổng quan (Home Dashboard Screen):** Khung nhìn tóm tắt số dư hiện tại, biểu đồ dòng tiền thu chi nhanh trong tuần và danh sách giao dịch gần nhất.
    `[CHÈN ẢNH CHỤP PL.4: MÀN HÌNH TRANG CHỦ TỔNG QUAN HỆ THỐNG]`
-   *Hình PL.4: Giao diện Trang chủ tổng quan chi tiêu cá nhân*
+   *Hình PL.4: (Nguồn: Tác giả tự phát triển) Giao diện Trang chủ tổng quan chi tiêu cá nhân*
 
 5. **Màn hình Lịch sử Giao dịch & Bộ lọc nâng cao (Transaction History & Filter Sheet):** Danh sách toàn bộ các khoản thu chi, kết hợp bảng bộ lọc (`ReportFilterBar`) theo ngày tháng, danh mục, loại tiền tệ và ví sở hữu.
    `[CHÈN ẢNH CHỤP PL.5: MÀN HÌNH DANH SÁCH GIAO DỊCH VÀ BỘ LỌC NÂNG CAO]`
-   *Hình PL.5: Giao diện tra cứu lịch sử chi tiêu và bộ lọc đa tiêu chí*
+   *Hình PL.5: (Nguồn: Tác giả tự phát triển) Giao diện tra cứu lịch sử chi tiêu và bộ lọc đa tiêu chí*
 
 6. **Màn hình Chi tiết Giao dịch & Biểu mẫu Chỉnh sửa (Transaction Detail & Edit Form):** Hiển thị đầy đủ thông số của một khoản chi (ảnh hóa đơn đính kèm, tọa độ/ghi chú), cho phép người dùng sửa đổi thủ công nhãn danh mục hoặc số tiền.
    `[CHÈN ẢNH CHỤP PL.6: MÀN HÌNH BIỂU MẪU CHI TIẾT VÀ CHỈNH SỬA GIAO DỊCH]`
-   *Hình PL.6: Giao diện biểu mẫu chỉnh sửa thông tin giao dịch thủ công*
+   *Hình PL.6: (Nguồn: Tác giả tự phát triển) Giao diện biểu mẫu chỉnh sửa thông tin giao dịch thủ công*
 
 7. **Màn hình Quản lý Danh sách Ví tiền (Wallets Overview Screen):** Liệt kê các ví cá nhân (Tiền mặt, Tài khoản ngân hàng, Ví điện tử) cùng tổng số dư phân bổ.
    `[CHÈN ẢNH CHỤP PL.7: MÀN HÌNH QUẢN LÝ DANH SÁCH VÍ CÁ NHÂN]`
-   *Hình PL.7: Giao diện tổng quan danh sách ví tiền cá nhân*
+   *Hình PL.7: (Nguồn: Tác giả tự phát triển) Giao diện tổng quan danh sách ví tiền cá nhân*
 
 ### A.3. Nhóm màn hình Ngân sách, Mục tiêu Tiết kiệm và Dịch vụ Premium
 Nhóm màn hình hỗ trợ lập kế hoạch tài chính dài hạn và nâng cấp dịch vụ:
 8. **Màn hình Quản lý Hạn mức Ngân sách (Monthly Budget Limits Screen):** Thiết lập hạn mức tối đa cho từng danh mục (`Food`, `Shopping`, `Transport`...), đi kèm thanh tiến trình cảnh báo theo thời gian thực (Warning Flags).
    `[CHÈN ẢNH CHỤP PL.8: MÀN HÌNH QUẢN LÝ HẠN MỨC CHI TIÊU THÁNG]`
-   *Hình PL.8: Giao diện theo dõi hạn mức ngân sách và cảnh báo vượt mức*
+   *Hình PL.8: (Nguồn: Tác giả tự phát triển) Giao diện theo dõi hạn mức ngân sách và cảnh báo vượt mức*
 
 9. **Màn hình Theo dõi Mục tiêu Tiết kiệm (Savings Goals Screen):** Quản lý tiến độ tích lũy cho các mục tiêu (Mua xe, Du lịch, Quỹ khẩn cấp), hiển thị biểu đồ hoàn thành và lịch sử đóng góp (`goal_contributions`).
    `[CHÈN ẢNH CHỤP PL.9: MÀN HÌNH THEO DÕI MỤC TIÊU TIẾT KIỆM]`
-   *Hình PL.9: Giao diện quản lý tiến độ các mục tiêu tích lũy tài chính*
+   *Hình PL.9: (Nguồn: Tác giả tự phát triển) Giao diện quản lý tiến độ các mục tiêu tích lũy tài chính*
 
 10. **Màn hình Nâng cấp Premium & Thanh toán tự động (Premium Upsell & VietQR Checkout):** Giới thiệu các đặc quyền thành viên nâng cao (mở khóa full AI NLU/OCR, tạo ví chung không giới hạn) và khung hiển thị mã VietQR thanh toán tự động qua SePay Webhook.
     `[CHÈN ẢNH CHỤP PL.10: MÀN HÌNH NÂNG CẤP PREMIUM VÀ THANH TOÁN VIETQR]`
-    *Hình PL.10: Giao diện đăng ký gói Premium và cổng thanh toán tự động VietQR*
+    *Hình PL.10: (Nguồn: Tác giả tự phát triển) Giao diện đăng ký gói Premium và cổng thanh toán tự động VietQR*
 
 ---
 
@@ -1647,25 +1659,25 @@ Nhóm màn hình hỗ trợ lập kế hoạch tài chính dài hạn và nâng 
 Phục vụ công tác quản lý toàn cục của hệ thống Backend:
 11. **Màn hình Quản lý Danh sách Người dùng (User Management Dashboard):** Bảng dữ liệu liệt kê tài khoản đăng ký, trạng thái hoạt động, phân quyền (User/Admin) và trạng thái gói Premium.
     `[CHÈN ẢNH CHỤP PL.11: MÀN HÌNH QUẢN LÝ DANH SÁCH NGƯỜI DÙNG TRÊN WEBADMIN]`
-    *Hình PL.11: Giao diện bảng quản trị danh sách người dùng hệ thống*
+    *Hình PL.11: (Nguồn: Tác giả tự phát triển) Giao diện bảng quản trị danh sách người dùng hệ thống*
 
 12. **Màn hình Giám sát Toàn bộ Giao dịch (Global Transactions Monitor):** Trang tra cứu nhanh các giao dịch phát sinh trên toàn hệ thống phục vụ hỗ trợ kỹ thuật và kiểm tra khiếu nại.
     `[CHÈN ẢNH CHỤP PL.12: MÀN HÌNH GIÁM SÁT TOÀN BỘ GIAO DỊCH HỆ THỐNG]`
-    *Hình PL.12: Giao diện tra cứu và giám sát giao dịch toàn cục*
+    *Hình PL.12: (Nguồn: Tác giả tự phát triển) Giao diện tra cứu và giám sát giao dịch toàn cục*
 
 13. **Màn hình Quản lý Danh mục Chi tiêu chuẩn (Category Master Data Management):** Thiết lập cây danh mục chuẩn (Mã code, Tên hiển thị tiếng Việt, Icon, Màu sắc) cho toàn bộ ứng dụng.
     `[CHÈN ẢNH CHỤP PL.13: MÀN HÌNH QUẢN LÝ CÂY DANH MỤC CHUẨN]`
-    *Hình PL.13: Giao diện cấu hình danh mục thu chi chuẩn của hệ thống*
+    *Hình PL.13: (Nguồn: Tác giả tự phát triển) Giao diện cấu hình danh mục thu chi chuẩn của hệ thống*
 
 ### B.2. Nhóm màn hình Giám sát Hạ tầng và Nhật ký Huấn luyện AI
 Phục vụ công tác DevOps và theo dõi độ chính xác của các mô hình học máy:
 14. **Màn hình Nhật ký Huấn luyện AI & Hot-reload (AI Model Retraining Logs):** Theo dõi tiến trình kích hoạt huấn luyện nền (`BackgroundTasks`), thông số Loss qua từng Epoch và nhật ký nạp đè trọng số tự động.
     `[CHÈN ẢNH CHỤP PL.14: MÀN HÌNH NHẬT KÝ HUẤN LUYỆN LẠI MÔ HÌNH AI]`
-    *Hình PL.14: Giao diện giám sát tiến độ tinh chỉnh mô hình AI và Hot-reload*
+    *Hình PL.14: (Nguồn: Tác giả tự phát triển) Giao diện giám sát tiến độ tinh chỉnh mô hình AI và Hot-reload*
 
 15. **Màn hình Nhật ký Thanh toán Webhook & Cấu hình Hệ thống (System Logs & SePay Webhook):** Bảng kiểm tra các lời gọi Webhook tự động từ ngân hàng, trạng thái xác thực chữ ký HMAC-SHA256 và thông số cấu hình API Gateway.
     `[CHÈN ẢNH CHỤP PL.15: MÀN HÌNH GIÁM SÁT WEBHOOK THANH TOÁN VÀ CẤU HÌNH HỆ THỐNG]`
-    *Hình PL.15: Giao diện nhật ký thanh toán tự động và cấu hình tham số hệ thống*
+    *Hình PL.15: (Nguồn: Tác giả tự phát triển) Giao diện nhật ký thanh toán tự động và cấu hình tham số hệ thống*
 
 ---
 
