@@ -247,6 +247,22 @@ class _AppShellState extends State<AppShell> {
                   ),
                 );
               }
+            } else if (json['type'] == 'chat_rag_update') {
+              final sessionId = json['sessionId'] as String?;
+              final messageId = json['messageId'] as String?;
+              if (sessionId != null && messageId != null) {
+                notifyChatLlmUpdate(
+                  ChatLlmUpdate(
+                    sessionId: sessionId,
+                    messageId: messageId,
+                    content: json['ragContent'] as String? ?? json['content'] as String?,
+                    mood: json['mood'] as String?,
+                    failed: false,
+                    intentAction: json['intentAction'] as Map<String, dynamic>?,
+                    isRag: true,
+                  ),
+                );
+              }
             } else if (json['type'] == 'RECURRING_ALERT') {
               final payload = json['payload'] as Map<String, dynamic>? ?? {};
               final title = payload['title'] as String? ?? 'Giao dịch định kỳ';

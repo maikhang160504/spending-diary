@@ -42,6 +42,9 @@ jest.mock('../../src/config/db', () => ({
         ]
       });
     }
+    if (sql.includes('COUNT(*)')) {
+      return Promise.resolve({ rows: [{ c: 1 }] });
+    }
     if (sql.includes('user_settings') && sql.includes('age_group')) {
       return Promise.resolve({
         rows: [{ age_group: '18-22 tuổi', job_type: 'Sinh viên' }]

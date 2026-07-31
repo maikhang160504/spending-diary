@@ -43,7 +43,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     });
     String? idToken;
 
-    debugPrint('[GoogleSignIn LOG] Báº¯t Ä‘áº§u Ä‘Äƒng nháº­p báº±ng Google...');
+    debugPrint('[GoogleSignIn LOG] Bắt đầu đăng nhập bằng Google...');
     try {
       final googleSignIn = GoogleSignIn(
         scopes: ['email', 'profile'],
@@ -63,18 +63,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (idToken == null) {
         await googleSignIn.signOut();
         setState(() {
-          _generalError = 'ÄÄƒng nháº­p Google tháº¥t báº¡i. Vui lÃ²ng chá»n láº¡i tÃ i khoáº£n Google khÃ¡c.';
+          _generalError = 'Đăng nhập Google thất bại. Vui lòng chọn lại tài khoản Google khác.';
           _googleLoading = false;
         });
         return;
       }
     } catch (e) {
-      debugPrint('[GoogleSignIn LOG] Lá»—i Ä‘Äƒng nháº­p Google: $e');
+      debugPrint('[GoogleSignIn LOG] Lỗi đăng nhập Google: $e');
       try {
         await GoogleSignIn().signOut();
       } catch (_) {}
       setState(() {
-        _generalError = 'ÄÄƒng nháº­p Google tháº¥t báº¡i. Vui lÃ²ng chá»n láº¡i tÃ i khoáº£n Google khÃ¡c.';
+        _generalError = 'Đăng nhập Google thất bại. Vui lòng chọn lại tài khoản Google khác.';
         _googleLoading = false;
       });
       return;
@@ -104,7 +104,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     } on ApiException catch (e) {
       setState(() => _generalError = e.localizedMessage);
     } catch (e) {
-      setState(() => _generalError = 'ÄÄƒng nháº­p Google tháº¥t báº¡i. Vui lÃ²ng thá»­ láº¡i.');
+      setState(() => _generalError = 'Đăng nhập Google thất bại. Vui lòng thử lại.');
     } finally {
       if (mounted) setState(() => _googleLoading = false);
     }
@@ -121,15 +121,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     final email = _emailCtrl.text.trim();
     if (email.isEmpty || !email.contains('@')) {
-      setState(() => _emailError = 'Email khÃ´ng há»£p lá»‡');
+      setState(() => _emailError = 'Email không hợp lệ');
       valid = false;
     }
     if (_passCtrl.text.length < 8) {
-      setState(() => _passError = 'Máº­t kháº©u pháº£i cÃ³ Ã­t nháº¥t 8 kÃ½ tá»±');
+      setState(() => _passError = 'Mật khẩu phải có ít nhất 8 ký tự');
       valid = false;
     }
     if (_confirmCtrl.text != _passCtrl.text) {
-      setState(() => _confirmError = 'Máº­t kháº©u xÃ¡c nháº­n khÃ´ng khá»›p');
+      setState(() => _confirmError = 'Mật khẩu xác nhận không khớp');
       valid = false;
     }
     return valid;
@@ -146,7 +146,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     } on ApiException catch (e) {
       setState(() => _generalError = e.localizedMessage);
     } catch (e) {
-      setState(() => _generalError = 'KhÃ´ng thá»ƒ káº¿t ná»‘i Ä‘áº¿n mÃ¡y chá»§');
+      setState(() => _generalError = 'Không thể kết nối đến máy chủ');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -161,186 +161,315 @@ class _RegisterScreenState extends State<RegisterScreen> {
         child: SafeArea(
           child: Center(
             child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 480),
-            child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
-            child: Column(
-              children: [
-                SizedBox(height: isLandscape ? 12 : 24),
-                // Logo + Title card â€” áº©n khi landscape
-                if (!isLandscape)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 20),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.95),
-                    borderRadius: BorderRadius.circular(28),
-                    border: Border.all(color: Colors.white, width: 1.5),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.08),
-                        blurRadius: 16,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    children: [
-                      Image.asset('assets/logo/Logo.png', width: 72, height: 72, fit: BoxFit.contain,
-                        errorBuilder: (context, error, stack) => const Icon(Icons.savings_outlined, color: AppColors.teal, size: 56)),
-                      const SizedBox(height: 10),
-                      Image.asset('assets/logo/Title.png', height: 36, fit: BoxFit.contain,
-                        errorBuilder: (context, error, stack) => const Text('Spending Diary',
-                          style: TextStyle(color: AppColors.teal, fontSize: 20, fontWeight: FontWeight.w700))),
-                    ],
-                  ),
-                ),
-                if (!isLandscape) ...[
-                  const SizedBox(height: 8),
-                  Text('Báº¯t Ä‘áº§u quáº£n lÃ½ chi tiÃªu thÃ´i! ðŸš€',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.white.withValues(alpha: 0.85))),
-                ],
-                SizedBox(height: isLandscape ? 12 : 20),
-                Container(
-                  padding: const EdgeInsets.all(AppSpacing.xxl),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(AppRadii.xl),
-                    boxShadow: const [BoxShadow(color: Color(0x33000000), blurRadius: 30, offset: Offset(0, 20))],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Email', style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: _emailCtrl,
-                        keyboardType: TextInputType.emailAddress,
-                        enableSuggestions: false,
-                        autocorrect: false,
-                        textInputAction: TextInputAction.next,
-                        decoration: InputDecoration(
-                          hintText: 'your@email.com',
-                          prefixIcon: const Icon(Icons.mail_outline),
-                          errorText: _emailError,
+              constraints: const BoxConstraints(maxWidth: 480),
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
+                child: Column(
+                  children: [
+                    SizedBox(height: isLandscape ? 12 : 24),
+                    // Logo + Title card — ẩn khi landscape
+                    if (!isLandscape)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 20),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.95),
+                          borderRadius: BorderRadius.circular(28),
+                          border: Border.all(color: Colors.white, width: 1.5),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.08),
+                              blurRadius: 16,
+                              offset: const Offset(0, 8),
+                            ),
+                          ],
                         ),
-                      ),
-                      const SizedBox(height: 16),
-                      Text('Máº­t kháº©u', style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: _passCtrl,
-                        obscureText: _obscurePassword,
-                        textInputAction: TextInputAction.next,
-                        decoration: InputDecoration(
-                          hintText: 'â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢',
-                          prefixIcon: const Icon(Icons.lock_outline),
-                          errorText: _passError,
-                          suffixIcon: IconButton(
-                            icon: Icon(_obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined, size: 20),
-                            onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Text('XÃ¡c nháº­n máº­t kháº©u', style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: _confirmCtrl,
-                        obscureText: _obscureConfirm,
-                        textInputAction: TextInputAction.done,
-                        onSubmitted: (_) => _register(),
-                        decoration: InputDecoration(
-                          hintText: 'â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢',
-                          prefixIcon: const Icon(Icons.lock_outline),
-                          errorText: _confirmError,
-                          suffixIcon: IconButton(
-                            icon: Icon(_obscureConfirm ? Icons.visibility_off_outlined : Icons.visibility_outlined, size: 20),
-                            onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text('Máº­t kháº©u pháº£i cÃ³ Ã­t nháº¥t 8 kÃ½ tá»±',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.black54)),
-                      // General error
-                      if (_generalError != null) ...[
-                        const SizedBox(height: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFEF2F2),
-                            borderRadius: BorderRadius.circular(AppRadii.md),
-                          ),
-                          child: Row(children: [
-                            const Icon(Icons.error_outline, color: AppColors.danger, size: 16),
-                            const SizedBox(width: 6),
-                            Expanded(child: Text(_generalError!, style: const TextStyle(color: AppColors.danger, fontSize: 12))),
-                          ]),
-                        ),
-                      ],
-                      const SizedBox(height: 20),
-                      SizedBox(
-                        width: double.infinity,
-                        child: FilledButton(
-                          onPressed: _loading ? null : _register,
-                          style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
-                          child: _loading
-                              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                              : const Text('ÄÄƒng kÃ½', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          const Expanded(child: Divider(color: AppColors.border)),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
-                            child: Text('hoáº·c', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.muted)),
-                          ),
-                          const Expanded(child: Divider(color: AppColors.border)),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton(
-                          onPressed: _googleLoading ? null : _loginWithGoogle,
-                          style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 13)),
-                          child: _googleLoading
-                              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                              : Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Image.network(
-                                      'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/120px-Google_%22G%22_logo.svg.png',
-                                      width: 20,
-                                      height: 20,
-                                      errorBuilder: (context, error, stack) => const Text('G', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Color(0xFF4285F4))),
-                                    ),
-                                    const SizedBox(width: 10),
-                                    Text('ÄÄƒng kÃ½ vá»›i Google', style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
-                                  ],
+                        child: Column(
+                          children: [
+                            Image.asset(
+                              'assets/logo/Logo.png',
+                              width: 72,
+                              height: 72,
+                              fit: BoxFit.contain,
+                              errorBuilder: (context, error, stack) => const Icon(
+                                Icons.savings_outlined,
+                                color: AppColors.teal,
+                                size: 56,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            Image.asset(
+                              'assets/logo/Title.png',
+                              height: 36,
+                              fit: BoxFit.contain,
+                              errorBuilder: (context, error, stack) => const Text(
+                                'Spending Diary',
+                                style: TextStyle(
+                                  color: AppColors.teal,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w700,
                                 ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      const SizedBox(height: 16),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text('ÄÃ£ cÃ³ tÃ i khoáº£n? ', style: Theme.of(context).textTheme.bodySmall),
-                          GestureDetector(
-                            onTap: () => context.push(AppRoutes.login),
-                            child: const Text('ÄÄƒng nháº­p', style: TextStyle(color: AppColors.teal, fontWeight: FontWeight.w600, fontSize: 12)),
+                    if (!isLandscape) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        'Bắt đầu quản lý chi tiêu thôi! 🚀',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: Colors.white.withValues(alpha: 0.85),
+                            ),
+                      ),
+                    ],
+                    SizedBox(height: isLandscape ? 12 : 20),
+                    Container(
+                      padding: const EdgeInsets.all(AppSpacing.xxl),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(AppRadii.xl),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Color(0x33000000),
+                            blurRadius: 30,
+                            offset: Offset(0, 20),
                           ),
                         ],
                       ),
-                    ],
-                  ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Email',
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                          ),
+                          const SizedBox(height: 8),
+                          TextField(
+                            controller: _emailCtrl,
+                            keyboardType: TextInputType.emailAddress,
+                            enableSuggestions: false,
+                            autocorrect: false,
+                            textInputAction: TextInputAction.next,
+                            decoration: InputDecoration(
+                              hintText: 'your@email.com',
+                              prefixIcon: const Icon(Icons.mail_outline),
+                              errorText: _emailError,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Mật khẩu',
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                          ),
+                          const SizedBox(height: 8),
+                          TextField(
+                            controller: _passCtrl,
+                            obscureText: _obscurePassword,
+                            textInputAction: TextInputAction.next,
+                            decoration: InputDecoration(
+                              hintText: '••••••••',
+                              prefixIcon: const Icon(Icons.lock_outline),
+                              errorText: _passError,
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  _obscurePassword
+                                      ? Icons.visibility_off_outlined
+                                      : Icons.visibility_outlined,
+                                  size: 20,
+                                ),
+                                onPressed: () => setState(
+                                  () => _obscurePassword = !_obscurePassword,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Xác nhận mật khẩu',
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                          ),
+                          const SizedBox(height: 8),
+                          TextField(
+                            controller: _confirmCtrl,
+                            obscureText: _obscureConfirm,
+                            textInputAction: TextInputAction.done,
+                            onSubmitted: (_) => _register(),
+                            decoration: InputDecoration(
+                              hintText: '••••••••',
+                              prefixIcon: const Icon(Icons.lock_outline),
+                              errorText: _confirmError,
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  _obscureConfirm
+                                      ? Icons.visibility_off_outlined
+                                      : Icons.visibility_outlined,
+                                  size: 20,
+                                ),
+                                onPressed: () => setState(
+                                  () => _obscureConfirm = !_obscureConfirm,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Mật khẩu phải có ít nhất 8 ký tự',
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: Colors.black54,
+                                ),
+                          ),
+                          // General error
+                          if (_generalError != null) ...[
+                            const SizedBox(height: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFEF2F2),
+                                borderRadius: BorderRadius.circular(AppRadii.md),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(
+                                    Icons.error_outline,
+                                    color: AppColors.danger,
+                                    size: 16,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    child: Text(
+                                      _generalError!,
+                                      style: const TextStyle(
+                                        color: AppColors.danger,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                          const SizedBox(height: 20),
+                          SizedBox(
+                            width: double.infinity,
+                            child: FilledButton(
+                              onPressed: _loading ? null : _register,
+                              style: FilledButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                              ),
+                              child: _loading
+                                  ? const SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : const Text(
+                                      'Đăng ký',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          Row(
+                            children: [
+                              const Expanded(child: Divider(color: AppColors.border)),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 12),
+                                child: Text(
+                                  'hoặc',
+                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                        color: AppColors.muted,
+                                      ),
+                                ),
+                              ),
+                              const Expanded(child: Divider(color: AppColors.border)),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton(
+                              onPressed: _googleLoading ? null : _loginWithGoogle,
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 13),
+                              ),
+                              child: _googleLoading
+                                  ? const SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: CircularProgressIndicator(strokeWidth: 2),
+                                    )
+                                  : Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Image.network(
+                                          'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/120px-Google_%22G%22_logo.svg.png',
+                                          width: 20,
+                                          height: 20,
+                                          errorBuilder: (context, error, stack) =>
+                                              const Text(
+                                            'G',
+                                            style: TextStyle(
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.w700,
+                                              color: Color(0xFF4285F4),
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 10),
+                                        Text(
+                                          'Đăng ký với Google',
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .bodyMedium
+                                              ?.copyWith(fontWeight: FontWeight.w600),
+                                        ),
+                                      ],
+                                    ),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                'Đã có tài khoản? ',
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                              GestureDetector(
+                                onTap: () => context.push(AppRoutes.login),
+                                child: const Text(
+                                  'Đăng nhập',
+                                  style: TextStyle(
+                                    color: AppColors.teal,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 32),
+                  ],
                 ),
-                const SizedBox(height: 32),
-              ],
-            ),
-            ),
+              ),
             ),
           ),
         ),

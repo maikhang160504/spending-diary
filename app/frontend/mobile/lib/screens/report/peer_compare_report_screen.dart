@@ -384,7 +384,7 @@ class _PeerCompareReportScreenState extends State<PeerCompareReportScreen> {
                   tickBorderData: BorderSide(color: context.palette.border.withValues(alpha: 0.5)),
                   gridBorderData: BorderSide(color: context.palette.border.withValues(alpha: 0.5), width: 1.5),
                 ),
-                swapAnimationDuration: const Duration(milliseconds: 400),
+                duration: const Duration(milliseconds: 400),
               ),
             ),
           ],
@@ -447,6 +447,7 @@ class _PeerCompareReportScreenState extends State<PeerCompareReportScreen> {
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
                         diffPct > 0 ? Icons.trending_up_rounded : Icons.trending_down_rounded,
@@ -478,6 +479,8 @@ class _PeerCompareReportScreenState extends State<PeerCompareReportScreen> {
                     const SizedBox(height: 4),
                     Text(
                       formatVnd(userAmt),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(color: context.palette.textPrimary, fontWeight: FontWeight.bold, fontSize: 14),
                     ),
                   ],
@@ -492,6 +495,8 @@ class _PeerCompareReportScreenState extends State<PeerCompareReportScreen> {
                     const SizedBox(height: 4),
                     Text(
                       formatVnd(avgAmt),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(color: context.palette.textPrimary, fontWeight: FontWeight.bold, fontSize: 14),
                     ),
                   ],

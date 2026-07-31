@@ -8,6 +8,16 @@ const fs = require('fs');
 const path = require('path');
 const app = require('../../src/app');
 
+jest.mock('../../src/middlewares/auth', () => ({
+  auth: (req, res, next) => { req.user = { id: 'admin-id', role: 'admin' }; next(); },
+  requireAuth: (req, res, next) => { req.user = { id: 'admin-id', role: 'admin' }; next(); },
+  requireRole: () => (req, res, next) => next(),
+  isAdmin: (req, res, next) => next(),
+  requireAuthWithoutBanCheck: (req, res, next) => next(),
+}));
+
+const token = 'mock_token';
+
 describe('POST /api/admin/nlu/import-csv', () => {
   let existsSpy;
   let readSpy;
@@ -36,6 +46,7 @@ describe('POST /api/admin/nlu/import-csv', () => {
   test('returns 400 if no file uploaded', async () => {
     const res = await request(app)
       .post('/api/admin/nlu/import-csv')
+      .set('Authorization', `Bearer ${token}`)
       .send();
     expect(res.status).toBe(400);
     expect(res.body.message).toContain('Vui lòng chọn file CSV');
@@ -44,6 +55,7 @@ describe('POST /api/admin/nlu/import-csv', () => {
   test('returns 400 if CSV is empty', async () => {
     const res = await request(app)
       .post('/api/admin/nlu/import-csv')
+      .set('Authorization', `Bearer ${token}`)
       .attach('file', Buffer.from(''), 'empty.csv');
     expect(res.status).toBe(400);
     expect(res.body.message).toContain('Tập tin CSV rỗng');
@@ -53,6 +65,7 @@ describe('POST /api/admin/nlu/import-csv', () => {
     const invalidHeader = 'wrong_col,label,type,is_money\n"Ăn trưa",Food,expense,1';
     const res = await request(app)
       .post('/api/admin/nlu/import-csv')
+      .set('Authorization', `Bearer ${token}`)
       .attach('file', Buffer.from(invalidHeader), 'test.csv');
     expect(res.status).toBe(400);
     expect(res.body.message).toContain('Dòng tiêu đề (header) không hợp lệ');
@@ -62,6 +75,7 @@ describe('POST /api/admin/nlu/import-csv', () => {
     const badRow = 'text,label,type,is_money\n"Ăn trưa",Food,expense';
     const res = await request(app)
       .post('/api/admin/nlu/import-csv')
+      .set('Authorization', `Bearer ${token}`)
       .attach('file', Buffer.from(badRow), 'test.csv');
     expect(res.status).toBe(400);
     expect(res.body.message).toContain('Thiếu cột dữ liệu');
@@ -71,6 +85,7 @@ describe('POST /api/admin/nlu/import-csv', () => {
     const badCategory = 'text,label,type,is_money\n"Ăn trưa",InvalidCategory,expense,1';
     const res = await request(app)
       .post('/api/admin/nlu/import-csv')
+      .set('Authorization', `Bearer ${token}`)
       .attach('file', Buffer.from(badCategory), 'test.csv');
     expect(res.status).toBe(400);
     expect(res.body.message).toContain('Danh mục (label) \'InvalidCategory\' không hợp lệ');
@@ -80,6 +95,7 @@ describe('POST /api/admin/nlu/import-csv', () => {
     const badType = 'text,label,type,is_money\n"Ăn trưa",Food,bad_type,1';
     const res = await request(app)
       .post('/api/admin/nlu/import-csv')
+      .set('Authorization', `Bearer ${token}`)
       .attach('file', Buffer.from(badType), 'test.csv');
     expect(res.status).toBe(400);
     expect(res.body.message).toContain('Loại giao dịch (type) phải là \'expense\' hoặc \'income\'');
@@ -89,6 +105,7 @@ describe('POST /api/admin/nlu/import-csv', () => {
     const badIsMoney = 'text,label,type,is_money\n"Ăn trưa",Food,expense,3';
     const res = await request(app)
       .post('/api/admin/nlu/import-csv')
+      .set('Authorization', `Bearer ${token}`)
       .attach('file', Buffer.from(badIsMoney), 'test.csv');
     expect(res.status).toBe(400);
     expect(res.body.message).toContain('Cột \'is_money\' phải là \'0\' hoặc \'1\'');
@@ -98,6 +115,7 @@ describe('POST /api/admin/nlu/import-csv', () => {
     const validCsv = 'text,label,type,is_money\n"Ăn trưa",Food,expense,1\ntext,label,type,is_money\n"Cà phê",Food,expense,0';
     const res = await request(app)
       .post('/api/admin/nlu/import-csv')
+      .set('Authorization', `Bearer ${token}`)
       .attach('file', Buffer.from(validCsv), 'test.csv');
 
     expect(res.status).toBe(200);

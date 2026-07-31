@@ -246,8 +246,6 @@ class _CategorySpendingReportScreenState extends State<CategorySpendingReportScr
                         ],
                       ),
                     ),
-                    // Wallet bar on portrait mode (already in filter bar on landscape)
-                    if (!isLandscapePhone) _buildWalletSelectorBar(),
                     // ── Content ─────────────────────────────────────────────
                     Expanded(
                       child: _isLoading

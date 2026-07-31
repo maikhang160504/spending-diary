@@ -258,7 +258,6 @@ _SearchResultPreview? _searchPreviewFromResult(Map<String, dynamic> result) {
       occurredAt: dateStr != null ? DateTime.tryParse(dateStr) : null,
     );
   }).toList();
-  if (items.isEmpty) return null;
   return _SearchResultPreview(items: items);
 }
 
@@ -519,33 +518,44 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
               final resultText = actionResult != null
                   ? actionResult['message']
                   : null;
-              if (resultText != null &&
-                  resultText.toString().isNotEmpty &&
-                  update.content! != resultText) {
-                msg.text = '$resultText\n\n${update.content!}';
+              if (update.isRag) {
+                // For RAG flow, we want 3 bubbles:
+                // 1. Original msg text (already set by chat_llm_update)
+                // 2. The Card (added by _updateMessagePreviews below)
+                // 3. A NEW message for the RAG narrative
               } else {
-                msg.text = update.content!;
+                if (resultText != null &&
+                    resultText.toString().isNotEmpty &&
+                    update.content! != resultText) {
+                  msg.text = '$resultText\n\n${update.content!}';
+                } else {
+                  msg.text = update.content!;
+                }
               }
             } else {
-              msg.text = update.content!;
+              if (!update.isRag) {
+                msg.text = update.content!;
+              }
             }
             if (update.mood != null && update.mood!.isNotEmpty) {
               msg.chatEmotion = update.mood!;
             }
             if (update.intentAction != null) {
               _updateMessagePreviews(msg, update.intentAction!);
-              if (msg.actionPreview != null &&
-                  !_actionNeedsConfirm(msg.actionPreview!.actionType) &&
-                  !msg.isConfirmed) {
-                msg.isConfirmed = true;
-                if (update.messageId != null &&
-                    !_executedActionMessageIds.contains(update.messageId!)) {
-                  _executedActionMessageIds.add(update.messageId!);
-                  _runConfirmedAction(msg);
-                }
-              }
             }
             found = true;
+            
+            if (update.isRag && update.content != null && update.content!.isNotEmpty) {
+              final ragMsg = _ChatMsg(
+                text: update.content!,
+                isUser: false,
+                time: _now(),
+                chatEmotion: update.mood ?? 'Happy',
+                backendMessageId: '${update.messageId}_rag',
+              );
+              _messages.insert(0, ragMsg);
+            }
+            
             break;
           }
         }
@@ -561,18 +571,19 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
           );
           if (update.intentAction != null) {
             _updateMessagePreviews(confirmMsg, update.intentAction!);
-            if (confirmMsg.actionPreview != null &&
-                !_actionNeedsConfirm(confirmMsg.actionPreview!.actionType) &&
-                !confirmMsg.isConfirmed) {
-              confirmMsg.isConfirmed = true;
-              if (update.messageId != null &&
-                  !_executedActionMessageIds.contains(update.messageId!)) {
-                _executedActionMessageIds.add(update.messageId!);
-                _runConfirmedAction(confirmMsg);
-              }
-            }
           }
           _messages.insert(0, confirmMsg);
+          
+          if (update.isRag && update.content != null && update.content!.isNotEmpty) {
+              final ragMsg = _ChatMsg(
+                text: update.content!,
+                isUser: false,
+                time: _now(),
+                chatEmotion: update.mood ?? 'Happy',
+                backendMessageId: '${update.messageId}_rag',
+              );
+              _messages.insert(0, ragMsg);
+          }
         }
       }
 
@@ -654,14 +665,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       msg.multiRecords = multiRecords;
     }
 
-    final intentConfidence =
-        nluDouble(nlu['intent_confidence']) ??
-        nluDouble(nlu['confidence']) ??
-        0.0;
-    final autoSaved =
-        intentConfidence >= 0.9 &&
-        (msg.txPreview != null || msg.multiRecords != null);
-    final savedFlag = (metadata['saved'] == true) || autoSaved;
+    final savedFlag = (metadata['saved'] == true);
     msg.isSaved =
         (msg.txPreview != null || msg.multiRecords != null) && savedFlag;
   }
@@ -854,14 +858,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
 
       // Đọc trạng thái saved từ metadata thay vì mặc định true
       final nlu = metadata != null ? nluMap(metadata['nlu']) : null;
-      final intentConfidence =
-          nluDouble(nlu?['intent_confidence']) ??
-          nluDouble(nlu?['confidence']) ??
-          0.0;
-      final autoSaved =
-          intentConfidence >= 0.9 &&
-          (txPreview != null || multiRecords != null);
-      final savedFlag = (metadata?['saved'] == true) || autoSaved;
+      final savedFlag = (metadata?['saved'] == true);
 
       List<String>? suggestedActions;
       if (nlu != null && nlu['suggested_actions'] is List) {
@@ -3829,6 +3826,18 @@ class _SearchResultCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 10),
+          if (preview.items.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
+              child: Text(
+                'Không tìm thấy giao dịch nào.',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: context.palette.textSecondary,
+                ),
+              ),
+            ),
           ...preview.items.take(4).map((item) {
             final style = CategoryTheme.of(item.categoryCode);
             final isIncome = item.recordType.toLowerCase() == 'income';

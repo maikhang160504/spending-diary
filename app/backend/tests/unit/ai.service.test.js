@@ -27,9 +27,22 @@ jest.mock('../../src/services/wsHub', () => ({
   sendToUser: jest.fn(),
 }));
 
+// Mock logger
+jest.mock('../../src/config/logger', () => ({
+  info: jest.fn(),
+  error: jest.fn(),
+  warn: jest.fn(),
+  debug: jest.fn(),
+}));
+
 describe('ai.service unit tests', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.spyOn(global, 'setImmediate').mockImplementation((fn) => fn());
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
   test('aiChat correctly slices messages, fetches profile MoM stats, summarizes older messages, and calls aiClient', async () => {

@@ -67,12 +67,32 @@ class _DetailStoryScreenState extends State<DetailStoryScreen> {
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 500),
           child: PageView.builder(
-        controller: _pageController,
-        itemCount: _ids.length,
-        itemBuilder: (ctx, i) => _StoryPage(
-          key: ValueKey(_ids[i]),
-          storyId: _ids[i],
-        ),
+            controller: _pageController,
+            itemCount: _ids.length,
+            itemBuilder: (ctx, i) {
+              return AnimatedBuilder(
+                animation: _pageController,
+                builder: (context, child) {
+                  double value = 0.0;
+                  if (_pageController.position.haveDimensions) {
+                    value = (_pageController.page ?? _pageController.initialPage.toDouble()) - i;
+                  }
+                  final double opacity = (1 - (value.abs() * 0.4)).clamp(0.0, 1.0);
+                  final double scale = (1 - (value.abs() * 0.08)).clamp(0.85, 1.0);
+                  return Transform.scale(
+                    scale: scale,
+                    child: Opacity(
+                      opacity: opacity,
+                      child: child,
+                    ),
+                  );
+                },
+                child: _StoryPage(
+                  key: ValueKey(_ids[i]),
+                  storyId: _ids[i],
+                ),
+              );
+            },
           ),
         ),
       ),
@@ -391,11 +411,29 @@ class _StoryPageState extends State<_StoryPage> {
                           setSheetState(() => saving = true);
                           final messenger = ScaffoldMessenger.of(context);
                           try {
+                            final newAmt = int.tryParse(amountCtrl.text) ?? curAmount;
+                            final newNote = noteCtrl.text;
                             await _api.updateTransaction(txId, {
-                              'amount': int.tryParse(amountCtrl.text) ?? curAmount,
+                              'amount': newAmt,
                               'categoryCode': editCategory,
-                              'note': noteCtrl.text,
+                              'note': newNote,
                             });
+                            if (mounted) {
+                              setState(() {
+                                if (primaryTx != null) {
+                                  primaryTx['amount'] = newAmt;
+                                  primaryTx['category_code'] = editCategory;
+                                  primaryTx['categoryCode'] = editCategory;
+                                  primaryTx['note'] = newNote;
+                                }
+                                if (_story != null) {
+                                  _story!['amount'] = newAmt;
+                                  _story!['categoryCode'] = editCategory;
+                                  _story!['note'] = newNote;
+                                  _story!['title'] = newNote;
+                                }
+                              });
+                            }
                             notifyTransactionChanged();
                             if (ctx.mounted) ctx.pop();
                             messenger.showSnackBar(
@@ -1121,6 +1159,7 @@ class _FullScreenImagePreviewState extends State<FullScreenImagePreview> {
         final tempDir = await getTemporaryDirectory();
         final file = File('${tempDir.path}/mimo_shared_image_${DateTime.now().millisecondsSinceEpoch}.jpg');
         await file.writeAsBytes(response.bodyBytes);
+        // ignore: deprecated_member_use
         await Share.shareXFiles([XFile(file.path)], text: 'Mimo Finance - Giao dịch của tôi');
       } else {
         if (mounted) {

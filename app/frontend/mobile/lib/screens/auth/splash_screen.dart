@@ -29,8 +29,6 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   late final Animation<double> _leafWiggle;
   late final Animation<double> _wordGlow;
 
-  static const _bg = Color(0xFFF8FFFE);
-
   @override
   void initState() {
     super.initState();

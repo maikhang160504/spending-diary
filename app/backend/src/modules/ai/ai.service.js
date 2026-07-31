@@ -145,6 +145,15 @@ async function _enrichNluWithAction(userId, payload, response) {
 
   const actionType = response.action_type;
   
+  const missingSlotsResult = actionService.checkMissingSlots(actionType, { ...response, text: payload.text || response.text }, response.slots || response.action_details);
+  if (missingSlotsResult) {
+    response.action_result = missingSlotsResult;
+    response.nlg_response = missingSlotsResult.message;
+    if (!response.gemini_json) response.gemini_json = {};
+    response.gemini_json.response = missingSlotsResult.message;
+    return response;
+  }
+  
   if (actionType === 'SUGGEST_BUDGET') {
     try {
       const suggestionService = require('../budgets/suggestion.service');
@@ -180,10 +189,22 @@ async function _enrichNluWithAction(userId, payload, response) {
 
   if (actionType === 'SEARCH_RECORD') {
     try {
+      const searchTimeRange =
+        response.time_range ||
+        actionService.inferTimeRangeFromText(payload.text || response.text || '');
+      const searchCategoryCode = actionService.resolveCategoryCode(
+        response.category,
+        response.action_details,
+        payload.text || response.text || ''
+      );
       const actionResult = await actionService.executeAction(userId, {
         actionType,
         text: payload.text || response.text || '',
         actionDetails: response.action_details,
+        slots: response.slots || {},
+        categoryCode: searchCategoryCode,
+        timeRange: searchTimeRange,
+        walletId: payload.walletId || payload.wallet_id || undefined,
       });
       response.action_result = actionResult;
       let story = actionResult.message;
@@ -216,6 +237,8 @@ async function _enrichNluWithAction(userId, payload, response) {
             story = secondStory;
             response.gemini_json = secondRes.gemini_json || response.gemini_json;
             response.llama_json = secondRes.llama_json || response.llama_json;
+            response.nlg_response = secondStory;
+            if (response.gemini_json) response.gemini_json.story = secondStory;
           }
         } catch (err) {
           logger.error({ err: err.message, userId }, 'Second LLM call for search failed');
@@ -227,8 +250,6 @@ async function _enrichNluWithAction(userId, payload, response) {
       response.gemini_json.mimo_emotion = displayEmotion;
       response.gemini_json.emotion = displayEmotion;
       response.mimo_emotion = displayEmotion;
-      response.nlg_response = story || response.nlg_response;
-      response.gemini_json.story = story || response.gemini_json.story;
 
       await logAi(userId, 'action_executed', { text: payload.text, actionType }, actionResult, { backend: response.backend });
       return response;
@@ -238,7 +259,7 @@ async function _enrichNluWithAction(userId, payload, response) {
     }
   }
 
-  if (['SET_TONE', 'SYSTEM_SETTING', 'SET_USERNAME', 'SET_ALERT'].includes(actionType)) {
+  if (['SET_TONE', 'SYSTEM_SETTING', 'SET_USERNAME', 'SET_ALERT', 'SET_GOAL', 'ADD_GOAL', 'SET_LIMIT'].includes(actionType)) {
     try {
       const actionResult = await actionService.executeAction(userId, {
         actionType,
@@ -248,6 +269,8 @@ async function _enrichNluWithAction(userId, payload, response) {
         theme: response.theme,
         username: response.username,
         slots: response,
+        ...response.slots,
+        ...response.action_details,
       });
       response.action_result = actionResult;
 
@@ -286,6 +309,8 @@ async function _enrichNluWithAction(userId, payload, response) {
             story = secondStory;
             response.gemini_json = secondRes.gemini_json || response.gemini_json;
             response.llama_json = secondRes.llama_json || response.llama_json;
+            response.nlg_response = secondStory;
+            if (response.gemini_json) response.gemini_json.story = secondStory;
           }
         } catch (err) {
           logger.error({ err: err.message, userId }, `Second LLM call for ${actionType} failed`);
@@ -297,8 +322,6 @@ async function _enrichNluWithAction(userId, payload, response) {
       response.gemini_json.mimo_emotion = displayEmotion;
       response.gemini_json.emotion = displayEmotion;
       response.mimo_emotion = displayEmotion;
-      response.nlg_response = story || response.nlg_response;
-      response.gemini_json.story = story || response.gemini_json.story;
 
       await logAi(userId, 'action_executed', { text: payload.text, actionType }, actionResult, { backend: response.backend });
       return response;
@@ -312,7 +335,8 @@ async function _enrichNluWithAction(userId, payload, response) {
 
   const timeRange =
     response.time_range ||
-    actionService.inferTimeRangeFromText(payload.text || response.text || '');
+    actionService.inferTimeRangeFromText(payload.text || '') ||
+    actionService.inferTimeRangeFromText(response.text || '');
 
   try {
     const reportKind = actionService.detectReportKind(payload.text || response.text || '', actionType);
@@ -326,6 +350,7 @@ async function _enrichNluWithAction(userId, payload, response) {
       reportKind,
       text: payload.text || response.text || '',
       actionDetails: response.action_details,
+      walletId: payload.walletId || payload.wallet_id || undefined,
     });
     let story = actionService.buildReportStory(actionResult);
 
@@ -1351,7 +1376,8 @@ async function _runChatLlmFollowUp(userId, sessionId, messageId, context) {
     const actionType = aiResponse.action_type;
     let llmRes;
 
-    if (intent === 'Action' && actionService.isReportAction(actionType) && aiResponse.action_result) {
+    const isRagFollowUp = actionService.isReportAction(actionType) || String(actionType || '').toUpperCase().includes('SEARCH');
+    if (intent === 'Action' && isRagFollowUp && aiResponse.action_result) {
       llmRes = await aiClient.inferText({
         text: userMessage,
         profile: {
@@ -1455,11 +1481,11 @@ async function aiChat(userId, sessionId, userMessage, contextMeta, passedWalletI
 
   // 2. Kích hoạt xử lý AI chạy ngầm
   setImmediate(() => {
-    _processAiChatBackground(userId, sessionId, userMessage, contextMeta, pendingMsg.id, passedWalletId)
+    _processAiChatBackground(userId, sessionId, userMessage, contextMeta, pendingMsg?.id, passedWalletId)
       .catch((err) => {
         logger.error({ err: err.message, userId, sessionId }, 'Background AI Chat failed');
         // Báo lỗi cho Frontend
-        sendToUser(userId, { type: 'chat_llm_update', sessionId, messageId: pendingMsg.id, failed: true });
+        sendToUser(userId, { type: 'chat_llm_update', sessionId, messageId: pendingMsg?.id, failed: true });
       });
   });
 
@@ -1467,7 +1493,7 @@ async function aiChat(userId, sessionId, userMessage, contextMeta, passedWalletI
   return {
     response: '',
     intentAction: { llmPending: true },
-    messageId: pendingMsg.id,
+    messageId: pendingMsg?.id,
     llmPending: true
   };
 }
@@ -1563,19 +1589,32 @@ async function _processAiChatBackground(userId, sessionId, userMessage, contextM
       chat_summary: summary,
       run_llm: true,
     });
-    if (aiResponse.intent === 'Action' && aiResponse.action_type) {
-      aiResponse.action_type = actionService.disambiguateActionType(
-        userMessage,
-        aiResponse.action_type
-      );
+    const disambiguated = actionService.disambiguateActionType(
+      userMessage,
+      aiResponse.action_type || ''
+    );
+    if (disambiguated && disambiguated !== 'NONE' && disambiguated !== aiResponse.action_type) {
+      aiResponse.intent = 'Action';
+      aiResponse.action_type = disambiguated;
+    } else if (aiResponse.intent === 'Action' && aiResponse.action_type) {
+      aiResponse.action_type = disambiguated;
     }
-    aiResponse = await _enrichNluWithAction(userId, { text: userMessage }, aiResponse);
-    let llmText =
+    // Capture LLM text BEFORE _enrichNluWithAction overrides nlg_response với RAG narrative
+    const llmTextBeforeEnrich =
       aiResponse.gemini_json?.response ||
       aiResponse.gemini_json?.story ||
       aiResponse.nlg_response ||
       aiResponse.response ||
       aiResponse.content;
+    aiResponse = await _enrichNluWithAction(userId, { text: userMessage, walletId: passedWalletId }, aiResponse);
+    // After enrich: nlg_response có thể là RAG narrative (Bubble 3)
+    const ragNarrative =
+      aiResponse.gemini_json?.story ||
+      aiResponse.nlg_response ||
+      aiResponse.gemini_json?.response ||
+      null;
+    // LLM text gốc (Bubble 1) = text trước khi enrich
+    let llmText = llmTextBeforeEnrich || ragNarrative;
     const llmError = aiResponse.llm_error || null;
 
     let fallbackText = null;
@@ -1661,11 +1700,14 @@ async function _processAiChatBackground(userId, sessionId, userMessage, contextM
     const moodStatus = pickMimoEmotionFromNlu(aiResponse, intent);
 
     const intentAction = {
+      llmPending: false,
       mood: moodStatus,
       intent: intent,
       amount: amount,
       category: category,
       nlu: aiResponse,
+      ...(aiResponse.action_result ? { action_result: aiResponse.action_result } : {}),
+      ...(aiResponse.action_type ? { action_type: aiResponse.action_type } : {}),
       ...(llmError ? { llmError } : {}),
     };
 
@@ -1733,13 +1775,19 @@ async function _processAiChatBackground(userId, sessionId, userMessage, contextM
       }
     }
 
+    const isRagAction = actionService.isReportAction(intentAction.nlu?.action_type) ||
+      String(intentAction.nlu?.action_type || '').includes('SEARCH');
+    const isLlmBackend = (aiResponse.backend === 'llm_unified' || aiResponse.backend === 'llm_fallback' || String(aiResponse.backend).startsWith('user_') || actionService.isReportAction(intentAction.nlu?.action_type));
+
+    if (isRagAction && ragNarrative && llmTextBeforeEnrich && llmTextBeforeEnrich !== ragNarrative) {
+      intentAction.rag_narrative = ragNarrative;
+    }
+
     // Update the pending message with actual AI response
     await chatService.updateMessageContent(userId, sessionId, messageId,
       assistantContent, intentAction
     );
     const savedMsg = { id: messageId };
-
-    const isLlmBackend = (aiResponse.backend === 'llm_unified' || aiResponse.backend === 'llm_fallback' || String(aiResponse.backend).startsWith('user_') || actionService.isReportAction(intentAction.nlu?.action_type));
 
     if (!isLlmBackend && process.env.NODE_ENV !== 'test') {
       // Push initial result to frontend, then schedule LLM follow-up
@@ -1763,8 +1811,33 @@ async function _processAiChatBackground(userId, sessionId, userMessage, contextM
           logger.warn({ err: err.message, userId, sessionId }, 'chat LLM follow-up scheduling failed');
         });
       });
+    } else if (isRagAction && llmTextBeforeEnrich && ragNarrative && llmTextBeforeEnrich !== ragNarrative) {
+      // === 3-Bubble RAG Flow ===
+      const { sendToUser: pushDone } = require('../../services/wsHub');
+      // Bubble 1: LLM NLU response text (nhận dạng, phản hồi ban đầu)
+      pushDone(userId, {
+        type: 'chat_llm_update', sessionId, messageId: savedMsg.id,
+        content: llmTextBeforeEnrich,
+        mood: intentAction.mood || 'Happy',
+        intentAction: {
+          ...intentAction,
+          // Không gửi action_result ở event này — chỉ hiển thị Bubble 1 text
+          action_result: undefined,
+          action_executed: false,
+        },
+      });
+      // Bubble 2 (card) + Bubble 3 (RAG narrative): gửi event riêng với action_result
+      pushDone(userId, {
+        type: 'chat_rag_update', sessionId, messageId: savedMsg.id,
+        ragContent: ragNarrative,   // Bubble 3 text
+        mood: intentAction.mood || 'Happy',
+        intentAction: {
+          ...intentAction,
+          action_executed: true,    // Bubble 2: kích hoạt render card
+        },
+      });
     } else {
-      // Report/Search: push result directly via WebSocket
+      // Report/Search fallback or non-RAG: push result directly via WebSocket
       const { sendToUser: pushDone } = require('../../services/wsHub');
       pushDone(userId, {
         type: 'chat_llm_update', sessionId, messageId: savedMsg.id,

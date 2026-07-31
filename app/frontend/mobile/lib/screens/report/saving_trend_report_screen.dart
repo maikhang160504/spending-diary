@@ -128,11 +128,11 @@ class _SavingTrendReportScreenState extends State<SavingTrendReportScreen> {
                             onPrev: () => setState(() => _periodOffset++),
                             onNext: _periodOffset > 0 ? () => setState(() => _periodOffset--) : null,
                           ),
-                          _buildWalletSelectorBarCompact(),
+                          if (!isLandscapePhone) _buildWalletSelectorBar()
+                          else _buildWalletSelectorBarCompact(),
                         ],
                       ),
                     ),
-                    if (!isLandscapePhone) _buildWalletSelectorBar(),
                     Expanded(
                       child: SingleChildScrollView(
                         padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 8, AppSpacing.lg, AppSpacing.lg),

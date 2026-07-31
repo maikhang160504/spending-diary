@@ -1,1 +1,6 @@
-const {Pool}=require('pg'); const pool=new Pool({connectionString: 'postgresql://khangb2205881:FFs0Rk8h8L0bw7yvsnH7Ig@spending-stories-15879.jxf.gcp-asia-southeast1.cockroachlabs.cloud:26257/spending-stories?sslmode=verify-full'}); pool.query('SELECT age_group, job_type FROM user_settings WHERE user_id = \'001ddef1-fc65-4780-a3aa-c9cfebded733\'').then(r => {console.log(r.rows); process.exit(0)}).catch(console.error);
+require('dotenv').config();
+const { Client } = require('pg');
+const client = new Client({ connectionString: process.env.DATABASE_URL });
+client.connect()
+  .then(() => client.query("SELECT column_name FROM information_schema.columns WHERE table_name = 'stories'"))
+  .then(res => { console.log(res.rows); process.exit(0); });

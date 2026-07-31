@@ -605,7 +605,7 @@ class _GoalScreenState extends State<GoalScreen> with AutomaticKeepAliveClientMi
                 ),
                 if (_error != null)
                   ErrorBanner(message: _error!, onRetry: _loadGoals),
-                const SizedBox(height: 20),
+                const SizedBox(height: 12),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
                   child: _loading

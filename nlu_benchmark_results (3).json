@@ -1,0 +1,38 @@
+{
+  "tfidf": {
+    "intent_accuracy": 84.17,
+    "intent_f1": 79.2,
+    "category_accuracy": 68.33,
+    "category_f1": 65.87,
+    "record_type_accuracy": 85.0,
+    "record_type_f1": 76.56,
+    "action_type_accuracy": 85.0,
+    "action_type_f1": 67.6,
+    "avg_latency_ms": 4.36,
+    "p95_latency_ms": 9.2
+  },
+  "phobert": {
+    "intent_accuracy": 86.67,
+    "intent_f1": 83.57,
+    "category_accuracy": 71.67,
+    "category_f1": 62.88,
+    "record_type_accuracy": 91.67,
+    "record_type_f1": 86.52,
+    "action_type_accuracy": 80.83,
+    "action_type_f1": 50.08,
+    "avg_latency_ms": 103.85,
+    "p95_latency_ms": 55.74
+  },
+  "qwen25_lora": {
+    "intent_accuracy": 95.83,
+    "intent_f1": 95.45,
+    "category_accuracy": 91.67,
+    "category_f1": 86.14,
+    "record_type_accuracy": 96.67,
+    "record_type_f1": 95.45,
+    "action_type_accuracy": 95.83,
+    "action_type_f1": 92.29,
+    "avg_latency_ms": 14617.97,
+    "p95_latency_ms": 19934.49
+  }
+}

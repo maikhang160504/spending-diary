@@ -132,11 +132,11 @@ class _CashflowReportScreenState extends State<CashflowReportScreen> {
                             ],
                           ),
                           // Filter 4: Ví chips
-                          _buildWalletSelectorBarCompact(),
+                          if (!isLandscapePhone) _buildWalletSelectorBar()
+                          else _buildWalletSelectorBarCompact(),
                         ],
                       ),
                     ),
-                    if (!isLandscapePhone) _buildWalletSelectorBar(),
                     // ── Content (always scrollable) ────────────────────────
                     Expanded(
                       child: SingleChildScrollView(

@@ -9,7 +9,7 @@ class LoanFormScreen extends StatefulWidget {
   const LoanFormScreen({super.key, this.walletId});
 
   @override
-  _LoanFormScreenState createState() => _LoanFormScreenState();
+  State<LoanFormScreen> createState() => _LoanFormScreenState();
 }
 
 class _LoanFormScreenState extends State<LoanFormScreen> {

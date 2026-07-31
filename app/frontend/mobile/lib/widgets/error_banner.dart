@@ -65,37 +65,36 @@ class EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Text(emoji, style: const TextStyle(fontSize: 64)),
-          const SizedBox(height: 16),
+    return Container(
+      alignment: Alignment.topCenter,
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Text(emoji, style: const TextStyle(fontSize: 64)),
+        const SizedBox(height: 16),
+        Text(
+          title,
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w700,
+            fontSize: 18,
+          ),
+          textAlign: TextAlign.center,
+        ),
+        if (subtitle != null) ...[
+          const SizedBox(height: 8),
           Text(
-            title,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w700,
-              fontSize: 18,
+            subtitle!,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: AppColors.muted,
+              fontSize: 14,
             ),
             textAlign: TextAlign.center,
           ),
-          if (subtitle != null) ...[
-            const SizedBox(height: 8),
-            Text(
-              subtitle!,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppColors.muted,
-                fontSize: 14,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-          if (action != null) ...[
-            const SizedBox(height: 20),
-            action!,
-          ],
-        ]),
-      ),
+        ],
+        if (action != null) ...[
+          const SizedBox(height: 20),
+          action!,
+        ],
+      ]),
     );
   }
 }

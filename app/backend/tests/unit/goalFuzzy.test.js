@@ -13,7 +13,7 @@ describe('Saving Goal Fuzzy Matching', () => {
   test('Fuzzy matches existing goal "Mua xe máy" when user inputs "đặt mục tiêu mua xe máy 20tr" (> 75% similarity)', async () => {
     // Mock goals list returns "Mua xe máy"
     goalsService.list.mockResolvedValue([
-      { id: 'goal-1', name: 'Mua xe máy', target_amount: 15000000, current_amount: 5000000 }
+      { id: 'goal-1', name: 'Mua xe máy', status: 'active', target_amount: 15000000, current_amount: 5000000 }
     ]);
     goalsService.contribute.mockResolvedValue({
       id: 'goal-1',
@@ -23,10 +23,10 @@ describe('Saving Goal Fuzzy Matching', () => {
     });
 
     const payload = {
-      actionType: 'SET_GOAL',
-      goalName: 'mua xe máy 20tr',
+      actionType: 'GOP_TIEN',
+      goalName: 'Mua xe máy',
       amount: 2000000,
-      text: 'đặt mục tiêu mua xe máy 20tr'
+      text: 'góp tiền mua xe máy'
     };
 
     const result = await actionService.executeSetGoal('user-1', payload);
@@ -40,7 +40,7 @@ describe('Saving Goal Fuzzy Matching', () => {
 
   test('Creates a new goal when similarity is <= 75% (e.g. "Mua laptop" vs "Mua xe máy")', async () => {
     goalsService.list.mockResolvedValue([
-      { id: 'goal-1', name: 'Mua xe máy', target_amount: 15000000, current_amount: 5000000 }
+      { id: 'goal-1', name: 'Mua xe máy', status: 'active', target_amount: 15000000, current_amount: 5000000 }
     ]);
     goalsService.create.mockResolvedValue({
       id: 'goal-2',
@@ -50,10 +50,10 @@ describe('Saving Goal Fuzzy Matching', () => {
     });
 
     const payload = {
-      actionType: 'SET_GOAL',
+      actionType: 'GOP_TIEN',
       goalName: 'Mua laptop',
       amount: 20000000,
-      text: 'đặt mục tiêu mua laptop 20tr'
+      text: 'góp tiền mua laptop 20tr'
     };
 
     const result = await actionService.executeSetGoal('user-1', payload);

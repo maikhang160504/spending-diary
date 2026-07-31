@@ -43,6 +43,7 @@ class _PremiumPaymentScreenState extends State<PremiumPaymentScreen> {
         final tempDir = await getTemporaryDirectory();
         final file = File('${tempDir.path}/spenddiary_premium_qr.jpg');
         await file.writeAsBytes(response.bodyBytes);
+        // ignore: deprecated_member_use
         await Share.shareXFiles([XFile(file.path)], text: 'Mã QR thanh toán Premium SpendDiary');
       } else {
         if (mounted) {

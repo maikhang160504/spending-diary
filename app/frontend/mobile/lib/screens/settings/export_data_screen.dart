@@ -236,6 +236,7 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
               TextButton(
                 onPressed: () {
                   Navigator.pop(ctx);
+                  // ignore: deprecated_member_use
                   Share.shareXFiles([XFile(file.path)], text: 'Dữ liệu Sổ thu chi');
                 },
                 child: const Text('Chia sẻ', style: TextStyle(color: AppColors.teal)),

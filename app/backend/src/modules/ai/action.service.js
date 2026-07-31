@@ -53,7 +53,7 @@ function isReportAction(actionType) {
 }
 
 function _norm(s) {
-  return (s || '')
+  return String(s || '')
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
@@ -61,11 +61,14 @@ function _norm(s) {
 }
 
 function resolveCategoryCode(categoryCode, actionDetails, text) {
+  if (categoryCode && ['null', 'none', 'undefined', 'all'].includes(String(categoryCode).toLowerCase().trim())) {
+    categoryCode = null;
+  }
   if (categoryCode && /^[A-Z][a-zA-Z]*$/.test(String(categoryCode))) {
     return categoryCode;
   }
   const target = actionDetails?.target;
-  if (target) {
+  if (target && !['null', 'none', 'undefined', 'all'].includes(String(target).toLowerCase().trim())) {
     const key = _norm(String(target));
     if (VI_CATEGORY_MAP[key]) return VI_CATEGORY_MAP[key];
     for (const [code, label] of Object.entries(VI_CATEGORY_LABELS)) {
@@ -86,7 +89,7 @@ function resolveCategoryCode(categoryCode, actionDetails, text) {
       if (t.includes(normLabel)) return code;
     }
   }
-  if (categoryCode && String(categoryCode).trim()) {
+  if (categoryCode && String(categoryCode).trim() && !['null', 'none', 'undefined', 'all'].includes(String(categoryCode).toLowerCase().trim())) {
     return String(categoryCode).trim();
   }
   return null;
@@ -119,7 +122,7 @@ function disambiguateActionType(text, actionType) {
   const hasSuggest = /\b(goi y|de xuat|suggest|recommend|khuyen)\b/.test(t);
   const hasBudget = /\b(han muc|chi tieu|budget|ngan sach)\b/.test(t);
   const hasSearch = /\b(liet ke|tim|danh sach|search|tra cuu)\b/.test(t);
-  const hasCompare = /\b(so sanh|nhom|moi nguoi|sinh vien khac|dong trang lua|cung nhom|hon ai|thua ai)\b/.test(t);
+  const hasCompare = /\b(so sanh|moi nguoi|sinh vien khac|dong trang lua|cung nhom|hon ai|thua ai)\b/.test(t) && !/\b(quy nhom|thu thach nhom|tao nhom)\b/.test(t);
 
   if (hasCompare) return 'REPORT_COMPARE';
   if (hasSearch && upper === 'REPORT_GENERAL') return 'SEARCH_RECORD';
@@ -129,6 +132,10 @@ function disambiguateActionType(text, actionType) {
   if (hasLimit && (upper.includes('GOAL') || upper === 'RECORD')) return 'SET_LIMIT';
   if (hasGoal && !hasLimit && upper.includes('LIMIT')) return 'SET_GOAL';
   if (hasLimit && upper.includes('SET_GOAL')) return 'SET_LIMIT';
+  
+  const hasSetName = /(?:tên|ten|gọi|goi).*(?:mình|tớ|tớ là|tôi|cậu là|anh là|chị là|em là|la|là|thành|thanh)\s+/i.test(t);
+  if (hasSetName) return 'SET_USERNAME';
+
   return actionType;
 }
 
@@ -162,6 +169,33 @@ function inferTimeRangeFromText(text) {
     const t2 = `${pad(to.getDate())}/${pad(to.getMonth() + 1)}/${to.getFullYear()}`;
     return `${prefix} (${f} - ${t2})`;
   };
+
+  const dayRangeMatch = t.match(/(?:tu\s+)?(?:ngay\s+)?(\d{1,2})\s+(?:den|toi)\s+(?:ngay\s+)?(\d{1,2})(?:\s+(?:thang\s+(\d{1,2})|thang\s+(nay|truoc)))?/i);
+  if (dayRangeMatch && !t.includes('/')) {
+    const d1 = parseInt(dayRangeMatch[1], 10);
+    const d2 = parseInt(dayRangeMatch[2], 10);
+    const monthGroup = dayRangeMatch[3];
+    const monthWord = dayRangeMatch[4];
+    let y = now.getFullYear();
+    let m = now.getMonth() + 1;
+    if (monthGroup) {
+      m = parseInt(monthGroup, 10);
+    } else if (monthWord === 'truoc') {
+      m -= 1;
+      if (m === 0) {
+        m = 12;
+        y -= 1;
+      }
+    }
+    const from = new Date(y, m - 1, d1, 0, 0, 0);
+    const to = new Date(y, m - 1, d2, 23, 59, 59);
+    return {
+      period_label: label('Tùy chọn', from, to),
+      from: fmt(from),
+      to: fmt(to),
+      granularity: 'custom'
+    };
+  }
 
   const customRangeMatch = t.match(/tu(?: ngay)?\s+(\d{1,2})[\/\-.](\d{1,2})(?:[\/\-.](\d{4}))?\s+den(?: ngay)?\s+(\d{1,2})[\/\-.](\d{1,2})(?:[\/\-.](\d{4}))?/i);
   if (customRangeMatch) {
@@ -340,28 +374,7 @@ function getCategoryLabelVi(catCode) {
   return VI_CATEGORY_LABELS[catCode] || catCode || 'chi tiêu';
 }
 
-function getPreviousPeriodRange(fromStr, toStr, granularity) {
-  const from = new Date(fromStr);
-  const to = new Date(toStr);
-  const prevFrom = new Date(from);
-  const prevTo = new Date(to);
 
-  if (granularity === 'week') {
-    prevFrom.setDate(prevFrom.getDate() - 7);
-    prevTo.setDate(prevTo.getDate() - 7);
-  } else if (granularity === 'day') {
-    prevFrom.setDate(prevFrom.getDate() - 1);
-    prevTo.setDate(prevTo.getDate() - 1);
-  } else if (granularity === 'month') {
-    prevFrom.setMonth(prevFrom.getMonth() - 1);
-    prevTo.setMonth(prevTo.getMonth() - 1);
-  } else {
-    const diffMs = to.getTime() - from.getTime();
-    prevFrom.setTime(prevFrom.getTime() - diffMs);
-    prevTo.setTime(prevTo.getTime() - diffMs);
-  }
-  return { from: prevFrom.toISOString(), to: prevTo.toISOString() };
-}
 
 async function getHighestTransactions(userId, from, to) {
   const values = [userId, from, to];
@@ -421,7 +434,7 @@ async function getHighestTransactionOnDay(userId, dayStr) {
   return null;
 }
 
-async function executeReport(userId, { timeRange, categoryCode, reportKind, text, actionDetails } = {}) {
+async function executeReport(userId, { timeRange, categoryCode, reportKind, text, actionDetails, walletId } = {}) {
   let range;
   let customPrevRange = null;
 
@@ -448,11 +461,13 @@ async function executeReport(userId, { timeRange, categoryCode, reportKind, text
     }
   } else if (timeRange && typeof timeRange === 'object' && timeRange.from) {
     range = timeRange;
+  } else if (typeof timeRange === 'string') {
+    range = inferTimeRangeFromText(timeRange) || inferTimeRangeFromText(text || '');
   } else {
     range = inferTimeRangeFromText(text || '');
   }
 
-  const dash = await statsService.dashboard(userId, { from: range.from, to: range.to, walletId: payload.walletId || undefined });
+  const dash = await statsService.dashboard(userId, { from: range.from, to: range.to, walletId: walletId || undefined });
   const kind = reportKind || detectReportKind(text, null);
   const resolvedCategory = resolveCategoryCode(categoryCode, actionDetails, text);
   const multipleCategories = resolveMultipleCategoryCodes(text || '');
@@ -477,7 +492,7 @@ async function executeReport(userId, { timeRange, categoryCode, reportKind, text
            AND type = 'income'
          GROUP BY COALESCE(category_code, 'Others')
          ORDER BY total DESC`,
-        [userId, range.from, range.to, payload.walletId || null]
+        [userId, range.from, range.to, walletId || null]
       );
       byCategory = r.rows.map((row) => ({
         categoryCode: row.category_code,
@@ -498,7 +513,7 @@ async function executeReport(userId, { timeRange, categoryCode, reportKind, text
            AND ($4::uuid IS NULL OR t.wallet_id = $4::uuid)
            AND t.occurred_at BETWEEN $2 AND $3
            AND category_code = 'Saving'`,
-        [userId, range.from, range.to, payload.walletId || null]
+        [userId, range.from, range.to, walletId || null]
       );
       totalExpense = Number(r.rows[0].total);
       txCount = r.rows[0].count;
@@ -751,7 +766,16 @@ async function executeReport(userId, { timeRange, categoryCode, reportKind, text
 async function executeSetLimit(userId, payload) {
   const actionDetails = payload.actionDetails || {};
   const amount = resolveAmount(payload, actionDetails);
-  if (!amount) throw ApiError.badRequest('Thiếu số tiền hạn mức.');
+  
+  if (!amount) {
+    return {
+      kind: 'missing_slots',
+      action_type: 'SET_LIMIT',
+      missing: ['amount'],
+      current_slots: { amount: null },
+      message: 'Mimo chưa rõ hạn mức là bao nhiêu nè?'
+    };
+  }
 
   const categoryCode = resolveCategoryCode(payload.categoryCode, actionDetails, payload.text);
   const walletId = payload.walletId || null;
@@ -808,13 +832,33 @@ async function executeSetLimit(userId, payload) {
 
 async function executeSetGoal(userId, payload) {
   const actionDetails = payload.actionDetails || {};
-  const toolType = payload.toolType || actionDetails.tool_type || actionDetails.toolType || null;
+  let goalName = actionDetails.goal_name || payload.goalName || null;
+  if (!goalName && payload.text) {
+    const m = payload.text.match(/(?:mục tiêu|muc tieu|thử thách|thu thach|quỹ|quy)\s+([A-Za-zÀ-ỹ\s]+?)(?:\s+\d+|\s*$)/i);
+    if (m) goalName = m[1].trim();
+  }
   const amount = resolveAmount(payload, actionDetails);
+  
+  const missing = [];
+  if (!goalName) missing.push('goal_name');
+  if (!amount) missing.push('amount');
+  
+  if (missing.length > 0) {
+    return {
+      kind: 'missing_slots',
+      action_type: 'SET_GOAL',
+      missing: missing,
+      current_slots: { goal_name: goalName, amount: amount },
+      message: `Thiếu ${missing.map(m => m === 'amount' ? 'số tiền' : 'tên mục tiêu').join(' và ')}.`
+    };
+  }
+
+  const toolType = payload.toolType || actionDetails.tool_type || actionDetails.toolType || null;
   const verb = String(payload.verb || actionDetails.verb || '').toUpperCase();
   const actionType = String(payload.actionType || '').toUpperCase();
   const isAddAction = verb === 'ADD' || actionType === 'ADD_GOAL';
 
-  if (!amount) throw ApiError.badRequest('Thiếu số tiền.');
+
 
   // Handle LOAN
   if (toolType === 'loan' || payload.contactName || actionDetails.contact_name || actionDetails.loan_type) {
@@ -874,7 +918,7 @@ async function executeSetGoal(userId, payload) {
   }
 
   // Handle GOAL (saving/challenge)
-  const goalName = payload.goalName || actionDetails.goal_name || actionDetails.goalName || 'Mục tiêu tiết kiệm';
+  if (!goalName) goalName = payload.goalName || actionDetails.goal_name || actionDetails.goalName || 'Mục tiêu tiết kiệm';
   let goalType = 'saving_personal';
   if (toolType === 'saving_group' || payload.isGroup || actionDetails.is_group || actionDetails.isGroup) {
     goalType = 'saving_group';
@@ -1043,7 +1087,7 @@ async function executeSetTone(userId, payload) {
   // Check premium requirement
   const isPremiumStyle = ['kho_tinh', 'ngot_ngao'].includes(style);
   if (isPremiumStyle) {
-    const { query } = require('../db');
+    const { query } = require('../../config/db');
     const userRes = await query('SELECT is_premium FROM users WHERE id = $1', [userId]);
     const isPremium = userRes.rows[0]?.is_premium;
     if (!isPremium) {
@@ -1057,7 +1101,7 @@ async function executeSetTone(userId, payload) {
   }
 
   // Check current verbal style
-  const { query: checkQuery } = require('../db');
+  const { query: checkQuery } = require('../../config/db');
   const currentSettings = await checkQuery('SELECT verbal_style FROM user_settings WHERE user_id = $1', [userId]);
   const currentStyle = currentSettings.rows[0]?.verbal_style || 'dui_de';
 
@@ -1091,14 +1135,7 @@ async function executeSearch(userId, payload) {
   const details = payload.actionDetails || {};
   const slots = payload.slots || payload.nlu?.slots || {};
   let q = (payload.query || slots.query || slots.item || details.query || details.item || '').trim();
-  let usedFallback = false;
-  if (!q && payload.text) {
-    usedFallback = true;
-    q = payload.text
-      .replace(/^(tim|tìm|kiem|kiểm)\s*(các\s*)?(giao\s*dich|giao\s*dịch|khoan|khoản)\s*/i, '')
-      .replace(/\b(tren|trên|duoi|dưới)\s+\d[\d.,kkmtr]*\s*(dong|đ|đồng)?\b/gi, '')
-      .trim();
-  }
+
   const minAmount = payload.amount ?? slots.amount ?? details.amount ?? (payload.minAmount ? Number(payload.minAmount) : resolveAmount(payload, details));
   const categoryCode = resolveCategoryCode(payload.categoryCode || slots.category, details, payload.text);
 
@@ -1116,12 +1153,12 @@ async function executeSearch(userId, payload) {
     }
     q = qNorm;
   }
-  const limit = Math.min(Number(payload.limit) || 5, 10);
+
+  const limit = Math.min(Number(payload.limit) || 10, 50);
 
   const values = [userId];
   let where = `t.is_deleted = FALSE
-    AND t.wallet_id IN (SELECT wallet_id FROM wallet_members WHERE user_id = $1)
-           AND ($4::uuid IS NULL OR t.wallet_id = $4::uuid)`;
+    AND t.wallet_id IN (SELECT wallet_id FROM wallet_members WHERE user_id = $1)`;
 
   if (payload.walletId) {
     values.push(payload.walletId);
@@ -1132,7 +1169,15 @@ async function executeSearch(userId, payload) {
     where += ` AND t.category_code = $${values.length}`;
   }
   
-  const timeRange = payload.timeRange || inferTimeRangeFromText(payload.text || '');
+  let timeRange = null;
+  if (payload.timeRange && typeof payload.timeRange === 'object' && payload.timeRange.from) {
+    timeRange = payload.timeRange;
+  } else if (typeof payload.timeRange === 'string') {
+    timeRange = inferTimeRangeFromText(payload.timeRange) || inferTimeRangeFromText(payload.text || '');
+  } else {
+    timeRange = inferTimeRangeFromText(payload.text || '');
+  }
+
   if (timeRange && timeRange.from && timeRange.to) {
     values.push(timeRange.from, timeRange.to);
     where += ` AND t.occurred_at >= $${values.length - 1} AND t.occurred_at <= $${values.length}`;
@@ -1148,13 +1193,6 @@ async function executeSearch(userId, payload) {
       where += ` AND t.amount >= $${values.length}`;
     }
   }
-  
-  if (usedFallback && q.split(' ').length > 4) {
-    // If the query is conversational and long, and we found a category, ignore the text for exact ILIKE matching
-    if (categoryCode) {
-      q = '';
-    }
-  }
 
   if (q && !q.includes('>') && !q.includes('<')) {
     values.push(`%${q.slice(0, 80)}%`);
@@ -1163,13 +1201,15 @@ async function executeSearch(userId, payload) {
 
   values.push(limit);
   const r = await query(
-    `SELECT t.id, t.amount, t.note, t.category_code, t.occurred_at, t.type
+    `SELECT t.id, t.amount, t.note, t.category_code, t.occurred_at, t.type, COUNT(*) OVER() as full_count
      FROM transactions t
      WHERE ${where}
      ORDER BY t.occurred_at DESC
      LIMIT $${values.length}`,
     values
   );
+
+  const total = r.rows.length > 0 ? Number(r.rows[0].full_count) : 0;
 
   const items = r.rows.map((row) => ({
     id: row.id,
@@ -1183,10 +1223,10 @@ async function executeSearch(userId, payload) {
   return {
     kind: 'search',
     items,
-    total: items.length,
+    total,
     message:
-      items.length > 0
-        ? `🔍 Tìm thấy ${items.length} giao dịch phù hợp.`
+      total > 0
+        ? `🔍 Tìm thấy ${total} giao dịch phù hợp.`
         : '🔍 Không tìm thấy giao dịch nào phù hợp.',
   };
 }
@@ -1240,7 +1280,12 @@ async function executeAction(userId, payload) {
 
 async function executeSetUsername(userId, payload) {
   const actionDetails = payload.actionDetails || {};
-  const newName = actionDetails.value || payload.username || (payload.text ? extractNameFromText(payload.text) : null);
+  let newName = (payload.text ? extractNameFromText(payload.text) : null) || actionDetails.value || payload.username;
+  
+  if (newName) {
+    newName = newName.replace(/^(?:thành|thanh|là|la)\s+/i, '').trim();
+  }
+  
   if (!newName) throw ApiError.badRequest('Không tìm thấy tên cần đổi.');
 
   const authService = require('../auth/auth.service');
@@ -1253,7 +1298,8 @@ async function executeSetUsername(userId, payload) {
 }
 
 function extractNameFromText(text) {
-  const m = text.match(/(?:gọi|goi)\s+(?:mình|tớ|tớ là|tôi|cậu là|anh là|chị là|em là|la|là)\s+([A-ZẮẰẲẴẶẤẦẨẪẬẾỀỂỄỆỐỒỔỖỘỚỜỞỠỢỨỪỬỮỰÝỲỶỸÝa-zA-Zàáâãèéêìíòóôõùúăđĩũơưđ\s]+)/i) ||
+  const m = text.match(/(?:tên|ten|gọi|goi).*(?:la|là|thành|thanh)\s+([A-ZẮẰẲẴẶẤẦẨẪẬẾỀỂỄỆỐỒỔỖỘỚỜỞỠỢỨỪỬỮỰÝỲỶỸÝa-zA-Zàáâãèéêìíòóôõùúăđĩũơưđ\s]+)/i) ||
+    text.match(/(?:gọi|goi)\s+(?:mình|tớ|tớ là|tôi|cậu là|anh là|chị là|em là|la|là)\s+([A-ZẮẰẲẴẶẤẦẨẪẬẾỀỂỄỆỐỒỔỖỘỚỜỞỠỢỨỪỬỮỰÝỲỶỸÝa-zA-Zàáâãèéêìíòóôõùúăđĩũơưđ\s]+)/i) ||
     text.match(/(?:tên|ten)\s+(?:mình|tớ|tôi|la|là)\s+([A-ZẮẰẲẴẶẤẦẨẪẬẾỀỂỄỆỐỒỔỖỘỚỜỞỠỢỨỪỬỮỰÝỲỶỸÝa-zA-Zàáâãèéêìíòóôõùúăđĩũơưđ\s]+)/i);
   return m ? m[1].trim() : null;
 }
@@ -1618,6 +1664,46 @@ function generateGoalRecapCommentary(goalData = {}, userProfile = {}) {
   };
 }
 
+function checkMissingSlots(actionType, payload, actionDetails) {
+  const missing = [];
+  const t = String(actionType || '').toUpperCase();
+  
+  if (t.includes('GOAL')) {
+    let goalName = actionDetails?.goal_name || payload.goalName || null;
+    if (!goalName && payload.text) {
+      const m = payload.text.match(/(?:mục tiêu|muc tieu|thử thách|thu thach|quỹ|quy)\s+([A-Za-zÀ-ỹ\s]+?)(?:\s+\d+|\s*$)/i);
+      if (m) goalName = m[1].trim();
+    }
+    const amount = resolveAmount(payload, actionDetails);
+    
+    if (!goalName) missing.push('goal_name');
+    if (!amount) missing.push('amount');
+    
+    if (missing.length > 0) {
+      return {
+        kind: 'missing_slots',
+        action_type: actionType,
+        missing,
+        current_slots: { goal_name: goalName, amount },
+        message: `Mimo cần bổ sung thêm thông tin: ${missing.map(m => m === 'amount' ? 'số tiền' : 'tên mục tiêu').join(' và ')}.`
+      };
+    }
+  } else if (t.includes('LIMIT')) {
+    const amount = resolveAmount(payload, actionDetails);
+    if (!amount) {
+      return {
+        kind: 'missing_slots',
+        action_type: actionType,
+        missing: ['amount'],
+        current_slots: { amount },
+        message: 'Mimo chưa rõ hạn mức là bao nhiêu nè?'
+      };
+    }
+  }
+  
+  return null;
+}
+
 module.exports = {
   isReportAction,
   inferTimeRangeFromText,
@@ -1639,7 +1725,7 @@ module.exports = {
   buildActionSignature,
   needsConfirm,
   actionPreviewLabel,
-  resolveCategoryCode,
   resolveAmount,
   generateGoalRecapCommentary,
+  checkMissingSlots,
 };

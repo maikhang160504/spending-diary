@@ -9,6 +9,7 @@ import '../../theme/app_radii.dart';
 import '../../theme/app_spacing.dart';
 import '../../utils/formatters.dart';
 import '../../services/api_client.dart';
+import '../../services/transaction_notifier.dart';
 import '../../theme/categories.dart';
 import '../../widgets/loading_indicator.dart';
 
@@ -28,6 +29,17 @@ class _HomeGalleryScreenState extends State<HomeGalleryScreen> {
   void initState() {
     super.initState();
     _loadStories();
+    transactionNotifier.addListener(_onTransactionChanged);
+  }
+
+  @override
+  void dispose() {
+    transactionNotifier.removeListener(_onTransactionChanged);
+    super.dispose();
+  }
+
+  void _onTransactionChanged() {
+    if (mounted) _loadStories();
   }
 
   Future<void> _loadStories() async {

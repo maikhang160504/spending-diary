@@ -1,0 +1,1 @@
+1. sửa webprompt, kiểm tra các action ở app, kiểm tra luồn của accept ảnh hóa đơn ở retrain, và ở các phần modal, các luồn retrain cần kiểm tra và sửa chưa

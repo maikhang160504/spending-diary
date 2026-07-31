@@ -91,8 +91,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
             'dui_de';
         if (dbStyle == 'funny') dbStyle = 'dui_de';
         if (dbStyle == 'gentle') dbStyle = 'ngot_ngao';
-        if (dbStyle == 'serious' || dbStyle == 'sarcastic')
+        if (dbStyle == 'serious' || dbStyle == 'sarcastic') {
           dbStyle = 'kho_tinh';
+        }
 
         _verbalStyle = dbStyle;
         _selectedPersonality = _verbalStyle == 'dan_doi'
@@ -1088,8 +1089,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                             if (style == _verbalStyle) return;
                                             if ((style == 'kho_tinh' ||
                                                     style == 'ngot_ngao') &&
-                                                !_isPremium)
+                                                !_isPremium) {
                                               return;
+                                            }
                                             final prev = _verbalStyle;
                                             await AiStyleCardFlipTransition.run(
                                               context: context,
@@ -1497,42 +1499,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       },
     );
   }
-
-  Widget _buildBenefitRow(
-    BuildContext context,
-    IconData icon,
-    String title,
-    String subtitle,
-  ) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, color: const Color(0xFFFFB347), size: 28),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: Theme.of(
-                  context,
-                ).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                subtitle,
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(color: AppColors.muted),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
   Color _avatarColor(String name) {
     if (name.isEmpty) return AppColors.teal;
     final hash = name.codeUnits.fold<int>(0, (prev, c) => prev + c);

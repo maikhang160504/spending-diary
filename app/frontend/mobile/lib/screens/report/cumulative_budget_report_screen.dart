@@ -193,11 +193,11 @@ class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScr
                             onNext: _periodOffset > 0 ? () { setState(() => _periodOffset--); _loadReportData(); } : null,
                           ),
                           // Filter 3: Ví chips
-                          _buildWalletSelectorBarCompact(),
+                          if (!isLandscapePhone) _buildWalletSelectorBar()
+                          else _buildWalletSelectorBarCompact(),
                         ],
                       ),
                     ),
-                    if (!isLandscapePhone) _buildWalletSelectorBar(),
                     // ── Content ───────────────────────────────────────────
                     Expanded(
                       child: SingleChildScrollView(
