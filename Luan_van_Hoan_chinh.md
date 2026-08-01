@@ -67,186 +67,208 @@ Mục tiêu thứ ba là đảm bảo tính chính xác và toàn vẹn cho dữ
 
 ### 4. Đối tượng và phạm vi nghiên cứu
 
-Đề tài này hướng đến phục vụ đối tượng chính là nhóm người dùng trẻ tại Việt Nam, đặc biệt là các bạn sinh viên hay người mới đi làm có nhu cầu theo dõi thu chi hàng ngày nhưng lại lười sử dụng các ứng dụng ghi chép truyền thống. Về phía công nghệ, em tập trung nghiên cứu các kỹ thuật học sâu dùng để xử lý ngôn ngữ và nhận dạng văn bản trên ảnh, kết hợp với hệ quản trị cơ sở dữ liệu phân tán CockroachDB để bảo vệ an toàn cho các giao dịch.
+#### 4.1. Đối tượng nghiên cứu
 
-Phạm vi của đề tài được giới hạn ở việc quản lý các khoản tiêu xài cá nhân hoặc dùng chung trong một nhóm nhỏ như gia đình, bạn bè chơi chung. Em chỉ tập trung giải quyết bài toán hóa đơn bán lẻ tại Việt Nam và các câu nói giao tiếp bằng tiếng Việt hằng ngày. Hệ thống sẽ không mở rộng sang các chức năng phức tạp như kế toán doanh nghiệp, tính thuế thu nhập hay phân tích biểu đồ chứng khoán để giữ cho ứng dụng luôn đơn giản và đúng với mục đích ban đầu.
+Đề tài hướng đến phục vụ đối tượng chính là nhóm người dùng trẻ tại Việt Nam, đặc biệt là sinh viên và người mới đi làm. Đây là nhóm có nhu cầu quản lý tài chính cá nhân cao nhưng thường gặp khó khăn trong việc duy trì thói quen ghi chép do trở ngại từ các bước nhập liệu thủ công của ứng dụng truyền thống.
+
+Về mặt công nghệ, đề tài tập trung nghiên cứu và ứng dụng các kỹ thuật học sâu tiên tiến. Trong lĩnh vực xử lý ngôn ngữ tự nhiên, đối tượng nghiên cứu là mô hình ngôn ngữ lớn Qwen 2.5 để phân tích câu lệnh tiếng Việt. Đối với xử lý hình ảnh, đề tài khảo sát kiến trúc LayoutLMv3 kết hợp cùng VietOCR nhằm nhận dạng thông tin từ hóa đơn. Bên cạnh đó, hệ thống cũng ứng dụng cơ sở dữ liệu PostgreSQL để đảm bảo tính an toàn và toàn vẹn cho các dữ liệu giao dịch.
+
+#### 4.2. Phạm vi nghiên cứu
+
+Về mặt nghiệp vụ, phạm vi của ứng dụng được giới hạn ở việc quản lý các khoản chi tiêu cá nhân hoặc các giao dịch dùng chung trong một nhóm nhỏ như gia đình và nhóm bạn bè. Hệ thống không mở rộng sang các nghiệp vụ tài chính phức tạp như kế toán doanh nghiệp, tính thuế thu nhập hay phân tích biểu đồ chứng khoán, nhằm giữ cho ứng dụng luôn đơn giản và đúng với định hướng thân thiện với người dùng phổ thông.
+
+Về mặt dữ liệu đầu vào, nghiên cứu chỉ tập trung xử lý các câu giao tiếp bằng tiếng Việt thông dụng hằng ngày, bao gồm cả từ lóng và cách viết tắt phổ biến của giới trẻ. Đối với tính năng chụp ảnh, hệ thống chỉ giới hạn giải quyết bài toán trích xuất dữ liệu từ các loại hóa đơn bán lẻ đặc thù tại thị trường Việt Nam.
 
 ### 5. Phương pháp nghiên cứu
 
-Để xây dựng được bộ não thông minh cho ứng dụng, em đã tự mình thu thập, làm sạch và dán nhãn một tập dữ liệu tiếng Việt chuyên biệt chứa rất nhiều từ lóng. Với hình ảnh hóa đơn, em dùng các tập dữ liệu có sẵn trên mạng kết hợp với việc tự chụp các hóa đơn thật ở các cửa hàng tiện lợi, sau đó viết thuật toán chỉnh lại góc nghiêng và làm nét ảnh để máy tính dễ đọc hơn. Hiệu quả của các mô hình này được em đánh giá và đo lường trực tiếp bằng các chỉ số kỹ thuật cụ thể.
+Để xây dựng hệ thống trí tuệ nhân tạo, đề tài tiến hành thu thập, làm sạch và dán nhãn một tập dữ liệu tiếng Việt chuyên biệt, đặc biệt tập trung vào các câu lệnh giao tiếp hằng ngày có tần suất xuất hiện từ lóng cao nhằm phân loại ý định (intent) và trích xuất thực thể (slot). Đối với dữ liệu hình ảnh, nghiên cứu kết hợp các tập dữ liệu mã nguồn mở với hình ảnh hóa đơn thực tế được thu thập tại các cửa hàng bán lẻ. Dữ liệu này sau đó đi qua bước tiền xử lý bằng thuật toán tự động nhận diện và xoay góc nghiêng, giúp mô hình LayoutLMv3 dễ dàng trích xuất thông tin bố cục. Hiệu quả của các mô hình được đánh giá thông qua các chỉ số kỹ thuật tiêu chuẩn như độ chính xác (Accuracy) và điểm F1-Score.
 
-Về cách làm phần mềm, em áp dụng phương pháp phát triển linh hoạt. Hệ thống được chia nhỏ ra thành nhiều phần việc khác nhau, lập trình xong phần nào thì kiểm tra và chạy thử phần đó ngay. Nhờ cách làm này, em có thể đảm bảo ứng dụng luôn chạy ổn định, tải dữ liệu nhanh và vẫn lưu giữ thông tin an toàn ngay cả khi mạng điện thoại bị chập chờn.
+Về phương pháp phát triển phần mềm, đề tài áp dụng mô hình phát triển linh hoạt (Agile). Toàn bộ hệ thống được phân chia thành các module độc lập như giao diện di động (Flutter), máy chủ xử lý (Node.js) và bộ máy AI (Python). Từng module được lập trình, tích hợp và kiểm thử liên tục theo từng giai đoạn. Nhờ phương pháp này kết hợp với cơ chế lưu trữ đệm (cache) phía ứng dụng di động, hệ thống đảm bảo khả năng vận hành ổn định, duy trì tốc độ phản hồi nhanh và bảo toàn dữ liệu ngay cả khi kết nối mạng không ổn định.
 
+### 6. Bố cục luận văn
+
+Luận văn được chia thành ba phần chính, đi kèm tài liệu tham khảo và phụ lục. Cấu trúc cụ thể như sau:
+
+PHẦN 1: GIỚI THIỆU
+Trình bày tổng quan về đề tài bao gồm: đặt vấn đề, mục tiêu, đối tượng, phạm vi, phương pháp nghiên cứu và bố cục luận văn.
+
+PHẦN 2: NỘI DUNG NGHIÊN CỨU VÀ TRIỂN KHAI
+Phần cốt lõi của luận văn, bao gồm 4 chương:
+- Chương 1: Tổng quan đề tài. Phân tích bài toán, mô tả kiến trúc tổng quát và các đặc tả yêu cầu của hệ thống.
+- Chương 2: Cơ sở lý thuyết. Khảo sát các giải pháp hiện tại và tổng hợp nền tảng công nghệ về trí tuệ nhân tạo (LLM, LayoutLMv3, OCR).
+- Chương 3: Thiết kế và cài đặt. Trình bày chi tiết kiến trúc hệ thống, quy trình xử lý thông tin, cơ chế trợ lý ảo Mimo và quá trình xây dựng ứng dụng.
+- Chương 4: Kiểm thử và đánh giá. Đánh giá thực nghiệm hiệu năng hệ thống qua các chỉ số định lượng (Accuracy, F1-Score) và thảo luận kết quả đạt được.
+
+PHẦN 3: KẾT LUẬN VÀ HƯỚNG PHÁT TRIỂN
+Tổng kết các đóng góp thực tiễn của đề tài, đồng thời đề xuất hướng tối ưu hóa và mở rộng tính năng trong tương lai.
 ---
 
 # PHẦN 2: NỘI DUNG NGHIÊN CỨU VÀ TRIỂN KHAI
 
 # CHƯƠNG 1. TỔNG QUAN ĐỀ TÀI VÀ ĐẶC TẢ YÊU CẦU
 
-### 1.1. Mô tả đề tài
+### 1.1. Mô tả tổng quan và kiến trúc đề xuất
 
-Đề tài tập trung vào việc thiết kế và xây dựng một hệ thống phần mềm khép kín mang tên Spending Diary. Hệ thống này được chia thành hai phần chính: một ứng dụng trên điện thoại di động (App) phục vụ người dùng cuối, và một trang web quản trị (WebAdmin) phục vụ người điều hành hệ thống. 
+Đề tài tập trung thiết kế và phát triển hệ sinh thái phần mềm quản lý tài chính cá nhân mang tên Spending Diary. Đây là một hệ thống khép kín ứng dụng trí tuệ nhân tạo để tự động hóa quy trình ghi chép thu chi hằng ngày, giúp thay thế hoàn toàn phương pháp nhập liệu thủ công truyền thống. Hệ thống được tổ chức thành một chuỗi các dịch vụ tương tác chặt chẽ với nhau, bao gồm hai điểm chạm chính là ứng dụng di động dành cho người dùng cuối và trang web dành riêng cho quản trị viên. Toàn bộ kiến trúc được phân tầng rõ ràng nhằm đảm bảo tính ổn định, khả năng mở rộng và tính toàn vẹn của dữ liệu xuyên suốt quá trình vận hành.
 
-Ứng dụng trên điện thoại có nhiệm vụ giống như một cuốn sổ kế toán thông minh. Người dùng có thể nhắn tin với trợ lý ảo MiMo bằng lời nói tự nhiên hoặc dùng camera quét hóa đơn mua hàng. Ứng dụng sẽ tự động phân tích và tạo ra bản ghi thu chi thay vì bắt người dùng điền tay. Ứng dụng cung cấp các tính năng quản lý ngân sách cá nhân, quản lý quỹ chung với bạn bè, và tổng hợp biểu đồ báo cáo tài chính trực quan. Ngoài ra, ứng dụng còn hỗ trợ tính năng chụp ảnh màn hình giao dịch để chia sẻ lên các mạng xã hội.
+Ở tầng giao diện người dùng, ứng dụng di động đóng vai trò như một trợ lý kế toán cá nhân thông minh được phát triển trên nền tảng Flutter đa hệ điều hành. Người dùng bắt đầu bằng việc tạo tài khoản, đăng nhập an toàn và có thể nâng cấp lên các gói dịch vụ cao cấp để mở khóa toàn bộ trải nghiệm. Điểm nổi bật nhất của ứng dụng là khả năng ghi chép giao dịch tự động. Thay vì nhập số liệu thủ công, người dùng có thể tương tác trực tiếp với trợ lý ảo Mimo thông qua ngôn ngữ tự nhiên hoặc sử dụng máy ảnh để quét hóa đơn mua sắm. Hệ thống sẽ tự động phân tích ý định, bóc tách dữ liệu và khởi tạo các bản ghi thu chi hoàn chỉnh. Bên cạnh đó, ứng dụng cung cấp cơ chế quản lý ví tiền linh hoạt, cho phép người dùng theo dõi riêng rẽ các quỹ cá nhân hoặc chia sẻ ví dùng chung với nhiều thành viên khác. Để kiểm soát dòng tiền hiệu quả, tính năng quản lý ngân sách giúp người dùng thiết lập các hạn mức chi tiêu hàng tháng và tự động gửi cảnh báo khi có nguy cơ vượt hạn mức. Mọi lịch sử giao dịch đều được tổng hợp chi tiết qua các chế độ xem dạng danh sách, thẻ ảnh, lịch tháng hoặc các biểu đồ báo cáo tài chính trực quan. Nhằm tăng tính tương tác, ứng dụng còn hỗ trợ thiết kế và đóng gói các giao dịch thành thẻ ảnh sinh động để chia sẻ dễ dàng lên các nền tảng mạng xã hội.
 
-Trang web quản trị có nhiệm vụ giám sát và cải thiện hệ thống. Tại đây, quản trị viên có thể xem các báo cáo về số lượng người dùng mới và xử lý các đơn khiếu nại. Quan trọng nhất, WebAdmin cung cấp các công cụ trực quan để quản trị viên sửa lại các câu nói hoặc hình ảnh mà AI nhận diện sai, từ đó dạy lại (retrain) cho AI để hệ thống ngày càng thông minh hơn.
+Song song với trải nghiệm người dùng, trang web quản trị được xây dựng dựa trên thư viện React nhằm cung cấp một trung tâm kiểm soát toàn diện cho ban điều hành. Nền tảng này cho phép quản trị viên theo dõi sát sao biểu đồ tăng trưởng người dùng mới, kiểm duyệt các hành vi vi phạm và xử lý kịp thời các đơn khiếu nại. Quan trọng hơn, hệ thống quản trị tích hợp các công cụ dán nhãn dữ liệu trực quan chuyên sâu. Tại đây, đội ngũ quản trị có thể chủ động khoanh vùng sửa lỗi cho các hình ảnh hóa đơn bị mờ hoặc tinh chỉnh các câu lệnh mà AI phân loại sai ý định. Những dữ liệu đã được làm sạch này sẽ trở thành nguồn nguyên liệu quý giá để liên tục huấn luyện lại mô hình, giúp bộ não nhân tạo ngày càng nhạy bén. Đồng thời, nền tảng còn cung cấp quyền điều khiển để quản trị viên tùy chỉnh linh hoạt tính cách của trợ lý ảo Mimo, mang lại trải nghiệm giao tiếp tự nhiên và gần gũi hơn cho người dùng.
 
-Dưới đây là sơ đồ kiến trúc hệ thống tổng quan thể hiện sự tương tác giữa Mobile App, WebAdmin, máy chủ Node.js, máy chủ AI FastAPI và Cơ sở dữ liệu:
+Để liên kết và vận hành trơn tru hai nền tảng trên, kiến trúc hệ thống được chống đỡ bởi một tầng máy chủ mạnh mẽ và bảo mật. Tầng máy chủ trung tâm sử dụng Node.js kết hợp bộ khung Express để tiếp nhận và điều phối mọi luồng dữ liệu, xác thực quyền truy cập và bảo vệ hệ thống khỏi các yêu cầu độc hại. Mọi dữ liệu tài chính cốt lõi được lưu trữ an toàn tuyệt đối tại hệ quản trị cơ sở dữ liệu phân tán PostgreSQL tương thích với CockroachDB, trong khi các tệp phương tiện đa phương tiện được tối ưu hóa lưu trữ trên nền tảng đám mây Cloudflare R2. Nhằm đảm bảo hiệu suất tính toán, phần trí tuệ nhân tạo được cô lập thành một máy chủ độc lập sử dụng ngôn ngữ Python và bộ khung FastAPI. Tại cụm máy chủ này, mô hình ngôn ngữ lớn Qwen 2.5 và kiến trúc LayoutLMv3 phối hợp nhịp nhàng để giải quyết các bài toán phức tạp từ việc hiểu ngữ nghĩa câu lệnh tiếng Việt cho đến trích xuất thông tin bố cục đa phương thức từ hình ảnh hóa đơn.
 
-![Hình 1.1: Sơ đồ kiến trúc hệ thống tổng quan (System Architecture Diagram)](file:///d:/Luan-Van/Project/visualizations.jpg)
-*Sơ đồ minh họa mô hình tương tác Client-Server đa dịch vụ. Người dùng thao tác trên điện thoại, dữ liệu được truyền tới máy chủ Node.js để kiểm duyệt, sau đó được gửi sang cụm máy chủ FastAPI để phân tích trí tuệ nhân tạo, và cuối cùng được lưu trữ an toàn tại CockroachDB.*
+Dưới đây là sơ đồ kiến trúc tổng quan thể hiện luồng tương tác giữa các thành phần trong hệ sinh thái:
 
-### 1.2. Kiến trúc giải pháp và mô hình kỹ thuật đề xuất
+![Hình 1.1: Sơ đồ kiến trúc hệ thống tổng quan](file:///d:/Luan-Van/Project/system_architecture.png)
+Sơ đồ minh họa mô hình tương tác đa dịch vụ, nơi dữ liệu từ ứng dụng di động được chuyển đến máy chủ Node.js để kiểm duyệt, sau đó luân chuyển đến cụm máy chủ FastAPI để phân tích bằng trí tuệ nhân tạo và cuối cùng được lưu trữ an toàn tại cơ sở dữ liệu.
 
-Để xây dựng toàn bộ hệ sinh thái trên, hệ thống sử dụng một chuỗi các công nghệ hiện đại được phân chia rõ ràng theo từng tầng nghiệp vụ. 
+### 1.2. Phân tích yêu cầu chức năng
 
-Tầng Giao diện (Frontend) sử dụng khung lập trình **Flutter** để phát triển ứng dụng di động đa nền tảng, đảm bảo ứng dụng có thể chạy mượt mà trên cả hệ điều hành Android và iOS chỉ với một bộ mã nguồn duy nhất. Cổng quản trị WebAdmin được xây dựng bằng **React**, một thư viện mạnh mẽ giúp tải các biểu đồ dữ liệu lớn trên trình duyệt mà không bị giật lag.
+Dựa vào kiến trúc tổng thể, các yêu cầu của hệ thống được bóc tách và phân rã chi tiết thành bốn vùng độc lập. Việc phân rã này giúp xác định rõ giới hạn trách nhiệm của từng nền tảng phần mềm trong toàn bộ hệ sinh thái. Bảng 1.1 dưới đây định nghĩa cụ thể các yêu cầu chức năng cốt lõi mà hệ thống bắt buộc phải đáp ứng, chia theo từng phân hệ.
 
-Tầng Máy chủ (Backend) được lập trình bằng **Node.js** kết hợp với bộ khung **Express**. Máy chủ này đóng vai trò như người bảo vệ, tiếp nhận mọi yêu cầu từ điện thoại, xác thực danh tính người dùng, chặn các truy cập xấu, và phân phối công việc xuống các dịch vụ bên dưới. Mọi dữ liệu tài chính của người dùng sẽ được lưu vào **CockroachDB**, một hệ quản trị cơ sở dữ liệu phân tán có khả năng tự động sao lưu và bảo vệ số dư tài khoản an toàn tuyệt đối. Các tập tin như ảnh đại diện hay ảnh hóa đơn được lưu trên dịch vụ lưu trữ đám mây **Cloudflare R2**.
+Bảng 1.1: Bảng phân rã yêu cầu chức năng chi tiết theo từng phân hệ
 
-Tầng Trí tuệ nhân tạo (AI Layer) được cô lập thành một máy chủ riêng biệt viết bằng ngôn ngữ **Python** và bộ khung **FastAPI**. Tầng này chứa các mô hình học sâu như PhoBERT và LayoutLMv3, chuyên làm nhiệm vụ xử lý các phép toán phức tạp để bóc tách từ vựng tiếng Việt và đọc chữ trên hóa đơn.
+| Phân hệ kiến trúc | Chức năng cụ thể | Mô tả yêu cầu chi tiết |
+| :--- | :--- | :--- |
+| Người dùng trên app | Đăng ký và đăng nhập | Tạo tài khoản, xác thực thông tin đăng nhập và hỗ trợ khôi phục mật khẩu. |
+| Người dùng trên app | Nâng cấp tài khoản | Cho phép người dùng thanh toán trực tuyến để mở khóa các tính năng cao cấp. |
+| Người dùng trên app | Quản lý ví tiền | Tạo, chỉnh sửa, xóa các loại ví cá nhân hoặc tạo ví dùng chung với nhiều thành viên. |
+| Người dùng trên app | Ghi chép bằng trò chuyện | Nhắn tin bằng ngôn ngữ tự nhiên để trợ lý ảo tự động phân tích và ghi chép giao dịch. |
+| Người dùng trên app | Quét ảnh hóa đơn | Chụp ảnh hóa đơn mua sắm để hệ thống tự động nhận diện số tiền và danh mục chi tiêu. |
+| Người dùng trên app | Hỏi đáp thông minh | Nhắn tin hỏi trợ lý ảo về số dư tài chính hoặc xin lời khuyên tiết kiệm. |
+| Người dùng trên app | Cảnh báo ngân sách | Tự động báo động khi số tiền chi tiêu sắp vượt hạn mức đã đặt ra trong tháng. |
+| Người dùng trên app | Báo cáo và so sánh | Cung cấp biểu đồ thu chi, xem tổng kết cuối tháng và so sánh mức chi tiêu với cộng đồng. |
+| Quản trị trên web | Thống kê doanh thu | Giám sát biểu đồ tăng trưởng người dùng, tỷ lệ lỗi máy chủ và tổng doanh thu. |
+| Quản trị trên web | Quản lý người dùng | Tra cứu thông tin người dùng, duyệt khiếu nại và ra lệnh khóa các tài khoản vi phạm. |
+| Quản trị trên web | Dán nhãn dữ liệu ảnh | Công cụ vẽ khung chữ nhật để khoanh vùng lại các đoạn chữ trên hóa đơn bị nhận diện sai. |
+| Quản trị trên web | Tinh chỉnh tính cách AI | Đổi câu lệnh nền tảng để tùy chỉnh giọng điệu và cách nói chuyện của trợ lý ảo. |
+| Quản trị trên web | Ra lệnh huấn luyện AI | Kích hoạt quá trình huấn luyện lại mô hình học máy từ tập dữ liệu hóa đơn đã dán nhãn. |
+| Máy chủ backend | Kiểm soát truy cập | Xác thực chữ ký điện tử của người dùng, chặn truy cập trái phép và phân quyền dữ liệu. |
+| Máy chủ backend | Xử lý giao dịch | Tiếp nhận các bản ghi thu chi, tính toán số dư ví và lưu trữ an toàn vào cơ sở dữ liệu. |
+| Máy chủ backend | Đối chiếu ngân sách | Chạy thuật toán đối chiếu giao dịch với các giới hạn ngân sách để kích hoạt chuông cảnh báo. |
+| Máy chủ AI | Xử lý ngôn ngữ tự nhiên | Phân tích tin nhắn của người dùng để nhận diện đúng ý định và trích xuất thông số giao dịch. |
+| Máy chủ AI | Trích xuất hình ảnh | Áp dụng kỹ thuật thị giác máy tính để số hóa hóa đơn giấy thành các bản ghi tài chính. |
+| Máy chủ AI | Cập nhật trọng số mô hình | Tự động cập nhật các tệp trọng số mới vào bộ nhớ sau khi quá trình huấn luyện hoàn tất. |
 
-### 1.3. Phân tích yêu cầu chức năng
+### 1.3. Sơ đồ Use Case tổng quát
 
-Dựa vào mô hình kỹ thuật trên, các tính năng của hệ thống được tổng hợp và phân loại cụ thể theo hai nhóm đối tượng chính: người dùng trên điện thoại và ban quản trị trên web. Bảng 1.1 tóm tắt ngắn gọn các chức năng mà hệ thống cung cấp.
+Để có cái nhìn trực quan về cách các tác nhân tương tác với hệ thống, sơ đồ Use Case ở Hình 1.2 mô tả các hành động chính của người dùng cuối và quản trị viên.
 
-**Bảng 1.1: Bảng tổng hợp các chức năng cốt lõi của hệ thống**
-
-| Tên chức năng | Mô tả ngắn gọn |
-| :--- | :--- |
-| **Xác thực và Tài khoản** | Đăng ký, đăng nhập, quên mật khẩu và mua tài khoản Premium. |
-| **Ghi chép giao dịch** | Nhập chi tiêu bằng cách nhắn tin với trợ lý ảo hoặc chụp ảnh hóa đơn bán lẻ. |
-| **Quản lý Ví tiền** | Tạo và theo dõi các loại ví cá nhân hoặc ví dùng chung với nhiều thành viên. |
-| **Quản lý Ngân sách** | Đặt giới hạn số tiền được phép tiêu trong tháng và nhận thông báo cảnh báo. |
-| **Báo cáo và Lịch sử** | Xem lịch sử chi tiêu theo dạng danh sách, thẻ ảnh, hoặc dạng lịch tháng. Vẽ biểu đồ. |
-| **Chia sẻ mạng xã hội** | Đóng gói giao dịch thành định dạng ảnh trang trí sinh động để chia sẻ. |
-| **Quản lý Người dùng (Admin)** | Xem số lượng người dùng đăng ký mới, chặn người dùng vi phạm hoặc duyệt khiếu nại. |
-| **Dán nhãn dữ liệu (Admin)** | Công cụ trên trình duyệt giúp Admin khoanh vùng sửa lỗi ảnh hóa đơn hoặc sửa lỗi ý định câu nói. |
-| **Quản lý AI (Admin)** | Thay đổi tính cách trợ lý ảo và ra lệnh huấn luyện lại các mô hình AI. |
-
-### 1.4. Sơ đồ Use Case tổng quát
-
-Để có cái nhìn trực quan về cách các tác nhân tương tác với hệ thống, Sơ đồ Use Case (Hình 1.2) mô tả các hành động chính của người dùng cuối và quản trị viên.
-
-Người dùng chủ yếu tập trung vào các nghiệp vụ ghi chép, tra cứu sổ sách và nâng cấp tài khoản. Ngược lại, quản trị viên sử dụng hệ thống để thực hiện các nhiệm vụ đằng sau hậu trường như giám sát máy chủ, kiểm duyệt dữ liệu bị lỗi và tinh chỉnh mô hình máy học.
+Người dùng chủ yếu tương tác với hệ thống qua các nghiệp vụ liên quan đến tài khoản, ví tiền, ngân sách, ghi chép giao dịch, trò chuyện với AI và xem báo cáo. Ngược lại, quản trị viên điều hành hệ thống thông qua các công cụ theo dõi thống kê, quản lý người dùng, dán nhãn dữ liệu, tinh chỉnh tính cách và ra lệnh huấn luyện AI.
 
 ```mermaid
 flowchart LR
-    subgraph Tác_nhân
-        User(Người dùng)
-        Admin(Quản trị viên)
-    end
+    User([Người dùng])
+    Admin([Quản trị viên])
 
-    subgraph Hệ_thống_Spending_Diary
-        UC1(Ghi chép giao dịch)
-        UC2(Xem Báo cáo biểu đồ)
-        UC3(Quản lý Ngân sách và Ví tiền)
-        UC4(Nâng cấp Premium)
-        UC5(Quản lý Cộng đồng)
-        UC6(Sửa lỗi và Huấn luyện AI)
+    subgraph Hệ thống Spending Diary
+        UC1(Đăng ký và đăng nhập)
+        UC2(Nâng cấp tài khoản)
+        UC3(Quản lý ví tiền)
+        UC4(Ghi chép bằng trò chuyện)
+        UC5(Quét ảnh hóa đơn)
+        UC6(Hỏi đáp thông minh)
+        UC7(Cảnh báo ngân sách)
+        UC8(Báo cáo và so sánh)
+
+        UC9(Thống kê doanh thu)
+        UC10(Quản lý người dùng)
+        UC11(Dán nhãn dữ liệu ảnh)
+        UC12(Tinh chỉnh tính cách AI)
+        UC13(Ra lệnh huấn luyện AI)
     end
 
     User --> UC1
     User --> UC2
     User --> UC3
     User --> UC4
+    User --> UC5
+    User --> UC6
+    User --> UC7
+    User --> UC8
 
-    Admin --> UC5
-    Admin --> UC6
+    Admin --> UC9
+    Admin --> UC10
+    Admin --> UC11
+    Admin --> UC12
+    Admin --> UC13
 ```
 
-*Hình 1.2: Sơ đồ Use Case tổng quát thể hiện các cụm chức năng chính của người dùng và quản trị viên.*
+Hình 1.2: Sơ đồ Use Case tổng quát.
 
-*(Lưu ý: Đặc tả Use Case chi tiết từng bước, kịch bản ngoại lệ và tiền điều kiện của tất cả các chức năng được trình bày đầy đủ tại phần Phụ lục ở cuối luận văn).*
+Sơ đồ 1.2 bên trên mô tả trực quan cách các tác nhân tương tác với mười ba luồng nghiệp vụ cốt lõi của hệ thống. Toàn bộ các đặc tả Use Case chi tiết cho từng luồng này, bao gồm kịch bản ngoại lệ và tiền điều kiện, đều được đính kèm tại phần Phụ lục ở cuối luận văn.
 
-### 1.5. Yêu cầu phi chức năng
+### 1.4. Yêu cầu phi chức năng
 
-Để một ứng dụng tài chính được người dùng tin tưởng và sử dụng lâu dài, hệ thống phải đáp ứng các tiêu chuẩn kỹ thuật nghiêm ngặt. 
+Để một ứng dụng tài chính được người dùng tin tưởng và sử dụng lâu dài, hệ thống Spending Diary phải đáp ứng các tiêu chuẩn kỹ thuật khắt khe bên cạnh các tính năng cốt lõi.
 
-Về mặt hiệu năng, ứng dụng trên điện thoại phải mở lên nhanh chóng và chuyển trang mượt mà không bị giật lag. Khi người dùng gửi một đoạn tin nhắn cho trợ lý ảo, máy chủ phải phân tích và trả lời lại trong khoảng thời gian dưới 2 giây. 
+Về mặt hiệu năng, ứng dụng trên thiết bị di động cần tối ưu hóa thời gian khởi động và đảm bảo các thao tác chuyển đổi giao diện diễn ra mượt mà. Trong quá trình tương tác với trợ lý ảo, cụm máy chủ máy học phải phân tích ý định ngôn ngữ và phản hồi kết quả trong khoảng thời gian dưới hai giây để duy trì trải nghiệm liền mạch.
 
-Về tính bảo mật, toàn bộ mật khẩu người dùng phải được mã hóa một chiều trước khi lưu vào cơ sở dữ liệu. Ứng dụng phải có cơ chế nhận diện và tự động khóa các địa chỉ IP cố tình bấm nút liên tục để tấn công hệ thống (DDoS). 
+Về tính bảo mật, toàn bộ mật khẩu và thông tin xác thực của người dùng bắt buộc phải được mã hóa một chiều an toàn trước khi lưu trữ vào cơ sở dữ liệu. Hệ thống backend cũng cần được trang bị các cơ chế giám sát lưu lượng mạng nhằm tự động nhận diện và ngăn chặn các cuộc tấn công từ chối dịch vụ do gửi yêu cầu quá tải.
 
-Về độ tin cậy và khả năng mở rộng, hệ thống phải đảm bảo tính toàn vẹn của dữ liệu tiền bạc. Cơ sở dữ liệu phải tự động ngăn chặn việc tạo trùng lặp giao dịch nếu đường truyền mạng bị lỗi khiến người dùng bấm gửi hai lần. Kiến trúc các máy chủ phải được thiết kế độc lập để khi số lượng người dùng tăng đột biến, hệ thống có thể dễ dàng gắn thêm RAM và chip xử lý mà không phải đập bỏ mã nguồn cũ.
+Về độ tin cậy và khả năng mở rộng, hệ thống quản trị cơ sở dữ liệu phải đảm bảo tính toàn vẹn tuyệt đối cho dữ liệu tài chính. Ứng dụng cần có cơ chế chống tạo trùng lặp bản ghi trong các trường hợp đường truyền mạng gián đoạn khiến người dùng gửi một giao dịch nhiều lần. Hơn nữa, kiến trúc hệ thống phải được thiết kế phân tán độc lập, cho phép dễ dàng nâng cấp tài nguyên phần cứng khi tải trọng tăng cao mà không yêu cầu tái cấu trúc lại nền tảng mã nguồn hiện tại.
 
 # CHƯƠNG 2. CƠ SỞ LÝ THUYẾT VÀ CÔNG NGHỆ LIÊN QUAN
 
-Chương này sẽ trình bày các nền tảng lý thuyết và các công nghệ cốt lõi được sử dụng để xây dựng hệ thống Spending Diary. Nhằm đảm bảo tính trực quan và dễ tiếp cận, nội dung được trình bày dưới dạng các đoạn văn liên kết, bao hàm đầy đủ các yếu tố: khái niệm thực tế, mục đích sử dụng, luồng dữ liệu xử lý và ưu điểm chính, kèm theo các trích dẫn tài liệu tham khảo theo chuẩn IEEE.
+### 2.1. Tổng quan các công nghệ sử dụng
 
-Bảng 2.1 dưới đây tổng hợp toàn bộ các công nghệ chủ chốt mà đề tài đã sử dụng, phân loại theo từng phân hệ xử lý.
+Chương này sẽ trình bày các nền tảng lý thuyết và các công nghệ cốt lõi được sử dụng để xây dựng hệ thống Spending Diary. Nhằm đảm bảo tính trực quan và dễ tiếp cận, nội dung được trình bày dưới dạng các đoạn văn liên kết, bao hàm đầy đủ các yếu tố: khái niệm thực tế, mục đích sử dụng, luồng dữ liệu đầu vào và đầu ra, cùng ưu điểm chính của từng công nghệ.
 
-**Bảng 2.1: Bảng tổng hợp các công nghệ sử dụng trong hệ thống**
+Bảng 2.1: Bảng tổng hợp các công nghệ sử dụng trong hệ thống
 
 | Phân hệ xử lý | Công nghệ | Mô tả ngắn gọn |
 | :--- | :--- | :--- |
-| **Giao diện & Ứng dụng** | Flutter | Khung lập trình đa nền tảng để xây dựng ứng dụng di động. |
-| **Giao diện & Ứng dụng** | React | Thư viện JavaScript hỗ trợ xây dựng giao diện cổng quản trị web. |
-| **Kiến trúc Máy chủ** | Microservices | Kiến trúc chia nhỏ hệ thống thành các dịch vụ độc lập. |
-| **Giao tiếp Dữ liệu** | RESTful API | Tiêu chuẩn thiết kế giao diện lập trình ứng dụng phổ biến. |
-| **Máy chủ trung tâm** | Node.js & Express | Môi trường và khung làm việc giúp xử lý các yêu cầu máy chủ. |
-| **Cơ sở dữ liệu** | CockroachDB | Hệ quản trị cơ sở dữ liệu SQL phân tán giúp đảm bảo an toàn dữ liệu. |
-| **Máy chủ AI** | FastAPI | Khung lập trình tốc độ cao bằng Python phục vụ triển khai trí tuệ nhân tạo. |
-| **Thị giác máy tính (OCR)** | DBNet | Mô hình phát hiện khu vực văn bản trên hình ảnh. |
-| **Thị giác máy tính (OCR)** | VietOCR | Mô hình nhận dạng chuỗi ký tự chuyên sâu tiếng Việt. |
-| **Thị giác máy tính (OCR)** | LayoutLMv3 | Mô hình phân tích bố cục không gian đa phương thức. |
-| **Xử lý ngôn ngữ (NLU)** | PhoBERT | Mô hình ngôn ngữ tự nhiên tối ưu hóa riêng cho tiếng Việt. |
-| **Sinh văn bản tự nhiên** | Qwen 2.5 & LoRA | Mô hình ngôn ngữ lớn kết hợp phương pháp tinh chỉnh hạng thấp. |
-| **Bổ trợ tri thức AI** | RAG | Kiến trúc sinh văn bản tăng cường truy xuất thông tin từ cơ sở dữ liệu. |
-| **Giao tiếp & Lưu trữ** | WebSocket & R2 | Giao thức truyền tải thời gian thực (Real-time) và nền tảng lưu trữ đám mây. |
+| Giao diện người dùng | Flutter và React | Công cụ xây dựng giao diện cho ứng dụng di động và cổng quản trị Web. |
+| Kiến trúc phần mềm | Microservices | Kiến trúc chia nhỏ hệ thống thành các dịch vụ đám mây độc lập. |
+| Giao tiếp mạng | RESTful API và WebSocket | Tiêu chuẩn kết nối tĩnh và giao thức truyền tải thời gian thực. |
+| Máy chủ | Node.js và FastAPI | Môi trường xử lý luồng nghiệp vụ chính và triển khai AI. |
+| Lưu trữ dữ liệu | CockroachDB và Cloud R2 | Cơ sở dữ liệu phân tán an toàn và nền tảng lưu trữ hình ảnh đám mây. |
+| Thị giác máy tính | DBNet | Mạng phát hiện và định vị các khu vực chứa văn bản trên hình ảnh. |
+| Thị giác máy tính | VietOCR | Mô hình nhận dạng và dịch hình ảnh chữ viết sang văn bản tiếng Việt. |
+| Thị giác máy tính | LayoutLMv3 | Mô hình phân tích không gian và văn bản để trích xuất hóa đơn. |
+| Xử lý ngôn ngữ tự nhiên | PhoBERT | Mô hình học sâu chuyên phân tích cấu trúc ngữ pháp tiếng Việt. |
+| Trợ lý ảo AI | Qwen 2.5 | Mô hình ngôn ngữ lớn làm lõi tư vấn và sinh câu phản hồi tự nhiên. |
+| Tinh chỉnh mô hình | LoRA | Kỹ thuật tinh chỉnh gọn nhẹ giúp AI hiểu sâu nghiệp vụ tài chính. |
+| Bổ trợ tri thức | RAG | Kiến trúc ép AI trả lời dựa trên sự thật truy xuất từ cơ sở dữ liệu. |
 
-### 2.1. Nền tảng Kiến trúc và Máy chủ
+Bảng 2.1 ở trên tổng hợp 12 nhóm công nghệ và mô hình máy học nòng cốt tham gia vào toàn bộ vòng đời xử lý dữ liệu của dự án. Sự kết hợp này giúp hệ thống hoạt động ổn định và thông minh.
 
-#### 2.1.1. Kiến trúc Microservices
-Microservices là một phương pháp thiết kế phần mềm trong đó một hệ thống khổng lồ được chia nhỏ thành nhiều dịch vụ (services) hoạt động độc lập và liên lạc với nhau. Có thể ví kiến trúc này như một nhà hàng quy mô lớn: thay vì một nhân viên phải ôm đồm mọi việc từ nấu ăn, phục vụ đến tính tiền, nhà hàng sẽ chia ra từng khu vực chuyên biệt (bếp, bồi bàn, thu ngân) để vận hành trơn tru hơn [1]. Nghiên cứu lựa chọn Microservices để tách biệt hoàn toàn máy chủ xử lý dữ liệu trung tâm và máy chủ trí tuệ nhân tạo chuyên biệt. 
+### 2.2. Nền tảng kiến trúc và máy chủ
 
-Việc tách biệt này đảm bảo rằng khi mô hình AI đang bận rộn phân tích hình ảnh tốn nhiều thời gian, toàn bộ các chức năng khác của ứng dụng vẫn hoạt động mượt mà không bị treo hay giật lag. Về mặt luồng dữ liệu, hệ thống tiếp nhận các tác vụ tổng hợp từ phía người dùng, sau đó tự động phân chia và định tuyến (Routing) chúng tới đúng máy chủ chuyên biệt để xử lý độc lập trước khi tổng hợp kết quả trả về. Kiến trúc này mang lại ưu điểm vượt trội trong việc dễ dàng nâng cấp, bảo trì hoặc sửa lỗi một thành phần nhỏ mà không làm gián đoạn toàn bộ dịch vụ, đồng thời cho phép hệ thống mở rộng linh hoạt tài nguyên phần cứng, chẳng hạn như chỉ tăng sức mạnh cho máy chủ AI vào những lúc cao điểm [2].
+#### 2.2.1. Giao diện ứng dụng Flutter và React
+Flutter là khung lập trình do Google phát triển, cho phép viết mã một lần nhưng chạy mượt mà trên cả điện thoại Android và iOS [10]. Trong dự án này, Flutter được dùng làm đầu vào tiếp nhận mọi thao tác vuốt chạm, nhập liệu của người dùng trên điện thoại. Đầu ra của nó là các giao diện màn hình trực quan và các gói dữ liệu gửi lên máy chủ. Tương tự, React là thư viện để xây dựng giao diện cổng quản trị Web cho ban quản trị. Hai công nghệ này được chọn vì cộng đồng hỗ trợ lớn, giúp giao diện ứng dụng luôn giữ được sự mượt mà và thân thiện.
 
-#### 2.1.2. Tiêu chuẩn giao tiếp RESTful API
-RESTful API (Representational State Transfer Application Programming Interface - Giao diện lập trình ứng dụng truyền tải trạng thái) là tập hợp các quy tắc chuẩn mực để các phần mềm có thể giao tiếp với nhau qua môi trường Internet. Nó hoạt động giống như một cuốn từ điển quy định cách thức ứng dụng điện thoại "đặt câu hỏi" và "nhận câu trả lời" với máy chủ một cách thống nhất, sử dụng định dạng JSON (JavaScript Object Notation - định dạng dữ liệu dạng chuỗi dễ đọc và trao đổi) [3]. Trong hệ thống này, công nghệ RESTful API đóng vai trò làm cầu nối chuẩn hóa thông tin, giúp cả ứng dụng điện thoại và cổng quản trị web (Web Admin) đều có thể dùng chung một bộ quy tắc để trao đổi thông tin với máy chủ trung tâm một cách minh bạch.
+#### 2.2.2. Kiến trúc Microservices
+Microservices là một phương pháp thiết kế chia nhỏ một hệ thống khổng lồ thành nhiều dịch vụ hoạt động độc lập. Thay vì nhồi nhét mọi thứ vào một máy chủ duy nhất, hệ thống được chia thành máy chủ quản lý dữ liệu và máy chủ AI riêng biệt. Mục đích của việc này là để khi AI đang bận phân tích hóa đơn nặng nề, các thao tác ghi chép bình thường của người dùng khác vẫn không bị giật lag. Đầu vào của kiến trúc này là luồng dữ liệu khổng lồ từ người dùng, và đầu ra là sự phân luồng giao thông trơn tru đến đúng máy chủ cần thiết.
 
-Luồng giao tiếp bắt đầu khi người dùng thực hiện các yêu cầu kết nối mạng mang theo thông tin hành động, hệ thống sẽ tiếp nhận và trả về các phản hồi mang theo kết quả đã xử lý hoàn tất kèm theo mã trạng thái cụ thể. Nghiên cứu quyết định lựa chọn RESTful API bởi tính phổ biến toàn cầu, độ ổn định cực kỳ cao và khả năng tương thích tuyệt vời với hầu hết các thiết bị, hệ điều hành cũng như các trình duyệt web hiện đại ngày nay [4].
+#### 2.2.3. Máy chủ Node.js và FastAPI
+Node.js đóng vai trò là máy chủ trung tâm, chuyên tiếp nhận các yêu cầu đăng nhập, lưu giao dịch và điều phối dữ liệu. Nhờ cơ chế xử lý bất đồng bộ, Node.js có thể phục vụ hàng ngàn người dùng cùng lúc. Trong khi đó, FastAPI là một khung làm việc bằng Python [11], được sử dụng riêng để chạy các mô hình AI nặng nề do khả năng tính toán vượt trội của Python. Đầu vào của hai máy chủ này là các tín hiệu từ mạng internet, và đầu ra là dữ liệu tài chính đã qua xử lý để gửi trả về cho điện thoại.
 
-#### 2.1.3. Máy chủ trung tâm Node.js và Express
-Node.js là một môi trường thực thi mã nguồn máy chủ nổi tiếng, trong khi Express là một bộ khung hỗ trợ Node.js quản lý các đường dẫn mạng một cách nhanh chóng. Có thể hiểu Node.js là động cơ mạnh mẽ của một chiếc xe, còn Express là bảng điều khiển và tay lái giúp việc điều khiển chiếc xe đó trở nên dễ dàng và an toàn hơn [5]. Hệ thống sử dụng Node.js kết hợp cùng Express để xây dựng nên trái tim điều phối toàn bộ luồng giao thông dữ liệu của dự án. Phân hệ này chịu trách nhiệm tiếp nhận thông tin đăng nhập, kiểm tra tính hợp lệ bảo mật, xử lý logic ghi sổ và điều chuyển dữ liệu hình ảnh phức tạp sang máy chủ AI.
+#### 2.2.4. Giao tiếp RESTful API và WebSocket
+RESTful API là cuốn từ điển quy định cách thức điện thoại đặt câu hỏi và nhận câu trả lời với máy chủ một cách thống nhất. Đầu vào là một đường dẫn yêu cầu, và đầu ra là một gói dữ liệu định dạng JSON. Tuy nhiên, API chỉ hoạt động khi người dùng chủ động bấm nút. Do đó, hệ thống tích hợp thêm WebSocket là một đường ống kết nối liên tục hai chiều. Nhờ WebSocket, ngay khi AI phân tích xong hóa đơn, máy chủ có thể chủ động đẩy kết quả xuống điện thoại ngay lập tức mà người dùng không cần phải vuốt màn hình để tải lại.
 
-Đầu vào của hệ thống là các tín hiệu, yêu cầu truy vấn thông tin gửi từ ứng dụng phía người dùng cuối, được máy chủ phân tích để đưa ra các quyết định phản hồi, có thể là số liệu tài chính chi tiết hoặc cảnh báo lỗi hệ thống. Công nghệ này được ưu tiên lựa chọn nhờ vào cơ chế xử lý bất đồng bộ (Non-blocking I/O). Thay vì phải đứng chờ người dùng trước xử lý xong giao dịch mới phục vụ đến người tiếp theo, máy chủ có thể tiếp nhận hàng ngàn yêu cầu cùng lúc, giúp trải nghiệm sử dụng luôn giữ được sự trơn tru dù ở những thời điểm lưu lượng truy cập tăng vọt [6].
+#### 2.2.5. Lưu trữ CockroachDB và Cloud R2
+CockroachDB là hệ quản trị cơ sở dữ liệu phân tán hiện đại [9]. Dữ liệu tài chính không nằm trên một ổ cứng duy nhất mà được chia nhỏ, sao lưu rải rác trên nhiều máy tính. Mục đích là để nếu một máy chủ bị cháy hỏng, hệ thống vẫn an toàn tuyệt đối và không mất đi một đồng nào của người dùng. Đầu vào là thông tin thu chi dạng số, đầu ra là các bản báo cáo chính xác. Đối với dữ liệu hình ảnh, hệ thống sử dụng dịch vụ lưu trữ đám mây Cloud R2 để giữ cho cơ sở dữ liệu không bị quá tải.
 
-#### 2.1.4. Cơ sở dữ liệu phân tán CockroachDB
-CockroachDB là một hệ quản trị cơ sở dữ liệu hiện đại, được thiết kế với triết lý không bao giờ bị ngừng hoạt động. Dữ liệu thay vì nằm yên trên một ổ cứng duy nhất sẽ được tự động chia nhỏ và sao lưu rải rác trên nhiều máy tính khác nhau trong mạng lưới [7]. Hệ thống ứng dụng công nghệ này để lưu trữ mọi thông tin giao dịch, số dư tài khoản và thông tin cá nhân của người dùng, biến nó thành một két sắt an toàn tuyệt đối bảo vệ tài sản thông tin số.
+### 2.3. Phân hệ trí tuệ nhân tạo AI
 
-Quá trình vận hành bắt đầu từ việc tiếp nhận các thông tin ghi chép chi tiêu chi tiết cần được lưu giữ lâu dài, sau đó hệ thống sẽ xử lý và trả về kết quả truy xuất dữ liệu một cách cực kỳ an toàn, chính xác và đồng nhất [8]. Điểm sáng lớn nhất khiến nghiên cứu lựa chọn CockroachDB là khả năng ngăn chặn vĩnh viễn tình trạng sai lệch hoặc mất mát số liệu tài chính. Trong các kịch bản xấu như sự cố hỏng hóc máy chủ đột ngột, hệ thống sẽ tự động gọi bản sao dữ liệu dự phòng từ các máy khác để tiếp tục vận hành mà người dùng cuối không hề nhận ra bất kỳ sự gián đoạn nào [9].
+#### 2.3.1. Mạng phát hiện chữ DBNet
+DBNet là một mô hình thị giác máy tính [3]. Nhiệm vụ của nó giống như một người cầm bút dạ quang đi bôi vàng tất cả những khu vực có chứa chữ viết trên một tờ hóa đơn lộn xộn. Đầu vào là hình ảnh thô của hóa đơn do người dùng chụp. Đầu ra là danh sách tọa độ bao bọc vừa khít từng dòng chữ. Điểm mạnh của DBNet là nó có thể phát hiện chữ ngay cả khi giấy in nhiệt bị mờ, nhăn nheo hay bị chụp trong điều kiện thiếu sáng.
 
-### 2.2. Phân hệ Trí tuệ nhân tạo (AI)
+#### 2.3.2. Mô hình nhận dạng chữ tiếng Việt VietOCR
+Sau khi DBNet đã khoanh vùng được chữ nằm ở đâu, VietOCR sẽ nhìn trực tiếp vào các vùng đó để đọc và biên dịch thành văn bản kỹ thuật số [1]. Đầu vào là những mảnh ảnh cắt nhỏ xíu chứa từng dòng chữ. Đầu ra là chuỗi văn bản bằng tiếng Việt hoàn chỉnh. Công nghệ này được sử dụng vì hệ thống dấu thanh của tiếng Việt rất phức tạp, các mô hình nước ngoài thường đọc sai, trong khi VietOCR được huấn luyện chuyên sâu để nhận biết chính xác từng dấu câu của nước ta.
 
-#### 2.2.1. Mạng phát hiện vùng chữ DBNet
-DBNet (Differentiable Binarization Network) là một mô hình trí tuệ nhân tạo thuộc lĩnh vực thị giác máy tính. Nhiệm vụ của mô hình này có thể ví như một người cầm bút dạ quang đi bôi vàng tất cả những khu vực có chứa chữ viết trên một trang giấy lộn xộn, bất chấp chữ đó được viết thẳng hay nghiêng [10]. Công nghệ này đóng vai trò tiên phong trong việc xử lý hóa đơn bán lẻ thực tế của đồ án. Khi người dùng chụp các bức ảnh hóa đơn bị nhăn nheo, bóng mờ hoặc chụp lệch góc, DBNet sẽ hỗ trợ khoanh vùng chính xác tọa độ các dòng chữ để chuẩn bị dữ liệu tốt nhất cho quá trình trích xuất văn bản sau đó [11].
+#### 2.3.3. Mô hình phân tích bố cục LayoutLMv3
+Khi đã có những dòng chữ rời rạc, hệ thống dùng LayoutLMv3 để hiểu ý nghĩa thực sự của chúng [4]. Mô hình này đóng vai trò như một kế toán viên, kết hợp cả ba yếu tố là nội dung chữ, hình ảnh và vị trí không gian của chữ trên tờ giấy. Đầu vào là các đoạn văn bản kèm theo tọa độ ngang dọc của chúng. Đầu ra là nhãn dán xác định đâu là phần tổng tiền, đâu là ngày tháng. Mô hình này vượt trội ở chỗ nó có thể đọc hiểu mọi định dạng hóa đơn của bất kỳ siêu thị nào mà không cần phải lập trình cứng nhắc trước từng loại.
 
-Đầu vào của mô hình là hình ảnh thô của một tờ hóa đơn hoặc chứng từ mua hàng, và kết quả trả về là danh sách tọa độ của các khung đa giác bao bọc vừa khít từng dòng chữ có trong ảnh. Hệ thống ưu tiên sử dụng DBNet vì mô hình này có khả năng tự động phân tích và cân bằng độ tương phản ánh sáng cục bộ. Nhờ thế, kể cả những dòng chữ in nhiệt bị mờ nhòe nghiêm trọng vẫn có thể được nhận diện và tách biệt rõ ràng khỏi nền giấy xung quanh [12].
+#### 2.3.4. Mô hình xử lý ngữ nghĩa tiếng Việt PhoBERT
+PhoBERT là mô hình học sâu chuyên về ngôn ngữ tiếng Việt [5]. Mục đích của nó là hiểu tường tận các cấu trúc câu từ lộn xộn và tiếng lóng của người dùng. Đầu vào là một câu tin nhắn trò chuyện tự do. Đầu ra là kết quả phân loại ý định thêm giao dịch và các thực thể được bóc tách như số tiền hoặc danh mục. PhoBERT được sử dụng vì nó giải quyết hoàn hảo bài toán nhập liệu văn bản không theo quy tắc.
 
-#### 2.2.2. Mô hình nhận dạng chữ tiếng Việt VietOCR
-VietOCR là mô hình trí tuệ nhân tạo sinh ra để chuyên giải mã các đặc điểm ngôn ngữ tiếng Việt. Việc đọc tiếng Việt đặc biệt khó khăn với các máy móc nước ngoài vì hệ thống dấu thanh như sắc, huyền, hỏi, ngã, nặng rất phong phú và dễ gây nhầm lẫn thị giác [13]. Trong dự án này, sau khi DBNet đã hoàn thành việc chỉ điểm tọa độ các vùng có chữ, hệ thống sử dụng VietOCR để "nhìn" trực tiếp vào các vùng ảnh đó và biên dịch chúng thành văn bản chuẩn xác.
+#### 2.3.5. Trợ lý ảo Qwen 2.5 và phương pháp tinh chỉnh LoRA
+Qwen 2.5 là một mô hình ngôn ngữ lớn siêu thông minh, đóng vai trò là lõi tư duy của trợ lý ảo Mimo [6]. Vì Qwen là một bộ não khổng lồ học kiến thức chung, hệ thống sử dụng thêm kỹ thuật tinh chỉnh LoRA. Có thể hiểu LoRA là việc gắn thêm một cuốn sổ tay nhỏ chứa chuyên môn về kế toán cho Qwen học thêm, thay vì phải thay đổi toàn bộ kiến trúc gốc để dạy lại. Đầu vào là các câu hỏi tư vấn của người dùng. Đầu ra là những câu trả lời mạch lạc, mang phong thái thân thiện, tự nhiên như con người. 
 
-Quá trình này diễn ra bằng cách nạp vào các mảnh cắt hình ảnh nhỏ bé chứa đựng riêng biệt từng dòng chữ, sau đó mô hình sẽ tính toán và xuất ra chuỗi văn bản kỹ thuật số mang nội dung hoàn chỉnh bằng tiếng Việt. Nghiên cứu lựa chọn VietOCR chủ yếu nhờ vào cơ chế tập trung (Attention mechanism). Khi dự đoán một ký tự như chữ "ô", thay vì đoán mò, mô hình sẽ cẩn thận "nhìn" bao quát các khu vực xung quanh xem có dấu thanh nào đính kèm không (chẳng hạn thành "ố" hay "ổ"), từ đó nâng cao tỷ lệ đọc chính xác hóa đơn một cách đáng kể [14].
-
-#### 2.2.3. Mô hình phân tích bố cục đa phương thức LayoutLMv3
-LayoutLMv3 là mô hình phân tích tiên tiến kết hợp đồng thời ba yếu tố: khả năng đọc hiểu chữ, nhìn hình ảnh và cảm nhận không gian. Nó giống như một nhân viên kế toán lành nghề, không chỉ đọc được nội dung chữ mà còn thấu hiểu chữ đó đang nằm ở vị trí thiết kế nào trên tờ giấy [15]. Hệ thống áp dụng LayoutLMv3 để truy xuất ý nghĩa thực sự của từng dòng chữ rải rác trên hóa đơn. Việc đối chiếu vị trí thông minh giúp mô hình phân biệt được đâu là số tiền "Tổng cộng" và đâu là "Tiền thối lại", từ đó tránh được việc ghi nhận sai lệch chi tiêu.
-
-Dữ liệu đầu vào của mô hình là các chuỗi văn bản đã đọc được đi kèm với thông tin tọa độ không gian (trục x, trục y) tương ứng của chúng, sau đó mô hình sẽ phân tích và đưa ra kết quả gán nhãn phân loại từ vựng thành các danh mục dữ liệu có cấu trúc [16]. Công nghệ này được chọn nhờ sự thông minh vượt trội trong việc phân tích các loại biểu mẫu đa dạng. Việc phối hợp không gian 2 chiều và nội dung ngữ nghĩa giúp hệ thống đọc hiểu linh hoạt bất kỳ mẫu hóa đơn nào mà không cần phải lập trình thủ công từng quy tắc tìm kiếm cứng nhắc [17].
-
-#### 2.2.4. Mô hình xử lý ngữ nghĩa tiếng Việt PhoBERT
-PhoBERT là một mô hình ngôn ngữ khổng lồ, được huấn luyện chuyên sâu bằng hàng chục triệu văn bản tiếng Việt. Nó sở hữu khả năng thấu hiểu tường tận ngữ pháp, thành ngữ, và ý nghĩa sâu xa trong từng câu nói giao tiếp của người Việt y như một người bản xứ [18]. Công nghệ này đóng vai trò là trung tâm ngôn ngữ cốt lõi cho hệ thống. Khi người dùng nhập liệu tự do bằng tin nhắn (ví dụ: "Sáng nay ăn phở 30 cành"), PhoBERT sẽ phân tích ý định muốn ghi sổ và tự động bóc tách các thông tin tài chính giá trị.
-
-Mô hình tiếp nhận một câu nói hoặc một đoạn tin nhắn văn bản tự do, trải qua quá trình phân tích sẽ đưa ra quyết định về ý định chính của câu nói đó cùng với các mảnh thông tin tài chính đã được bóc tách và phân loại rõ ràng [19]. Nghiên cứu lựa chọn PhoBERT bởi đây được đánh giá là một trong những mô hình đọc hiểu tiếng Việt xuất sắc nhất hiện nay, dễ dàng xử lý mượt mà các câu từ chứa nhiều tiếng lóng mạng xã hội hoặc có ngữ pháp lộn xộn trong giao tiếp hàng ngày [20].
-
-#### 2.2.5. Trợ lý ảo sinh văn bản Qwen 2.5 và phương pháp LoRA
-Qwen 2.5 là một mô hình sinh văn bản thông minh có khả năng trò chuyện lưu loát, nhưng lại là một bộ não quá khổng lồ và tốn kém tài nguyên. Phương pháp LoRA (Low-Rank Adaptation) lúc này đóng vai trò như việc gắn thêm một cuốn sổ tay học tập nhỏ gọn bên cạnh bộ não khổng lồ đó, để dạy cho mô hình kiến thức chuyên ngành mà không cần "mổ xẻ" toàn bộ não bộ gốc [21]. Hệ thống sử dụng Qwen kết hợp LoRA để tạo hình nên trợ lý ảo tài chính cá nhân mang tên MiMo, chuyên giải đáp, phân tích và trò chuyện thân thiện để nhắc nhở người dùng về kế hoạch chi tiêu.
-
-Quá trình giao tiếp bắt đầu từ việc nhận các câu hỏi tư vấn của người dùng kèm theo những số liệu tài chính thô sơ đã được hệ thống tổng hợp. Trợ lý ảo sẽ xử lý và trả về những câu trả lời mạch lạc, mang phong cách văn bản thân thiện, tự nhiên như con người. Nghiên cứu lựa chọn Qwen và LoRA nhằm giúp ứng dụng sở hữu một trợ lý ảo cực kỳ hiểu biết, đồng thời tiết kiệm được đáng kể chi phí đầu tư và duy trì phần cứng máy chủ đắt đỏ [22].
-
-#### 2.2.6. Kiến trúc tăng cường truy xuất dữ liệu RAG
-RAG (Retrieval-Augmented Generation) là giải pháp kiến trúc kết hợp chặt chẽ giữa việc tìm kiếm thông tin thật và khả năng nói chuyện của trí tuệ nhân tạo. Có thể hiểu cơ chế này đại diện cho quy tắc "có sách mách có chứng", ngăn cấm hệ thống AI không được phép tự đoán mò hay bịa đặt số liệu [23]. Trong quản lý tài chính, việc máy móc cung cấp sai số dư là một lỗi vô cùng nghiêm trọng. Do đó, hệ thống áp dụng kiến trúc RAG để ép buộc trợ lý ảo MiMo chỉ được phép phát ngôn khi có bằng chứng số liệu giao dịch thật được truy xuất từ cơ sở dữ liệu.
-
-Khi nhận câu hỏi truy vấn của người dùng, hệ thống sẽ tự động tìm kiếm các báo cáo lịch sử chính xác trong kho lưu trữ, sau đó tổng hợp để đưa ra một văn bản trả lời mượt mà đảm bảo độ chuẩn xác 100% về mọi con số [24]. Công nghệ RAG được lựa chọn nhằm giải quyết triệt để điểm yếu lớn nhất của trí tuệ nhân tạo là hội chứng "ảo giác" (hallucination), qua đó xây dựng được niềm tin tuyệt đối cho người sử dụng khi giao phó dữ liệu tài chính cá nhân [25].
+#### 2.3.6. Kiến trúc truy xuất sự thật RAG
+Mô hình AI thường mắc một căn bệnh gọi là ảo giác, tức là tự động bịa đặt ra số liệu nếu không biết câu trả lời. Điều này là tối kỵ trong tài chính. Do đó, hệ thống áp dụng kiến trúc RAG [7]. Mục đích của RAG là ép buộc mô hình Qwen chỉ được phép phát ngôn dựa trên những bằng chứng có thật. Đầu vào là câu hỏi của người dùng và các bằng chứng số dư rút từ CockroachDB. Đầu ra là lời tư vấn chính xác tuyệt đối. Cách dùng này giúp người dùng hoàn toàn yên tâm tin tưởng vào trợ lý ảo.
 
 
 # CHƯƠNG 3 - PHÂN TÍCH, THIẾT KẾ VÀ CÀI ĐẶT HỆ THỐNG
