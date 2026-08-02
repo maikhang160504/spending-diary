@@ -13,6 +13,23 @@ import {
   getOcrTrainHistory
 } from "../services/api";
 
+const injectedStyles = `
+      .transaction-item:hover {
+        background: rgba(255,255,255,0.03) !important;
+        border-color: rgba(255,255,255,0.1) !important;
+        transform: translateY(-1px);
+      }
+      .app-nav-track::-webkit-scrollbar {
+        display: none;
+      }
+    `;
+    if (typeof document !== 'undefined') {
+      const style = document.createElement('style');
+      style.textContent = injectedStyles;
+      document.head.appendChild(style);
+    }
+
+
 function ProgressBar({ percent, level }) {
   const color =
     level === "ready" ? "var(--accent-emerald)" : level === "building" ? "var(--accent-amber)" : "var(--text-muted)";
@@ -742,13 +759,7 @@ function DashboardPage() {
           <span className="metric-value" style={{ display: "block", fontSize: "32px", fontWeight: "700", color: "var(--text-primary)" }}>{analytics.totalExpenses.toLocaleString()}</span>
           <span className="metric-desc" style={{ display: "block", fontSize: "12px", color: "var(--text-muted)", marginTop: "4px" }}>Giao dịch xử lý qua giọng nói/ảnh hóa đơn</span>
         </div>
-        <div className="metric-card" style={{ background: "var(--bg-obsidian-900)", border: "1px solid var(--border-color)", borderRadius: "16px", padding: "24px", position: "relative" }}>
-          <span className="metric-indicator indicator-amber" style={{ position: "absolute", top: "24px", left: "24px", width: "8px", height: "8px", borderRadius: "50%", background: "var(--accent-amber)", boxShadow: "0 0 10px var(--accent-amber)" }}></span>
-          <span className="metric-label" style={{ display: "block", fontSize: "13px", color: "var(--text-secondary)", marginBottom: "8px", paddingLeft: "16px" }}>Tổng doanh thu premium</span>
-          <span className="metric-value" style={{ display: "block", fontSize: "28px", fontWeight: "700", color: "var(--text-primary)" }}>{Number(analytics.totalExpenseAmount).toLocaleString()} VND</span>
-          <span className="metric-desc" style={{ display: "block", fontSize: "12px", color: "var(--text-muted)", marginTop: "4px" }}>Tổng giá trị dòng tiền thực tế được theo dõi</span>
-
-        </div>
+        
       </div>
 
       {/* NLU Benchmark Panel */}

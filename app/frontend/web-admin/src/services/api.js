@@ -442,4 +442,21 @@ export function triggerLlmFinetune(epochs = 3, lr = 0.0002, batchSize = 4, retra
   });
 }
 
+export function getMonetizationStats() {
+  return request("/api/admin/monetization/stats");
+}
 
+export function getMonetizationHistory(days = 30) {
+  return request(`/api/admin/monetization/history?days=${days}`);
+}
+
+export function getMonetizationOrders(limit = 100) {
+  return request(`/api/admin/monetization/orders?limit=${limit}`);
+}
+
+export function toggleUserPremium(userId, isPremium) {
+  return request(`/api/admin/users/${userId}/premium`, {
+    method: "POST",
+    body: JSON.stringify({ isPremium })
+  });
+}

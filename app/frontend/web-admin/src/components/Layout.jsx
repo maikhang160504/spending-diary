@@ -8,7 +8,6 @@ const navItems = [
   { path: "/nlu-ops", label: "NLU & Retraining" },
   { path: "/users", label: "User Management" },
   { path: "/bot-prompts", label: "Bot Prompt Scenarios" },
-  { path: "/monetization", label: "Monetization" },
   { path: "/create-admin", label: "Create Admin" },
 ];
 

@@ -27,9 +27,9 @@
 ##  chương 3: THIẾT KẾ và cài đặt HỆ THỐNG (gộp chương 4)
     -  mục 3.1 kiến trúc và 3.2 ERD giữ lại,
     -  đi theo 4 tầng như đã mô tả ở mục 3.1
+ - viết đoạn mô tả cho lược đồ ERD, thêm ghi chú xem phụ lục để biết chi tiết các bảng và ở phụ lục thì thêm các bảng để mô tả các bảng
  - bằng cách mô tả cách dùng công nghệ ở chương 2 để thiết kế hệ thống, thiết kế các tầng, dùng như nào, logic hoạt động,
  -Trả lời câu hỏi "Hệ thống làm cái gì?" và "Hệ thống sẽ được xây dựng như thế nào về mặt lý thuyết? "
- - viết đoạn mô tả cho lược đồ ERD, thêm ghi chú xem phụ lục để biết chi tiết các bảng và ở phụ lục thì thêm các bảng để mô tả các bảng
  - đi vào chi tiết từng tầng; tầng này có chức năng gì, tầng này hoạt động như nào, dùng công nghệ gì, và cách dùng như nào, mô tả bằng sở đồ flowchart. chức năng đó hoạt động ra sao, logic và công nghệ, tại sao lại dùng logic như vậy cho chức năng này, lợi thế của logic của chúng ta, đi sâu vào chi tiết và minh họa bằng các ảnh giao diện đi kèm mô tả ảnh.
 - đem kết quả đánh giá benchmark cho mô hình NLU và layoutLMv3  để vào chương 3 đúng với chức năng của nó ở tầng AI
 ### chương 4: KIỂM THỬ VÀ ĐÁNH GIÁ
