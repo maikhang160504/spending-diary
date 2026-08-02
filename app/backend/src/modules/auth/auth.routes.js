@@ -165,6 +165,7 @@ router.post('/forgot-password', controller.forgotPassword);
 router.post('/verify-reset-otp', controller.verifyResetOtp);
 router.post('/reset-password', controller.resetPassword);
 
+router.get('/appeals/status', requireAuthWithoutBanCheck, controller.getAppealStatus);
 router.post('/appeals', requireAuthWithoutBanCheck, controller.createAppeal);
 
 module.exports = router;

@@ -199,11 +199,24 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: AppRoutes.banned,
-      pageBuilder: (context, state) => LottieTransitionPage(
-        key: state.pageKey,
-        lottiePath: 'assets/animations/Loading.json',
-        child: BannedScreen(banReason: state.extra as String?),
-      ),
+      pageBuilder: (context, state) {
+        String? banReason;
+        Map<String, dynamic>? initialAppeal;
+        if (state.extra is String) {
+          banReason = state.extra as String;
+        } else if (state.extra is Map) {
+          final map = state.extra as Map;
+          banReason = map['banReason'] as String?;
+          if (map['appeal'] is Map<String, dynamic>) {
+            initialAppeal = map['appeal'] as Map<String, dynamic>;
+          }
+        }
+        return LottieTransitionPage(
+          key: state.pageKey,
+          lottiePath: 'assets/animations/Loading.json',
+          child: BannedScreen(banReason: banReason, initialAppeal: initialAppeal),
+        );
+      },
     ),
     GoRoute(
       path: AppRoutes.resetPassword,

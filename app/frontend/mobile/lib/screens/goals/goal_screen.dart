@@ -143,7 +143,11 @@ class _GoalScreenState extends State<GoalScreen> with AutomaticKeepAliveClientMi
                 )).toList(),
               ),
               const SizedBox(height: 12),
-              TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'Tên mục tiêu', hintText: 'VD: Mua iPhone')),
+              TextField(
+                controller: nameCtrl,
+                maxLength: 100,
+                decoration: const InputDecoration(labelText: 'Tên mục tiêu', hintText: 'VD: Mua iPhone', counterText: ''),
+              ),
               const SizedBox(height: 10),
               TextField(
                 controller: amountCtrl,
@@ -179,7 +183,18 @@ class _GoalScreenState extends State<GoalScreen> with AutomaticKeepAliveClientMi
                           final name = nameCtrl.text.trim();
                           final rawText = amountCtrl.text.replaceAll(',', '').replaceAll('.', '').trim();
                           final amount = double.tryParse(rawText);
-                          if (name.isEmpty || amount == null || amount <= 0) return;
+                          if (name.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Vui lòng nhập tên mục tiêu'), backgroundColor: AppColors.danger));
+                            return;
+                          }
+                          if (amount == null || amount <= 0) {
+                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Số tiền mục tiêu phải lớn hơn 0'), backgroundColor: AppColors.danger));
+                            return;
+                          }
+                          if (amount > 100000000000) {
+                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Số tiền tối đa 100 tỷ đồng'), backgroundColor: AppColors.danger));
+                            return;
+                          }
                           setSheet(() { isSubmitting = true; });
                           ctx.pop();
                           String? deadlineStr;
@@ -307,7 +322,14 @@ class _GoalScreenState extends State<GoalScreen> with AutomaticKeepAliveClientMi
                       : () async {
                           final rawText = amountCtrl.text.replaceAll(',', '').replaceAll('.', '').trim();
                           final amount = double.tryParse(rawText);
-                          if (amount == null || amount <= 0) return;
+                          if (amount == null || amount <= 0) {
+                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Số tiền phải lớn hơn 0'), backgroundColor: AppColors.danger));
+                            return;
+                          }
+                          if (amount > 100000000000) {
+                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Số tiền tối đa 100 tỷ đồng'), backgroundColor: AppColors.danger));
+                            return;
+                          }
                           setSheetState(() { isSubmitting = true; });
                           final scaffoldMessenger = ScaffoldMessenger.of(context);
                           ctx.pop();

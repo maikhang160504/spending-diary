@@ -22,6 +22,7 @@ class _StreakScreenState extends State<StreakScreen> {
   int _currentStreak = 0;
   int _longestStreak = 0;
   int _totalDays = 0;
+  Set<String> _activeDates = {};
 
   @override
   void initState() {
@@ -38,19 +39,79 @@ class _StreakScreenState extends State<StreakScreen> {
         _currentStreak = (data['currentStreak'] as num?)?.toInt() ?? 0;
         _longestStreak = (data['longestStreak'] as num?)?.toInt() ?? 0;
         _totalDays = (data['totalDays'] as num?)?.toInt() ?? 0;
+        if (data['activeDates'] is List) {
+          _activeDates = (data['activeDates'] as List).map((e) => e.toString()).toSet();
+        }
       });
     } catch (_) {}
     if (mounted) setState(() => _loading = false);
   }
 
-  // ST-04: Achievements computed from streak data
+  // ST-04: Thành tích đạt được tính dựa trên kỷ lục cao nhất và tổng số ngày
   List<_Achievement> get _achievements => [
-    _Achievement(emoji: '🔥', title: 'Streak đầu tiên', subtitle: 'Ghi chép 3 ngày liên tục', achieved: _currentStreak >= 3),
-    _Achievement(emoji: '⚡', title: 'Tuần hoàn hảo', subtitle: 'Ghi chép 7 ngày liên tục', achieved: _currentStreak >= 7),
-    _Achievement(emoji: '🏆', title: 'Tháng vàng', subtitle: 'Ghi chép 30 ngày liên tục', achieved: _currentStreak >= 30),
-    _Achievement(emoji: '💎', title: 'Kỷ lục cá nhân', subtitle: 'Đạt streak dài nhất của bạn', achieved: _longestStreak > 0 && _currentStreak >= _longestStreak),
-    _Achievement(emoji: '📊', title: 'Nhà phân tích', subtitle: 'Tổng cộng 50 ngày ghi chép', achieved: _totalDays >= 50),
-    _Achievement(emoji: '🌟', title: 'Chuyên gia', subtitle: 'Tổng cộng 100 ngày ghi chép', achieved: _totalDays >= 100),
+    _Achievement(
+      emoji: '🌱',
+      title: 'Khởi đầu mới',
+      subtitle: 'Ghi chép ngày đầu tiên',
+      achieved: _totalDays >= 1 || _longestStreak >= 1,
+      current: _totalDays > 0 ? 1 : 0,
+      target: 1,
+      unit: 'ngày',
+    ),
+    _Achievement(
+      emoji: '🔥',
+      title: 'Streak đầu tiên',
+      subtitle: 'Ghi chép 3 ngày liên tục',
+      achieved: _longestStreak >= 3 || _currentStreak >= 3,
+      current: _longestStreak >= _currentStreak ? _longestStreak : _currentStreak,
+      target: 3,
+      unit: 'ngày liên tục',
+    ),
+    _Achievement(
+      emoji: '⚡',
+      title: 'Tuần hoàn hảo',
+      subtitle: 'Ghi chép 7 ngày liên tục',
+      achieved: _longestStreak >= 7 || _currentStreak >= 7,
+      current: _longestStreak >= _currentStreak ? _longestStreak : _currentStreak,
+      target: 7,
+      unit: 'ngày liên tục',
+    ),
+    _Achievement(
+      emoji: '💎',
+      title: 'Thói quen bền bỉ',
+      subtitle: 'Ghi chép 14 ngày liên tục',
+      achieved: _longestStreak >= 14 || _currentStreak >= 14,
+      current: _longestStreak >= _currentStreak ? _longestStreak : _currentStreak,
+      target: 14,
+      unit: 'ngày liên tục',
+    ),
+    _Achievement(
+      emoji: '🏆',
+      title: 'Tháng vàng',
+      subtitle: 'Ghi chép 30 ngày liên tục',
+      achieved: _longestStreak >= 30 || _currentStreak >= 30,
+      current: _longestStreak >= _currentStreak ? _longestStreak : _currentStreak,
+      target: 30,
+      unit: 'ngày liên tục',
+    ),
+    _Achievement(
+      emoji: '📊',
+      title: 'Nhà phân tích',
+      subtitle: 'Tổng cộng 50 ngày ghi chép',
+      achieved: _totalDays >= 50,
+      current: _totalDays,
+      target: 50,
+      unit: 'ngày',
+    ),
+    _Achievement(
+      emoji: '🌟',
+      title: 'Chuyên gia tài chính',
+      subtitle: 'Tổng cộng 100 ngày ghi chép',
+      achieved: _totalDays >= 100,
+      current: _totalDays,
+      target: 100,
+      unit: 'ngày',
+    ),
   ];
 
   @override
@@ -148,9 +209,9 @@ class _StreakScreenState extends State<StreakScreen> {
                         const Icon(Icons.trending_up, color: AppColors.teal, size: 18),
                       ]),
                       const SizedBox(height: 14),
-                      _StreakGrid(currentStreak: _currentStreak),
+                      _StreakGrid(currentStreak: _currentStreak, activeDates: _activeDates),
                       const SizedBox(height: 10),
-                      Text('Mỗi ô màu xanh = 1 ngày có giao dịch ✓',
+                      Text('Mỗi ô màu xanh = 1 ngày có giao dịch hoặc chat ✓',
                           style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.muted)),
                     ]),
                   ),
@@ -194,12 +255,12 @@ class _StreakScreenState extends State<StreakScreen> {
 
 class _StreakGrid extends StatelessWidget {
   final int currentStreak;
-  const _StreakGrid({required this.currentStreak});
+  final Set<String> activeDates;
+  const _StreakGrid({required this.currentStreak, required this.activeDates});
 
   @override
   Widget build(BuildContext context) {
     final today = DateTime.now();
-    // ST-03: "Hôm nay" pill dynamic
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -213,9 +274,10 @@ class _StreakGrid extends StatelessWidget {
       itemBuilder: (context, index) {
         // index 0 = 29 days ago, index 29 = today
         final dayOffset = 29 - index;
-        final isActive = dayOffset < currentStreak;
-        final isToday = dayOffset == 0;
         final date = today.subtract(Duration(days: dayOffset));
+        final dateStr = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+        final isActive = activeDates.contains(dateStr) || (activeDates.isEmpty && dayOffset < currentStreak);
+        final isToday = dayOffset == 0;
 
         return Tooltip(
           message: '${date.day}/${date.month}',
@@ -264,9 +326,18 @@ class _StatBox extends StatelessWidget {
 }
 
 class _Achievement {
-  final String emoji, title, subtitle;
+  final String emoji, title, subtitle, unit;
   final bool achieved;
-  const _Achievement({required this.emoji, required this.title, required this.subtitle, required this.achieved});
+  final int current, target;
+  const _Achievement({
+    required this.emoji,
+    required this.title,
+    required this.subtitle,
+    required this.achieved,
+    required this.current,
+    required this.target,
+    this.unit = 'ngày',
+  });
 }
 
 class _AchievementCard extends StatelessWidget {
@@ -275,6 +346,8 @@ class _AchievementCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final progress = item.target > 0 ? (item.current / item.target).clamp(0.0, 1.0) : 0.0;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
@@ -283,30 +356,71 @@ class _AchievementCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadii.lg),
         boxShadow: context.palette.softShadow,
       ),
-      child: Row(children: [
-        Container(
-          width: 52, height: 52,
-          decoration: BoxDecoration(
-            color: item.achieved ? AppColors.teal.withValues(alpha: 0.12) : context.palette.surfaceAlt,
-            borderRadius: BorderRadius.circular(AppRadii.md),
-          ),
-          child: Center(child: Text(item.emoji, style: const TextStyle(fontSize: 24))),
-        ),
-        const SizedBox(width: 12),
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(item.title, style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700)),
-          const SizedBox(height: 3),
-          Text(item.subtitle, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary)),
-        ])),
-        if (item.achieved)
-          Container(
-            width: 32, height: 32,
-            decoration: const BoxDecoration(color: AppColors.teal, shape: BoxShape.circle),
-            child: const Icon(Icons.check, color: Colors.white, size: 16),
-          )
-        else
-          const Icon(Icons.lock_outline, color: AppColors.muted, size: 22),
-      ]),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Container(
+              width: 52, height: 52,
+              decoration: BoxDecoration(
+                color: item.achieved ? AppColors.teal.withValues(alpha: 0.12) : context.palette.surfaceAlt,
+                borderRadius: BorderRadius.circular(AppRadii.md),
+              ),
+              child: Center(child: Text(item.emoji, style: const TextStyle(fontSize: 24))),
+            ),
+            const SizedBox(width: 12),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(item.title, style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700)),
+              const SizedBox(height: 3),
+              Text(item.subtitle, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary)),
+            ])),
+            if (item.achieved)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: AppColors.teal.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(AppRadii.full),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.check_circle, color: AppColors.teal, size: 16),
+                    SizedBox(width: 4),
+                    Text('Đã đạt', style: TextStyle(color: AppColors.teal, fontSize: 12, fontWeight: FontWeight.w600)),
+                  ],
+                ),
+              )
+            else
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: context.palette.surfaceAlt,
+                  borderRadius: BorderRadius.circular(AppRadii.full),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.lock_outline, color: AppColors.muted, size: 14),
+                    const SizedBox(width: 4),
+                    Text('${item.current}/${item.target}', style: const TextStyle(color: AppColors.muted, fontSize: 12, fontWeight: FontWeight.w600)),
+                  ],
+                ),
+              ),
+          ]),
+          if (!item.achieved && item.target > 1) ...[
+            const SizedBox(height: 10),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: progress,
+                minHeight: 4,
+                backgroundColor: context.palette.surfaceAlt,
+                valueColor: const AlwaysStoppedAnimation<Color>(AppColors.teal),
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }

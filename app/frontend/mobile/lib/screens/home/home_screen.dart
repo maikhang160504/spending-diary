@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cached_query/cached_query.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../routes/app_routes.dart';
@@ -20,6 +21,7 @@ import '../../widgets/error_banner.dart';
 import '../../widgets/skeleton.dart';
 import '../wallet/create_wallet_screen.dart';
 import '../../widgets/premium_upsell_bottom_sheet.dart';
+import '../../widgets/mimo_snackbar.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -199,13 +201,10 @@ class _HomeScreenState extends State<HomeScreen> {
         memberRole == 'owner' || (ownerId != null && ownerId == _currentUserId);
 
     if (!isOwner) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Bạn không thể xóa ví này vì bạn không phải chủ sở hữu.',
-          ),
-          backgroundColor: Colors.orange,
-        ),
+      MimoSnackBar.showWarning(
+        context,
+        message: 'Bạn không thể xóa ví này vì bạn không phải chủ sở hữu.',
+        emotion: 'Alert',
       );
       return;
     }
@@ -262,11 +261,10 @@ class _HomeScreenState extends State<HomeScreen> {
       await api.deleteWallet(wId);
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Đã xóa ví "$wName" thành công ✓'),
-          backgroundColor: AppColors.teal,
-        ),
+      MimoSnackBar.showSuccess(
+        context,
+        message: 'Đã xóa ví "$wName" thành công ✓',
+        emotion: 'Success',
       );
 
       AppQueries.invalidateWalletData();
@@ -276,11 +274,10 @@ class _HomeScreenState extends State<HomeScreen> {
       await _loadData();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Không thể xóa ví: ${e.toString()}'),
-            backgroundColor: Colors.redAccent,
-          ),
+        MimoSnackBar.showError(
+          context,
+          message: 'Không thể xóa ví: ${e.toString()}',
+          emotion: 'Sad',
         );
       }
     } finally {
@@ -930,6 +927,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   controller: amountCtrl,
                   keyboardType: TextInputType.number,
                   autofocus: true,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
@@ -981,8 +979,14 @@ class _HomeScreenState extends State<HomeScreen> {
                             if (parsed == null || parsed <= 0) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
-                                  content: Text('Vui lòng nhập số tiền hợp lệ'),
+                                  content: Text('Vui lòng nhập số tiền hợp lệ (phải lớn hơn 0)'),
                                 ),
+                              );
+                              return;
+                            }
+                            if (parsed > 100000000000) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Số tiền tối đa 100 tỷ đồng')),
                               );
                               return;
                             }
@@ -1109,6 +1113,24 @@ class _HomeHeaderDelegate extends SliverPersistentHeaderDelegate {
         : (1 - (shrinkOffset / maxShrink)).clamp(0.0, 1.0);
     final theme = Theme.of(context);
 
+    // Resolve selected wallet color & gentle gradient
+    final selectedWallet = wallets.cast<dynamic>().firstWhere(
+      (w) => w is Map && w['id'] == selectedWalletId,
+      orElse: () => null,
+    );
+    final walletColorHex = (selectedWallet?['color'] as String? ?? '#0D9488').replaceAll('#', '');
+    Color walletColor;
+    try {
+      walletColor = Color(int.parse(walletColorHex.length == 6 ? 'FF$walletColorHex' : walletColorHex, radix: 16));
+    } catch (_) {
+      walletColor = const Color(0xFF0D9488);
+    }
+    final hsl = HSLColor.fromColor(walletColor);
+    final lightColor = hsl
+        .withSaturation((hsl.saturation * 0.72).clamp(0.0, 1.0))
+        .withLightness((hsl.lightness + 0.18).clamp(0.0, 0.92))
+        .toColor();
+
     return ClipRect(
       child: Stack(
         fit: StackFit.expand,
@@ -1122,14 +1144,16 @@ class _HomeHeaderDelegate extends SliverPersistentHeaderDelegate {
             left: 0,
             right: 0,
             bottom: _segmentH,
-            child: Container(
-              decoration: const BoxDecoration(
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeOut,
+              decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [Color(0xFF0D9488), Color(0xFF2DD4BF)],
+                  colors: [walletColor, lightColor],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
-                borderRadius: BorderRadius.only(
+                borderRadius: const BorderRadius.only(
                   bottomLeft: Radius.circular(AppRadii.xl),
                   bottomRight: Radius.circular(AppRadii.xl),
                 ),
@@ -1264,6 +1288,14 @@ class _HomeHeaderDelegate extends SliverPersistentHeaderDelegate {
                                   final icon = wType == 'group'
                                       ? Icons.group_outlined
                                       : Icons.account_balance_wallet_outlined;
+                                  final wEmoji = w['icon'] as String?;
+                                  final wColorHex = (w['color'] as String? ?? '#0D9488').replaceAll('#', '');
+                                  Color chipAccent;
+                                  try {
+                                    chipAccent = Color(int.parse(wColorHex.length == 6 ? 'FF$wColorHex' : wColorHex, radix: 16));
+                                  } catch (_) {
+                                    chipAccent = AppColors.teal;
+                                  }
                                   final label = memberCount > 0
                                       ? '$wName ($memberCount)'
                                       : wName;
@@ -1274,6 +1306,8 @@ class _HomeHeaderDelegate extends SliverPersistentHeaderDelegate {
                                     child: _WalletChip(
                                       label: label,
                                       icon: icon,
+                                      emoji: wEmoji,
+                                      accentColor: chipAccent,
                                       isSelected: selectedWalletId == wId,
                                       unseenCount: unseenCount,
                                       onTap: () => onWalletTap(w),
@@ -1314,9 +1348,9 @@ class _HomeHeaderDelegate extends SliverPersistentHeaderDelegate {
                           children: [
                             Row(
                               children: [
-                                const Icon(
+                                Icon(
                                   Icons.auto_awesome,
-                                  color: AppColors.teal,
+                                  color: walletColor,
                                   size: 16,
                                 ),
                                 const SizedBox(width: 6),
@@ -1346,7 +1380,7 @@ class _HomeHeaderDelegate extends SliverPersistentHeaderDelegate {
                                   child: _BalanceStat(
                                     label: isGroupWallet ? 'Quỹ nhóm' : 'Thu nhập',
                                     value: loading ? '...' : formatVnd(income),
-                                    color: AppColors.teal,
+                                    color: walletColor,
                                   ),
                                 ),
                                 Container(
@@ -1565,6 +1599,7 @@ class _TransactionStoryCard extends StatelessWidget {
                   controller: amountCtrl,
                   keyboardType: TextInputType.number,
                   autofocus: true,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
@@ -1619,8 +1654,14 @@ class _TransactionStoryCard extends StatelessWidget {
                             if (parsed == null || parsed <= 0) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
-                                  content: Text('Vui lòng nhập số tiền hợp lệ'),
+                                  content: Text('Vui lòng nhập số tiền hợp lệ (phải lớn hơn 0)'),
                                 ),
+                              );
+                              return;
+                            }
+                            if (parsed > 100000000000) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Số tiền tối đa 100 tỷ đồng')),
                               );
                               return;
                             }
@@ -2077,22 +2118,27 @@ class _TransactionStoryCard extends StatelessWidget {
 class _WalletChip extends StatelessWidget {
   final String label;
   final IconData icon;
+  final String? emoji;
   final bool isSelected;
   final int unseenCount;
+  final Color? accentColor;
   final VoidCallback onTap;
   final VoidCallback? onLongPress;
 
   const _WalletChip({
     required this.label,
     required this.icon,
+    this.emoji,
     required this.isSelected,
     this.unseenCount = 0,
+    this.accentColor,
     required this.onTap,
     this.onLongPress,
   });
 
   @override
   Widget build(BuildContext context) {
+    final effectiveAccent = accentColor ?? AppColors.teal;
     return GestureDetector(
       onTap: onTap,
       onLongPress: onLongPress,
@@ -2101,22 +2147,28 @@ class _WalletChip extends StatelessWidget {
         decoration: BoxDecoration(
           color: isSelected
               ? Colors.white
-              : Colors.white.withValues(alpha: 0.25),
+              : Colors.white.withValues(alpha: 0.22),
           borderRadius: BorderRadius.circular(AppRadii.md),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              icon,
-              size: 16,
-              color: isSelected ? AppColors.teal : Colors.white,
-            ),
+            if (emoji != null && emoji!.trim().isNotEmpty)
+              Text(
+                emoji!,
+                style: const TextStyle(fontSize: 14),
+              )
+            else
+              Icon(
+                icon,
+                size: 16,
+                color: isSelected ? effectiveAccent : Colors.white,
+              ),
             const SizedBox(width: 6),
             Text(
               label,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: isSelected ? AppColors.teal : Colors.white,
+                color: isSelected ? effectiveAccent : Colors.white,
                 fontWeight: FontWeight.w600,
               ),
             ),

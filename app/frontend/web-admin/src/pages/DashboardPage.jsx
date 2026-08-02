@@ -10,25 +10,12 @@ import {
   getNluBenchmarkResults,
   triggerNluBenchmark,
   getLlmTrainHistory,
-  getOcrTrainHistory
+  getOcrTrainHistory,
+  getMonetizationStats,
+  getMonetizationHistory,
+  getMonetizationOrders,
+  toggleUserPremium
 } from "../services/api";
-
-const injectedStyles = `
-      .transaction-item:hover {
-        background: rgba(255,255,255,0.03) !important;
-        border-color: rgba(255,255,255,0.1) !important;
-        transform: translateY(-1px);
-      }
-      .app-nav-track::-webkit-scrollbar {
-        display: none;
-      }
-    `;
-    if (typeof document !== 'undefined') {
-      const style = document.createElement('style');
-      style.textContent = injectedStyles;
-      document.head.appendChild(style);
-    }
-
 
 function ProgressBar({ percent, level }) {
   const color =
@@ -574,6 +561,139 @@ function LlmLossChart({ runData }) {
   );
 }
 
+function formatVND(amount) {
+  return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(amount || 0);
+}
+
+function formatDate(value) {
+  if (!value) return "—";
+  return new Date(value).toLocaleString("vi-VN", {
+    day: "2-digit", month: "2-digit", year: "numeric",
+    hour: "2-digit", minute: "2-digit",
+  });
+}
+
+function RevenueChart({ data }) {
+  const [hovered, setHovered] = useState(null);
+
+  if (!data || data.length === 0) {
+    return <div style={{ height: 160, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", fontSize: 13 }}>Chưa có dữ liệu</div>;
+  }
+
+  const W = 700, H = 180, PAD = { t: 20, r: 20, b: 32, l: 60 };
+  const maxVal = Math.max(...data.map((d) => d.revenue), 1);
+  const chartW = W - PAD.l - PAD.r;
+  const chartH = H - PAD.t - PAD.b;
+  const step = chartW / (data.length - 1 || 1);
+
+  const pts = data.map((d, i) => ({
+    x: PAD.l + i * step,
+    y: PAD.t + chartH - (d.revenue / maxVal) * chartH,
+    ...d,
+  }));
+
+  const pathD = pts.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(" ");
+  const areaD = `${pathD} L ${pts[pts.length - 1].x.toFixed(1)} ${(PAD.t + chartH).toFixed(1)} L ${PAD.l} ${(PAD.t + chartH).toFixed(1)} Z`;
+
+  return (
+    <div style={{ position: "relative", overflowX: "auto" }} onMouseLeave={() => setHovered(null)}>
+      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "100%" }} preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="rev-grad-pro" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="var(--accent-emerald)" stopOpacity="0.32" />
+            <stop offset="100%" stopColor="var(--accent-emerald)" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+
+        {/* Grid lines */}
+        {[0, 0.25, 0.5, 0.75, 1].map((t) => {
+          const y = PAD.t + chartH * (1 - t);
+          return (
+            <g key={t}>
+              <line x1={PAD.l} y1={y} x2={W - PAD.r} y2={y} stroke="var(--border-color)" strokeWidth={0.5} strokeDasharray="3 3" />
+              <text x={PAD.l - 12} y={y + 4} textAnchor="end" fontSize={10} fill="var(--text-secondary)" fontFamily="var(--font-mono)">
+                {formatVND(maxVal * t).replace("₫", "").trim()}
+              </text>
+            </g>
+          );
+        })}
+
+        {/* Area + Line */}
+        <path d={areaD} fill="url(#rev-grad-pro)" />
+        <path d={pathD} fill="none" stroke="var(--accent-emerald)" strokeWidth={2.8} strokeLinecap="round" strokeLinejoin="round" />
+
+        {/* Dots */}
+        {pts.map((p, i) => {
+          const isHovered = hovered === i;
+          return (
+            <g key={i} onMouseEnter={() => setHovered(i)} style={{ cursor: "pointer" }}>
+              {isHovered && (
+                <line x1={p.x} y1={PAD.t} x2={p.x} y2={PAD.t + chartH} stroke="var(--accent-emerald)" strokeWidth="1" strokeDasharray="3 3" opacity="0.7" />
+              )}
+              <circle
+                cx={p.x} cy={p.y} r={isHovered ? "6" : "3.5"}
+                fill="var(--bg-obsidian-950)"
+                stroke="var(--accent-emerald)"
+                strokeWidth={isHovered ? "3" : "2"}
+                style={{ transition: "all 0.15s ease" }}
+              />
+            </g>
+          );
+        })}
+
+        {/* X-axis labels (every 5th) */}
+        {pts.map((p, i) => {
+          if (data.length > 10 && i % 5 !== 0 && i !== data.length - 1) return null;
+          return (
+            <text key={i} x={p.x} y={H - 10} textAnchor="middle" fontSize={10} fill="var(--text-secondary)" fontFamily="var(--font-mono)">
+              {p.date}
+            </text>
+          );
+        })}
+      </svg>
+
+      {/* Tooltip */}
+      {hovered !== null && pts[hovered] && (
+        <div className="pro-max-tooltip" style={{
+          position: "absolute",
+          top: pts[hovered].y - 60,
+          left: Math.min(pts[hovered].x, W - 140) + "px",
+        }}>
+          <div style={{ fontSize: "11px", color: "var(--text-secondary)", marginBottom: "3px" }}>
+            {pts[hovered].date}
+          </div>
+          <div style={{ fontSize: "14px", fontWeight: "700", color: "var(--accent-emerald)", fontFamily: "var(--font-mono)" }}>
+            {formatVND(pts[hovered].revenue)}
+          </div>
+          <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "2px" }}>
+            {pts[hovered].orders} đơn hoàn thành
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+function OrderStatusBadge({ status }) {
+  const map = {
+    completed: { label: "Hoàn thành", color: "var(--accent-emerald)", bg: "rgba(16,185,129,0.12)" },
+    pending:   { label: "Chờ TT",     color: "var(--accent-amber)", bg: "rgba(245,158,11,0.12)" },
+    cancelled: { label: "Đã hủy",     color: "var(--text-muted)", bg: "rgba(107,114,128,0.12)" },
+  };
+  const s = map[status] || { label: status, color: "var(--text-muted)", bg: "rgba(107,114,128,0.12)" };
+  return (
+    <span style={{
+      display: "inline-flex", alignItems: "center", padding: "4px 10px", borderRadius: "12px",
+      fontSize: "11px", fontWeight: "600", color: s.color, background: s.bg, letterSpacing: "0.2px"
+    }}>
+      {status === 'completed' && <span style={{ width: 6, height: 6, borderRadius: '50%', background: s.color, marginRight: 6 }}></span>}
+      {status === 'pending' && <span style={{ width: 6, height: 6, borderRadius: '50%', background: s.color, marginRight: 6, animation: "pulse 1.5s infinite" }}></span>}
+      {s.label}
+    </span>
+  );
+}
+
 function DashboardPage() {
   const [analytics, setAnalytics] = useState({
     totalUsers: 0,
@@ -590,6 +710,10 @@ function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  const [monetStats, setMonetStats] = useState(null);
+  const [monetHistory, setMonetHistory] = useState([]);
+  const [monetOrders, setMonetOrders] = useState([]);
+  const [monetToggling, setMonetToggling] = useState({});
   const [weights, setWeights] = useState({
     ocrWeight: 0.75,
     nluThreshold: 0.85,
@@ -600,16 +724,24 @@ function DashboardPage() {
 
   useEffect(() => {
     Promise.all([
-      getAdminAnalytics(),
-      getRetrainReadiness(),
-      getNluTrainHistory(),
-      getOcrTrainHistory().catch(() => []),
-      getLlmTrainHistory().catch(() => []),
-      getNluBenchmarkResults().catch(() => null),
-      getSystemSettings().catch(() => null)
+      getAdminAnalytics().catch(()=>null),
+      getRetrainReadiness().catch(()=>null),
+      getNluTrainHistory().catch(()=>[]),
+      getOcrTrainHistory().catch(()=>[]),
+      getLlmTrainHistory().catch(()=>[]),
+      getNluBenchmarkResults().catch(()=>null),
+      getSystemSettings().catch(()=>null),
+      getMonetizationStats().catch(()=>null),
+      getMonetizationHistory(30).catch(()=>[]),
+      getMonetizationOrders(100).catch(()=>[])
     ])
-      .then(([analyticsData, readinessData, trainHistoryData, ocrHistoryData, llmHistoryData, benchmarkData, settingsData]) => {
-        setAnalytics(analyticsData);
+      .then(([analyticsData, readinessData, trainHistoryData, ocrHistoryData, llmHistoryData, benchmarkData, settingsData, mStats, mHistory, mOrders]) => {
+        setMonetStats(mStats?.data || mStats);
+        const historyData = mHistory?.data || mHistory;
+        const ordersData = mOrders?.data || mOrders;
+        setMonetHistory(Array.isArray(historyData) ? historyData : []);
+        setMonetOrders(Array.isArray(ordersData) ? ordersData : []);
+                setAnalytics(analyticsData);
         setReadiness(readinessData);
         setTrainHistory(trainHistoryData || []);
         setOcrHistory(ocrHistoryData || []);
@@ -688,6 +820,103 @@ function DashboardPage() {
         </p>
       </div>
 
+      <div className="dashboard-grid" style={{ marginBottom: "30px", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "24px" }}>
+        {[
+          { label: "Tổng doanh thu", value: formatVND(monetStats?.totalRevenue), color: "var(--accent-emerald)" },
+          { label: "Doanh thu tháng này", value: formatVND(monetStats?.monthlyRevenue), color: "var(--accent-blue)" },
+          { label: "Tổng số đơn", value: monetStats?.totalOrders || "—", color: "var(--accent-purple)" },
+          { label: "Người dùng Premium", value: monetStats?.premiumUserCount || "0", color: "var(--accent-amber)" },
+        ].map((s, idx) => (
+          <div key={idx} className="dashboard-card" style={{ padding: "24px" }}>
+            <div style={{ fontSize: "14px", color: "var(--text-secondary)", marginBottom: "12px", display: "flex", alignItems: "center", gap: "8px" }}>
+              <div style={{ width: 8, height: 8, borderRadius: "50%", background: s.color }} /> {s.label}
+            </div>
+            <div style={{ fontSize: "32px", fontWeight: "800", fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{s.value}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "24px", marginBottom: "30px" }}>
+        <div className="dashboard-card" style={{ padding: "24px" }}>
+          <h3 style={{ fontSize: "16px", marginBottom: "20px", color: "var(--text-primary)" }}>Biểu đồ Doanh thu (30 ngày)</h3>
+          <RevenueChart data={monetHistory} />
+        </div>
+
+        <div className="dashboard-card" style={{ padding: "0", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+          <div style={{ padding: "24px", borderBottom: "1px solid var(--border-color)", display: "flex", justifyContent: "space-between", alignItems: "center", background: "rgba(255, 255, 255, 0.01)" }}>
+            <h3 style={{ fontSize: "16px", margin: 0, color: "var(--text-primary)", display: "flex", alignItems: "center", gap: "8px", fontWeight: "600" }}>
+              Giao dịch gần nhất
+              <span style={{ display: "inline-block", width: "6px", height: "6px", borderRadius: "50%", background: "var(--accent-emerald)", animation: "pulse 2s infinite" }}></span>
+            </h3>
+          </div>
+          <div style={{ overflowY: "auto", maxHeight: "400px", padding: "8px 0" }}>
+            <div style={{ display: "flex", flexDirection: "column" }}>
+              {(Array.isArray(monetOrders) ? monetOrders : []).slice(0, 10).map((order, index) => {
+                const isCompleted = order.status === 'completed';
+                const isPending = order.status === 'pending';
+                const isCancelled = order.status === 'cancelled';
+                const name = order.username || order.email || "Ẩn danh";
+                const initial = name.charAt(0).toUpperCase();
+                
+                return (
+                  <div key={order.id || ("order-" + index)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 24px", borderBottom: "1px solid rgba(255, 255, 255, 0.03)", transition: "all 0.2s ease", cursor: "default" }} onMouseEnter={(e) => e.currentTarget.style.background = "rgba(255, 255, 255, 0.02)"} onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+                      <div style={{
+                        width: "40px", height: "40px", borderRadius: "50%",
+                        background: isCompleted ? "linear-gradient(135deg, rgba(16,185,129,0.2) 0%, rgba(16,185,129,0.05) 100%)" : isPending ? "linear-gradient(135deg, rgba(245,158,11,0.2) 0%, rgba(245,158,11,0.05) 100%)" : "rgba(107,114,128,0.1)",
+                        border: `1px solid ${isCompleted ? "rgba(16,185,129,0.3)" : isPending ? "rgba(245,158,11,0.3)" : "rgba(107,114,128,0.2)"}`,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        color: isCompleted ? "var(--accent-emerald)" : isPending ? "var(--accent-amber)" : "var(--text-muted)",
+                        fontSize: "16px", fontWeight: "700", fontFamily: "var(--font-sans)"
+                      }}>
+                        {initial}
+                      </div>
+                      <div>
+                        <div style={{ fontWeight: "600", color: isCancelled ? "var(--text-muted)" : "var(--text-primary)", fontSize: "14px", marginBottom: "4px" }}>
+                          {name}
+                        </div>
+                        <div style={{ fontSize: "12px", color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: "6px" }}>
+                          {order.createdAt ? new Date(order.createdAt).toLocaleString("vi-VN", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" }) : "Vừa xong"}
+                          {order.code && (
+                            <>
+                              <span style={{ width: "3px", height: "3px", borderRadius: "50%", background: "var(--text-muted)", display: "inline-block" }}></span>
+                              <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--text-muted)" }}>#{order.code}</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{ textAlign: "right" }}>
+                      <div style={{ 
+                        fontWeight: "700", 
+                        color: isCompleted ? "var(--text-primary)" : "var(--text-secondary)", 
+                        fontFamily: "var(--font-mono)", 
+                        fontSize: "15px", 
+                        marginBottom: "6px",
+                        textDecoration: isCancelled ? "line-through" : "none",
+                        opacity: isCancelled ? 0.6 : 1
+                      }}>
+                        {isCompleted ? "+" : ""}{formatVND(order.amount)}
+                      </div>
+                      <OrderStatusBadge status={order.status} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {(!monetOrders || monetOrders.length === 0) && (
+              <div style={{ padding: "60px 20px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+                <div style={{ width: "48px", height: "48px", borderRadius: "50%", background: "var(--bg-obsidian-800)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "16px", color: "var(--text-muted)" }}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                </div>
+                <div style={{ color: "var(--text-secondary)", fontSize: "14px", fontWeight: "500" }}>Chưa có giao dịch nào</div>
+                <div style={{ color: "var(--text-muted)", fontSize: "12px", marginTop: "4px" }}>Giao dịch mới sẽ hiển thị tại đây</div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
       {error && (
         <div className="toast" style={{ borderColor: "var(--accent-rose)", position: "relative", marginBottom: "20px" }}>
           <span>Error: {error}</span>
@@ -756,10 +985,15 @@ function DashboardPage() {
         <div className="metric-card" style={{ background: "var(--bg-obsidian-900)", border: "1px solid var(--border-color)", borderRadius: "16px", padding: "24px", position: "relative" }}>
           <span className="metric-indicator indicator-blue" style={{ position: "absolute", top: "24px", left: "24px", width: "8px", height: "8px", borderRadius: "50%", background: "var(--accent-blue)", boxShadow: "0 0 10px var(--accent-blue)" }}></span>
           <span className="metric-label" style={{ display: "block", fontSize: "13px", color: "var(--text-secondary)", marginBottom: "8px", paddingLeft: "16px" }}>Tổng số lượt AI trích xuất</span>
-          <span className="metric-value" style={{ display: "block", fontSize: "32px", fontWeight: "700", color: "var(--text-primary)" }}>{analytics.totalExpenses.toLocaleString()}</span>
+          <span className="metric-value" style={{ display: "block", fontSize: "32px", fontWeight: "700", color: "var(--text-primary)" }}>{analytics.totalExpenses ? analytics.totalExpenses.toLocaleString() : "0"}</span>
           <span className="metric-desc" style={{ display: "block", fontSize: "12px", color: "var(--text-muted)", marginTop: "4px" }}>Giao dịch xử lý qua giọng nói/ảnh hóa đơn</span>
         </div>
-        
+        <div className="metric-card" style={{ background: "var(--bg-obsidian-900)", border: "1px solid var(--border-color)", borderRadius: "16px", padding: "24px", position: "relative" }}>
+          <span className="metric-indicator indicator-amber" style={{ position: "absolute", top: "24px", left: "24px", width: "8px", height: "8px", borderRadius: "50%", background: "var(--accent-amber)", boxShadow: "0 0 10px var(--accent-amber)" }}></span>
+          <span className="metric-label" style={{ display: "block", fontSize: "13px", color: "var(--text-secondary)", marginBottom: "8px", paddingLeft: "16px" }}>Tổng số người dùng</span>
+          <span className="metric-value" style={{ display: "block", fontSize: "32px", fontWeight: "700", color: "var(--text-primary)" }}>{analytics.totalUsers ? analytics.totalUsers.toLocaleString() : "0"}</span>
+          <span className="metric-desc" style={{ display: "block", fontSize: "12px", color: "var(--text-muted)", marginTop: "4px" }}>Số lượng người dùng đã đăng ký</span>
+        </div>
       </div>
 
       {/* NLU Benchmark Panel */}

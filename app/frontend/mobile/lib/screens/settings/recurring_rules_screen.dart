@@ -669,7 +669,11 @@ class _AddRecurringRuleSheetState extends State<AddRecurringRuleSheet> {
     final amount = parseMoneyInput(rawAmount);
 
     if (amount == null || amount <= 0) {
-      setState(() => _errorMessage = 'Vui lòng nhập số tiền hợp lệ');
+      setState(() => _errorMessage = 'Vui lòng nhập số tiền hợp lệ (phải lớn hơn 0)');
+      return;
+    }
+    if (amount > 100000000000) {
+      setState(() => _errorMessage = 'Số tiền tối đa 100 tỷ đồng');
       return;
     }
 

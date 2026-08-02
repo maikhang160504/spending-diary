@@ -1224,9 +1224,13 @@ function NluOpsPage() {
                       <input 
                         type="number" 
                         min="1" 
-                        max="10" 
+                        max="10"
+                        step="1"
                         value={llmTrainParams.epochs}
-                        onChange={(e) => setLlmTrainParams({ ...llmTrainParams, epochs: parseInt(e.target.value) || 3 })}
+                        onChange={(e) => {
+                          const v = parseInt(e.target.value);
+                          if (!isNaN(v)) setLlmTrainParams({ ...llmTrainParams, epochs: Math.min(10, Math.max(1, v)) });
+                        }}
                         style={{ width: "50px", background: "var(--bg-obsidian-900)", border: "1px solid var(--border-color)", color: "var(--text-primary)", borderRadius: "4px", padding: "4px", fontSize: "11px", textAlign: "center" }}
                       />
                     </div>
@@ -1234,9 +1238,14 @@ function NluOpsPage() {
                       <span style={{ color: "var(--text-muted)" }}>LR</span>
                       <input 
                         type="number" 
-                        step="0.00005" 
+                        step="0.00005"
+                        min="0.00001"
+                        max="1"
                         value={llmTrainParams.lr}
-                        onChange={(e) => setLlmTrainParams({ ...llmTrainParams, lr: parseFloat(e.target.value) || 0.0002 })}
+                        onChange={(e) => {
+                          const v = parseFloat(e.target.value);
+                          if (!isNaN(v) && v > 0 && v <= 1) setLlmTrainParams({ ...llmTrainParams, lr: v });
+                        }}
                         style={{ width: "80px", background: "var(--bg-obsidian-900)", border: "1px solid var(--border-color)", color: "var(--text-primary)", borderRadius: "4px", padding: "4px", fontSize: "11px", textAlign: "center" }}
                       />
                     </div>
@@ -1245,9 +1254,13 @@ function NluOpsPage() {
                       <input 
                         type="number" 
                         min="1" 
-                        max="16" 
+                        max="16"
+                        step="1"
                         value={llmTrainParams.batchSize}
-                        onChange={(e) => setLlmTrainParams({ ...llmTrainParams, batchSize: parseInt(e.target.value) || 4 })}
+                        onChange={(e) => {
+                          const v = parseInt(e.target.value);
+                          if (!isNaN(v)) setLlmTrainParams({ ...llmTrainParams, batchSize: Math.min(16, Math.max(1, v)) });
+                        }}
                         style={{ width: "60px", background: "var(--bg-obsidian-900)", border: "1px solid var(--border-color)", color: "var(--text-primary)", borderRadius: "4px", padding: "4px", fontSize: "11px", textAlign: "center" }}
                       />
                     </div>

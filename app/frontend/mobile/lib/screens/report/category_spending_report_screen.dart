@@ -49,10 +49,14 @@ class _CategorySpendingReportScreenState extends State<CategorySpendingReportScr
       final startOfWeek = now.subtract(Duration(days: now.weekday - 1)).subtract(Duration(days: 7 * _periodOffset));
       final endOfWeek = startOfWeek.add(const Duration(days: 6));
       return '${DateFormat('dd/MM').format(startOfWeek)} - ${DateFormat('dd/MM').format(endOfWeek)}';
-    } else {
+    } else if (_selectedPeriod == 'Tháng này') {
       if (_periodOffset == 0) return 'Tháng hiện tại';
       final targetMonth = DateTime(now.year, now.month - _periodOffset, 1);
       return 'Tháng ${targetMonth.month}/${targetMonth.year}';
+    } else {
+      final targetYear = now.year - _periodOffset;
+      if (_periodOffset == 0) return 'Năm $targetYear (Hiện tại)';
+      return 'Năm $targetYear';
     }
   }
 
@@ -61,30 +65,36 @@ class _CategorySpendingReportScreenState extends State<CategorySpendingReportScr
     try {
       final now = DateTime.now();
       String fromStr, toStr;
+      String prevFromStr, prevToStr;
+
       if (_selectedPeriod == 'Tuần này') {
         final startOfWeek = now.subtract(Duration(days: now.weekday - 1)).subtract(Duration(days: 7 * _periodOffset));
         final endOfWeek = startOfWeek.add(const Duration(days: 6));
-        fromStr = startOfWeek.toIso8601String().substring(0, 10);
-        toStr = endOfWeek.toIso8601String().substring(0, 10);
-      } else {
-        final targetMonth = DateTime(now.year, now.month - _periodOffset, 1);
-        final targetMonthEnd = DateTime(now.year, now.month - _periodOffset + 1, 0);
-        fromStr = targetMonth.toIso8601String().substring(0, 10);
-        toStr = targetMonthEnd.toIso8601String().substring(0, 10);
-      }
+        fromStr = DateFormat('yyyy-MM-dd').format(startOfWeek);
+        toStr = DateFormat('yyyy-MM-dd').format(endOfWeek);
 
-      String prevFromStr, prevToStr;
-      if (_selectedPeriod == 'Tuần này') {
-        final startOfWeek = now.subtract(Duration(days: now.weekday - 1)).subtract(Duration(days: 7 * _periodOffset));
         final prevStart = startOfWeek.subtract(const Duration(days: 7));
         final prevEnd = startOfWeek.subtract(const Duration(days: 1));
-        prevFromStr = prevStart.toIso8601String().substring(0, 10);
-        prevToStr = prevEnd.toIso8601String().substring(0, 10);
-      } else {
+        prevFromStr = DateFormat('yyyy-MM-dd').format(prevStart);
+        prevToStr = DateFormat('yyyy-MM-dd').format(prevEnd);
+      } else if (_selectedPeriod == 'Tháng này') {
+        final targetMonth = DateTime(now.year, now.month - _periodOffset, 1);
+        final targetMonthEnd = DateTime(now.year, now.month - _periodOffset + 1, 0);
+        fromStr = DateFormat('yyyy-MM-dd').format(targetMonth);
+        toStr = DateFormat('yyyy-MM-dd').format(targetMonthEnd);
+
         final prevMonth = DateTime(now.year, now.month - _periodOffset - 1, 1);
         final prevMonthEnd = DateTime(now.year, now.month - _periodOffset, 0);
-        prevFromStr = prevMonth.toIso8601String().substring(0, 10);
-        prevToStr = prevMonthEnd.toIso8601String().substring(0, 10);
+        prevFromStr = DateFormat('yyyy-MM-dd').format(prevMonth);
+        prevToStr = DateFormat('yyyy-MM-dd').format(prevMonthEnd);
+      } else {
+        final targetYear = now.year - _periodOffset;
+        fromStr = '$targetYear-01-01';
+        toStr = '$targetYear-12-31';
+
+        final prevYear = targetYear - 1;
+        prevFromStr = '$prevYear-01-01';
+        prevToStr = '$prevYear-12-31';
       }
 
       final results = await Future.wait([
@@ -184,15 +194,13 @@ class _CategorySpendingReportScreenState extends State<CategorySpendingReportScr
     return Scaffold(
       backgroundColor: context.palette.bg,
       appBar: AppBar(
-        backgroundColor: context.palette.bg,
+        title: const Text('Phân bổ thu chi', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
+        backgroundColor: context.palette.card,
         elevation: 0,
+        centerTitle: true,
         leading: IconButton(
           icon: Icon(Icons.arrow_back_ios_new_rounded, color: context.palette.textPrimary, size: 20),
           onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: Text(
-          _recordType == 'expense' ? 'Chi tiêu theo danh mục' : 'Thu nhập theo danh mục',
-          style: TextStyle(color: context.palette.textPrimary, fontSize: 18, fontWeight: FontWeight.w700),
         ),
       ),
       body: SafeArea(
@@ -222,14 +230,21 @@ class _CategorySpendingReportScreenState extends State<CategorySpendingReportScr
                               }
                             },
                           ),
-                          // Filter 2: Kỳ (Tuần / Tháng)
+                          // Filter 2: Kỳ (Tuần / Tháng / Năm)
                           FilterSegmentCompact(
-                            labels: const ['Theo tuần', 'Theo tháng'],
-                            selected: _selectedPeriod == 'Tuần này' ? 'Theo tuần' : 'Theo tháng',
+                            labels: const ['Theo tuần', 'Theo tháng', 'Theo năm'],
+                            selected: _selectedPeriod == 'Tuần này'
+                                ? 'Theo tuần'
+                                : (_selectedPeriod == 'Tháng này' ? 'Theo tháng' : 'Theo năm'),
                             onChanged: (val) {
-                              final p = val == 'Theo tuần' ? 'Tuần này' : 'Tháng này';
+                              String p = 'Tháng này';
+                              if (val == 'Theo tuần') p = 'Tuần này';
+                              if (val == 'Theo năm') p = 'Năm nay';
                               if (p != _selectedPeriod) {
-                                setState(() { _selectedPeriod = p; _periodOffset = 0; });
+                                setState(() {
+                                  _selectedPeriod = p;
+                                  _periodOffset = 0;
+                                });
                                 _loadReportData();
                               }
                             },
@@ -237,12 +252,29 @@ class _CategorySpendingReportScreenState extends State<CategorySpendingReportScr
                           // Filter 3: Điều hướng kỳ
                           FilterPeriodNavCompact(
                             label: _getPeriodLabel(),
-                            onPrev: () { setState(() => _periodOffset++); _loadReportData(); },
-                            onNext: _periodOffset > 0 ? () { setState(() => _periodOffset--); _loadReportData(); } : null,
+                            onPrev: () {
+                              setState(() => _periodOffset++);
+                              _loadReportData();
+                            },
+                            onNext: _periodOffset > 0
+                                ? () {
+                                    setState(() => _periodOffset--);
+                                    _loadReportData();
+                                  }
+                                : null,
                           ),
                           // Filter 4: Ví (horizontal chips)
-                          if (!isLandscapePhone) _buildWalletSelectorBar()
-                          else _buildWalletSelectorBarCompact(),
+                          FilterWalletSelector(
+                            wallets: _walletsList,
+                            selectedWalletId: _selectedWalletId,
+                            isLandscape: isLandscapePhone,
+                            onWalletSelected: (id) {
+                              if (_selectedWalletId != id) {
+                                setState(() => _selectedWalletId = id);
+                                _loadReportData();
+                              }
+                            },
+                          ),
                         ],
                       ),
                     ),
@@ -284,22 +316,7 @@ class _CategorySpendingReportScreenState extends State<CategorySpendingReportScr
     );
   }
 
-  Widget _buildWalletSelectorBarCompact() {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _buildWalletChipItem('Tất cả ví', null),
-          ..._walletsList.map((w) {
-            final id = w['id']?.toString();
-            final name = w['name']?.toString() ?? 'Ví';
-            return _buildWalletChipItem(name, id);
-          }),
-        ],
-      ),
-    );
-  }
+
 
   Widget _buildAISection(List<dynamic> cats) {
     return Column(
@@ -378,69 +395,6 @@ class _CategorySpendingReportScreenState extends State<CategorySpendingReportScr
           ),
         ],
       ],
-    );
-  }
-
-  Widget _buildWalletSelectorBar() {
-    return Container(
-      padding: const EdgeInsets.only(left: AppSpacing.lg, right: AppSpacing.lg, bottom: 4),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: [
-            _buildWalletChipItem('Tất cả ví', null),
-            ..._walletsList.map((w) {
-              final id = w['id']?.toString();
-              final name = w['name']?.toString() ?? 'Ví';
-              return _buildWalletChipItem(name, id);
-            }),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildWalletChipItem(String label, String? walletId) {
-    final isSelected = _selectedWalletId == walletId;
-    return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: InkWell(
-        onTap: () {
-          setState(() => _selectedWalletId = walletId);
-          _loadReportData();
-        },
-        borderRadius: BorderRadius.circular(AppRadii.full),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 160),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          decoration: BoxDecoration(
-            color: isSelected ? AppColors.teal : context.palette.card,
-            borderRadius: BorderRadius.circular(AppRadii.full),
-            border: Border.all(
-              color: isSelected ? AppColors.teal : context.palette.border,
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                walletId == null ? Icons.all_inclusive_rounded : Icons.account_balance_wallet_outlined,
-                size: 12,
-                color: isSelected ? Colors.white : context.palette.textSecondary,
-              ),
-              const SizedBox(width: 5),
-              Text(
-                label,
-                style: TextStyle(
-                  color: isSelected ? Colors.white : context.palette.textPrimary,
-                  fontSize: 13,
-                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 

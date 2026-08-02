@@ -80,7 +80,13 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
 
       if (data['user'] != null && data['user']['status'] == 'banned') {
-        context.go(AppRoutes.banned, extra: data['user']['banReason']);
+        context.go(
+          AppRoutes.banned,
+          extra: {
+            'banReason': data['user']['banReason'],
+            'appeal': data['user']['appeal'],
+          },
+        );
         return;
       }
 
@@ -126,7 +132,13 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
 
       if (data['user'] != null && data['user']['status'] == 'banned') {
-        context.go(AppRoutes.banned, extra: data['user']['banReason']);
+        context.go(
+          AppRoutes.banned,
+          extra: {
+            'banReason': data['user']['banReason'],
+            'appeal': data['user']['appeal'],
+          },
+        );
         return;
       }
 

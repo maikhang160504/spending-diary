@@ -12,6 +12,7 @@ import '../../services/transaction_notifier.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_radii.dart';
 import '../../utils/mimo_emotion.dart';
+import '../../widgets/mimo_snackbar.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/categories.dart';
 import '../../utils/formatters.dart';
@@ -230,48 +231,55 @@ class _StoryPageState extends State<_StoryPage> {
 
     setState(() => _correcting = true);
     if (!mounted) return;
-    final messenger = ScaffoldMessenger.of(context);
     try {
       await _api.updateTransaction(_primaryTxId!, {
         'categoryCode': picked,
       });
       notifyTransactionChanged();
       await _loadStory();
-      messenger.showSnackBar(
-        const SnackBar(
-          content: Text('Đã cập nhật giao dịch và ghi nhận góp ý! Mimo sẽ học thêm từ bạn 🙏'),
-          backgroundColor: AppColors.teal,
-        ),
-      );
+      if (mounted) {
+        MimoSnackBar.showSuccess(
+          context,
+          message: 'Đã cập nhật giao dịch và ghi nhận góp ý! Mimo sẽ học thêm từ bạn 🙏',
+          emotion: 'Love',
+        );
+      }
     } catch (_) {
-      messenger.showSnackBar(
-        const SnackBar(content: Text('Không thể gửi góp ý. Thử lại sau.')),
-      );
+      if (mounted) {
+        MimoSnackBar.showError(
+          context,
+          message: 'Không thể gửi góp ý. Thử lại sau.',
+          emotion: 'Sorry',
+        );
+      }
     }
     if (mounted) setState(() => _correcting = false);
   }
 
   // ── Xóa story (xóa toàn bộ transaction thuộc story) ──
   Future<void> _confirmDelete() async {
-    final ok = await showDialog<bool>(
+    final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Xóa giao dịch?'),
-        content: const Text('Bạn có chắc muốn xóa? Hành động này không thể hoàn tác.'),
+        title: const Text('Xóa giao dịch này?'),
+        content: const Text(
+            'Giao dịch và ảnh hóa đơn sẽ bị xóa vĩnh viễn khỏi câu chuyện chi tiêu của bạn.'),
         actions: [
-          TextButton(onPressed: () => ctx.pop(false), child: const Text('Hủy')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Hủy')),
           FilledButton(
-            onPressed: () => ctx.pop(true),
-            style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
+            style:
+                FilledButton.styleFrom(backgroundColor: AppColors.danger),
+            onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Xóa'),
           ),
         ],
       ),
     );
-    if (ok != true || !mounted) return;
+    if (confirmed != true || !mounted) return;
 
     final txIds = _allTxIds();
-    final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
     try {
       if (txIds.isEmpty && _primaryTxId != null) {
@@ -282,10 +290,22 @@ class _StoryPageState extends State<_StoryPage> {
         }
       }
       notifyTransactionChanged();
-      messenger.showSnackBar(const SnackBar(content: Text('Đã xóa giao dịch ✓'), backgroundColor: AppColors.teal));
+      if (mounted) {
+        MimoSnackBar.showSuccess(
+          context,
+          message: 'Đã xóa giao dịch ✓',
+          emotion: 'Success',
+        );
+      }
       navigator.pop();
     } catch (_) {
-      messenger.showSnackBar(const SnackBar(content: Text('Không thể xóa giao dịch')));
+      if (mounted) {
+        MimoSnackBar.showError(
+          context,
+          message: 'Không thể xóa giao dịch',
+          emotion: 'Sad',
+        );
+      }
     }
   }
 
@@ -409,7 +429,6 @@ class _StoryPageState extends State<_StoryPage> {
                       ? null
                       : () async {
                           setSheetState(() => saving = true);
-                          final messenger = ScaffoldMessenger.of(context);
                           try {
                             final newAmt = int.tryParse(amountCtrl.text) ?? curAmount;
                             final newNote = noteCtrl.text;
@@ -436,12 +455,23 @@ class _StoryPageState extends State<_StoryPage> {
                             }
                             notifyTransactionChanged();
                             if (ctx.mounted) ctx.pop();
-                            messenger.showSnackBar(
-                              const SnackBar(content: Text('Đã cập nhật giao dịch ✓'), backgroundColor: AppColors.teal));
+                            if (mounted) {
+                              MimoSnackBar.showSuccess(
+                                context,
+                                message: 'Đã cập nhật giao dịch ✓',
+                                emotion: 'Celebrate',
+                              );
+                            }
                             await _loadStory();
                           } catch (_) {
                             setSheetState(() => saving = false);
-                            messenger.showSnackBar(const SnackBar(content: Text('Không thể cập nhật giao dịch')));
+                            if (mounted) {
+                              MimoSnackBar.showError(
+                                context,
+                                message: 'Không thể cập nhật giao dịch',
+                                emotion: 'Sad',
+                              );
+                            }
                           }
                         },
                   style: FilledButton.styleFrom(

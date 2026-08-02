@@ -184,7 +184,14 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
                         : () async {
                             final rawText = amountCtrl.text.replaceAll(',', '').replaceAll('.', '').trim();
                             final amount = double.tryParse(rawText);
-                            if (amount == null || amount <= 0) return;
+                            if (amount == null || amount <= 0) {
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Số tiền đóng góp phải lớn hơn 0'), backgroundColor: AppColors.danger));
+                              return;
+                            }
+                            if (amount > 100000000000) {
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Số tiền tối đa 100 tỷ đồng'), backgroundColor: AppColors.danger));
+                              return;
+                            }
                             setSheetState(() {
                               isSubmitting = true;
                             });
@@ -276,7 +283,11 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
                   )).toList(),
                 ),
                 const SizedBox(height: 12),
-                TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'Tên mục tiêu')),
+                TextField(
+                  controller: nameCtrl,
+                  maxLength: 100,
+                  decoration: const InputDecoration(labelText: 'Tên mục tiêu', counterText: ''),
+                ),
                 const SizedBox(height: 10),
                 TextField(
                   controller: amountCtrl,
@@ -312,7 +323,18 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
                             final name = nameCtrl.text.trim();
                             final rawText = amountCtrl.text.replaceAll(',', '').replaceAll('.', '').trim();
                             final amount = double.tryParse(rawText);
-                            if (name.isEmpty || amount == null || amount <= 0) return;
+                            if (name.isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Vui lòng nhập tên mục tiêu'), backgroundColor: AppColors.danger));
+                              return;
+                            }
+                            if (amount == null || amount <= 0) {
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Số tiền mục tiêu phải lớn hơn 0'), backgroundColor: AppColors.danger));
+                              return;
+                            }
+                            if (amount > 100000000000) {
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Số tiền tối đa 100 tỷ đồng'), backgroundColor: AppColors.danger));
+                              return;
+                            }
                             setSheet(() {
                               isSubmitting = true;
                             });

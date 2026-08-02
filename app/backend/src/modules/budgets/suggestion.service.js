@@ -92,9 +92,31 @@ function monthRange(monthStr) {
 
 /**
  * Fetch monthly category spending for a user in a given month.
+ * Ưu tiên đọc từ budget_monthly_snapshots (nhanh hơn), fallback về transactions.
  * Returns Map<categoryCode, { total, transactions: number[] }>
  */
 async function fetchMonthlySpending(userId, monthStr) {
+  // Thử đọc từ snapshots trước (chỉ có cho tháng đã qua và đã reset)
+  const snapshotRes = await query(
+    `SELECT category_code, amount_limit, spent
+     FROM budget_monthly_snapshots
+     WHERE user_id = $1 AND month = $2`,
+    [userId, monthStr]
+  );
+
+  if (snapshotRes.rows.length > 0) {
+    const map = new Map();
+    for (const row of snapshotRes.rows) {
+      const cat = row.category_code || 'Other';
+      const spent = Number(row.spent);
+      if (spent > 0) {
+        map.set(cat, { total: spent, amounts: [spent] });
+      }
+    }
+    if (map.size > 0) return map;
+  }
+
+  // Fallback: query trực tiếp từ transactions
   const { from, to } = monthRange(monthStr);
   const r = await query(
     `SELECT category_code, amount::numeric
@@ -406,6 +428,11 @@ async function computeSuggestionsForUser(userId, targetMonth) {
     }
   }
 
+  // Làm tròn cho gợi ý ngân sách (làm tròn đến hàng chục nghìn)
+  for (const s of suggestions) {
+    s.suggested_amount = Math.round(s.suggested_amount / 10000) * 10000;
+  }
+
   return suggestions;
 }
 
@@ -430,7 +457,11 @@ async function computeFallbackFromPeer(userId, targetMonth, holidayFactor) {
 
   return benchRes.rows.map((row) => {
     const avg = Number(row.avg_amount);
-    const suggested = Math.round(avg * holidayFactor);
+    let suggested = Math.round(avg * holidayFactor);
+    
+    // Làm tròn đến hàng chục nghìn
+    suggested = Math.round(suggested / 10000) * 10000;
+
     return {
       category_code: row.category_id,
       suggested_amount: suggested,

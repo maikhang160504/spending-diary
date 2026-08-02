@@ -34,7 +34,7 @@ function BotPromptsPage() {
   const [persona, setPersona] = useState("dui_de");
   const [customPrompt, setCustomPrompt] = useState("");
   const [thresholds, setThresholds] = useState({
-    budgetAlert: 30,
+    budgetAlert: 80,
     categorySurge: 25,
     dailyVol: 5
   });
@@ -67,7 +67,18 @@ function BotPromptsPage() {
           setCustomPrompt(prompts.emotions[persona].system);
         }
         if (settings) {
-          setSystemSettings(settings);
+          setSystemSettings({
+            llmTemperature: settings.llmTemperature !== undefined ? settings.llmTemperature : 0.7,
+            llmTopK: settings.llmTopK !== undefined ? settings.llmTopK : 40,
+            ocrWeight: settings.ocrWeight !== undefined ? settings.ocrWeight : 0.75,
+            nluThreshold: settings.nluThreshold !== undefined ? settings.nluThreshold : 0.85,
+            dateFallback: settings.dateFallback || "transaction"
+          });
+          setThresholds({
+            budgetAlert: settings.budgetAlert !== undefined ? settings.budgetAlert : 80,
+            categorySurge: settings.categorySurge !== undefined ? settings.categorySurge : 25,
+            dailyVol: settings.dailyVol !== undefined ? settings.dailyVol : 5
+          });
         }
         setLoading(false);
       })
@@ -96,7 +107,10 @@ function BotPromptsPage() {
 
     Promise.all([
       saveBotPrompts(updatedPrompts),
-      saveSystemSettings(systemSettings)
+      saveSystemSettings({
+        ...systemSettings,
+        ...thresholds
+      })
     ])
       .then(() => {
         setPromptsData(updatedPrompts);
@@ -120,7 +134,9 @@ function BotPromptsPage() {
       const res = await testSystemPrompt({
         text: testText,
         override_prompt: customPrompt,
-        persona: persona
+        persona: persona,
+        temperature: systemSettings.llmTemperature,
+        top_k: systemSettings.llmTopK
       });
       setTestResult(res);
       triggerToast("Test thành công!");
@@ -492,7 +508,7 @@ function BotPromptsPage() {
                 <input
                   type="range"
                   min="10"
-                  max="80"
+                  max="100"
                   step="5"
                   value={thresholds.budgetAlert}
                   onChange={(e) => setThresholds({ ...thresholds, budgetAlert: parseInt(e.target.value) })}

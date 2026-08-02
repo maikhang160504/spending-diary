@@ -164,6 +164,7 @@ function UserManagementPage() {
   const filteredUsers = useMemo(() => {
     const q = search.trim().toLowerCase();
     return users.filter((u) => {
+      if (u.role === "admin") return false;
       if (filterAuth !== "all" && u.authProvider !== filterAuth) return false;
       if (!matchesProfileFilter(u.ageGroup, filterAge)) return false;
       if (!matchesProfileFilter(u.jobType, filterJob)) return false;
@@ -208,11 +209,12 @@ function UserManagementPage() {
   const selectedUser = users.find((u) => u.id === selectedId) || null;
 
   const stats = useMemo(() => {
-    const active = users.filter((u) => u.isActive).length;
-    const google = users.filter((u) => u.authProvider === "Google").length;
-    const email = users.filter((u) => u.authProvider === "Email").length;
-    const premium = users.filter((u) => u.isPremium).length;
-    return { total: users.length, active, google, email, premium };
+    const list = users.filter((u) => u.role !== "admin");
+    const active = list.filter((u) => u.isActive).length;
+    const google = list.filter((u) => u.authProvider === "Google").length;
+    const email = list.filter((u) => u.authProvider === "Email").length;
+    const premium = list.filter((u) => u.isPremium).length;
+    return { total: list.length, active, google, email, premium };
   }, [users]);
 
   const [toggling, setToggling] = useState({});

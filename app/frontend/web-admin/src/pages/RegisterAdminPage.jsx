@@ -13,6 +13,20 @@ function RegisterAdminPage() {
     e.preventDefault();
     setError("");
     setSuccess("");
+
+    // Frontend validation
+    const trimmedUsername = username.trim();
+    const trimmedEmail = email.trim();
+    const trimmedPass = password.trim();
+
+    if (!trimmedUsername) { setError("Vui lòng nhập tên người dùng"); return; }
+    if (trimmedUsername.length < 2 || trimmedUsername.length > 80) { setError("Tên người dùng phải từ 2–80 ký tự"); return; }
+    if (!trimmedEmail) { setError("Vui lòng nhập email"); return; }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(trimmedEmail)) { setError("Email không đúng định dạng"); return; }
+    if (!trimmedPass) { setError("Vui lòng nhập mật khẩu"); return; }
+    if (trimmedPass.length < 8 || trimmedPass.length > 72) { setError("Mật khẩu phải từ 8–72 ký tự"); return; }
+
     setLoading(true);
     try {
       const token = localStorage.getItem("admin_token");
@@ -22,7 +36,7 @@ function RegisterAdminPage() {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${token}`
         },
-        body: JSON.stringify({ email, password, username })
+        body: JSON.stringify({ email: trimmedEmail, password, username: trimmedUsername })
       });
       const data = await res.json();
       if (!res.ok) {

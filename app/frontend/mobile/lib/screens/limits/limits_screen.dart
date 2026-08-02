@@ -10,6 +10,7 @@ import '../../theme/categories.dart';
 import '../../utils/formatters.dart';
 import '../../widgets/error_banner.dart';
 import '../../widgets/skeleton.dart';
+import '../../widgets/mimo_snackbar.dart';
 
 /// Spending Limits Screen - matches /limits route
 class LimitsScreen extends StatefulWidget {
@@ -214,8 +215,11 @@ class _LimitsScreenState extends State<LimitsScreen> {
                         padding: const EdgeInsets.symmetric(vertical: 32),
                         child: Center(
                           child: Text(
-                            'Chưa có đủ dữ liệu chi tiêu để AI đưa ra gợi ý.',
+                            (resultData?['isNotLastWeek'] == true) 
+                              ? story 
+                              : 'Chưa có đủ dữ liệu chi tiêu để AI đưa ra gợi ý.',
                             style: TextStyle(color: context.palette.textSecondary),
+                            textAlign: TextAlign.center,
                           ),
                         ),
                       ),
@@ -357,20 +361,18 @@ class _LimitsScreenState extends State<LimitsScreen> {
                                     overrides: overrides,
                                   );
                                   if (!mounted) return;
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('✅ Đã áp dụng gợi ý hạn mức AI thành công!'),
-                                      backgroundColor: AppColors.teal,
-                                    ),
+                                  MimoSnackBar.showSuccess(
+                                    context,
+                                    message: 'Đã áp dụng gợi ý hạn mức AI thành công!',
+                                    emotion: 'Proud',
                                   );
                                   _loadBudgets();
                                 } catch (_) {
                                   if (!mounted) return;
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('❌ Lỗi khi áp dụng hạn mức.'),
-                                      backgroundColor: AppColors.danger,
-                                    ),
+                                  MimoSnackBar.showError(
+                                    context,
+                                    message: 'Lỗi khi áp dụng hạn mức AI.',
+                                    emotion: 'Sad',
                                   );
                                 }
                               },
@@ -448,10 +450,20 @@ class _LimitsScreenState extends State<LimitsScreen> {
                     onPressed: isSubmitting
                         ? null
                         : () async {
-                            if (selectedCategory == null) return;
+                            if (selectedCategory == null) {
+                              MimoSnackBar.showWarning(ctx, message: 'Vui lòng chọn danh mục cho hạn mức nhé!', emotion: 'Alert');
+                              return;
+                            }
                             final rawText = amountCtrl.text.replaceAll(',', '').trim();
                             final amount = int.tryParse(rawText);
-                            if (amount == null || amount <= 0) return;
+                            if (amount == null || amount <= 0) {
+                              MimoSnackBar.showWarning(ctx, message: 'Số tiền giới hạn phải lớn hơn 0 nhé!', emotion: 'Alert');
+                              return;
+                            }
+                            if (amount > 100000000000) {
+                              MimoSnackBar.showWarning(ctx, message: 'Số tiền tối đa là 100 tỷ đồng!', emotion: 'Alert');
+                              return;
+                            }
                             setModalState(() {
                               isSubmitting = true;
                             });
@@ -853,11 +865,19 @@ class _EditLimitSheetState extends State<_EditLimitSheet> {
                   onPressed: _isSubmitting
                       ? null
                       : () {
-                          setState(() {
-                            _isSubmitting = true;
-                          });
                           final rawText = _controller.text.replaceAll(',', '').trim();
-                          widget.onSave(int.tryParse(rawText) ?? widget.item.limit);
+                          final newAmount = int.tryParse(rawText);
+                          if (newAmount == null || newAmount <= 0) {
+                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Số tiền giới hạn phải lớn hơn 0')));
+                            setState(() { _isSubmitting = false; });
+                            return;
+                          }
+                          if (newAmount > 100000000000) {
+                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Số tiền tối đa 100 tỷ đồng')));
+                            setState(() { _isSubmitting = false; });
+                            return;
+                          }
+                          widget.onSave(newAmount);
                           context.pop();
                         },
                   child: const Text('Lưu'),

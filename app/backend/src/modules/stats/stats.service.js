@@ -4,12 +4,22 @@ const { query } = require('../../config/db');
 
 function parseRange(from, to) {
   const now = new Date();
-  const start = from
-    ? new Date(from)
-    : new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-  let end = to ? new Date(to) : now;
-  if (to && typeof to === 'string' && to.length === 10) {
-    end = new Date(`${to}T23:59:59.999Z`);
+  let start;
+  if (from) {
+    start = typeof from === 'string' && from.length === 10
+      ? new Date(`${from}T00:00:00.000Z`)
+      : new Date(from);
+  } else {
+    start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  }
+
+  let end;
+  if (to) {
+    end = typeof to === 'string' && to.length === 10
+      ? new Date(`${to}T23:59:59.999Z`)
+      : new Date(to);
+  } else {
+    end = now;
   }
   return { start: start.toISOString(), end: end.toISOString() };
 }
@@ -148,12 +158,14 @@ async function byMonth(userId, { year, walletId } = {}) {
   const params = [userId, start, end];
   if (walletId) {
     params.push(walletId);
-    baseWhere = `t.is_deleted = FALSE
+    baseWhere = `
+      t.is_deleted = FALSE
       AND t.wallet_id = $4
       AND t.wallet_id IN (SELECT wallet_id FROM wallet_members WHERE user_id = $1)
       AND t.occurred_at >= $2 AND t.occurred_at < $3`;
   } else {
-    baseWhere = `t.is_deleted = FALSE
+    baseWhere = `
+      t.is_deleted = FALSE
       AND t.wallet_id IN (
         SELECT w.id FROM wallets w
         JOIN wallet_members wm ON wm.wallet_id = w.id
@@ -163,24 +175,39 @@ async function byMonth(userId, { year, walletId } = {}) {
   }
 
   const r = await query(
-    `SELECT to_char(date_trunc('month', occurred_at), 'YYYY-MM') AS month,
-            SUM(amount) FILTER (WHERE type = 'expense' AND (category_code IS NULL OR category_code != 'Saving'))::numeric AS expense,
-            SUM(amount) FILTER (WHERE type = 'income')::numeric  AS income
+    `SELECT
+       to_char(date_trunc('month', occurred_at), 'YYYY-MM') AS month,
+       COALESCE(SUM(amount) FILTER (WHERE type = 'expense' AND (category_code IS NULL OR category_code != 'Saving')), 0)::numeric AS expense,
+       COALESCE(SUM(amount) FILTER (WHERE type = 'income'), 0)::numeric  AS income
      FROM transactions t
      WHERE ${baseWhere}
-     GROUP BY month ORDER BY month`,
+     GROUP BY 1
+     ORDER BY 1`,
     params
   );
-  return r.rows.map((row) => ({
-    month: row.month,
-    expense: Number(row.expense || 0),
-    income: Number(row.income || 0),
-  }));
+
+  const months = [];
+  const map = new Map(r.rows.map((row) => [row.month, row]));
+  for (let m = 1; m <= 12; m++) {
+    const key = `${y}-${String(m).padStart(2, '0')}`;
+    const row = map.get(key);
+    months.push({
+      month: key,
+      expense: row ? Number(row.expense) : 0,
+      income: row ? Number(row.income) : 0,
+      net: row ? Number(row.income) - Number(row.expense) : 0,
+    });
+  }
+  return months;
 }
 
 async function byCategory(userId, { from, to, range, walletId, type = 'expense' } = {}) {
   let start, end;
-  if (range === 'week') {
+  if (from || to) {
+    const r = parseRange(from, to);
+    start = r.start;
+    end = r.end;
+  } else if (range === 'week') {
     const now = new Date();
     start = new Date(now - 7 * 24 * 60 * 60 * 1000).toISOString();
     end = now.toISOString();
@@ -190,7 +217,8 @@ async function byCategory(userId, { from, to, range, walletId, type = 'expense' 
     end = `${y + 1}-01-01T00:00:00Z`;
   } else {
     const r = parseRange(from, to);
-    start = r.start; end = r.end;
+    start = r.start;
+    end = r.end;
   }
 
   let baseWhere;
@@ -259,7 +287,7 @@ async function getMoMComparison(userId, { walletId } = {}) {
         AND (category_code IS NULL OR category_code != 'Saving')
         AND date_trunc('month', t.occurred_at) = date_trunc('month', NOW())
         ${walletClause}
-      GROUP BY COALESCE(category_code, 'Others')
+      GROUP BY 1
     ),
     last_month AS (
       SELECT COALESCE(category_code, 'Others') AS category_code,
@@ -270,12 +298,12 @@ async function getMoMComparison(userId, { walletId } = {}) {
         AND (category_code IS NULL OR category_code != 'Saving')
         AND date_trunc('month', t.occurred_at) = date_trunc('month', NOW() - INTERVAL '1 month')
         ${walletClause}
-      GROUP BY COALESCE(category_code, 'Others')
+      GROUP BY 1
     )
-    SELECT 
+    SELECT
       COALESCE(tm.category_code, lm.category_code) AS category_code,
-      COALESCE(tm.total, 0)::numeric AS this_month_total,
-      COALESCE(lm.total, 0)::numeric AS last_month_total
+      COALESCE(tm.total, 0) AS this_month_total,
+      COALESCE(lm.total, 0) AS last_month_total
     FROM this_month tm
     FULL OUTER JOIN last_month lm ON tm.category_code = lm.category_code
     ORDER BY this_month_total DESC, last_month_total DESC
@@ -295,16 +323,14 @@ async function getCumulativeVsBudget(userId, { walletId, timeRange = 'month', pe
 
   let startDate, endDate;
   if (timeRange === 'week') {
-    const day = now.getDay();
-    const diffToMonday = now.getDate() - day + (day === 0 ? -6 : 1);
-    const startOfWeek = new Date(now.getFullYear(), now.getMonth(), diffToMonday);
-    startOfWeek.setDate(startOfWeek.getDate() - 7 * periodOffset);
-    startDate = new Date(Date.UTC(startOfWeek.getFullYear(), startOfWeek.getMonth(), startOfWeek.getDate()));
-    endDate = new Date(startDate);
-    endDate.setDate(endDate.getDate() + 6);
+    const currentDay = now.getUTCDay();
+    const diffToMonday = currentDay === 0 ? -6 : 1 - currentDay;
+    const startOfWeek = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + diffToMonday - 7 * periodOffset));
+    startDate = startOfWeek;
+    endDate = new Date(Date.UTC(startDate.getUTCFullYear(), startDate.getUTCMonth(), startDate.getUTCDate() + 6));
   } else {
-    startDate = new Date(Date.UTC(now.getFullYear(), now.getMonth() - periodOffset, 1));
-    endDate = new Date(Date.UTC(startDate.getFullYear(), startDate.getMonth() + 1, 0));
+    startDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - periodOffset, 1));
+    endDate = new Date(Date.UTC(startDate.getUTCFullYear(), startDate.getUTCMonth() + 1, 0));
   }
 
   const startDateStr = startDate.toISOString().split('T')[0];
@@ -312,13 +338,19 @@ async function getCumulativeVsBudget(userId, { walletId, timeRange = 'month', pe
 
   if (walletId) {
     budgetQuery = query(
-      `SELECT COALESCE(SUM(amount_limit), 0)::numeric AS total_limit
+      `SELECT 
+         CASE 
+           WHEN COALESCE(SUM(CASE WHEN category_code IS NULL THEN amount_limit ELSE 0 END), 0) > 0 
+           THEN SUM(CASE WHEN category_code IS NULL THEN amount_limit ELSE 0 END)
+           ELSE COALESCE(SUM(amount_limit), 0)
+         END::numeric AS total_limit
        FROM budgets
-       WHERE wallet_id = $1
+       WHERE user_id = $1
+         AND (wallet_id = $2 OR wallet_id IS NULL)
          AND is_active = TRUE
-         AND start_date <= $2
-         AND (end_date IS NULL OR end_date >= $3)`,
-      [walletId, endDateStr, startDateStr]
+         AND start_date <= $3
+         AND (end_date IS NULL OR end_date >= $4)`,
+      [userId, walletId, endDateStr, startDateStr]
     );
 
     txQuery = query(
@@ -329,17 +361,27 @@ async function getCumulativeVsBudget(userId, { walletId, timeRange = 'month', pe
          AND t.type = 'expense'
          AND (category_code IS NULL OR category_code != 'Saving')
          AND t.wallet_id = $1
-         AND t.occurred_at >= $2::timestamp
-         AND t.occurred_at < $3::timestamp + interval '1 day'
+         AND t.wallet_id IN (SELECT wallet_id FROM wallet_members WHERE user_id = $2)
+         AND t.occurred_at >= $3::timestamp
+         AND t.occurred_at < $4::timestamp + interval '1 day'
        GROUP BY day ORDER BY day`,
-      [walletId, startDateStr, endDateStr]
+      [walletId, userId, startDateStr, endDateStr]
     );
   } else {
     budgetQuery = query(
-      `SELECT COALESCE(SUM(amount_limit), 0)::numeric AS total_limit
+      `SELECT 
+         CASE 
+           WHEN COALESCE(SUM(CASE WHEN category_code IS NULL THEN amount_limit ELSE 0 END), 0) > 0 
+           THEN SUM(CASE WHEN category_code IS NULL THEN amount_limit ELSE 0 END)
+           ELSE COALESCE(SUM(amount_limit), 0)
+         END::numeric AS total_limit
        FROM budgets
        WHERE user_id = $1
-         AND wallet_id IN (SELECT id FROM wallets WHERE owner_id = $1 AND type = 'personal')
+         AND (wallet_id IN (
+           SELECT w.id FROM wallets w
+           JOIN wallet_members wm ON wm.wallet_id = w.id
+           WHERE wm.user_id = $1 AND w.type = 'personal'
+         ) OR wallet_id IS NULL)
          AND is_active = TRUE
          AND start_date <= $2
          AND (end_date IS NULL OR end_date >= $3)`,
@@ -353,7 +395,11 @@ async function getCumulativeVsBudget(userId, { walletId, timeRange = 'month', pe
        WHERE t.is_deleted = FALSE
          AND t.type = 'expense'
          AND (category_code IS NULL OR category_code != 'Saving')
-         AND t.wallet_id IN (SELECT id FROM wallets WHERE owner_id = $1 AND type = 'personal')
+         AND t.wallet_id IN (
+           SELECT w.id FROM wallets w
+           JOIN wallet_members wm ON wm.wallet_id = w.id
+           WHERE wm.user_id = $1 AND w.type = 'personal'
+         )
          AND t.occurred_at >= $2::timestamp
          AND t.occurred_at < $3::timestamp + interval '1 day'
        GROUP BY day ORDER BY day`,
@@ -365,7 +411,7 @@ async function getCumulativeVsBudget(userId, { walletId, timeRange = 'month', pe
   let limit = Number(budgetRes.rows[0]?.total_limit || 0);
 
   if (timeRange === 'week') {
-    const daysInMonth = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0).getDate();
+    const daysInMonth = new Date(startDate.getUTCFullYear(), startDate.getUTCMonth() + 1, 0).getUTCDate();
     limit = Math.round(limit * (7 / daysInMonth));
   }
 

@@ -86,6 +86,18 @@ async function issueTokens(user) {
     `INSERT INTO refresh_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, $3)`,
     [user.id, hashToken(refreshToken), expiresAt]
   );
+
+  let appeal = null;
+  if (user.status === 'banned') {
+    const appealRes = await query(
+      `SELECT id, reason, status, created_at FROM ban_appeals WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1`,
+      [user.id]
+    );
+    if (appealRes.rows.length > 0) {
+      appeal = appealRes.rows[0];
+    }
+  }
+
   return {
     accessToken,
     refreshToken,
@@ -98,7 +110,13 @@ async function issueTokens(user) {
       preferredVibe: user.preferred_vibe,
       avatarUrl: user.avatar_url,
       status: user.status,
-      banReason: user.ban_reason
+      banReason: user.ban_reason,
+      appeal: appeal ? {
+        id: appeal.id,
+        reason: appeal.reason,
+        status: appeal.status,
+        createdAt: appeal.created_at
+      } : null
     },
   };
 }
@@ -157,50 +175,67 @@ async function changePassword(userId, { currentPassword, newPassword }) {
   await query('UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2', [newHash, userId]);
 }
 
+function getDaysDiff(dStr1, dStr2) {
+  const d1 = new Date(dStr1 + 'T00:00:00Z');
+  const d2 = new Date(dStr2 + 'T00:00:00Z');
+  return Math.round((d1.getTime() - d2.getTime()) / 86400000);
+}
+
+function getTodayVNStr() {
+  const now = new Date();
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
+  return formatter.format(now);
+}
+
 async function getStreak(userId) {
-  // Get all distinct dates with transactions for this user (ordered desc)
+  // Lấy tất cả các ngày riêng biệt có hoạt động của người dùng (tính theo múi giờ Việt Nam Asia/Ho_Chi_Minh)
   const r = await query(
     `SELECT DISTINCT day FROM (
-       SELECT DATE(t.occurred_at) AS day
+       SELECT TO_CHAR(t.occurred_at AT TIME ZONE 'Asia/Ho_Chi_Minh', 'YYYY-MM-DD') AS day
        FROM transactions t
        JOIN wallet_members wm ON wm.wallet_id = t.wallet_id
        WHERE wm.user_id = $1 AND t.is_deleted = FALSE
        UNION
-       SELECT DATE(cm.created_at) AS day
+       SELECT TO_CHAR(cm.created_at AT TIME ZONE 'Asia/Ho_Chi_Minh', 'YYYY-MM-DD') AS day
        FROM chat_messages cm
        JOIN chat_sessions cs ON cs.id = cm.session_id
        WHERE cs.user_id = $1 AND cm.role = 'user'
+       UNION
+       SELECT TO_CHAR(s.occurred_on, 'YYYY-MM-DD') AS day
+       FROM stories s
+       WHERE s.user_id = $1
      ) active_days
      ORDER BY day DESC`,
     [userId]
   );
-  const dates = r.rows.map((row) => row.day); // Date objects from pg
+  const dates = r.rows.map((row) => row.day).filter(Boolean);
 
   if (dates.length === 0) {
-    return { currentStreak: 0, longestStreak: 0, totalDays: dates.length, lastActivityDate: null };
+    return {
+      currentStreak: 0,
+      longestStreak: 0,
+      totalDays: 0,
+      lastActivityDate: null,
+      activeDates: [],
+    };
   }
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const todayStr = getTodayVNStr();
+  const lastActiveStr = dates[0];
+  const daysSinceLast = getDaysDiff(todayStr, lastActiveStr);
 
-  const startOfDay = (d) => {
-    const x = new Date(d);
-    x.setHours(0, 0, 0, 0);
-    return x;
-  };
-
-  // Calculate current streak — KHOAN HỒNG 1 NGÀY:
-  // bỏ lỡ đúng 1 ngày sẽ KHÔNG làm streak về 0 (chấp nhận khoảng cách ≤ 2 ngày).
+  // Tính current streak — Khoan hồng 1 ngày:
+  // Nếu hôm nay (0 ngày) hoặc hôm qua (1 ngày) hoặc cách 2 ngày (vừa bỏ lỡ 1 ngày) thì chuỗi vẫn còn hiệu lực.
   let currentStreak = 0;
-  // dates đã sort giảm dần → dates[0] là ngày hoạt động gần nhất.
-  const daysSinceLast = Math.round((today - startOfDay(dates[0])) / 86400000);
   if (daysSinceLast <= 2) {
     currentStreak = 1;
     for (let i = 1; i < dates.length; i++) {
-      const prev = startOfDay(dates[i - 1]);
-      const curr = startOfDay(dates[i]);
-      const diff = Math.round((prev - curr) / 86400000);
-      // diff === 1: liên tiếp; diff === 2: nghỉ đúng 1 ngày → vẫn giữ streak.
+      const diff = getDaysDiff(dates[i - 1], dates[i]);
       if (diff <= 2) {
         currentStreak++;
       } else {
@@ -209,29 +244,35 @@ async function getStreak(userId) {
     }
   }
 
-  // Calculate longest streak
-  let longestStreak = 0;
-  let streak = 1;
+  // Tính longest streak trong toàn bộ lịch sử
+  let longestStreak = dates.length > 0 ? 1 : 0;
+  let runningStreak = 1;
   for (let i = 1; i < dates.length; i++) {
-    const prev = new Date(dates[i - 1]);
-    const curr = new Date(dates[i]);
-    prev.setHours(0, 0, 0, 0);
-    curr.setHours(0, 0, 0, 0);
-    const diff = Math.round((prev - curr) / 86400000);
-    if (diff === 1) {
-      streak++;
+    const diff = getDaysDiff(dates[i - 1], dates[i]);
+    if (diff <= 2) {
+      runningStreak++;
     } else {
-      longestStreak = Math.max(longestStreak, streak);
-      streak = 1;
+      longestStreak = Math.max(longestStreak, runningStreak);
+      runningStreak = 1;
     }
   }
-  longestStreak = Math.max(longestStreak, streak);
+  longestStreak = Math.max(longestStreak, runningStreak, currentStreak);
+
+  // Cập nhật streak vào bảng users nếu có cột
+  try {
+    await query('UPDATE users SET streak_count = $1, streak_max = $2 WHERE id = $3', [
+      currentStreak,
+      longestStreak,
+      userId,
+    ]);
+  } catch (_) {}
 
   return {
     currentStreak,
     longestStreak,
     totalDays: dates.length,
-    lastActivityDate: dates[0] ? new Date(dates[0]).toISOString().split('T')[0] : null,
+    lastActivityDate: dates[0] || null,
+    activeDates: dates.slice(0, 60),
   };
 }
 
@@ -469,14 +510,50 @@ async function resetPassword(resetToken, newPassword) {
 }
 
 async function createAppeal(userId, reason) {
-  if (!reason) {
+  if (!reason || !reason.trim()) {
     throw ApiError.badRequest('Vui lòng nhập lý do khiếu nại.');
   }
+
+  // Kiểm tra nếu đã có khiếu nại đang chờ xử lý (pending)
+  const existing = await query(
+    `SELECT id, reason, status, created_at FROM ban_appeals 
+     WHERE user_id = $1 AND status = 'pending' 
+     ORDER BY created_at DESC LIMIT 1`,
+    [userId]
+  );
+  if (existing.rows.length > 0) {
+    return existing.rows[0];
+  }
+
   const result = await query(
-    'INSERT INTO ban_appeals (user_id, reason) VALUES ($1, $2) RETURNING id, status, created_at',
-    [userId, reason]
+    'INSERT INTO ban_appeals (user_id, reason) VALUES ($1, $2) RETURNING id, reason, status, created_at',
+    [userId, reason.trim()]
   );
   return result.rows[0];
+}
+
+async function getAppealStatus(userId) {
+  const result = await query(
+    `SELECT id, reason, status, created_at, updated_at 
+     FROM ban_appeals 
+     WHERE user_id = $1 
+     ORDER BY created_at DESC LIMIT 1`,
+    [userId]
+  );
+  if (result.rows.length === 0) {
+    return { hasAppeal: false, appeal: null };
+  }
+  const appeal = result.rows[0];
+  return {
+    hasAppeal: true,
+    appeal: {
+      id: appeal.id,
+      reason: appeal.reason,
+      status: appeal.status,
+      createdAt: appeal.created_at,
+      updatedAt: appeal.updated_at
+    }
+  };
 }
 
 module.exports = {
@@ -492,5 +569,6 @@ module.exports = {
   forgotPassword,
   verifyResetOtp,
   resetPassword,
-  createAppeal
+  createAppeal,
+  getAppealStatus
 };

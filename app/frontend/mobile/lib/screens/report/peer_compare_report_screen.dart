@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:intl/intl.dart';
 
 import '../../theme/app_colors.dart';
 import '../../theme/app_palette.dart';
@@ -8,6 +9,8 @@ import '../../theme/app_spacing.dart';
 import '../../theme/categories.dart';
 import '../../utils/formatters.dart';
 import '../../services/api_client.dart';
+import '../../services/ai_advisor_service.dart';
+import '../../widgets/report_filter_bar.dart';
 import '../settings/settings_screen.dart';
 
 class PeerCompareReportScreen extends StatefulWidget {
@@ -29,10 +32,21 @@ class _PeerCompareReportScreenState extends State<PeerCompareReportScreen> {
   bool _notEnoughPeers = false;
   List<Map<String, dynamic>> _compareData = [];
 
+  int _periodOffset = 0;
+  bool _isAnalyzingAI = false;
+  String? _aiInsight;
+
   @override
   void initState() {
     super.initState();
     _loadData();
+  }
+
+  String _getMonthLabel() {
+    final now = DateTime.now();
+    if (_periodOffset == 0) return 'Tháng hiện tại';
+    final targetMonth = DateTime(now.year, now.month - _periodOffset, 1);
+    return 'Tháng ${targetMonth.month}/${targetMonth.year}';
   }
 
   Future<void> _loadData() async {
@@ -42,7 +56,11 @@ class _PeerCompareReportScreenState extends State<PeerCompareReportScreen> {
       _errorMsg = null;
     });
     try {
-      final res = await ApiClient().getPeerCompare();
+      final now = DateTime.now();
+      final targetMonth = DateTime(now.year, now.month - _periodOffset, 1);
+      final monthStr = DateFormat('yyyy-MM').format(targetMonth);
+
+      final res = await ApiClient().getPeerCompare(month: monthStr);
       if (mounted) {
         setState(() {
           _hasProfile = res['hasProfile'] as bool? ?? false;
@@ -73,36 +91,97 @@ class _PeerCompareReportScreenState extends State<PeerCompareReportScreen> {
     }
   }
 
+  Future<void> _analyzeAI() async {
+    setState(() => _isAnalyzingAI = true);
+    try {
+      int totalUser = 0;
+      int totalAvg = 0;
+      for (final d in _compareData) {
+        totalUser += ((d['userAmount'] as num?)?.toInt() ?? 0);
+        totalAvg += ((d['avgAmount'] as num?)?.toInt() ?? 0);
+      }
+
+      final prompt = 'Phân tích so sánh chi tiêu cộng đồng: Kỳ ${_getMonthLabel()}, nhóm tuổi: ${_ageGroup ?? "chưa rõ"}, nghề nghiệp: ${_jobTitle ?? "chưa rõ"}, tổng bạn chi: ${formatVnd(totalUser)}, trung bình nhóm cùng phân khúc chi: ${formatVnd(totalAvg)}. Đưa ra nhận định và giải pháp chi tiêu tối ưu cho người dùng.';
+      final res = await AIAdvisorService.askFinancialQuestion(prompt);
+      if (mounted) {
+        setState(() {
+          _aiInsight = res;
+          _isAnalyzingAI = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _aiInsight = 'Mức chi tiêu của bạn đang khá tương đồng với cộng đồng cùng nhóm nghề nghiệp và độ tuổi. Hãy tiếp tục duy trì!';
+          _isAnalyzingAI = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: context.palette.bg,
       appBar: AppBar(
-        backgroundColor: context.palette.bg,
+        backgroundColor: context.palette.card,
         elevation: 0,
+        centerTitle: true,
         leading: IconButton(
           icon: Icon(Icons.arrow_back_ios_new_rounded, color: context.palette.textPrimary, size: 20),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: Text(
+        title: const Text(
           'So sánh cộng đồng',
-          style: TextStyle(color: context.palette.textPrimary, fontSize: 18, fontWeight: FontWeight.w700),
+          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
         ),
       ),
       body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 600),
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _hasError
-                    ? _buildErrorState()
-                    : _hasProfile == false
-                        ? _buildUpdateProfileState()
-                        : _notEnoughPeers
-                            ? _buildNotEnoughDataState()
-                            : _buildContent(),
-          ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final isLandscapePhone = constraints.maxWidth > constraints.maxHeight && constraints.maxHeight < 500;
+            return Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 600),
+                child: Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 4),
+                      child: ReportFilterBar(
+                        isLandscapePhone: isLandscapePhone,
+                        children: [
+                          FilterPeriodNavCompact(
+                            label: _getMonthLabel(),
+                            onPrev: () {
+                              setState(() => _periodOffset++);
+                              _loadData();
+                            },
+                            onNext: _periodOffset > 0
+                                ? () {
+                                    setState(() => _periodOffset--);
+                                    _loadData();
+                                  }
+                                : null,
+                          ),
+                        ],
+                      ),
+                    ),
+                    Expanded(
+                      child: _isLoading
+                          ? const Center(child: CircularProgressIndicator())
+                          : _hasError
+                              ? _buildErrorState()
+                              : _hasProfile == false
+                                  ? _buildUpdateProfileState()
+                                  : _notEnoughPeers
+                                      ? _buildNotEnoughDataState()
+                                      : _buildContent(),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
         ),
       ),
     );
@@ -174,10 +253,10 @@ class _PeerCompareReportScreenState extends State<PeerCompareReportScreen> {
               style: TextStyle(color: context.palette.textPrimary, fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
-            Text(
+            const Text(
               'Vào Cài đặt > Chọn "Thông tin cá nhân" để cập nhật đầy đủ Độ tuổi và Nghề nghiệp. Sau đó MiMo mới có thể so sánh chi tiêu của bạn với cộng đồng nhé!',
               textAlign: TextAlign.center,
-              style: const TextStyle(color: AppColors.muted, fontSize: 14, height: 1.5),
+              style: TextStyle(color: AppColors.muted, fontSize: 14, height: 1.5),
             ),
             const SizedBox(height: 32),
             FilledButton.icon(
@@ -225,13 +304,124 @@ class _PeerCompareReportScreenState extends State<PeerCompareReportScreen> {
             ),
             const SizedBox(height: 12),
             Text(
-              _errorMsg ?? 'Hiện tại chưa có đủ dữ liệu từ những người dùng có cùng nhóm tuổi và nghề nghiệp như bạn. Vἱ lòng quay lại sau.',
+              _errorMsg ?? 'Hiện tại chưa có đủ dữ liệu từ những người dùng có cùng nhóm tuổi và nghề nghiệp như bạn. Vui lòng quay lại sau.',
               textAlign: TextAlign.center,
               style: const TextStyle(color: AppColors.muted, fontSize: 14, height: 1.5),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildAISection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        InkWell(
+          onTap: _isAnalyzingAI ? null : _analyzeAI,
+          borderRadius: BorderRadius.circular(AppRadii.xl),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  AppColors.teal.withValues(alpha: 0.15),
+                  AppColors.tealDark.withValues(alpha: 0.15),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(AppRadii.xl),
+              border: Border.all(color: AppColors.teal.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: AppColors.teal.withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: ClipOval(
+                    child: Image.asset(
+                      _isAnalyzingAI ? 'assets/MiMo/emotions/Thinking.png' : 'assets/MiMo/emotions/Working.png',
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Phân tích AI từ MiMo Mascot',
+                        style: TextStyle(color: AppColors.teal, fontSize: 15, fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        _isAnalyzingAI
+                            ? 'MiMo đang so sánh dữ liệu cộng đồng...'
+                            : 'Nhấn để MiMo phân tích điểm khác biệt chi tiêu',
+                        style: const TextStyle(color: AppColors.muted, fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+                if (_isAnalyzingAI)
+                  const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                else
+                  const Icon(Icons.chevron_right_rounded, color: AppColors.teal),
+              ],
+            ),
+          ),
+        ),
+        if (_aiInsight != null) ...[
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: context.palette.card,
+              borderRadius: BorderRadius.circular(AppRadii.xl),
+              border: Border.all(color: AppColors.teal.withValues(alpha: 0.25)),
+              boxShadow: context.palette.softShadow,
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: AppColors.teal.withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: ClipOval(
+                    child: Image.asset('assets/MiMo/emotions/Working.png', fit: BoxFit.cover),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'MiMo khuyên bạn:',
+                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: AppColors.teal),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        _aiInsight!,
+                        style: TextStyle(color: context.palette.textPrimary, fontSize: 13, height: 1.4),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
     );
   }
 
@@ -287,12 +477,14 @@ class _PeerCompareReportScreenState extends State<PeerCompareReportScreen> {
               ],
             ),
           ),
+          const SizedBox(height: 16),
+          _buildAISection(),
           const SizedBox(height: 24),
 
           if (!hasData)
-            Center(
+            const Center(
               child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 40),
+                padding: EdgeInsets.symmetric(vertical: 40),
                 child: Text('Không có dữ liệu chi tiêu trong tháng này.', style: TextStyle(color: AppColors.muted)),
               ),
             )
@@ -407,8 +599,8 @@ class _PeerCompareReportScreenState extends State<PeerCompareReportScreen> {
     final catCode = data['categoryCode'] as String? ?? 'Other';
     final userAmt = (data['userAmount'] as num?)?.toInt() ?? 0;
     final avgAmt = (data['avgAmount'] as num?)?.toInt() ?? 0;
-    final diffPct = data['diffPercent'] as num?; // Positive means user spends MORE than average
-    
+    final diffPct = data['diffPercent'] as num?;
+
     final catColor = CategoryTheme.of(catCode).color;
     final catLabel = CategoryTheme.of(catCode).label;
 
@@ -505,7 +697,6 @@ class _PeerCompareReportScreenState extends State<PeerCompareReportScreen> {
             ],
           ),
           const SizedBox(height: 12),
-          // Progress bar comparision
           ClipRRect(
             borderRadius: BorderRadius.circular(4),
             child: SizedBox(

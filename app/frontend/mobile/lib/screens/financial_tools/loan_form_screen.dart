@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../services/api_client.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_palette.dart';
@@ -111,8 +112,15 @@ class _LoanFormScreenState extends State<LoanFormScreen> {
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                   suffixText: 'đ',
                 ),
-                keyboardType: TextInputType.number,
-                validator: (v) => v!.isEmpty ? 'Vui lòng nhập số tiền' : null,
+                keyboardType: const TextInputType.numberWithOptions(decimal: false),
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) return 'Vui lòng nhập số tiền';
+                  final num = double.tryParse(v.replaceAll(',', ''));
+                  if (num == null || num <= 0) return 'Số tiền phải lớn hơn 0';
+                  if (num > 100000000000) return 'Số tiền tối đa 100 tỷ đồng';
+                  return null;
+                },
                 onSaved: (v) => _amount = v!,
               ),
               const SizedBox(height: 16),

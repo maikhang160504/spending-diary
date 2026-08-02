@@ -19,6 +19,7 @@ const r2Client = require('../services/r2Client');
 const env = require('../config/env');
 const logger = require('../config/logger');
 const authService = require('../modules/auth/auth.service');
+const systemSettingsService = require('../services/systemSettings.service');
 
 const requireRetrainPassword = (req, res, next) => {
   const pwd = req.body.retrainPassword || req.headers['x-retrain-password'];
@@ -88,7 +89,7 @@ router.get('/transactions/export', async (req, res, next) => {
 
 router.get('/analytics', async (req, res, next) => {
   try {
-    const userCount = await query('SELECT COUNT(*) AS count FROM users');
+    const userCount = await query("SELECT COUNT(*) AS count FROM users WHERE role != 'admin' OR role IS NULL");
     const txCount = await query("SELECT COUNT(*) AS count FROM transactions WHERE type = 'expense' AND is_deleted = false");
     const txAmount = await query("SELECT SUM(amount) AS sum FROM transactions WHERE type = 'expense' AND is_deleted = false");
     
@@ -201,6 +202,7 @@ router.get('/users', async (req, res, next) => {
         END AS "authProvider"
       FROM users u
       LEFT JOIN user_settings s ON s.user_id = u.id
+      WHERE u.role != 'admin' OR u.role IS NULL
       ORDER BY u.created_at DESC
     `);
     res.json(users.rows);
@@ -1287,29 +1289,8 @@ router.get('/bill-retrain/golden-eval', async (req, res, next) => {
 // GET /api/admin/settings
 router.get('/settings', async (req, res, next) => {
   try {
-    const result = await query('SELECT key, value FROM system_settings');
-    const settings = {};
-    const defaults = {
-      ocr_weight: 0.75,
-      nlu_threshold: 0.85,
-      date_fallback: 'transaction',
-      llm_temperature: 0.7,
-      llm_top_k: 40
-    };
-    
-    for (const r of result.rows) {
-      settings[r.key] = r.value;
-    }
-    
-    const responseSettings = {
-      ocrWeight: settings.ocr_weight !== undefined ? parseFloat(settings.ocr_weight) : defaults.ocr_weight,
-      nluThreshold: settings.nlu_threshold !== undefined ? parseFloat(settings.nlu_threshold) : defaults.nlu_threshold,
-      dateFallback: settings.date_fallback !== undefined ? String(settings.date_fallback) : defaults.date_fallback,
-      llmTemperature: settings.llm_temperature !== undefined ? parseFloat(settings.llm_temperature) : defaults.llm_temperature,
-      llmTopK: settings.llm_top_k !== undefined ? parseInt(settings.llm_top_k) : defaults.llm_top_k,
-    };
-    
-    res.json(responseSettings);
+    const settings = await systemSettingsService.getSettings();
+    res.json(settings);
   } catch (err) {
     next(err);
   }
@@ -1317,27 +1298,9 @@ router.get('/settings', async (req, res, next) => {
 
 // POST /api/admin/settings
 router.post('/settings', async (req, res, next) => {
-  const { ocrWeight, nluThreshold, dateFallback, llmTemperature, llmTopK } = req.body;
   try {
-    const updates = [
-      { key: 'ocr_weight', value: ocrWeight },
-      { key: 'nlu_threshold', value: nluThreshold },
-      { key: 'date_fallback', value: dateFallback },
-      { key: 'llm_temperature', value: llmTemperature },
-      { key: 'llm_top_k', value: llmTopK }
-    ];
-    
-    for (const u of updates) {
-      if (u.value !== undefined) {
-        await query(`
-          INSERT INTO system_settings (key, value)
-          VALUES ($1, $2::jsonb)
-          ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()
-        `, [u.key, JSON.stringify(u.value)]);
-      }
-    }
-    
-    res.json({ success: true, message: 'Settings saved successfully' });
+    const updated = await systemSettingsService.updateSettings(req.body);
+    res.json({ success: true, message: 'Settings saved successfully', settings: updated });
   } catch (err) {
     next(err);
   }

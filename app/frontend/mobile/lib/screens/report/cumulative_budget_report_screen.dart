@@ -8,7 +8,9 @@ import '../../theme/app_spacing.dart';
 import '../../utils/formatters.dart';
 import '../../services/ai_advisor_service.dart';
 import '../../services/api_client.dart';
+import '../../services/app_queries.dart';
 import '../../widgets/report_filter_bar.dart';
+
 class CumulativeBudgetReportScreen extends StatefulWidget {
   final String? initialWalletId;
   const CumulativeBudgetReportScreen({super.key, this.initialWalletId});
@@ -22,7 +24,7 @@ class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScr
   bool _isAnalyzingAI = false;
   int _periodOffset = 0;
   String? _aiInsight;
-  List<dynamic> _wallets = [];
+  List<Map<String, dynamic>> _wallets = [];
   String? _selectedWalletId;
   final ApiClient _api = ApiClient();
 
@@ -33,13 +35,29 @@ class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScr
   @override
   void initState() {
     super.initState();
-    _selectedWalletId = widget.initialWalletId ?? ApiClient.lastSelectedWalletId;
+    _selectedWalletId = widget.initialWalletId;
     _loadData();
   }
 
   Future<void> _loadData() async {
     await _loadWallets();
     await _loadReportData();
+  }
+
+  Future<void> _loadWallets() async {
+    try {
+      final res = await AppQueries.wallets().result;
+      final raw = res.data ?? [];
+      final list = <Map<String, dynamic>>[];
+      for (final w in raw) {
+        if (w is Map<String, dynamic> && w['type'] != 'group') list.add(w);
+      }
+      if (mounted) {
+        setState(() {
+          _wallets = list;
+        });
+      }
+    } catch (_) {}
   }
 
   Future<void> _loadReportData() async {
@@ -50,7 +68,7 @@ class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScr
     try {
       final timeRange = _selectedPeriod == 'Theo tuần' ? 'week' : 'month';
       final data = await _api.getStatsCumulativeVsBudget(
-        walletId: _selectedWalletId == 'Tất cả ví' ? null : _selectedWalletId,
+        walletId: _selectedWalletId,
         timeRange: timeRange,
         periodOffset: _periodOffset,
       );
@@ -84,25 +102,15 @@ class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScr
     }
   }
 
-  Future<void> _loadWallets() async {
-    try {
-      final wallets = await _api.getWallets();
-      if (mounted) {
-        setState(() {
-          _wallets = wallets.where((w) => w['type'] != 'group').toList();
-          if (_selectedWalletId == null && _wallets.isNotEmpty) {
-            _selectedWalletId = _wallets.first['id'] as String?;
-            ApiClient.lastSelectedWalletId = _selectedWalletId;
-          }
-        });
-      }
-    } catch (_) {}
-  }
-
   Future<void> _analyzeAI() async {
     setState(() => _isAnalyzingAI = true);
     try {
-      final prompt = 'Phân tích tốc độ tiêu hao hạn mức ngân sách (Burn rate index) và đường chi tiêu lũy kế so với hạn mức lý tưởng trong kỳ $_selectedPeriod. Hãy đưa ra cảnh báo và đề xuất chi tiêu an toàn cho các ngày còn lại.';
+      double currentSpent = 0;
+      if (_dailyCumulative.isNotEmpty) {
+        currentSpent = (_dailyCumulative.last['cumulative'] as num?)?.toDouble() ?? 0;
+      }
+      final double pct = _limit > 0 ? (currentSpent / _limit * 100) : 0;
+      final prompt = 'Phân tích tốc độ tiêu hao hạn mức ngân sách: Kỳ $_selectedPeriod (${_getPeriodLabel()}), hạn mức: ${formatVnd(_limit.toInt())}, đã chi lũy kế: ${formatVnd(currentSpent.toInt())} (${pct.toStringAsFixed(1)}%). Hãy đưa ra cảnh báo và đề xuất chi tiêu an toàn cho những ngày tiếp theo.';
       final res = await AIAdvisorService.askFinancialQuestion(prompt);
       if (mounted) {
         setState(() {
@@ -113,7 +121,7 @@ class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScr
     } catch (e) {
       if (mounted) {
         setState(() {
-          _aiInsight = 'Tốc độ chi tiêu lũy kế đang bám sát hạn mức an toàn. Hãy giữ mức chi tiêu ngày dưới 400,000 VNĐ để hoàn thành mục tiêu tháng!';
+          _aiInsight = 'Tốc độ chi tiêu lũy kế đang bám sát hạn mức an toàn. Hãy duy trì nhịp độ chi tiêu hợp lý để hoàn thành mục tiêu!';
           _isAnalyzingAI = false;
         });
       }
@@ -122,25 +130,6 @@ class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScr
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return Scaffold(
-        backgroundColor: context.palette.bg,
-        appBar: AppBar(
-          backgroundColor: context.palette.bg,
-          elevation: 0,
-          leading: IconButton(
-            icon: Icon(Icons.arrow_back_ios_new_rounded, color: context.palette.textPrimary, size: 20),
-            onPressed: () => Navigator.of(context).pop(),
-          ),
-          title: Text(
-            'Chi tiêu mức lũy kế',
-            style: TextStyle(color: context.palette.textPrimary, fontSize: 18, fontWeight: FontWeight.w700),
-          ),
-        ),
-        body: const Center(child: CircularProgressIndicator(color: AppColors.teal)),
-      );
-    }
-
     double currentSpent = 0;
     if (_dailyCumulative.isNotEmpty) {
       currentSpent = (_dailyCumulative.last['cumulative'] as num?)?.toDouble() ?? 0;
@@ -151,15 +140,16 @@ class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScr
     return Scaffold(
       backgroundColor: context.palette.bg,
       appBar: AppBar(
-        backgroundColor: context.palette.bg,
+        backgroundColor: context.palette.card,
         elevation: 0,
+        centerTitle: true,
         leading: IconButton(
           icon: Icon(Icons.arrow_back_ios_new_rounded, color: context.palette.textPrimary, size: 20),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: Text(
+        title: const Text(
           'Chi tiêu mức lũy kế',
-          style: TextStyle(color: context.palette.textPrimary, fontSize: 18, fontWeight: FontWeight.w700),
+          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
         ),
       ),
       body: SafeArea(
@@ -182,95 +172,118 @@ class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScr
                             labels: const ['Theo tuần', 'Theo tháng'],
                             selected: _selectedPeriod,
                             onChanged: (val) {
-                              setState(() { _selectedPeriod = val; _periodOffset = 0; });
-                              _loadReportData();
+                              if (val != _selectedPeriod) {
+                                setState(() {
+                                  _selectedPeriod = val;
+                                  _periodOffset = 0;
+                                });
+                                _loadReportData();
+                              }
                             },
                           ),
                           // Filter 2: Điều hướng kỳ
                           FilterPeriodNavCompact(
                             label: _getPeriodLabel(),
-                            onPrev: () { setState(() => _periodOffset++); _loadReportData(); },
-                            onNext: _periodOffset > 0 ? () { setState(() => _periodOffset--); _loadReportData(); } : null,
+                            onPrev: () {
+                              setState(() => _periodOffset++);
+                              _loadReportData();
+                            },
+                            onNext: _periodOffset > 0
+                                ? () {
+                                    setState(() => _periodOffset--);
+                                    _loadReportData();
+                                  }
+                                : null,
                           ),
-                          // Filter 3: Ví chips
-                          if (!isLandscapePhone) _buildWalletSelectorBar()
-                          else _buildWalletSelectorBarCompact(),
+                          // Filter 3: Ví selector
+                          FilterWalletSelector(
+                            wallets: _wallets,
+                            selectedWalletId: _selectedWalletId,
+                            isLandscape: isLandscapePhone,
+                            onWalletSelected: (id) {
+                              if (_selectedWalletId != id) {
+                                setState(() => _selectedWalletId = id);
+                                _loadReportData();
+                              }
+                            },
+                          ),
                         ],
                       ),
                     ),
                     // ── Content ───────────────────────────────────────────
                     Expanded(
-                      child: SingleChildScrollView(
-                        padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 8, AppSpacing.lg, AppSpacing.lg),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _buildAISection(),
-                            const SizedBox(height: 20),
-                            // Thẻ tổng quan Hạn mức
-                            Container(
-                              padding: const EdgeInsets.all(AppSpacing.lg),
-                              decoration: BoxDecoration(
-                                color: context.palette.card,
-                                borderRadius: BorderRadius.circular(AppRadii.xl),
-                                boxShadow: context.palette.softShadow,
-                  border: Border.all(color: AppColors.teal.withValues(alpha: 0.2)),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text('Hạn mức ngân sách kỳ', style: TextStyle(color: AppColors.muted, fontSize: 13)),
-                        Text(
-                          'Đã dùng ${pct.toStringAsFixed(1)}%',
-                          style: const TextStyle(color: AppColors.teal, fontWeight: FontWeight.w700, fontSize: 13),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      formatVnd(_limit.toInt()),
-                      style: TextStyle(color: context.palette.textPrimary, fontSize: 24, fontWeight: FontWeight.w800),
-                    ),
-                    const SizedBox(height: 14),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: LinearProgressIndicator(
-                        value: pct / 100,
-                        minHeight: 10,
-                        backgroundColor: AppColors.teal.withValues(alpha: 0.15),
-                        valueColor: const AlwaysStoppedAnimation(AppColors.teal),
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    Row(
-                      children: [
-                        Expanded(child: _buildStatCol('Đã chi lũy kế', formatVnd(currentSpent.toInt()), AppColors.danger, isRight: false)),
-                        const SizedBox(width: 12),
-                        Expanded(child: _buildStatCol('Còn lại an toàn', formatVnd(remaining.toInt()), AppColors.teal, isRight: true)),
-                      ],
+                      child: _isLoading
+                          ? const Center(child: CircularProgressIndicator())
+                          : SingleChildScrollView(
+                              padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 8, AppSpacing.lg, AppSpacing.lg),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _buildAISection(),
+                                  const SizedBox(height: 16),
+                                  // Thẻ tổng quan Hạn mức
+                                  Container(
+                                    padding: const EdgeInsets.all(AppSpacing.lg),
+                                    decoration: BoxDecoration(
+                                      color: context.palette.card,
+                                      borderRadius: BorderRadius.circular(AppRadii.xl),
+                                      boxShadow: context.palette.softShadow,
+                                      border: Border.all(color: AppColors.teal.withValues(alpha: 0.2)),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            const Text('Hạn mức ngân sách kỳ', style: TextStyle(color: AppColors.muted, fontSize: 13)),
+                                            Text(
+                                              'Đã dùng ${pct.toStringAsFixed(1)}%',
+                                              style: const TextStyle(color: AppColors.teal, fontWeight: FontWeight.w700, fontSize: 13),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          formatVnd(_limit.toInt()),
+                                          style: TextStyle(color: context.palette.textPrimary, fontSize: 24, fontWeight: FontWeight.w800),
+                                        ),
+                                        const SizedBox(height: 14),
+                                        ClipRRect(
+                                          borderRadius: BorderRadius.circular(8),
+                                          child: LinearProgressIndicator(
+                                            value: pct / 100,
+                                            minHeight: 10,
+                                            backgroundColor: AppColors.teal.withValues(alpha: 0.15),
+                                            valueColor: const AlwaysStoppedAnimation(AppColors.teal),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 14),
+                                        Row(
+                                          children: [
+                                            Expanded(child: _buildStatCol('Đã chi lũy kế', formatVnd(currentSpent.toInt()), AppColors.danger, isRight: false)),
+                                            const SizedBox(width: 12),
+                                            Expanded(child: _buildStatCol('Còn lại an toàn', formatVnd(remaining.toInt()), AppColors.teal, isRight: true)),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  _buildCumulativeChartCard(),
+                                ],
+                              ),
+                            ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 20),
-
-                              _buildCumulativeChartCard(),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
+            );
+          },
         ),
-      );
-    }
+      ),
+    );
+  }
 
   Widget _buildStatCol(String label, String value, Color color, {bool isRight = false}) {
     return Column(
@@ -284,89 +297,6 @@ class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScr
           child: Text(value, style: TextStyle(color: color, fontSize: 16, fontWeight: FontWeight.w700)),
         ),
       ],
-    );
-  }
-
-  Widget _buildWalletSelectorBar() {
-    return Container(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: [
-            _buildWalletChipItem('Tất cả ví', null),
-            ..._wallets.map((w) {
-              final id = w['id']?.toString();
-              final name = w['name']?.toString() ?? 'Ví';
-              return _buildWalletChipItem(name, id);
-            }),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildWalletSelectorBarCompact() {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _buildWalletChipItem('Tất cả ví', null),
-          ..._wallets.map((w) {
-            final id = w['id']?.toString();
-            final name = w['name']?.toString() ?? 'Ví';
-            return _buildWalletChipItem(name, id);
-          }),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildWalletChipItem(String label, String? walletId) {
-    final isSelected = _selectedWalletId == walletId;
-    return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: InkWell(
-        onTap: () {
-          setState(() {
-            _selectedWalletId = walletId;
-            ApiClient.lastSelectedWalletId = walletId;
-          });
-          _loadReportData();
-        },
-        borderRadius: BorderRadius.circular(AppRadii.full),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 160),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          decoration: BoxDecoration(
-            color: isSelected ? AppColors.teal : context.palette.card,
-            borderRadius: BorderRadius.circular(AppRadii.full),
-            border: Border.all(
-              color: isSelected ? AppColors.teal : context.palette.border,
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                walletId == null ? Icons.all_inclusive_rounded : Icons.account_balance_wallet_outlined,
-                size: 12,
-                color: isSelected ? Colors.white : context.palette.textSecondary,
-              ),
-              const SizedBox(width: 5),
-              Text(
-                label,
-                style: TextStyle(
-                  color: isSelected ? Colors.white : context.palette.textPrimary,
-                  fontSize: 13,
-                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 
@@ -497,25 +427,22 @@ class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScr
       final cumulative = (dayData['cumulative'] as num?)?.toDouble() ?? 0;
       if (cumulative > maxCumulative) maxCumulative = cumulative;
       
-      // Stop adding actual spots if the day is in the future
       if (dayData['day'] != null) {
         try {
           final date = DateTime.parse(dayData['day'].toString());
           if (date.isAfter(DateTime.now())) {
-            continue; // Future day, don't show actual line
+            continue;
           }
         } catch (_) {}
       }
       actualSpots.add(FlSpot(dayNum, cumulative));
     }
     
-    // Fallback if empty
     if (actualSpots.isEmpty) {
       actualSpots.add(const FlSpot(1, 0));
     }
 
-    final maxY = (_limit > maxCumulative ? _limit : maxCumulative) * 1.1; // 10% padding
-
+    final maxY = (_limit > maxCumulative ? _limit : maxCumulative) * 1.1;
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
@@ -546,7 +473,6 @@ class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScr
                 lineTouchData: LineTouchData(
                   enabled: true,
                   touchTooltipData: LineTouchTooltipData(
-                    getTooltipColor: (_) => context.palette.card,
                     tooltipRoundedRadius: 8,
                     getTooltipItems: (touchedSpots) {
                       return touchedSpots.map((LineBarSpot touchedSpot) {
@@ -589,7 +515,7 @@ class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScr
                         if (val > totalDays || val < 1) return const SizedBox.shrink();
                         if (totalDays > 7) {
                           if (val != 1 && val != totalDays && val % 5 != 0) return const SizedBox.shrink();
-                          if (val == totalDays && totalDays % 5 <= 2) return const SizedBox.shrink(); // Prevent overlap with N30
+                          if (val == totalDays && totalDays % 5 <= 2) return const SizedBox.shrink();
                         }
                         return Padding(
                           padding: const EdgeInsets.only(top: 6),
@@ -601,7 +527,6 @@ class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScr
                 ),
                 borderData: FlBorderData(show: false),
                 lineBarsData: [
-                  // Đường lý tưởng (đứt đoạn / mờ hơn)
                   LineChartBarData(
                     spots: idealSpots,
                     isCurved: false,
@@ -610,13 +535,12 @@ class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScr
                     dashArray: [6, 4],
                     dotData: const FlDotData(show: false),
                   ),
-                  // Đường thực tế
                   LineChartBarData(
                     spots: actualSpots,
                     isCurved: true,
                     color: AppColors.danger,
                     barWidth: 3.5,
-                    dotData: FlDotData(show: true),
+                    dotData: const FlDotData(show: true),
                   ),
                 ],
               ),

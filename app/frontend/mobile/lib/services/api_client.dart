@@ -252,9 +252,22 @@ class ApiClient {
       'POST',
       '/auth/appeals',
       body: {'reason': reason},
-      requireAuth: true, // Throws 403 if it was not handled specially, but wait, requireAuth sends token.
+      requireAuth: true,
     );
     return result;
+  }
+
+  Future<Map<String, dynamic>?> getAppealStatus() async {
+    try {
+      final result = await _request(
+        'GET',
+        '/auth/appeals/status',
+        requireAuth: true,
+      );
+      return result['data'] as Map<String, dynamic>?;
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<Map<String, dynamic>> getMe() async {
@@ -859,7 +872,7 @@ class ApiClient {
     final result = await _request(
       'GET',
       '/stories',
-      queryParams: {if (walletId != null) 'walletId': walletId},
+      queryParams: {'walletId': ?walletId},
     );
     return result['data'] as List<dynamic>;
   }
@@ -947,9 +960,9 @@ class ApiClient {
       'GET',
       '/stats/cumulative-vs-budget',
       queryParams: {
-        if (walletId != null) 'walletId': walletId,
-        if (timeRange != null) 'timeRange': timeRange,
-        if (periodOffset != null) 'periodOffset': periodOffset.toString(),
+        'walletId': ?walletId,
+        'timeRange': ?timeRange,
+        'periodOffset': ?periodOffset?.toString(),
       },
     );
     return result['data'] as Map<String, dynamic>;

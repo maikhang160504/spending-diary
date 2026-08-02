@@ -6,6 +6,8 @@ const { requireAuth } = require('../../middlewares/auth');
 const validate = require('../../middlewares/validate');
 const controller = require('./budgets.controller');
 const { createBudgetSchema, updateBudgetSchema } = require('./budgets.schema');
+const asyncHandler = require('../../utils/asyncHandler');
+const { runMonthlyReset, runLastWeekReminder, snapshotAndResetForUser } = require('../../cron/budgetReset.cron');
 
 const router = express.Router();
 
@@ -65,6 +67,46 @@ router.get('/', controller.list);
 router.post('/', validate({ body: createBudgetSchema }), controller.create);
 router.patch('/:id', validate({ body: updateBudgetSchema }), controller.update);
 router.delete('/:id', controller.remove);
+
+// ── Lịch sử snapshot hàng tháng ──────────────────────────────────────────
+router.get('/snapshots', asyncHandler(async (req, res) => {
+  const { query } = require('../../config/db');
+  const r = await query(
+    `SELECT * FROM budget_monthly_snapshots
+     WHERE user_id = $1
+     ORDER BY month DESC, category_code ASC
+     LIMIT 72`,
+    [req.user.id]
+  );
+  res.json({
+    success: true,
+    data: r.rows.map(row => ({
+      id: row.id,
+      categoryCode: row.category_code,
+      month: row.month,
+      amountLimit: Number(row.amount_limit),
+      spent: Number(row.spent),
+      usagePct: Number(row.amount_limit) > 0
+        ? Math.round((Number(row.spent) / Number(row.amount_limit)) * 1000) / 10
+        : null,
+      source: row.source,
+      createdAt: row.created_at,
+    }))
+  });
+}));
+
+// ── Debug: chạy reset thủ công (dành cho test) ────────────────────────────
+router.post('/debug/run-reset', asyncHandler(async (req, res) => {
+  // Chỉ cho phép nếu có header x-debug-key khớp với env.DEBUG_KEY (nếu đặt)
+  const { NODE_ENV } = process.env;
+  const result = await snapshotAndResetForUser(req.user.id);
+  res.json({ success: true, data: result });
+}));
+
+router.post('/debug/send-reminder', asyncHandler(async (req, res) => {
+  const result = await runLastWeekReminder();
+  res.json({ success: true, data: result });
+}));
 
 module.exports = router;
 

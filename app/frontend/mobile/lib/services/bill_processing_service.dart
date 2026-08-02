@@ -219,6 +219,9 @@ class BillProcessingService extends ChangeNotifier {
         'aiComment': data['aiComment'],
         'mascotMood': data['mascotMood'],
       },
+      'nlu': data['nlu'] ?? data['aiMeta']?['nlu'],
+      'aiComment': data['aiComment'],
+      'mascotMood': data['mascotMood'],
     };
   }
 
@@ -228,7 +231,7 @@ class BillProcessingService extends ChangeNotifier {
     }
     final confidence = data['aiConfidence'] is num
         ? (data['aiConfidence'] as num).toDouble()
-        : 0.0;
+        : 1.0;
     final amount = data['amount'];
     if (confidence < _confidenceThreshold) return true;
     if (amount == null) return true;
@@ -237,16 +240,51 @@ class BillProcessingService extends ChangeNotifier {
   }
 
   Map<String, dynamic> _normalizeResult(Map<String, dynamic> data) {
+    final aiMeta = data['aiMeta'] as Map<String, dynamic>?;
+    final nlu = (aiMeta?['nlu'] as Map<String, dynamic>?) ??
+        (data['nlu'] as Map<String, dynamic>?);
+    String? aiComment = data['aiComment'] as String? ??
+        data['story'] as String? ??
+        data['ai_message'] as String?;
+    String? mascotMood = data['mascotMood'] as String? ??
+        data['mascot_mood'] as String?;
+
+    if (nlu != null) {
+      final llm = LlmMimoReply.fromNlu(nlu, intent: 'Record', logEmotion: false);
+      if (aiComment == null || aiComment.isEmpty) {
+        aiComment = llm.text;
+      }
+      if (mascotMood == null || mascotMood.isEmpty) {
+        mascotMood = llm.emotionAsset;
+      }
+    }
+
+    aiComment ??= nlu?['nlg_response'] as String? ??
+        nlu?['response'] as String? ??
+        (nlu?['gemini_json'] as Map<String, dynamic>?)?['response'] as String? ??
+        (nlu?['gemini_json'] as Map<String, dynamic>?)?['story'] as String? ??
+        (nlu?['llama_json'] as Map<String, dynamic>?)?['response'] as String? ??
+        (nlu?['llama_json'] as Map<String, dynamic>?)?['story'] as String?;
+    mascotMood ??= nlu?['mimo_emotion'] as String? ??
+        nlu?['llm_emotion'] as String? ??
+        nlu?['mascot_mood'] as String? ??
+        (nlu?['gemini_json'] as Map<String, dynamic>?)?['mimo_emotion'] as String? ??
+        (nlu?['gemini_json'] as Map<String, dynamic>?)?['emotion'] as String? ??
+        (nlu?['llama_json'] as Map<String, dynamic>?)?['mimo_emotion'] as String? ??
+        (nlu?['llama_json'] as Map<String, dynamic>?)?['emotion'] as String?;
+
     return {
       'amount': data['amount'],
       'categoryCode': data['categoryCode'] ?? data['category'],
       'note': data['note'],
       'storyId': data['storyId'],
       'imageUrl': data['imageUrl'],
-      'aiComment': data['aiComment'] ?? data['story'] ?? data['ai_message'],
-      'mascotMood': data['mascotMood'] ?? data['mascot_mood'],
+      'aiComment': aiComment,
+      'mascotMood': mascotMood,
       'aiConfidence': data['aiConfidence'] ?? data['ai_confidence'],
       'needsReview': data['needsReview'],
+      'aiMeta': aiMeta ?? (nlu != null ? {'nlu': nlu} : null),
+      if (nlu != null) 'nlu': nlu,
     };
   }
 
@@ -270,7 +308,7 @@ class BillProcessingService extends ChangeNotifier {
     );
     final amountLabel = amount is num ? formatVnd(amount.toInt()) : null;
     final message = story != null && story.isNotEmpty
-        ? story.substring(0, story.length.clamp(0, 80))
+        ? story
         : (amountLabel != null ? 'Đã ghi $amountLabel · $category' : 'Bill đã được thêm vào Story');
 
     final needsReview = _needsReview(data);

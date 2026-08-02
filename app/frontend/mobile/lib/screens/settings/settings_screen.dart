@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:image_picker/image_picker.dart';
@@ -20,6 +21,7 @@ import '../../widgets/ai_style_card_flip_transition.dart';
 import '../../widgets/skeleton.dart';
 import '../../widgets/notification_overlay.dart';
 import '../../widgets/premium_upsell_bottom_sheet.dart';
+import '../../widgets/mimo_snackbar.dart';
 import 'export_data_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -185,17 +187,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
         await _api.updateProfile({'avatarUrl': url});
         if (!mounted) return;
         setState(() => _avatarUrl = url);
-        messenger.showSnackBar(
-          const SnackBar(
-            content: Text('Đã cập nhật ảnh đại diện ✓'),
-            backgroundColor: AppColors.teal,
-          ),
-        );
+        if (mounted) {
+          MimoSnackBar.showSuccess(
+            context,
+            message: 'Đã cập nhật ảnh đại diện ✓',
+            emotion: 'Cool',
+          );
+        }
       }
     } catch (_) {
-      messenger.showSnackBar(
-        const SnackBar(content: Text('Không thể cập nhật ảnh đại diện')),
-      );
+      if (mounted) {
+        MimoSnackBar.showError(
+          context,
+          message: 'Không thể cập nhật ảnh đại diện',
+          emotion: 'Sad',
+        );
+      }
     } finally {
       if (mounted) setState(() => _uploadingAvatar = false);
     }
@@ -318,8 +325,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ],
                     TextField(
                       controller: nameCtrl,
+                      maxLength: 80,
                       decoration: const InputDecoration(
                         labelText: 'Tên người dùng',
+                        counterText: '',
                       ),
                     ),
                     const SizedBox(height: 10),
@@ -378,9 +387,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     TextField(
                       controller: incomeCtrl,
                       keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                       decoration: const InputDecoration(
                         labelText: 'Thu nhập hàng tháng',
                         suffixText: 'đ',
+                        hintText: 'VD: 10000000',
                       ),
                     ),
                   ],
@@ -399,16 +410,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         final name = nameCtrl.text.trim();
                         if (name.isEmpty) {
                           setDialogState(
-                            () => dialogError =
-                                'Tên người dùng không được để trống',
+                            () => dialogError = 'Tên người dùng không được để trống',
                           );
                           return;
+                        }
+                        if (name.length > 80) {
+                          setDialogState(() => dialogError = 'Tên tối đa 80 ký tự');
+                          return;
+                        }
+                        final incomeText = incomeCtrl.text.trim();
+                        if (incomeText.isNotEmpty) {
+                          final income = int.tryParse(incomeText);
+                          if (income == null || income < 0) {
+                            setDialogState(() => dialogError = 'Thu nhập không hợp lệ (phải là số đương)');
+                            return;
+                          }
+                          if (income > 10000000000) {
+                            setDialogState(() => dialogError = 'Thu nhập tối đa 10 tỷ đồng/tháng');
+                            return;
+                          }
                         }
                         setDialogState(() {
                           saving = true;
                           dialogError = null;
                         });
-                        final messenger = ScaffoldMessenger.of(context);
                         try {
                           await _api.updateProfile({
                             'username': name,
@@ -430,12 +455,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 _monthlyIncome;
                           });
                           if (ctx.mounted) ctx.pop();
-                          messenger.showSnackBar(
-                            const SnackBar(
-                              content: Text('Đã lưu thông tin cá nhân ✓'),
-                              backgroundColor: AppColors.teal,
-                            ),
-                          );
+                          if (mounted) {
+                            MimoSnackBar.showSuccess(
+                              context,
+                              message: 'Đã lưu thông tin cá nhân ✓',
+                              emotion: 'Happy',
+                            );
+                          }
                         } on ApiException catch (e) {
                           setDialogState(() {
                             saving = false;
@@ -542,17 +568,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   );
                   return;
                 }
-                final messenger = ScaffoldMessenger.of(context);
                 try {
                   await _api.changePassword(currentCtrl.text, newCtrl.text);
                   if (!ctx.mounted) return;
                   ctx.pop();
-                  messenger.showSnackBar(
-                    const SnackBar(
-                      content: Text('Đổi mật khẩu thành công ✓'),
-                      backgroundColor: AppColors.teal,
-                    ),
-                  );
+                  if (mounted) {
+                    MimoSnackBar.showSuccess(
+                      context,
+                      message: 'Đổi mật khẩu thành công ✓',
+                      emotion: 'Approved',
+                    );
+                  }
                 } on ApiException catch (e) {
                   setDialogState(() => dialogError = e.localizedMessage);
                 } catch (_) {

@@ -66,3 +66,8 @@ exports.createAppeal = asyncHandler(async (req, res) => {
   const result = await authService.createAppeal(req.user.id, req.body.reason);
   res.status(201).json({ success: true, data: result });
 });
+
+exports.getAppealStatus = asyncHandler(async (req, res) => {
+  const result = await authService.getAppealStatus(req.user.id);
+  res.json({ success: true, data: result });
+});

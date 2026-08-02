@@ -449,10 +449,33 @@ class _HomeCalendarScreenState extends State<HomeCalendarScreen> {
   }
 
   Widget _buildHeader() {
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: AppGradients.teal,
-        borderRadius: BorderRadius.only(
+    final selectedWallet = _wallets.cast<dynamic>().firstWhere(
+      (w) => w is Map && w['id'] == _selectedWalletId,
+      orElse: () => null,
+    );
+    final walletColorHex = (selectedWallet?['color'] as String? ?? '#0D9488').replaceAll('#', '');
+    Color walletColor;
+    try {
+      walletColor = Color(int.parse(walletColorHex.length == 6 ? 'FF$walletColorHex' : walletColorHex, radix: 16));
+    } catch (_) {
+      walletColor = const Color(0xFF0D9488);
+    }
+    final hsl = HSLColor.fromColor(walletColor);
+    final lightColor = hsl
+        .withSaturation((hsl.saturation * 0.72).clamp(0.0, 1.0))
+        .withLightness((hsl.lightness + 0.18).clamp(0.0, 0.92))
+        .toColor();
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOut,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [walletColor, lightColor],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: const BorderRadius.only(
           bottomLeft: Radius.circular(AppRadii.xl),
           bottomRight: Radius.circular(AppRadii.xl),
         ),
@@ -543,6 +566,14 @@ class _HomeCalendarScreenState extends State<HomeCalendarScreen> {
                   final icon = wType == 'group'
                       ? Icons.group_outlined
                       : Icons.account_balance_wallet_outlined;
+                  final wEmoji = w['icon'] as String?;
+                  final wColorHex = (w['color'] as String? ?? '#0D9488').replaceAll('#', '');
+                  Color chipAccent;
+                  try {
+                    chipAccent = Color(int.parse(wColorHex.length == 6 ? 'FF$wColorHex' : wColorHex, radix: 16));
+                  } catch (_) {
+                    chipAccent = AppColors.teal;
+                  }
                   final label = memberCount > 0
                       ? '$wName ($memberCount)'
                       : wName;
@@ -551,6 +582,8 @@ class _HomeCalendarScreenState extends State<HomeCalendarScreen> {
                     child: _WalletChip(
                       label: label,
                       icon: icon,
+                      emoji: wEmoji,
+                      accentColor: chipAccent,
                       isSelected: _selectedWalletId == wId,
                       onTap: () => _onWalletTap(w),
                     ),
@@ -1186,18 +1219,23 @@ class _TransactionStoryCard extends StatelessWidget {
 class _WalletChip extends StatelessWidget {
   final String label;
   final IconData icon;
+  final String? emoji;
   final bool isSelected;
+  final Color? accentColor;
   final VoidCallback onTap;
 
   const _WalletChip({
     required this.label,
     required this.icon,
+    this.emoji,
     required this.isSelected,
+    this.accentColor,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
+    final effectiveAccent = accentColor ?? AppColors.teal;
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -1205,22 +1243,28 @@ class _WalletChip extends StatelessWidget {
         decoration: BoxDecoration(
           color: isSelected
               ? Colors.white
-              : Colors.white.withValues(alpha: 0.25),
+              : Colors.white.withValues(alpha: 0.22),
           borderRadius: BorderRadius.circular(AppRadii.md),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              icon,
-              size: 16,
-              color: isSelected ? AppColors.teal : Colors.white,
-            ),
+            if (emoji != null && emoji!.trim().isNotEmpty)
+              Text(
+                emoji!,
+                style: const TextStyle(fontSize: 14),
+              )
+            else
+              Icon(
+                icon,
+                size: 16,
+                color: isSelected ? effectiveAccent : Colors.white,
+              ),
             const SizedBox(width: 6),
             Text(
               label,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: isSelected ? AppColors.teal : Colors.white,
+                color: isSelected ? effectiveAccent : Colors.white,
                 fontWeight: FontWeight.w600,
               ),
             ),

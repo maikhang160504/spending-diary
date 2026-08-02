@@ -32,6 +32,20 @@ exports.remove = asyncHandler(async (req, res) => {
 // ── Smart Budget Suggestions ──────────────────────────────────────
 
 exports.getSuggestions = asyncHandler(async (req, res) => {
+  const now = new Date();
+  const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  if (now.getDate() < lastDay - 6) {
+    return res.json({ 
+      success: true, 
+      data: { 
+        targetMonth: getNextMonth(), 
+        suggestions: [], 
+        story: 'Tính năng gợi ý ngân sách chỉ khả dụng vào tuần cuối cùng của tháng, khi hệ thống đã có đủ dữ liệu chi tiêu của bạn để phân tích chính xác nhất. Vui lòng quay lại sau nhé!',
+        isNotLastWeek: true
+      } 
+    });
+  }
+
   const month = req.query.month || getNextMonth();
   // Generate on-demand if not yet computed
   let suggestions = await suggestionService.getSuggestions(req.user.id, month);

@@ -116,10 +116,12 @@ async function expenseFromText(payload) {
     const r = await client.post('/api/v1/nlu/infer', {
       text: payload.text,
       profile: payload.profile || null,
-      run_llm: true,
+      run_llm: payload.run_llm ?? true,
       user_id: payload.user_id,
       emotion: payload.emotion,
       user_corrections: payload.user_corrections || null,
+      temperature: payload.temperature,
+      top_k: payload.top_k,
     });
     const nlu = r.data;
     return {

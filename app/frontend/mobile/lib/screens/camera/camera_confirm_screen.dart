@@ -167,6 +167,26 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
     });
     try {
       if (wallets.isEmpty) throw Exception('Không có ví nào');
+      if (_amount <= 0) {
+        throw Exception('Vui lòng nhập số tiền hợp lệ (lớn hơn 0)');
+      }
+
+      final extracted =
+          widget.extractedData?['extracted'] as Map<String, dynamic>?;
+      final aiComment = extracted?['aiComment'] as String? ??
+          widget.extractedData?['aiComment'] as String?;
+      final mascotMood = extracted?['mascotMood'] as String? ??
+          widget.extractedData?['mascotMood'] as String?;
+
+      final nluMeta = widget.extractedData?['nlu'] as Map<String, dynamic>?;
+      final llmFromNlu = nluMeta != null
+          ? LlmMimoReply.fromNlu(nluMeta, intent: 'Record')
+          : null;
+      final llmText = (llmFromNlu?.text.isNotEmpty == true)
+          ? llmFromNlu!.text
+          : (aiComment ?? '');
+      final llmMood = llmFromNlu?.emotionAsset ?? (mascotMood ?? 'Success');
+      final llm = LlmMimoReply(text: llmText, emotionAsset: llmMood);
 
       if (reviewTxId != null) {
         await _api.updateTransaction(reviewTxId, {
@@ -176,6 +196,7 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
           'note': _note,
           'aiConfidence': _confidence,
           'isDraft': false,
+          ...llm.toStoryPersistFields(),
         });
       } else {
         String? imageUrl;
@@ -187,10 +208,6 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
           } catch (_) {}
         }
 
-        final nluMeta = widget.extractedData?['nlu'] as Map<String, dynamic>?;
-        final llm = nluMeta != null
-            ? LlmMimoReply.fromNlu(nluMeta, intent: 'Record')
-            : const LlmMimoReply(text: '', emotionAsset: 'Success');
         await _api.createTransaction({
           'walletId': targetWalletId,
           'amount': _amount,
@@ -235,19 +252,6 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
       final reviewMsg = reviewTxId != null
           ? 'Đã cập nhật bill sau khi kiểm tra'
           : null;
-
-      final extracted =
-          widget.extractedData?['extracted'] as Map<String, dynamic>?;
-      final aiComment = extracted?['aiComment'] as String?;
-      final mascotMood = extracted?['mascotMood'] as String?;
-
-      final nluMeta = widget.extractedData?['nlu'] as Map<String, dynamic>?;
-      final llm = nluMeta != null
-          ? LlmMimoReply.fromNlu(nluMeta, intent: 'Record')
-          : LlmMimoReply(
-              text: aiComment ?? '',
-              emotionAsset: mascotMood ?? 'Success',
-            );
 
       final mimoMsg = llm.text.isNotEmpty
           ? llm.text
@@ -438,8 +442,18 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
                     width: double.infinity,
                     child: FilledButton(
                       onPressed: () {
+                        final parsedAmount = int.tryParse(amountCtrl.text) ?? _amount;
+                        if (parsedAmount <= 0) {
+                          ScaffoldMessenger.of(ctx).showSnackBar(
+                            SnackBar(
+                              content: const Text('Vui lòng nhập số tiền hợp lệ (lớn hơn 0)'),
+                              backgroundColor: AppColors.danger,
+                            ),
+                          );
+                          return;
+                        }
                         setState(() {
-                          _amount = int.tryParse(amountCtrl.text) ?? _amount;
+                          _amount = parsedAmount;
                           _note = noteCtrl.text;
                           _category = editCategory;
                           _targetWalletId = editWalletId;

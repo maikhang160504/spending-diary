@@ -11,6 +11,7 @@ const { startScheduler, stopScheduler } = require('./modules/recurring/recurring
 const { startNotificationScheduler, stopNotificationScheduler } = require('./modules/fcm/notification.scheduler');
 const { initFinancialToolsReminderCron } = require('./cron/financialToolsReminder.cron');
 const { initDailyExpenseReminderCron } = require('./cron/dailyExpenseReminder.cron');
+const { initBudgetResetCron } = require('./cron/budgetReset.cron');
 
 async function start() {
   if (env.database.url) {
@@ -34,6 +35,7 @@ async function start() {
     startNotificationScheduler(); // Start checking for due dynamic story prompts
     initFinancialToolsReminderCron(); // Start checking for due savings, challenges & loans
     initDailyExpenseReminderCron(); // Start checking for daily expense reminders
+    initBudgetResetCron();         // Monthly budget reset + last-week reminder
   });
 
   const shutdown = async (signal) => {

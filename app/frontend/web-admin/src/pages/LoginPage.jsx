@@ -12,9 +12,19 @@ function LoginPage() {
   const handleLogin = async (e) => {
     e.preventDefault();
     setError("");
+
+    // Frontend validation
+    const trimmedEmail = email.trim();
+    const trimmedPass = password.trim();
+    if (!trimmedEmail) { setError("Vui lòng nhập email"); return; }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(trimmedEmail)) { setError("Email không đúng định dạng"); return; }
+    if (!trimmedPass) { setError("Vui lòng nhập mật khẩu"); return; }
+    if (trimmedPass.length < 6) { setError("Mật khẩu tối thiểu 6 ký tự"); return; }
+
     setLoading(true);
     try {
-      await loginAdmin(email, password);
+      await loginAdmin(trimmedEmail, password);
       navigate("/");
     } catch (err) {
       setError(err.message || "Đăng nhập thất bại");
