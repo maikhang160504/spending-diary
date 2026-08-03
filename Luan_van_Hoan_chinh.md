@@ -1,4 +1,4 @@
-﻿# ĐỀ TÀI: ỨNG DỤNG QUẢN LÝ CHI TIÊU CÁ NHÂN THÔNG MINH
+# ĐỀ TÀI: ỨNG DỤNG QUẢN LÝ CHI TIÊU CÁ NHÂN THÔNG MINH
 
 *(Sinh viên có thể sử dụng tên gọi tắt: Xây dựng ứng dụng quản lý chi tiêu cá nhân thông minh Spending Diary)*
 
@@ -81,16 +81,22 @@ Về mặt dữ liệu đầu vào, nghiên cứu chỉ tập trung xử lý cá
 
 ### 5. Phương pháp nghiên cứu
 
-Để xây dựng hệ thống trí tuệ nhân tạo, đề tài tiến hành thu thập, làm sạch và dán nhãn một tập dữ liệu tiếng Việt chuyên biệt, đặc biệt tập trung vào các câu lệnh giao tiếp hằng ngày có tần suất xuất hiện từ lóng cao nhằm phân loại ý định (intent) và trích xuất thực thể (slot). Đối với dữ liệu hình ảnh, nghiên cứu kết hợp các tập dữ liệu mã nguồn mở với hình ảnh hóa đơn thực tế được thu thập tại các cửa hàng bán lẻ. Dữ liệu này sau đó đi qua bước tiền xử lý bằng thuật toán tự động nhận diện và xoay góc nghiêng, giúp mô hình LayoutLMv3 dễ dàng trích xuất thông tin bố cục. Hiệu quả của các mô hình được đánh giá thông qua các chỉ số kỹ thuật tiêu chuẩn như độ chính xác (Accuracy) và điểm F1-Score.
+Đề tài kết hợp phương pháp nghiên cứu thực nghiệm đối với trí tuệ nhân tạo và mô hình phát triển linh hoạt đối với kỹ thuật phần mềm. Về mặt dữ liệu, nghiên cứu tiến hành thu thập, làm sạch và gán nhãn tập lệnh tiếng Việt giao tiếp hằng ngày cùng hình ảnh hóa đơn thực tế tại Việt Nam để tiền xử lý và huấn luyện, đồng thời sử dụng độ chính xác và chỉ số F1 để đánh giá hiệu năng nhận diện của mô hình. Về quy trình xây dựng phần mềm, hệ thống được phân rã thành các phân hệ độc lập gồm giao diện di động Flutter, máy chủ trung tâm Node.js và máy chủ xử lý thông minh Python, được lập trình, tích hợp và kiểm thử liên tục theo từng giai đoạn để đảm bảo tốc độ phản hồi mượt mà và duy trì tính toàn vẹn dữ liệu.
 
-Về phương pháp phát triển phần mềm, đề tài áp dụng mô hình phát triển linh hoạt (Agile). Toàn bộ hệ thống được phân chia thành các module độc lập như giao diện di động (Flutter), máy chủ xử lý (Node.js) và bộ máy AI (Python). Từng module được lập trình, tích hợp và kiểm thử liên tục theo từng giai đoạn. Nhờ phương pháp này kết hợp với cơ chế lưu trữ đệm (cache) phía ứng dụng di động, hệ thống đảm bảo khả năng vận hành ổn định, duy trì tốc độ phản hồi nhanh và bảo toàn dữ liệu ngay cả khi kết nối mạng không ổn định.
+### 6. Nội dung nghiên cứu
 
-### 6. Bố cục luận văn
+Thứ nhất, đề tài khảo sát nhu cầu tài chính cá nhân của người dùng trẻ để thiết kế kiến trúc phần mềm phân tầng cho ứng dụng Spending Diary. Hệ sinh thái bao gồm ứng dụng di động Flutter dành cho người dùng cuối, trang web quản trị React cùng máy chủ điều phối Node.js kết nối cơ sở dữ liệu phân tán CockroachDB, nhằm đảm bảo hiệu năng chịu tải và bảo toàn tính toàn vẹn của lịch sử giao dịch.
+
+Thứ hai, đề tài nghiên cứu và ứng dụng các kỹ thuật trí tuệ nhân tạo để giải quyết bài toán nhập liệu tự động. Hệ thống sử dụng mô hình ngôn ngữ lớn Qwen 2.5 với kỹ thuật tinh chỉnh LoRA để bóc tách ý định ghi chép từ câu lệnh tiếng Việt tự nhiên, kết hợp mô hình LayoutLMv3 cùng VietOCR để số hóa hóa đơn bán lẻ. Đồng thời, cơ chế tạo văn bản tăng cường truy xuất được tích hợp giúp trợ lý ảo Mimo phản hồi số dư thực tế, loại bỏ hiện tượng bịa đặt số liệu.
+
+Thứ ba, đề tài tiến hành cài đặt hoàn chỉnh ứng dụng với các chức năng cốt lõi như ghi chép qua trò chuyện, quét hóa đơn, quản lý ngân sách và ví chung, đi kèm công cụ gán nhãn dữ liệu trên trang quản trị để huấn luyện lại mô hình từ xa. Hiệu năng hệ thống được đánh giá thực nghiệm bằng chỉ số độ chính xác nhằm chứng minh tính khả thi và độ tin cậy khi vận hành thực tế.
+
+### 7. Bố cục luận văn
 
 Luận văn được chia thành ba phần chính, đi kèm tài liệu tham khảo và phụ lục. Cấu trúc cụ thể như sau:
 
 PHẦN 1: GIỚI THIỆU
-Trình bày tổng quan về đề tài bao gồm: đặt vấn đề, mục tiêu, đối tượng, phạm vi, phương pháp nghiên cứu và bố cục luận văn.
+Trình bày tổng quan về đề tài bao gồm: đặt vấn đề, mục tiêu, đối tượng, phạm vi, phương pháp nghiên cứu, nội dung nghiên cứu và bố cục luận văn.
 
 PHẦN 2: NỘI DUNG NGHIÊN CỨU VÀ TRIỂN KHAI
 Phần cốt lõi của luận văn, bao gồm 4 chương:
@@ -152,11 +158,13 @@ Bảng 1.1: Bảng phân rã yêu cầu chức năng chi tiết theo từng phâ
 | Máy chủ AI | Trích xuất hình ảnh | Áp dụng kỹ thuật thị giác máy tính để số hóa hóa đơn giấy thành các bản ghi tài chính. |
 | Máy chủ AI | Cập nhật trọng số mô hình | Tự động cập nhật các tệp trọng số mới vào bộ nhớ sau khi quá trình huấn luyện hoàn tất. |
 
-### 1.3. Sơ đồ Use Case tổng quát
+### 1.3. Sơ đồ Use Case tổng quát và chi tiết
 
-Để có cái nhìn trực quan về cách các tác nhân tương tác với hệ thống, sơ đồ Use Case ở Hình 1.2 mô tả các hành động chính của người dùng cuối và quản trị viên.
+Để có cái nhìn toàn diện từ bao quát đến chuyên sâu về hành vi của các tác nhân, hệ thống Spending Diary được mô hình hóa bằng sơ đồ Use Case tổng quát và hai sơ đồ Use Case chi tiết cho từng phân hệ.
 
-Người dùng chủ yếu tương tác với hệ thống qua các nghiệp vụ liên quan đến tài khoản, ví tiền, ngân sách, ghi chép giao dịch, trò chuyện với AI và xem báo cáo. Ngược lại, quản trị viên điều hành hệ thống thông qua các công cụ theo dõi thống kê, quản lý người dùng, dán nhãn dữ liệu, tinh chỉnh tính cách và ra lệnh huấn luyện AI. Cuối cùng, tác nhân hệ thống tự động sẽ đảm nhận các tiến trình chạy ngầm bao gồm: xử lý nghiệp vụ tài chính, kiểm soát cổng API và bảo mật, quản lý trạng thái hộp thoại và vận hành hệ thống tự động hóa.
+#### 1.3.1. Sơ đồ Use Case tổng quát của hệ thống
+
+Sơ đồ tổng quát thể hiện mối quan hệ giữa ba tác nhân chính gồm người dùng cuối, quản trị viên và hệ thống tự động đối với mười tám chức năng lớn trong toàn bộ ứng dụng. Cả người dùng và quản trị viên đều bắt buộc phải trải qua bước xác thực tài khoản trước khi truy cập các luồng nghiệp vụ riêng biệt.
 
 ```mermaid
 flowchart LR
@@ -175,7 +183,7 @@ flowchart LR
         UC8(Báo cáo và so sánh)
         UC14(Quản lý giao dịch)
 
-        UC9(Thống kê doanh thu)
+        UC9(Thống kê tổng quan)
         UC10(Quản lý người dùng)
         UC11(Dán nhãn dữ liệu ảnh)
         UC12(Tinh chỉnh tính cách AI)
@@ -197,6 +205,7 @@ flowchart LR
     User --> UC8
     User --> UC14
 
+    Admin --> UC1
     Admin --> UC9
     Admin --> UC10
     Admin --> UC11
@@ -209,9 +218,170 @@ flowchart LR
     System --> UC18
 ```
 
-Hình 1.2: Sơ đồ Use Case tổng quát.
+Hình 1.2: Sơ đồ Use Case tổng quát toàn bộ hệ thống.
 
-Sơ đồ 1.2 bên trên mô tả trực quan cách các tác nhân tương tác với mười bốn luồng nghiệp vụ cốt lõi của hệ thống. Toàn bộ các đặc tả Use Case chi tiết cho từng luồng này, bao gồm kịch bản ngoại lệ và tiền điều kiện, đều được đính kèm tại phần Phụ lục ở cuối luận văn.
+Sơ đồ trên cho thấy phân chia trách nhiệm rõ rệt giữa người dùng thao tác nghiệp vụ thu chi cá nhân trên ứng dụng di động và quản trị viên quản lý, giám sát, huấn luyện mô hình trí tuệ nhân tạo trên trang web quản trị. Các chức năng cốt lõi này đều có bảng đặc tả chi tiết tại phụ lục của luận văn.
+
+#### 1.3.2. Sơ đồ Use Case chi tiết phân hệ người dùng
+
+Đối với người dùng trên ứng dụng di động, sơ đồ chi tiết mở rộng từng luồng chức năng lớn thành các chức năng nghiệp vụ cụ thể mà người dùng có thể chủ động thao tác trên giao diện.
+
+```mermaid
+flowchart LR
+    User([Người dùng])
+
+    subgraph Phân hệ người dùng Spending Diary
+        UC1(Đăng ký và đăng nhập)
+        UC1_1(Đăng ký tài khoản mới)
+        UC1_2(Đăng nhập ứng dụng)
+        UC1_3(Khôi phục mật khẩu)
+
+        UC2(Nâng cấp tài khoản)
+        UC2_1(Thanh toán nâng cấp Premium)
+
+        UC3(Quản lý ví tiền)
+        UC3_1(Tạo ví chi tiêu cá nhân)
+        UC3_2(Tạo ví chia sẻ nhóm)
+        UC3_3(Mời thành viên tham gia ví)
+        UC3_4(Cập nhật hoặc xóa ví)
+
+        UC4(Ghi chép bằng trò chuyện)
+        UC4_1(Ghi chép khoản chi qua trò chuyện)
+
+        UC5(Quét ảnh hóa đơn)
+        UC5_1(Chụp hoặc tải ảnh)
+
+        UC6(Hỏi đáp thông minh)
+        UC6_1(Tra cứu số dư và thống kê nhanh)
+        UC6_2(Ra lệnh hệ thống)
+
+        UC7(Quản lý hạn mức và ngân sách)
+        UC7_1(Thiết lập hạn mức chi tiêu tháng)
+        UC7_2(Theo dõi tiến độ ngân sách)
+
+        UC8(Báo cáo và so sánh)
+        UC8_1(Xem biểu đồ cơ cấu chi tiêu)
+        UC8_2(So sánh thu chi giữa các chu kỳ)
+
+        UC14(Quản lý giao dịch)
+        UC14_1(Tra cứu lịch sử giao dịch)
+        UC14_2(Chỉnh sửa thông tin giao dịch)
+        UC14_3(Xóa giao dịch)
+    end
+
+    User --> UC1
+    User --> UC2
+    User --> UC3
+    User --> UC4
+    User --> UC5
+    User --> UC6
+    User --> UC7
+    User --> UC8
+    User --> UC14
+
+    UC1 -. bao gồm .-> UC1_1
+    UC1 -. bao gồm .-> UC1_2
+    UC1 -. mở rộng .-> UC1_3
+
+    UC2 -. bao gồm .-> UC2_1
+
+    UC3 -. bao gồm .-> UC3_1
+    UC3 -. bao gồm .-> UC3_2
+    UC3 -. mở rộng .-> UC3_3
+    UC3 -. mở rộng .-> UC3_4
+
+    UC4 -. bao gồm .-> UC4_1
+    UC4 -. bao gồm .-> UC4_2
+
+    UC5 -. bao gồm .-> UC5_1
+    UC5 -. bao gồm .-> UC5_2
+
+    UC6 -. bao gồm .-> UC6_1
+    UC6 -. bao gồm .-> UC6_2
+
+    UC7 -. bao gồm .-> UC7_1
+    UC7 -. mở rộng .-> UC7_2
+
+    UC8 -. bao gồm .-> UC8_1
+    UC8 -. mở rộng .-> UC8_2
+
+    UC14 -. bao gồm .-> UC14_1
+    UC14 -. mở rộng .-> UC14_2
+    UC14 -. mở rộng .-> UC14_3
+```
+
+Hình 1.3: Sơ đồ Use Case chi tiết phân hệ người dùng trên ứng dụng di động.
+
+Sơ đồ trên tập trung hoàn toàn vào góc độ người dùng di động, loại bỏ các bước xử lý kỹ thuật trung gian để làm rõ các luồng nghiệp vụ thực tế mà người dùng có thể lựa chọn thao tác, từ quản lý tài khoản, khai thác trợ lý ảo Mimo cho đến theo dõi ngân sách và báo cáo chi tiêu.
+
+#### 1.3.3. Sơ đồ Use Case chi tiết phân hệ quản trị viên
+
+Trên nền tảng trang web quản trị, sơ đồ mở rộng các chức năng điều hành của ban quản trị thành các nghiệp vụ theo dõi thống kê, kiểm soát tài khoản và quản trị chu trình học sâu cho bộ não AI.
+
+```mermaid
+flowchart LR
+    Admin([Quản trị viên])
+
+    subgraph Phân hệ quản trị viên Spending Diary
+        UC1(Đăng nhập quản trị)
+
+        UC9(Thống kê tổng quan)
+        UC9_1(Xem biểu đồ tăng trưởng người dùng)
+        UC9_2(Theo dõi lưu lượng giao dịch)
+        UC9_3(Giám sát trạng thái máy chủ)
+
+        UC10(Quản lý người dùng)
+        UC10_1(Tìm kiếm và lọc tài khoản)
+        UC10_2(Xem chi tiết hồ sơ người dùng)
+        UC10_3(Đình chỉ tài khoản vi phạm)
+        UC10_4(Mở khóa tài khoản)
+
+        UC11(Dán nhãn dữ liệu ảnh)
+        UC11_1(Xem danh sách hóa đơn nhận diện lỗi)
+        UC11_2(Chỉnh sửa vùng nhãn hóa đơn)
+        UC11_3(Duyệt nhãn dữ liệu chuẩn)
+
+        UC12(Tinh chỉnh tính cách AI)
+        UC12_1(Tạo mới hồ sơ tính cách)
+        UC12_2(Chỉnh sửa chỉ thị hệ thống AI)
+
+        UC13(Ra lệnh huấn luyện AI)
+        UC13_1(Xuất tập dữ liệu huấn luyện)
+        UC13_2(Kích hoạt tiến trình huấn luyện AI)
+        UC13_3(Phát hành mô hình AI mới)
+    end
+
+    Admin --> UC1
+    Admin --> UC9
+    Admin --> UC10
+    Admin --> UC11
+    Admin --> UC12
+    Admin --> UC13
+
+    UC9 -. bao gồm .-> UC9_1
+    UC9 -. bao gồm .-> UC9_2
+    UC9 -. mở rộng .-> UC9_3
+
+    UC10 -. bao gồm .-> UC10_1
+    UC10 -. bao gồm .-> UC10_2
+    UC10 -. mở rộng .-> UC10_3
+    UC10 -. mở rộng .-> UC10_4
+
+    UC11 -. bao gồm .-> UC11_1
+    UC11 -. bao gồm .-> UC11_2
+    UC11 -. bao gồm .-> UC11_3
+
+    UC12 -. bao gồm .-> UC12_1
+    UC12 -. bao gồm .-> UC12_2
+
+    UC13 -. bao gồm .-> UC13_1
+    UC13 -. bao gồm .-> UC13_2
+    UC13 -. mở rộng .-> UC13_3
+```
+
+Hình 1.4: Sơ đồ Use Case chi tiết phân hệ quản trị viên trên nền tảng web.
+
+Sơ đồ trên được xây dựng thuần túy dưới góc độ của ban quản trị hệ thống trên nền tảng web, thể hiện cụ thể các nghiệp vụ quản lý danh sách người dùng, kiểm duyệt dữ liệu hóa đơn lỗi và điều khiển toàn bộ chu trình tái huấn luyện mô hình trí tuệ nhân tạo.
 
 ### 1.4. Yêu cầu phi chức năng
 
@@ -831,9 +1001,9 @@ Khi lệnh khóa được kích hoạt, hệ thống sẽ can thiệp thẳng v�
 Vì trí tuệ nhân tạo không thể hiểu hết mọi từ vựng mới hoặc tiếng lóng ngay từ những ngày đầu, hệ thống cần một phân hệ để thu gom dữ liệu thực tế và liên tục "dạy" lại mô hình theo chuẩn vòng đời học máy. Thay vì lãng phí những lần người dùng tự sửa lỗi phân loại trên ứng dụng điện thoại, hệ thống sẽ tự động gom toàn bộ các "đính chính" này và chuyển thẳng về phân hệ quản trị ngôn ngữ.
 
 Quy trình xử lý dữ liệu và huấn luyện được chia thành ba lớp nghiệp vụ chính, thiết lập một quy trình khép kín từ sửa lỗi nhanh đến huấn luyện sâu:
-- **Lớp 1 - Khớp luật tuyệt đối:** Cung cấp công cụ xử lý tức thời các từ vựng lóng bằng cách tạo bộ luật cứng (ví dụ: luôn gán từ "cà phê" vào danh mục "Ăn uống"). Mô hình AI sẽ ưu tiên kiểm tra tập luật này trước khi chạy thuật toán suy luận nội tại.
-- **Lớp 2 - Thu thập đính chính:** Nơi hiển thị các nhóm văn bản mà người dùng đã báo cáo sai. Quản trị viên sẽ duyệt qua danh sách và thực hiện "Phê duyệt" để gán nhãn chuẩn xác, biến đổi chúng thành nguồn dữ liệu sạch.
-- **Lớp 3 - Đánh giá và Huấn luyện lại:** Khu vực hiển thị bảng đo lường độ chính xác của mô hình hiện hành. Khi lượng dữ liệu sạch ở Lớp 2 đã đủ lớn, quản trị viên chỉ việc kích hoạt tiến trình tái huấn luyện để nâng cấp mô hình.
+- **Lớp 1 -  cá nhân hóa danh mục:** Cung cấp công cụ xử lý tức thời các từ vựng lóng bằng cách tạo bộ luật cứng (ví dụ: luôn gán từ "cà phê" vào danh mục "Ăn uống"). Mô hình AI sẽ ưu tiên kiểm tra tập luật này trước khi chạy thuật toán suy luận nội tại.
+- **Lớp 2 -  học từ người dùng:** Nơi hiển thị các nhóm văn bản mà người dùng đã báo cáo sai. Quản trị viên sẽ duyệt qua danh sách và thực hiện "Phê duyệt" để gán nhãn chuẩn xác, biến đổi chúng thành nguồn dữ liệu sạch.
+- **Lớp 3 - Lớp đánh giá và Huấn luyện lại:** Khu vực hiển thị bảng đo lường độ chính xác của mô hình hiện hành. Khi lượng dữ liệu sạch ở Lớp 2 đã đủ lớn, quản trị viên chỉ việc kích hoạt tiến trình tái huấn luyện để nâng cấp mô hình.
 
 Sơ đồ khối dưới đây mô phỏng lại dòng chảy của dữ liệu từ thiết bị người dùng đến lúc mô hình AI được nâng cấp hoàn chỉnh.
 
@@ -1293,72 +1463,203 @@ Trong tầm nhìn dài hạn, đột phá lớn nhất dự kiến là việc t�
 
 ## Phụ lục A: Đặc tả quy trình sử dụng chi tiết
 
-Dưới đây là các đặc tả chi tiết cho những chức năng cốt lõi nhất của hệ thống, giúp người dùng hiểu rõ cách thức tương tác và luồng xử lý bên trong của ứng dụng.
+Dưới đây là các bảng đặc tả chi tiết cho mười bốn chức năng lớn tương ứng với các Use Case trong sơ đồ tổng quát của hệ thống, giúp làm rõ tác nhân, điều kiện, luồng sự kiện và kết quả đạt được.
 
-### A.1. Quy trình ghi chép chi tiêu bằng ngôn ngữ tự nhiên
-
-| Đặc tính | Nội dung chi tiết |
-| :--- | :--- |
-| Tên chức năng | Ghi chép chi tiêu bằng ngôn ngữ tự nhiên |
-| Người dùng | Người dùng cá nhân đã đăng nhập vào hệ thống |
-| Điều kiện tiên quyết | Máy chủ trí tuệ nhân tạo đang hoạt động và thiết bị có kết nối mạng |
-| Luồng sự kiện chính | 1. Người dùng mở giao diện trò chuyện và nhập văn bản.<br>2. Máy chủ chuyển dữ liệu cho mô hình ngôn ngữ phân tích.<br>3. Mô hình xác định số tiền, danh mục và ý định ghi chép.<br>4. Hệ thống lưu giao dịch vào cơ sở dữ liệu.<br>5. Trợ lý ảo phản hồi lại bằng ngôn ngữ tự nhiên để xác nhận. |
-| Luồng ngoại lệ | Nếu tin nhắn thiếu dữ liệu (ví dụ: thiếu số tiền), trợ lý ảo sẽ đặt câu hỏi yêu cầu người dùng bổ sung trước khi lưu trữ. |
-| Kết quả đạt được | Giao dịch mới được ghi nhận chính xác vào cơ sở dữ liệu. |
-
-Bảng đặc tả quy trình sử dụng chức năng ghi chép thông qua trò chuyện với trợ lý ảo.
-
-### A.2. Quy trình quét và trích xuất thông tin hóa đơn
+### A.1. Đặc tả chức năng đăng ký và đăng nhập (UC1)
 
 | Đặc tính | Nội dung chi tiết |
 | :--- | :--- |
-| Tên chức năng | Quét và trích xuất thông tin hóa đơn tự động |
-| Người dùng | Người dùng cá nhân đã đăng nhập vào hệ thống |
-| Điều kiện tiên quyết | Hóa đơn phải tương đối rõ nét, thiết bị có cấp quyền chụp ảnh |
-| Luồng sự kiện chính | 1. Người dùng chụp ảnh hoặc tải ảnh hóa đơn lên hệ thống.<br>2. Máy chủ sử dụng công nghệ nhận diện chữ viết để đọc văn bản.<br>3. Mô hình khoanh vùng và lấy thông tin số tiền, ngày tháng.<br>4. Hệ thống hiển thị kết quả lên màn hình dưới dạng bản nháp.<br>5. Người dùng xem xét và nhấn lưu. |
-| Luồng ngoại lệ | Nếu ảnh quá mờ hoặc rách, hệ thống sẽ từ chối xử lý và hiển thị thông báo yêu cầu người dùng cung cấp ảnh rõ nét hơn. |
-| Kết quả đạt được | Dữ liệu từ hóa đơn vật lý được số hóa và ghi nhận thành giao dịch. |
+| Tên chức năng | Đăng ký tài khoản mới và đăng nhập xác thực hệ thống |
+| Tác nhân | Người dùng cuối, Quản trị viên |
+| Mô tả | Cho phép người dùng và quản trị viên tạo tài khoản mới hoặc đăng nhập vào hệ thống thông qua địa chỉ email và mật khẩu an toàn. |
+| Điều kiện | Thiết bị có kết nối mạng, địa chỉ email hợp lệ và chưa bị cấm trên hệ thống. |
+| Luồng sự kiện chính | 1. Tác nhân mở màn hình đăng nhập hoặc đăng ký tài khoản.<br>2. Nhập thông tin tài khoản bao gồm email và chuỗi mật khẩu.<br>3. Máy chủ kiểm tra định dạng và đối soát chuỗi mật khẩu băm.<br>4. Hệ thống cấp mã thông báo bảo mật JWT và chuyển hướng vào màn hình làm việc chính. |
+| Luồng sự kiện rẽ nhánh | Nếu email chưa đăng ký khi đăng nhập hoặc mật khẩu nhập sai, hệ thống hiển thị cảnh báo lỗi và yêu cầu nhập lại; trường hợp tài khoản bị đình chỉ, từ chối quyền truy cập. |
+| Kết quả | Tác nhân được xác thực thành công và có thể khai thác các nghiệp vụ tương ứng theo phân quyền. |
 
-Bảng đặc tả quy trình quét hình ảnh hóa đơn và nhận diện thông tin.
+Bảng đặc tả luồng xác thực danh tính và cấp quyền truy cập cho toàn bộ tác nhân sử dụng hệ thống.
 
-### A.3. Quy trình quản lý ví nhóm và chia sẻ mục tiêu tài chính
-
-| Đặc tính | Nội dung chi tiết |
-| :--- | :--- |
-| Tên chức năng | Quản lý ví nhóm và chia sẻ mục tiêu |
-| Người dùng | Chủ sở hữu ví và các thành viên được mời |
-| Điều kiện tiên quyết | Người tạo phải cung cấp mã mời hợp lệ cho các thành viên khác |
-| Luồng sự kiện chính | 1. Chủ sở hữu tạo ví chung và chia sẻ mã mời.<br>2. Thành viên khác nhập mã mời để tham gia vào ví.<br>3. Mọi giao dịch thu chi trong ví được đồng bộ cho tất cả thành viên.<br>4. Đối với mục tiêu chung, tiến độ đóng góp được cộng dồn và hiển thị trực quan. |
-| Luồng ngoại lệ | Người dùng nhập sai mã mời sẽ bị từ chối tham gia. Chủ sở hữu có thể xóa thành viên khỏi ví chung bất kỳ lúc nào. |
-| Kết quả đạt được | Nhóm người dùng có thể cùng nhau quản lý một nguồn quỹ chung minh bạch. |
-
-Bảng đặc tả quy trình tương tác cộng đồng thông qua ví nhóm và mục tiêu chung.
-
-### A.4. Quy trình nâng cấp tài khoản tự động bằng mã quét ngân hàng
+### A.2. Đặc tả chức năng nâng cấp tài khoản (UC2)
 
 | Đặc tính | Nội dung chi tiết |
 | :--- | :--- |
-| Tên chức năng | Nâng cấp tài khoản cao cấp tự động |
-| Người dùng | Người dùng đang sử dụng gói tài khoản miễn phí |
-| Điều kiện tiên quyết | Hệ thống có liên kết với cổng thanh toán và quét biến động số dư |
-| Luồng sự kiện chính | 1. Người dùng chọn tính năng nâng cấp trong phần cài đặt.<br>2. Ứng dụng sinh ra mã quét ngân hàng chứa nội dung chuyển khoản riêng.<br>3. Người dùng thanh toán bằng ứng dụng ngân hàng.<br>4. Máy chủ phát hiện biến động số dư và đối soát nội dung.<br>5. Tài khoản được nâng cấp ngay lập tức. |
-| Luồng ngoại lệ | Nếu người dùng chuyển sai nội dung hoặc thiếu tiền, hệ thống sẽ ghi nhận lỗi và yêu cầu người dùng liên hệ hỗ trợ viên. |
-| Kết quả đạt được | Trạng thái tài khoản người dùng được cập nhật lên mức cao cấp. |
+| Tên chức năng | Nâng cấp tài khoản lên gói cao cấp tự động qua mã chuyển khoản |
+| Tác nhân | Người dùng cuối |
+| Mô tả | Cho phép người dùng thanh toán phí dịch vụ thông qua quét mã QR chuyển khoản ngân hàng để nâng cấp lên gói tài khoản cao cấp Premium. |
+| Điều kiện | Người dùng đang sử dụng gói miễn phí và cổng thanh toán ngân hàng hoạt động ổn định. |
+| Luồng sự kiện chính | 1. Người dùng chọn chức năng nâng cấp tài khoản tại mục cài đặt.<br>2. Ứng dụng hiển thị mã QR chuyển khoản ngân hàng chứa mã nội dung định danh riêng.<br>3. Người dùng thực hiện chuyển khoản bằng ứng dụng ngân hàng.<br>4. Máy chủ phát hiện biến động số dư, đối soát mã nội dung và cập nhật trạng thái tài khoản lên mức cao cấp ngay lập tức. |
+| Luồng sự kiện rẽ nhánh | Nếu giao dịch chuyển khoản sai nội dung định danh hoặc thiếu số tiền quy định, hệ thống ghi nhận trạng thái chờ và hướng dẫn người dùng liên hệ hỗ trợ viên để xử lý thủ công. |
+| Kết quả | Tài khoản người dùng được mở khóa toàn bộ quyền lợi và tính năng cao cấp không giới hạn. |
 
-Bảng đặc tả quy trình tự động hóa thanh toán và nâng cấp hệ thống.
+Bảng đặc tả quy trình tự động hóa thanh toán và kích hoạt gói quyền lợi nâng cao cho người dùng.
 
-### A.5. Quy trình quản trị viên giám sát và huấn luyện hệ thống
+### A.3. Đặc tả chức năng quản lý ví tiền (UC3)
 
 | Đặc tính | Nội dung chi tiết |
 | :--- | :--- |
-| Tên chức năng | Giám sát dữ liệu và huấn luyện lại trí tuệ nhân tạo |
-| Người dùng | Ban quản trị hệ thống đăng nhập trên nền tảng web |
-| Điều kiện tiên quyết | Tài khoản phải được cấp quyền quản trị viên cấp cao |
-| Luồng sự kiện chính | 1. Quản trị viên truy cập bảng điều khiển trên trang web.<br>2. Xem xét các báo cáo dữ liệu nhận diện sai do người dùng sửa lại.<br>3. Quản trị viên duyệt và dán nhãn chuẩn cho dữ liệu hợp lệ.<br>4. Bấm nút kích hoạt chu trình học lại.<br>5. Máy chủ tiến hành huấn luyện mô hình ngôn ngữ dựa trên kho dữ liệu mới. |
-| Luồng ngoại lệ | Những dữ liệu có chứa từ ngữ vi phạm hoặc chửi thề sẽ bị quản trị viên xóa bỏ hoàn toàn khỏi bộ dữ liệu huấn luyện. |
-| Kết quả đạt được | Mô hình trí tuệ nhân tạo được cập nhật kiến thức mới và thông minh hơn. |
+| Tên chức năng | Quản lý ví chi tiêu cá nhân, ví dùng chung và mời thành viên |
+| Tác nhân | Người dùng cuối |
+| Mô tả | Cho phép người dùng tạo mới, chỉnh sửa, theo dõi ví chi tiêu cá nhân hoặc khởi tạo ví dùng chung và mời thành viên khác cùng tham gia chia sẻ quỹ. |
+| Điều kiện | Người dùng đã đăng nhập và tài khoản ở trạng thái hoạt động bình thường. |
+| Luồng sự kiện chính | 1. Người dùng truy cập danh sách ví tiền và chọn lệnh tạo ví mới hoặc chọn ví hiện có.<br>2. Nhập tên ví, loại ví và số dư ban đầu.<br>3. Trường hợp tạo ví chung, chủ sở hữu tạo mã mời hoặc mã QR để chia sẻ cho thành viên khác.<br>4. Hệ thống ghi nhận số dư và đồng bộ lịch sử giao dịch cho toàn bộ thành viên thuộc ví chung. |
+| Luồng sự kiện rẽ nhánh | Nếu người dùng nhập sai mã mời ví nhóm hoặc tài khoản được mời đã tồn tại trong ví, hệ thống hiển thị thông báo lỗi từ chối gia nhập. |
+| Kết quả | Ví tiền được khởi tạo hoặc cập nhật thông tin, đảm bảo đồng bộ số dư chi tiêu theo thời gian thực. |
 
-Bảng đặc tả quy trình quản trị dữ liệu và tái huấn luyện mô hình.
+Bảng đặc tả luồng thao tác quản lý các nguồn quỹ chi tiêu cá nhân và chia sẻ ngân sách nhóm.
+
+### A.4. Đặc tả chức năng ghi chép bằng trò chuyện (UC4)
+
+| Đặc tính | Nội dung chi tiết |
+| :--- | :--- |
+| Tên chức năng | Ghi chép chi tiêu bằng ngôn ngữ tự nhiên qua trò chuyện AI |
+| Tác nhân | Người dùng cuối |
+| Mô tả | Cho phép người dùng ghi nhận các khoản thu nhập hoặc chi tiêu thông qua việc nhắn tin bằng ngôn ngữ tiếng Việt tự nhiên với trợ lý ảo Mimo. |
+| Điều kiện | Máy chủ trí tuệ nhân tạo Qwen 2.5 hoạt động bình thường và thiết bị di động có kết nối mạng. |
+| Luồng sự kiện chính | 1. Người dùng mở màn hình trò chuyện và nhập câu lệnh chi tiêu tự nhiên.<br>2. Máy chủ gửi câu lệnh đến mô hình ngôn ngữ lớn để phân tích ngữ nghĩa.<br>3. Mô hình bóc tách ý định ghi chép, số tiền, danh mục tương ứng và ngày tháng.<br>4. Hệ thống tạo giao dịch mới vào cơ sở dữ liệu và tự động cập nhật số dư ví.<br>5. Trợ lý ảo Mimo gửi tin nhắn phản hồi xác nhận chi tiết khoản thu chi vừa tạo. |
+| Luồng sự kiện rẽ nhánh | Nếu tin nhắn của người dùng chưa rõ ràng hoặc thiếu thông tin số tiền, trợ lý ảo chủ động đặt câu hỏi phản hồi để yêu cầu bổ sung trước khi lưu. |
+| Kết quả | Giao dịch mới được lưu trữ chính xác mà không cần chọn thủ công qua biểu mẫu truyền thống. |
+
+Bảng đặc tả quy trình ghi chép thông minh thông qua tương tác hội thoại tự nhiên với trợ lý ảo.
+
+### A.5. Đặc tả chức năng quét ảnh hóa đơn (UC5)
+
+| Đặc tính | Nội dung chi tiết |
+| :--- | :--- |
+| Tên chức năng | Quét ảnh hóa đơn bán lẻ và trích xuất thông số giao dịch tự động |
+| Tác nhân | Người dùng cuối |
+| Mô tả | Cho phép người dùng chụp ảnh trực tiếp hoặc tải lên ảnh hóa đơn để hệ thống tự động bóc tách số tiền, danh mục và thời gian mua sắm. |
+| Điều kiện | Ảnh hóa đơn có đủ ánh sáng, rõ nét ký tự và ứng dụng được cấp quyền truy cập máy ảnh hoặc thư viện ảnh. |
+| Luồng sự kiện chính | 1. Người dùng chụp ảnh hóa đơn hoặc tải ảnh từ bộ nhớ thiết bị lên hệ thống.<br>2. Máy chủ bóc tách ký tự bằng mô hình VietOCR kết hợp phân tích bố cục LayoutLMv3.<br>3. Hệ thống trích xuất thông số tổng tiền, ngày giao dịch và tên cửa hàng để hiển thị bảng bản nháp.<br>4. Người dùng rà soát lại kết quả, chỉnh sửa nếu cần và bấm nút xác nhận lưu. |
+| Luồng sự kiện rẽ nhánh | Nếu hình ảnh quá mờ, bị nhòe hoặc không chứa thông tin hóa đơn hợp lệ, hệ thống báo lỗi nhận diện và yêu cầu người dùng cung cấp ảnh rõ nét hơn. |
+| Kết quả | Dữ liệu từ hóa đơn giấy được số hóa nhanh chóng thành bản ghi giao dịch hợp lệ trên hệ thống. |
+
+Bảng đặc tả quy trình số hóa hóa đơn giấy bằng các kỹ thuật nhận diện thị giác máy tính.
+
+### A.6. Đặc tả chức năng hỏi đáp thông minh (UC6)
+
+| Đặc tính | Nội dung chi tiết |
+| :--- | :--- |
+| Tên chức năng | Tra cứu số liệu và tư vấn tài chính cá nhân hóa cùng Mimo |
+| Tác nhân | Người dùng cuối |
+| Mô tả | Cho phép người dùng đặt câu hỏi tra cứu tình hình tài chính, kiểm tra số dư hoặc xin lời khuyên chi tiêu cá nhân hóa từ trợ lý ảo Mimo. |
+| Điều kiện | Người dùng đã có lịch sử chi tiêu trong ví tiền và cụm máy chủ AI sẵn sàng phục vụ. |
+| Luồng sự kiện chính | 1. Người dùng gõ câu hỏi truy vấn số dư, thống kê chi tiêu hoặc xin lời khuyên tài chính.<br>2. Hệ thống áp dụng cơ chế tạo văn bản tăng cường truy xuất để trích xuất số liệu thực tế từ cơ sở dữ liệu.<br>3. Mô hình ngôn ngữ tổng hợp thông tin và khởi tạo câu trả lời tư vấn phù hợp với hồ sơ chi tiêu.<br>4. Trợ lý ảo Mimo hiển thị nội dung phản hồi chi tiết và mạch lạc trên giao diện trò chuyện. |
+| Luồng sự kiện rẽ nhánh | Nếu câu hỏi nằm ngoài phạm vi nghiệp vụ tài chính cá nhân, trợ lý ảo lịch sự từ chối trả lời và hướng dẫn người dùng quay lại chủ đề quản lý chi tiêu. |
+| Kết quả | Người dùng nhận được lời khuyên tài chính sát thực tế, tuyệt đối không bị ảnh hưởng bởi hiện tượng bịa đặt số liệu. |
+
+Bảng đặc tả luồng tư vấn và tra cứu thông tin tài chính dựa trên số liệu giao dịch thực tế.
+
+### A.7. Đặc tả chức năng quản lý hạn mức và gợi ý ngân sách (UC7)
+
+| Đặc tính | Nội dung chi tiết |
+| :--- | :--- |
+| Tên chức năng | Thiết lập hạn mức ngân sách chi tiêu và nhận cảnh báo vượt hạn mức |
+| Tác nhân | Người dùng cuối |
+| Mô tả | Cho phép người dùng thiết lập mức giới hạn chi tiêu tối đa cho từng tháng hoặc danh mục, đồng thời nhận cảnh báo từ AI khi có nguy cơ vượt ngân sách. |
+| Điều kiện | Người dùng đã lựa chọn danh mục áp dụng hạn mức và đặt mức tiền tối đa lớn hơn không. |
+| Luồng sự kiện chính | 1. Người dùng mở màn hình ngân sách và thiết lập số tiền hạn mức tối đa cho chu kỳ tháng hoặc danh mục.<br>2. Hệ thống tự động tổng hợp tiến độ chi tiêu thực tế dựa trên lịch sử giao dịch tương ứng.<br>3. Khi số tiền chi tiêu đạt ngưỡng 80% hoặc 100% hạn mức, hệ thống tự động sinh thông báo cảnh báo.<br>4. Trợ lý ảo đề xuất phương án cân đối chi tiêu cho những ngày còn lại trong chu kỳ. |
+| Luồng sự kiện rẽ nhánh | Nếu người dùng thay đổi hoặc xóa bỏ hạn mức đang áp dụng, hệ thống tính toán lại tiến độ mới và ngưng phát đi các thông báo cảnh báo của hạn mức cũ. |
+| Kết quả | Hạn mức chi tiêu được kiểm soát liên tục, giúp người dùng duy trì kỷ luật quản lý chi tiêu. |
+
+Bảng đặc tả quy trình kiểm soát hạn mức chi tiêu và cảnh báo rủi ro vượt ngân sách.
+
+### A.8. Đặc tả chức năng báo cáo và so sánh (UC8)
+
+| Đặc tính | Nội dung chi tiết |
+| :--- | :--- |
+| Tên chức năng | Xem biểu đồ thống kê phân tích thu chi và so sánh chu kỳ |
+| Tác nhân | Người dùng cuối |
+| Mô tả | Cho phép người dùng xem biểu đồ phân tích cơ cấu chi tiêu theo danh mục, thời gian và đối soát xu hướng thu chi giữa các chu kỳ tuần hoặc tháng. |
+| Điều kiện | Có ít nhất một giao dịch thu chi được ghi nhận trong mốc thời gian tra cứu báo cáo. |
+| Luồng sự kiện chính | 1. Người dùng chọn chức năng báo cáo và chọn khoảng thời gian xem theo tuần, tháng hoặc năm.<br>2. Máy chủ truy vấn, phân nhóm dữ liệu giao dịch theo từng danh mục thu chi.<br>3. Ứng dụng hiển thị biểu đồ cơ cấu tỷ trọng danh mục và biểu đồ cột so sánh chu kỳ.<br>4. Người dùng chạm vào từng chi tiết trên biểu đồ để xem danh sách giao dịch chi tiết tương ứng. |
+| Luồng sự kiện rẽ nhánh | Nếu mốc thời gian được chọn không có bất kỳ dữ liệu giao dịch nào, biểu đồ hiển thị trạng thái trống kèm gợi ý người dùng thêm mới giao dịch. |
+| Kết quả | Người dùng nắm bắt được cấu trúc chi tiêu cũng như xu hướng tăng giảm tài chính cá nhân qua từng giai đoạn. |
+
+Bảng đặc tả quy trình trích xuất báo cáo phân tích và so sánh số liệu chi tiêu trực quan.
+
+### A.9. Đặc tả chức năng quản lý giao dịch (UC14)
+
+| Đặc tính | Nội dung chi tiết |
+| :--- | :--- |
+| Tên chức năng | Tra cứu, lọc, chỉnh sửa hoặc xóa lịch sử giao dịch thu chi |
+| Tác nhân | Người dùng cuối |
+| Mô tả | Cho phép người dùng tìm kiếm, xem chi tiết, chỉnh sửa số tiền, danh mục, ghi chú hoặc xóa bỏ các khoản giao dịch thu chi đã được ghi nhận. |
+| Điều kiện | Người dùng có quyền sở hữu đối với ví tiền cá nhân hoặc quyền tham gia hợp lệ trong ví chung. |
+| Luồng sự kiện chính | 1. Người dùng truy cập danh sách lịch sử giao dịch và sử dụng bộ lọc theo ngày, khoảng tiền hoặc danh mục.<br>2. Chọn một bản ghi giao dịch để xem thông tin chi tiết.<br>3. Người dùng chỉnh sửa lại thông số khoản chi hoặc nhấn lệnh xóa bỏ giao dịch.<br>4. Hệ thống cập nhật lại dữ liệu, tự động tính toán lại số dư trong ví và đồng bộ báo cáo mới. |
+| Luồng sự kiện rẽ nhánh | Nếu người dùng không có quyền xóa giao dịch do người khác tạo trong ví chung, nút xóa sẽ bị vô hiệu hóa hoặc hệ thống hiển thị từ chối thao tác. |
+| Kết quả | Lịch sử giao dịch được bảo trì chính xác và số dư của các ví liên quan được cập nhật lại theo đúng số liệu mới. |
+
+Bảng đặc tả luồng thao tác cập nhật và kiểm soát chi tiết từng bản ghi giao dịch trong hệ thống.
+
+### A.10. Đặc tả chức năng thống kê tổng quan (UC9)
+
+| Đặc tính | Nội dung chi tiết |
+| :--- | :--- |
+| Tên chức năng | Giám sát chỉ số tăng trưởng người dùng và tổng lưu lượng vận hành |
+| Tác nhân | Quản trị viên |
+| Mô tả | Cho phép ban quản trị theo dõi biểu đồ tăng trưởng người dùng mới, tổng số lượng giao dịch toàn hệ thống và tần suất gọi API của trợ lý ảo AI. |
+| Điều kiện | Quản trị viên đã đăng nhập vào trang web quản trị với quyền truy cập bảng điều khiển. |
+| Luồng sự kiện chính | 1. Quản trị viên truy cập màn hình bảng điều khiển quản trị trên trình duyệt.<br>2. Máy chủ tải và tổng hợp các số liệu thống kê từ cơ sở dữ liệu CockroachDB.<br>3. Hệ thống hiển thị các biểu đồ tăng trưởng người dùng, tỷ lệ hoạt động và lưu lượng máy chủ.<br>4. Quản trị viên thay đổi khoảng thời gian quan sát để đánh giá xu hướng phát triển hệ thống. |
+| Luồng sự kiện rẽ nhánh | Nếu kết nối đến máy chủ thống kê bị phản hồi trễ, trang quản trị hiển thị dữ liệu lưu tạm trong bộ nhớ đệm và thông báo trạng thái đang cập nhật số liệu mới. |
+| Kết quả | Ban quản trị nắm bắt được toàn cảnh tình trạng quy mô vận hành và mức độ tải của hệ thống. |
+
+Bảng đặc tả quy trình tra cứu thống kê vận hành toàn hệ thống cho quản trị viên.
+
+### A.11. Đặc tả chức năng quản lý người dùng (UC10)
+
+| Đặc tính | Nội dung chi tiết |
+| :--- | :--- |
+| Tên chức năng | Tìm kiếm, xem hồ sơ, đình chỉ hoặc mở khóa tài khoản người dùng |
+| Tác nhân | Quản trị viên |
+| Mô tả | Cho phép quản trị viên tra cứu danh sách tài khoản, kiểm tra trạng thái gói sử dụng và đình chỉ hoặc mở khóa đối với người dùng vi phạm quy định. |
+| Điều kiện | Quản trị viên được phân quyền quản lý người dùng cấp cao trên nền tảng web. |
+| Luồng sự kiện chính | 1. Quản trị viên mở màn hình quản lý danh sách người dùng trên trang quản trị.<br>2. Sử dụng thanh tìm kiếm theo địa chỉ email hoặc tên hiển thị để tìm hồ sơ cần kiểm tra.<br>3. Xem thông tin chi tiết về gói tài khoản, trạng thái hoạt động và số lượng ví tiền.<br>4. Chọn lệnh đình chỉ tài khoản đối với trường hợp lạm dụng tài nguyên hoặc lệnh mở khóa cho tài khoản hợp lệ. |
+| Luồng sự kiện rẽ nhánh | Nếu quản trị viên cố thao tác khóa một tài khoản quản trị viên cấp cao khác, hệ thống tự động ngăn chặn và cảnh báo thao tác không hợp lệ. |
+| Kết quả | Trạng thái quyền truy cập của các tài khoản người dùng được kiểm soát chặt chẽ theo nội quy hệ thống. |
+
+Bảng đặc tả luồng tra cứu, giám sát và xử lý vi phạm tài khoản người dùng.
+
+### A.12. Đặc tả chức năng dán nhãn dữ liệu ảnh (UC11)
+
+| Đặc tính | Nội dung chi tiết |
+| :--- | :--- |
+| Tên chức năng | Kiểm tra hóa đơn lỗi, căn chỉnh nhãn bounding box và chuẩn hóa dữ liệu |
+| Tác nhân | Quản trị viên |
+| Mô tả | Cho phép quản trị viên kiểm tra các mẫu ảnh hóa đơn nhận dạng sai, chỉnh sửa lại khung nhận diện chữ và gán nhãn lại đúng thông số để chuẩn bị học lại. |
+| Điều kiện | Có danh sách ảnh hóa đơn lỗi được hệ thống lưu trong kho dữ liệu chờ rà soát. |
+| Luồng sự kiện chính | 1. Quản trị viên mở công cụ gán nhãn hóa đơn trên giao diện quản trị.<br>2. Chọn một ảnh hóa đơn có tỷ lệ nhận diện OCR thấp hoặc được người dùng báo cáo lỗi.<br>3. Thao tác vẽ lại khung nhận dạng cho các thông số tổng tiền, ngày và tên nhà cung cấp.<br>4. Nhập lại văn bản chuẩn cho từng vùng chữ tương ứng và bấm xác nhận chuẩn hóa nhãn. |
+| Luồng sự kiện rẽ nhánh | Nếu hình ảnh hóa đơn bị nhòe hoàn toàn không thể đọc hoặc không chứa nội dung mua sắm, quản trị viên chọn lệnh loại bỏ ảnh khỏi bộ dữ liệu mẫu. |
+| Kết quả | Kho dữ liệu hình ảnh hóa đơn được sửa chữa nhãn chuẩn xác, sẵn sàng phục vụ cho huấn luyện lại mô hình. |
+
+Bảng đặc tả quy trình rà soát, gán nhãn và chuẩn hóa tập dữ liệu hình ảnh hóa đơn.
+
+### A.13. Đặc tả chức năng tinh chỉnh tính cách AI (UC12)
+
+| Đặc tính | Nội dung chi tiết |
+| :--- | :--- |
+| Tên chức năng | Cấu hình hồ sơ tính cách Persona và chỉnh sửa chỉ thị hệ thống AI |
+| Tác nhân | Quản trị viên |
+| Mô tả | Cho phép quản trị viên tạo mới, chỉnh sửa nội dung chỉ thị hệ thống System Prompt cho từng hồ sơ tính cách của trợ lý ảo Mimo. |
+| Điều kiện | Quản trị viên có quyền hạn chỉnh sửa cấu hình cốt lõi của trợ lý ảo. |
+| Luồng sự kiện chính | 1. Quản trị viên truy cập màn hình quản lý tính cách AI trên giao diện web.<br>2. Chọn một hồ sơ tính cách Persona hiện có hoặc khởi tạo hồ sơ tính cách mới.<br>3. Chỉnh sửa văn bản chỉ thị hệ thống nhằm thiết lập cách xưng hô, giọng văn và quy tắc tư vấn.<br>4. Bấm lưu cấu hình và áp dụng thay đổi ngay cho máy chủ ngôn ngữ. |
+| Luồng sự kiện rẽ nhánh | Nếu chỉ thị hệ thống nhập vào bị bỏ trống hoặc vượt quá giới hạn độ dài cho phép, hệ thống cảnh báo lỗi và khôi phục về cấu hình an toàn trước đó. |
+| Kết quả | Trợ lý ảo Mimo được cập nhật phong cách giao tiếp và tuân thủ các nguyên tắc tư vấn chuyên nghiệp. |
+
+Bảng đặc tả luồng cấu hình phong cách phản hồi và nguyên tắc làm việc cho AI.
+
+### A.14. Đặc tả chức năng ra lệnh huấn luyện AI (UC13)
+
+| Đặc tính | Nội dung chi tiết |
+| :--- | :--- |
+| Tên chức năng | Xuất tập dữ liệu sạch và kích hoạt chu trình tinh chỉnh mô hình LoRA |
+| Tác nhân | Quản trị viên |
+| Mô tả | Cho phép ban quản trị kích hoạt quá trình huấn luyện lại mô hình Qwen 2.5 với kỹ thuật LoRA từ nguồn dữ liệu hội thoại và hóa đơn đã được gán nhãn. |
+| Điều kiện | Kho dữ liệu huấn luyện đã đạt số lượng mẫu tối thiểu và máy chủ GPU sẵn sàng. |
+| Luồng sự kiện chính | 1. Quản trị viên mở màn hình quản lý huấn luyện AI trên giao diện web.<br>2. Kiểm tra chỉ số phân bố dữ liệu và chọn nút xuất tập dữ liệu huấn luyện đã làm sạch.<br>3. Bấm lệnh kích hoạt chu trình huấn luyện tinh chỉnh LoRA trên máy chủ tự động.<br>4. Theo dõi đồ thị hội tụ và kiểm tra chỉ số độ chính xác của mô hình mới.<br>5. Bấm phát hành bản trọng số mới để cập nhật cho trợ lý ảo trên hệ thống chính. |
+| Luồng sự kiện rẽ nhánh | Nếu máy chủ GPU bị quá tải bộ nhớ hoặc chu trình huấn luyện không hội tụ, hệ thống tự động hủy tiến trình và gửi cảnh báo lỗi cho quản trị viên. |
+| Kết quả | Mô hình AI được tích hợp kiến thức mới từ dữ liệu thực tế, giúp nâng cao độ chính xác khi nhận diện ý định ghi chép. |
+
+Bảng đặc tả quy trình điều khiển chu trình tái huấn luyện mô hình trí tuệ nhân tạo.
 
 ## Phụ lục B: Mô tả chi tiết dữ liệu hệ thống
 

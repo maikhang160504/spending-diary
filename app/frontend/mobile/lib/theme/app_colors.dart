@@ -37,3 +37,16 @@ class AppShadows {
     BoxShadow(color: AppColors.shadow, blurRadius: 10, offset: Offset(0, 3)),
   ];
 }
+
+/// Bộ quản lý màu sắc ví đang chọn toàn cục — mặc định là màu xanh teal ban đầu.
+final ValueNotifier<Color> selectedWalletColorNotifier = ValueNotifier<Color>(AppColors.teal);
+
+Color parseWalletColorHex(String? hex) {
+  if (hex == null || hex.isEmpty) return AppColors.teal;
+  final cleanHex = hex.replaceAll('#', '').trim();
+  try {
+    return Color(int.parse(cleanHex.length == 6 ? 'FF$cleanHex' : cleanHex, radix: 16));
+  } catch (_) {
+    return AppColors.teal;
+  }
+}

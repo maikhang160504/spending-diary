@@ -260,7 +260,7 @@ function NluOpsPage() {
           setLayer1Rules(data);
           setLoading(false);
         });
-        showToast("Layer 1 Exact Match rule registered in PostgreSQL!");
+        showToast("Đã thêm quy tắc cá nhân hóa danh mục!");
       })
       .catch((err) => {
         showToast("Failed to add override: " + err.message);
@@ -277,7 +277,7 @@ function NluOpsPage() {
           setLayer1Rules(data);
           setLoading(false);
         });
-        showToast("Override rule revoked successfully.");
+        showToast("Đã thu hồi quy tắc cá nhân hóa danh mục.");
       })
       .catch((err) => {
         showToast("Failed to delete rule: " + err.message);
@@ -290,7 +290,7 @@ function NluOpsPage() {
     try {
       const preview = await cleanupInvalidNluOverrides(false);
       if (!preview.invalidCount) {
-        showToast("Không có rule Layer 1 sai cần dọn.");
+        showToast("Không có quy tắc cá nhân hóa danh mục nào sai cần dọn.");
         setLoading(false);
         return;
       }
@@ -299,7 +299,7 @@ function NluOpsPage() {
         .map((r) => `"${r.keyword}"`)
         .join(", ");
       const ok = window.confirm(
-        `Tìm thấy ${preview.invalidCount} rule sai (tên category, OCR dài, v.v.).\n` +
+        `Tìm thấy ${preview.invalidCount} quy tắc cá nhân hóa danh mục sai (tên danh mục, OCR dài, v.v.).\n` +
           `Ví dụ: ${sample}\n\nXóa tất cả?`
       );
       if (!ok) {
@@ -309,7 +309,7 @@ function NluOpsPage() {
       const result = await cleanupInvalidNluOverrides(true);
       const data = await getNluOverrides();
       setLayer1Rules(data);
-      showToast(`Đã xóa ${result.removed} rule Layer 1 không hợp lệ.`);
+      showToast(`Đã xóa ${result.removed} quy tắc cá nhân hóa danh mục không hợp lệ.`);
     } catch (err) {
       showToast("Dọn rule thất bại: " + err.message);
     } finally {
@@ -483,7 +483,7 @@ function NluOpsPage() {
         <div>
           <h1 className="page-title" style={{ fontSize: "28px", fontWeight: "700", color: "var(--text-primary)", letterSpacing: "-0.5px" }}>NLU & Retraining Operations</h1>
           <p className="page-desc" style={{ color: "var(--text-secondary)", fontSize: "14px", marginTop: "4px" }}>
-            Giám sát layer đè luật, tinh chỉnh dữ liệu đính chính, huấn luyện và kích hoạt các bộ suy luận NLU.
+            Giám sát cá nhân hóa danh mục, tinh chỉnh dữ liệu đính chính, huấn luyện và kích hoạt các bộ suy luận NLU.
           </p>
         </div>
         <div style={{
@@ -534,7 +534,7 @@ function NluOpsPage() {
         boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.02)"
       }}>
         <div className="bill-stat" style={{ paddingRight: "20px", borderRight: "1px solid var(--border-color)" }}>
-          <span className="bill-stat-label" style={{ fontSize: "10px", color: "var(--text-muted)", letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: "600", display: "block", marginBottom: "4px" }}>Luật Layer 1</span>
+          <span className="bill-stat-label" style={{ fontSize: "10px", color: "var(--text-muted)", letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: "600", display: "block", marginBottom: "4px" }}>Cá nhân hóa danh mục</span>
           <span className="bill-stat-value" style={{ fontSize: "20px", fontWeight: "700", color: "var(--accent-blue-hover)", fontFamily: "var(--font-sans)" }}>{layer1Rules.length} rules</span>
         </div>
         <div className="bill-stat" style={{ paddingRight: "20px", borderRight: "1px solid var(--border-color)" }}>
@@ -576,7 +576,7 @@ function NluOpsPage() {
           onClick={() => handleTabChange("layer1")}
           style={{ fontSize: "14px", padding: "12px 20px" }}
         >
-          Layer 1: Đè luật khớp tuyệt đối
+          Layer 1: Cá nhân hóa danh mục
         </button>
         <button
           className={`tab-btn ${activeTab === "layer2" ? "active" : ""}`}
@@ -613,9 +613,9 @@ function NluOpsPage() {
           }}>
             <div className="panel-header" style={{ paddingBottom: "20px", borderBottom: "1px solid var(--border-color)" }}>
               <div>
-                <h2 className="panel-title" style={{ fontSize: "16px", fontWeight: "600", color: "var(--text-primary)" }}>Layer 1: Ánh xạ đè cưỡng bức</h2>
+                <h2 className="panel-title" style={{ fontSize: "16px", fontWeight: "600", color: "var(--text-primary)" }}>Layer 1: Cá nhân hóa danh mục</h2>
                 <span className="form-desc" style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "2px", display: "block" }}>
-                  Định nghĩa các từ khóa hoặc cụm từ ánh xạ trực tiếp tới một danh mục cố định theo từng User.
+                  Định nghĩa các từ khóa hoặc cụm từ ánh xạ trực tiếp tới một danh mục theo nhu cầu cá nhân hóa của từng người dùng.
                 </span>
               </div>
               <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
@@ -631,7 +631,7 @@ function NluOpsPage() {
                 <input
                   type="text"
                   className="form-input"
-                  placeholder="Tìm kiếm cụm từ đè hoặc user..."
+                  placeholder="Tìm kiếm từ khóa hoặc người dùng..."
                   style={{ width: "260px", padding: "8px 14px", fontSize: "13px", background: "var(--bg-obsidian-950)", borderRadius: "8px", border: "1px solid var(--border-color)" }}
                   value={searchExact}
                   onChange={(e) => setSearchExact(e.target.value)}
@@ -644,8 +644,8 @@ function NluOpsPage() {
                 <thead>
                   <tr style={{ background: "var(--bg-obsidian-950)" }}>
                     <th style={{ padding: "14px 18px", color: "var(--text-primary)", fontSize: "11px", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.08em" }}>Người dùng / Account</th>
-                    <th style={{ padding: "14px 18px", color: "var(--text-primary)", fontSize: "11px", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.08em" }}>Cụm từ đè (Keyword)</th>
-                    <th style={{ padding: "14px 18px", color: "var(--text-primary)", fontSize: "11px", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.08em" }}>Danh mục ép buộc</th>
+                    <th style={{ padding: "14px 18px", color: "var(--text-primary)", fontSize: "11px", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.08em" }}>Từ khóa (Keyword)</th>
+                    <th style={{ padding: "14px 18px", color: "var(--text-primary)", fontSize: "11px", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.08em" }}>Danh mục cá nhân hóa</th>
                     <th style={{ padding: "14px 18px", color: "var(--text-primary)", fontSize: "11px", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.08em" }}>Ngày tạo</th>
                     <th style={{ padding: "14px 18px", color: "var(--text-primary)", fontSize: "11px", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.08em", textAlign: "right" }}>Thao tác</th>
                   </tr>
@@ -706,7 +706,7 @@ function NluOpsPage() {
                   {filteredRules.length === 0 && (
                     <tr>
                       <td colSpan="5" style={{ textAlign: "center", padding: "40px", color: "var(--text-muted)" }}>
-                        Không có luật ánh xạ cưỡng bức nào phù hợp.
+                        Không có quy tắc cá nhân hóa danh mục nào phù hợp.
                       </td>
                     </tr>
                   )}
@@ -725,7 +725,7 @@ function NluOpsPage() {
           }}>
             <div className="panel-header" style={{ paddingBottom: "20px", borderBottom: "1px solid var(--border-color)", display: "flex", alignItems: "center", gap: "8px" }}>
               <div className="brand-dot" style={{ background: "var(--accent-blue)" }}></div>
-              <h2 className="panel-title" style={{ fontSize: "16px", fontWeight: "600", color: "var(--text-primary)" }}>Thêm luật đè cưỡng bức</h2>
+              <h2 className="panel-title" style={{ fontSize: "16px", fontWeight: "600", color: "var(--text-primary)" }}>Thêm quy tắc cá nhân hóa danh mục</h2>
             </div>
             <form onSubmit={handleAddRule} style={{ display: "flex", flexDirection: "column", gap: "18px", marginTop: "16px" }}>
               <div className="form-group">
@@ -801,7 +801,7 @@ function NluOpsPage() {
                 e.currentTarget.style.boxShadow = "none";
               }}
               >
-                Ghi nhận ánh xạ đè
+                Lưu quy tắc cá nhân hóa
               </button>
             </form>
           </div>

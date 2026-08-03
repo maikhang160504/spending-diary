@@ -640,32 +640,42 @@ class _AnimatedFabState extends State<_AnimatedFab> with SingleTickerProviderSta
           child: Stack(
             clipBehavior: Clip.none,
             children: [
-              Container(
-                width: 50, height: 50,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF14B8A6), Color(0xFF06B6D4)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF14B8A6).withValues(alpha: 0.5),
-                      blurRadius: 16,
-                      spreadRadius: 1,
-                      offset: const Offset(0, 4),
-                    )
-                  ],
-                ),
-                child: AnimatedBuilder(
-                  animation: _rotation,
-                  builder: (_, child) => Transform.rotate(
-                    angle: _rotation.value * 0.785398, // 45 degrees
-                    child: child,
-                  ),
-                  child: const Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 26),
-                ),
+              ValueListenableBuilder<Color>(
+                valueListenable: selectedWalletColorNotifier,
+                builder: (context, walletColor, _) {
+                  final endColor = walletColor == AppColors.teal
+                      ? const Color(0xFF06B6D4)
+                      : HSLColor.fromColor(walletColor)
+                          .withLightness((HSLColor.fromColor(walletColor).lightness + 0.15).clamp(0.0, 0.92))
+                          .toColor();
+                  return Container(
+                    width: 50, height: 50,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [walletColor, endColor],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: walletColor.withValues(alpha: 0.5),
+                          blurRadius: 16,
+                          spreadRadius: 1,
+                          offset: const Offset(0, 4),
+                        )
+                      ],
+                    ),
+                    child: AnimatedBuilder(
+                      animation: _rotation,
+                      builder: (_, child) => Transform.rotate(
+                        angle: _rotation.value * 0.785398, // 45 degrees
+                        child: child,
+                      ),
+                      child: const Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 26),
+                    ),
+                  );
+                },
               ),
               if (widget.hasUnread)
                 Positioned(

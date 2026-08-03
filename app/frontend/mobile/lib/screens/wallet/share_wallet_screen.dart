@@ -56,6 +56,7 @@ class _ShareWalletScreenState extends State<ShareWalletScreen> {
 
   @override
   void dispose() {
+    selectedWalletColorNotifier.value = AppColors.teal;
     AppQueries.invalidateWalletData();
     super.dispose();
   }
@@ -369,6 +370,12 @@ class _ShareWalletScreenState extends State<ShareWalletScreen> {
     if (_error != null) {
       return Scaffold(body: Center(child: Text(_error!, style: const TextStyle(color: AppColors.danger))));
     }
+    final walletColor = parseWalletColorHex(_wallet['color'] as String?);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (selectedWalletColorNotifier.value != walletColor) {
+        selectedWalletColorNotifier.value = walletColor;
+      }
+    });
     return Scaffold(
       backgroundColor: context.palette.bg,
       body: SafeArea(
@@ -540,6 +547,7 @@ class _ShareWalletScreenState extends State<ShareWalletScreen> {
         ),
       ),
       floatingActionButton: RadialMenuFab(
+        accentColor: walletColor,
         onSelectChat: () {
           context.push(
             AppRoutes.chat,

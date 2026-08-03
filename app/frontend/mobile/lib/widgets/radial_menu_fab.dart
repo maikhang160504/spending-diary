@@ -7,6 +7,7 @@ class RadialMenuFab extends StatefulWidget {
   final VoidCallback onSelectBill;
   final VoidCallback onSelectPhoto;
   final VoidCallback onSelectReport;
+  final Color? accentColor;
 
   const RadialMenuFab({
     super.key,
@@ -14,6 +15,7 @@ class RadialMenuFab extends StatefulWidget {
     required this.onSelectBill,
     required this.onSelectPhoto,
     required this.onSelectReport,
+    this.accentColor,
   });
 
   @override
@@ -78,7 +80,7 @@ class _RadialMenuFabState extends State<RadialMenuFab> with SingleTickerProvider
                     onTap();
                   },
                   backgroundColor: context.theme.cardColor,
-                  foregroundColor: AppColors.teal,
+                  foregroundColor: widget.accentColor ?? AppColors.teal,
                   elevation: 4,
                   child: Icon(icon, size: 20),
                 ),
@@ -92,6 +94,7 @@ class _RadialMenuFabState extends State<RadialMenuFab> with SingleTickerProvider
 
   @override
   Widget build(BuildContext context) {
+    final activeColor = widget.accentColor ?? AppColors.teal;
     return SizedBox(
       width: 250,
       height: 250,
@@ -121,7 +124,7 @@ class _RadialMenuFabState extends State<RadialMenuFab> with SingleTickerProvider
           FloatingActionButton(
             heroTag: 'main_radial_fab',
             onPressed: _toggle,
-            backgroundColor: AppColors.teal,
+            backgroundColor: activeColor,
             child: AnimatedBuilder(
               animation: _controller,
               builder: (context, child) {

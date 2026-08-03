@@ -491,6 +491,16 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final selectedWallet = _wallets.cast<dynamic>().firstWhere(
+      (w) => w is Map && w['id'] == _selectedWalletId,
+      orElse: () => null,
+    );
+    final activeWalletColor = parseWalletColorHex(selectedWallet?['color'] as String?);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (selectedWalletColorNotifier.value != activeWalletColor) {
+        selectedWalletColorNotifier.value = activeWalletColor;
+      }
+    });
     return Scaffold(
       backgroundColor: context.palette.bg,
       body: SafeArea(
@@ -662,11 +672,22 @@ class _HomeScreenState extends State<HomeScreen> {
                       height: 52,
                       width: 52,
                       decoration: BoxDecoration(
-                        gradient: AppGradients.teal,
+                        gradient: activeWalletColor == AppColors.teal
+                            ? AppGradients.teal
+                            : LinearGradient(
+                                colors: [
+                                  activeWalletColor,
+                                  HSLColor.fromColor(activeWalletColor)
+                                      .withLightness((HSLColor.fromColor(activeWalletColor).lightness - 0.12).clamp(0.0, 0.9))
+                                      .toColor(),
+                                ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
                         borderRadius: BorderRadius.circular(16),
                         boxShadow: [
                           BoxShadow(
-                            color: AppColors.teal.withValues(alpha: 0.35),
+                            color: activeWalletColor.withValues(alpha: 0.35),
                             blurRadius: 12,
                             spreadRadius: 2,
                             offset: const Offset(0, 4),
