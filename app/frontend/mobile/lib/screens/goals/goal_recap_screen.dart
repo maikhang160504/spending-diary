@@ -135,7 +135,8 @@ class _GoalRecapScreenState extends State<GoalRecapScreen> with SingleTickerProv
               ),
             ),
           ),
-          Center(
+          Align(
+            alignment: Alignment.topCenter,
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 500),
               child: SafeArea(

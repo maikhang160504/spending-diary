@@ -90,4 +90,38 @@ describe('SUGGEST_BUDGET Active Restrictions & Calibrations', () => {
     expect(shopping.suggested_amount).toBe(1900000);
     expect(shopping.reason).toContain('Linh hoạt điều chỉnh (giảm 50%)');
   });
+
+  test('Adjusts suggested amount up or down based on last month budget variance (sử dụng - hạn mức)', async () => {
+    budgetsService.list.mockResolvedValue([
+      { categoryCode: 'Food', amountLimit: 4000000 },       // spent 5M > limit 4M -> variance +1M -> alpha 0.35 -> +350k
+      { categoryCode: 'Entertainment', amountLimit: 3000000 } // spent 2M < limit 3M -> variance -1M -> beta 0.25 -> -250k
+    ]);
+
+    query.mockImplementation((sql, params) => {
+      if (sql.includes('transactions') && sql.includes('type = \'expense\'')) {
+        return Promise.resolve({
+          rows: [
+            { category_code: 'Food', amount: 5000000 },
+            { category_code: 'Entertainment', amount: 2000000 }
+          ]
+        });
+      }
+      if (sql.includes('transactions') && sql.includes('type = \'income\'')) {
+        return Promise.resolve({ rows: [{ total: 20000000 }] });
+      }
+      return Promise.resolve({ rows: [] });
+    });
+
+    const suggestions = await suggestionService.computeSuggestionsForUser('user-1', '2026-07');
+
+    const food = suggestions.find(s => s.category_code === 'Food');
+    const ent = suggestions.find(s => s.category_code === 'Entertainment');
+
+    expect(food.suggested_amount).toBe(5350000);
+    expect(food.reason).toContain('tăng 350.000đ do vượt hạn mức tháng trước');
+
+    expect(ent.suggested_amount).toBe(1660000);
+    expect(ent.reason).toContain('giảm 250.000đ do chi tiêu dưới hạn mức tháng trước');
+  });
 });
+

@@ -145,7 +145,7 @@ class BillProcessingService extends ChangeNotifier {
   void handleWsTransactionFailed(String transactionId, String? error) {
     final job = _findJob(transactionId);
     if (job == null || job.phase == BillJobPhase.done) return;
-    _failJob(job, error ?? 'Xử lý bill thất bại');
+    _failJob(job, error ?? (job.isText ? 'Xử lý story thất bại' : 'Xử lý bill thất bại'));
   }
 
   BillJob? _findJob(String transactionId) {
@@ -178,7 +178,7 @@ class BillProcessingService extends ChangeNotifier {
       job._pollAttempts++;
       if (job._pollAttempts > BillJob._maxPollAttempts) {
         job._pollTimer?.cancel();
-        _failJob(job, 'Bill vẫn đang xử lý — kiểm tra Story sau vài phút');
+        _failJob(job, job.isText ? 'Đang xử lý — kiểm tra Story sau vài phút' : 'Bill vẫn đang xử lý — kiểm tra Story sau vài phút');
         return;
       }
       try {
@@ -189,7 +189,7 @@ class BillProcessingService extends ChangeNotifier {
           _completeJob(job, tx);
         } else if (status == 'failed') {
           job._pollTimer?.cancel();
-          _failJob(job, 'Xử lý bill thất bại');
+          _failJob(job, job.isText ? 'Xử lý story thất bại' : 'Xử lý bill thất bại');
         }
       } catch (_) {}
     });
@@ -259,12 +259,13 @@ class BillProcessingService extends ChangeNotifier {
       }
     }
 
-    aiComment ??= nlu?['nlg_response'] as String? ??
-        nlu?['response'] as String? ??
-        (nlu?['gemini_json'] as Map<String, dynamic>?)?['response'] as String? ??
-        (nlu?['gemini_json'] as Map<String, dynamic>?)?['story'] as String? ??
-        (nlu?['llama_json'] as Map<String, dynamic>?)?['response'] as String? ??
-        (nlu?['llama_json'] as Map<String, dynamic>?)?['story'] as String?;
+    // Chuỗi fallback đầy đủ cho aiComment từ mọi nơi LLM có thể trả về
+    aiComment ??= nlu?['gemini_json'] is Map ? (nlu!['gemini_json'] as Map)['response'] as String? : null;
+    aiComment ??= nlu?['gemini_json'] is Map ? (nlu!['gemini_json'] as Map)['story'] as String? : null;
+    aiComment ??= nlu?['nlg_response'] as String?;
+    aiComment ??= nlu?['response'] as String?;
+    aiComment ??= nlu?['llama_json'] is Map ? (nlu!['llama_json'] as Map)['response'] as String? : null;
+    aiComment ??= nlu?['llama_json'] is Map ? (nlu!['llama_json'] as Map)['story'] as String? : null;
     mascotMood ??= nlu?['mimo_emotion'] as String? ??
         nlu?['llm_emotion'] as String? ??
         nlu?['mascot_mood'] as String? ??
@@ -320,26 +321,28 @@ class BillProcessingService extends ChangeNotifier {
         ? AppRoutes.storyDetailOf(job.storyId!)
         : AppRoutes.home;
 
-    inAppNotificationController.show(
-      InAppNotification(
-        title: needsReview ? 'Bill cần kiểm tra lại' : 'Bill đã đọc xong',
-        message: message,
-        deepLink: needsReview ? AppRoutes.cameraConfirm : storyRoute,
-        actionLabel: needsReview ? 'Kiểm tra lại' : 'Xem story',
-        onAction: () {
-          if (needsReview && confirmExtra != null) {
-            clearPendingReviewExtra();
-            onNavigate?.call(AppRoutes.cameraConfirm, confirmExtra);
-          } else {
-            onNavigate?.call(storyRoute);
-          }
-        },
-      ),
-    );
+    if (needsReview) {
+      inAppNotificationController.show(
+        InAppNotification(
+          title: job.isText ? 'Story cần kiểm tra lại' : 'Bill cần kiểm tra lại',
+          message: message,
+          deepLink: AppRoutes.cameraConfirm,
+          actionLabel: 'Kiểm tra lại',
+          onAction: () {
+            if (confirmExtra != null) {
+              clearPendingReviewExtra();
+              onNavigate?.call(AppRoutes.cameraConfirm, confirmExtra);
+            }
+          },
+        ),
+      );
+    }
 
     PushNotificationService.instance.showNotification(
       id: job.transactionId.hashCode & 0x7fffffff,
-      title: needsReview ? 'Bill cần kiểm tra lại' : 'Bill đã đọc xong',
+      title: needsReview
+          ? (job.isText ? 'Story cần kiểm tra lại' : 'Bill cần kiểm tra lại')
+          : (job.isText ? 'Story đã lưu thành công' : 'Bill đã đọc xong'),
       body: message,
       payload: needsReview ? AppRoutes.cameraConfirm : storyRoute,
     );

@@ -44,7 +44,13 @@ exports.saveCorrection = asyncHandler(async (req, res) => {
   res.status(201).json({ success: true, data });
 });
 
+exports.dislikeIntent = asyncHandler(async (req, res) => {
+  const data = await service.dislikeIntent(req.user.id, req.body);
+  res.status(201).json({ success: true, data });
+});
+
 exports.confirmAction = asyncHandler(async (req, res) => {
+
   await service.confirmAction(req.user.id, req.body);
   res.json({ success: true });
 });
@@ -84,7 +90,7 @@ exports.simulateNotification = asyncHandler(async (req, res) => {
 const actionService = require('./action.service');
 
 exports.goalRecap = asyncHandler(async (req, res) => {
-  const data = actionService.generateGoalRecapCommentary(req.body || {}, req.user || {});
+  const data = await actionService.generateGoalRecapCommentary(req.body || {}, req.user || {});
   res.json({ success: true, data });
 });
 

@@ -13,7 +13,9 @@ async function list(userId, type) {
   }
 
   const r = await query(
-    `SELECT DISTINCT g.*, g.invite_code AS "inviteCode", w.name AS wallet_name, w.type AS wallet_type FROM goals g
+    `SELECT DISTINCT g.*, g.invite_code AS "inviteCode", w.name AS wallet_name, w.type AS wallet_type,
+            gm.current_amount AS "member_current_amount", gm.status AS "member_status"
+     FROM goals g
      LEFT JOIN wallets w ON w.id = g.wallet_id
      LEFT JOIN wallet_members wm ON wm.wallet_id = g.wallet_id AND wm.user_id = $1
      LEFT JOIN goal_members gm ON gm.goal_id = g.id AND gm.user_id = $1
@@ -228,6 +230,20 @@ async function update(userId, goalId, payload) {
     `UPDATE goals SET ${fields.join(', ')} WHERE id = $1 AND user_id = $2 RETURNING *`,
     values
   );
+
+  if (payload.targetAmount !== undefined) {
+    // Recalculate status for the goal based on the new target amount (only for non-challenges)
+    await query(
+      `UPDATE goals SET status = CASE WHEN type NOT LIKE 'challenge%' AND current_amount >= $1 THEN 'completed' ELSE status END WHERE id = $2`,
+      [payload.targetAmount, goalId]
+    );
+    // Recalculate status for all goal members based on the new target amount
+    await query(
+      `UPDATE goal_members SET status = CASE WHEN current_amount >= $1 THEN 'completed' ELSE 'active' END WHERE goal_id = $2`,
+      [payload.targetAmount, goalId]
+    );
+  }
+
   return r.rows[0];
 }
 
@@ -277,9 +293,9 @@ async function contribute(userId, goalId, amount) {
   }
 
   const r = await query(
-    `UPDATE goals
-     SET current_amount = current_amount + $2,
-         status = CASE WHEN current_amount + $2 >= target_amount THEN 'completed' ELSE status END,
+     `UPDATE goals
+      SET current_amount = current_amount + $2,
+          status = CASE WHEN type NOT LIKE 'challenge%' AND current_amount + $2 >= target_amount THEN 'completed' ELSE status END,
          updated_at = NOW()
      WHERE id = $1
      RETURNING *`,

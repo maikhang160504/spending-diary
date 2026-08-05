@@ -41,10 +41,10 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
   String? _targetWalletId;
   String? _targetWalletName;
 
-  // Editable fields
-  late int _amount;
-  late String _category;
-  late String _note;
+  int _amount = 0;
+  String _category = 'Other';
+  String _originalCategory = 'Other';
+  String _note = '';
   late double _confidence;
   late String _recordType;
 
@@ -78,6 +78,7 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
     _category = CategoryTheme.canonicalCodeOf(
       extracted?['category'] as String? ?? 'Other',
     );
+    _originalCategory = _category;
     _note = extracted?['note'] as String? ?? '';
     _confidence = extracted != null && extracted['confidence'] is num
         ? (extracted['confidence'] as num).toDouble()
@@ -225,9 +226,21 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
       if (!mounted) return;
       setState(() => _saving = false);
       notifyTransactionChanged();
+
+      if (_category != _originalCategory) {
+        final text = nluMeta?['text'] as String? ?? nluMeta?['clean_content'] as String? ?? 'correction';
+        _api.aiCorrection({
+          'text': text,
+          if (reviewTxId != null) 'transactionId': reviewTxId,
+          'intent': 'Record',
+          'categoryCode': _category,
+          'recordType': _recordType,
+        }).catchError((_) => {});
+      }
+
       if (mounted) await StreakCelebration.instance.afterActivity(context);
       if (mounted) {
-        checkCategoryLimitAndSuggest(context, _category);
+        await checkCategoryLimitAndSuggest(context, _category, walletId: targetWalletId);
       }
 
       bool showAd = false;

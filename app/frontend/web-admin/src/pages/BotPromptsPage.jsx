@@ -43,7 +43,10 @@ function BotPromptsPage() {
   const [saving, setSaving] = useState(false);
   const [testingPrompt, setTestingPrompt] = useState(false);
   const [testText, setTestText] = useState("chi tiêu ăn sáng hết 45k");
+  const [callerContext, setCallerContext] = useState("chat");
+  const [forceIntent, setForceIntent] = useState("Auto");
   const [testResult, setTestResult] = useState(null);
+
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
 
@@ -136,8 +139,11 @@ function BotPromptsPage() {
         override_prompt: customPrompt,
         persona: persona,
         temperature: systemSettings.llmTemperature,
-        top_k: systemSettings.llmTopK
+        top_k: systemSettings.llmTopK,
+        caller_context: callerContext,
+        force_intent: forceIntent,
       });
+
       setTestResult(res);
       triggerToast("Test thành công!");
     } catch (err) {
@@ -281,8 +287,50 @@ function BotPromptsPage() {
 
             {/* AI Response Preview */}
             <div className="form-group">
-              <label className="form-label" style={{ color: "var(--text-primary)", fontWeight: "600", marginBottom: "8px" }}>Interactive Chat Preview</label>
+              <label className="form-label" style={{ color: "var(--text-primary)", fontWeight: "600", marginBottom: "8px" }}>Interactive Chat Preview (Kiểm thử 2 tầng NLU)</label>
               
+              <div style={{ display: "flex", gap: "12px", marginBottom: "12px", flexWrap: "wrap" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  <span style={{ fontSize: "12px", color: "var(--text-muted)", fontWeight: "500" }}>Ngữ cảnh gọi (Caller Context):</span>
+                  <select
+                    value={callerContext}
+                    onChange={(e) => setCallerContext(e.target.value)}
+                    style={{
+                      background: "var(--bg-obsidian-950)",
+                      border: "1px solid var(--border-color)",
+                      borderRadius: "6px",
+                      padding: "4px 8px",
+                      color: "var(--text-primary)",
+                      fontSize: "12px"
+                    }}
+                  >
+                    <option value="chat">chat (Mặc định)</option>
+                    <option value="addstory">addstory (Ghi chép nhanh)</option>
+                  </select>
+                </div>
+
+                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  <span style={{ fontSize: "12px", color: "var(--text-muted)", fontWeight: "500" }}>Ép buộc ý định (Force Intent):</span>
+                  <select
+                    value={forceIntent}
+                    onChange={(e) => setForceIntent(e.target.value)}
+                    style={{
+                      background: "var(--bg-obsidian-950)",
+                      border: "1px solid var(--border-color)",
+                      borderRadius: "6px",
+                      padding: "4px 8px",
+                      color: "var(--text-primary)",
+                      fontSize: "12px"
+                    }}
+                  >
+                    <option value="Auto">Auto (Tự động phân loại)</option>
+                    <option value="Record">Record (Ghi chép)</option>
+                    <option value="Action">Action (Hành động)</option>
+                    <option value="Chitchat">Chitchat (Trò chuyện)</option>
+                  </select>
+                </div>
+              </div>
+
               <div style={{ display: "flex", gap: "10px", marginBottom: "16px" }}>
                 <input
                   type="text"
@@ -353,12 +401,13 @@ function BotPromptsPage() {
                     color: "var(--text-primary)",
                     lineHeight: "1.5"
                   }}>
-                    <div style={{ marginBottom: "8px", color: "var(--text-muted)" }}>
-                      <strong>Intent:</strong> {testResult.result?.intent} &nbsp;|&nbsp; 
-                      <strong>Emotion:</strong> {testResult.result?.emotion} &nbsp;|&nbsp; 
-                      <span style={{ fontSize: "11px" }}>{testResult.latency_ms}ms</span>
+                    <div style={{ marginBottom: "8px", color: "var(--text-muted)", display: "flex", flexWrap: "wrap", gap: "12px", borderBottom: "1px dashed var(--border-color)", paddingBottom: "8px" }}>
+                      <span><strong>Intent:</strong> {testResult.result?.intent} ({testResult.result?.intent_confidence != null ? `${Math.round(testResult.result.intent_confidence * 100)}%` : "100%"})</span>
+                      <span><strong>Rule:</strong> {testResult.result?.rule_used || "N/A"}</span>
+                      <span><strong>Backend:</strong> {testResult.result?.backend || "llm_v2"}</span>
+                      <span style={{ fontSize: "11px", marginLeft: "auto" }}>{testResult.latency_ms}ms</span>
                     </div>
-                    <div>"{testResult.result?.response || testResult.result?.note}"</div>
+                    <div>"{testResult.result?.response || testResult.result?.nlg_response || testResult.result?.note}"</div>
                     {testResult.result?.amount !== undefined && (
                       <div style={{ marginTop: "8px", fontSize: "12px", color: "var(--text-secondary)" }}>
                         Amount: {testResult.result.amount} | Category: {testResult.result.category}
@@ -375,9 +424,10 @@ function BotPromptsPage() {
                     color: "var(--text-muted)",
                     textAlign: "center"
                   }}>
-                    Bấm Test Live Prompt để xem kết quả từ mô hình Qwen
+                    Bấm Test Live Prompt để xem kết quả từ mô hình Qwen 2 tầng
                   </div>
                 )}
+
               </div>
             </div>
 

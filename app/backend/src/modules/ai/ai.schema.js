@@ -54,10 +54,21 @@ const executeActionSchema = z.object({
   limit: z.number().int().min(1).max(20).optional(),
 });
 
+const dislikeIntentSchema = z.object({
+  text: z.string().min(1).max(1000),
+  predictedIntent: z.string().max(80).optional().nullable(),
+  predictedActionType: z.string().max(80).optional().nullable(),
+  sessionId: z.string().optional().nullable(),
+  messageId: z.string().optional().nullable(),
+  reason: z.string().max(500).optional().nullable(),
+});
+
 module.exports = {
   nluSchema,
   expenseFromTextSchema,
   correctionSchema,
   confirmActionSchema,
   executeActionSchema,
+  dislikeIntentSchema,
 };
+

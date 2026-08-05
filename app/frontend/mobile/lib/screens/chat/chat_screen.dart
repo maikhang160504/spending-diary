@@ -25,7 +25,7 @@ import '../../theme/theme_controller.dart';
 import '../../utils/formatters.dart';
 import '../../utils/budget_prompt.dart';
 
-String _actionSignatureFromNlu(Map<String, dynamic> nlu) {
+String _actionSignatureFromNlu(Map<String, dynamic> nlu, {String? messageId}) {
   final fromApi = nluString(nlu['action_signature']);
   if (fromApi != null && fromApi.isNotEmpty) return fromApi;
   final actionType = (nluString(nlu['action_type']) ?? 'UNKNOWN').toUpperCase();
@@ -36,12 +36,13 @@ String _actionSignatureFromNlu(Map<String, dynamic> nlu) {
   final details = nluMap(nlu['action_details']);
   final amount = nlu['amount'] ?? nlu['action_param'] ?? details?['value'];
   final cat = _categoryFromNlu(nlu);
+  final suffix = messageId != null ? '|$messageId' : '';
   if (actionType.contains('LIMIT')) {
-    return '$actionType|${cat ?? 'all'}|$amount';
+    return '$actionType|${cat ?? 'all'}|$amount$suffix';
   }
-  if (actionType.contains('DELETE')) return '$actionType|last';
-  if (actionType.contains('GOAL')) return '$actionType|$amount';
-  return '$actionType|default';
+  if (actionType.contains('DELETE')) return '$actionType|last$suffix';
+  if (actionType.contains('GOAL')) return '$actionType|$amount$suffix';
+  return '$actionType|default$suffix';
 }
 
 String? _categoryFromNlu(Map<String, dynamic> nlu) {
@@ -158,6 +159,7 @@ _ActionPreview _actionPreviewFromNlu(
   Map<String, dynamic> nlu,
   String userText, {
   String? aiLine,
+  String? messageId,
 }) {
   final actionType = nlu['action_type'] as String? ?? 'Unknown';
   final amount = _amountFromNlu(nlu);
@@ -185,7 +187,7 @@ _ActionPreview _actionPreviewFromNlu(
       nluString(nlu['toolType']);
   return _ActionPreview(
     actionType: actionType,
-    signature: _actionSignatureFromNlu(nlu),
+    signature: _actionSignatureFromNlu(nlu, messageId: messageId),
     originalText: userText,
     amount: amount,
     categoryCode: categoryCode,
@@ -221,6 +223,8 @@ Map<String, dynamic> _executeBodyFromPreview(
   final timeLabel =
       nluString(details?['time']) ?? nluString(details?['time_range']);
   final query = nluString(details?['query']);
+  final verbalStyle =
+      nluString(details?['verbal_style']) ?? nluString(details?['verbalStyle']);
   return {
     'actionType': preview.actionType,
     if (preview.amount != null) 'amount': preview.amount,
@@ -232,6 +236,8 @@ Map<String, dynamic> _executeBodyFromPreview(
       'contactName': contactName,
     if (dueDate != null && dueDate.isNotEmpty) 'dueDate': dueDate,
     if (query != null && query.isNotEmpty) 'query': query,
+    if (verbalStyle != null && verbalStyle.isNotEmpty)
+      'verbalStyle': verbalStyle,
     if (walletId != null) 'walletId': walletId,
     'text': preview.originalText,
     if (preview.actionDetails != null) 'actionDetails': preview.actionDetails,
@@ -337,8 +343,6 @@ bool _actionNeedsConfirm(String actionType) {
   if (t == 'EXPORT_DATA') return false;
   return t.contains('LIMIT') ||
       t.contains('GOAL') ||
-      t.contains('TONE') ||
-      t.contains('VERBAL') ||
       t.contains('SETTING') ||
       t == 'SET_USERNAME' ||
       t == 'SET_ALERT';
@@ -394,6 +398,7 @@ class ChatScreen extends StatefulWidget {
   final String? walletId;
   final bool forceNew;
   final String? initialMessage;
+  static bool isActive = false;
 
   const ChatScreen({
     super.key,
@@ -464,6 +469,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
+    ChatScreen.isActive = true;
     WidgetsBinding.instance.addObserver(this);
     _generateRandomSuggestions();
     _scrollCtrl.addListener(_onScrollLoadOlder);
@@ -646,18 +652,32 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
           metadata['transaction_id'] ?? metadata['transactionId'],
         ),
       );
-    } else if (intent == 'Action' && metadata['action_executed'] != true) {
+    } else if (intent == 'Action') {
+      final actionResult = nluMap(metadata['action_result']);
+      final isExecuted = metadata['action_executed'] == true || actionResult != null;
+      if (actionResult != null) {
+        msg.searchPreview = _searchPreviewFromResult(actionResult);
+        msg.reportPreview = _reportPreviewFromResult(actionResult);
+        msg.budgetSuggestionPreview = _budgetSuggestionFromResult(actionResult);
+      }
       final report = _reportPreviewFromNlu(nlu);
-      if (report != null) {
+      if (report != null && msg.reportPreview == null) {
         msg.reportPreview = report;
       } else {
         final originalUser =
             nluString(nlu['text']) ?? nluString(nlu['clean_content']) ?? '';
-        msg.actionPreview = _actionPreviewFromNlu(
+        final preview = _actionPreviewFromNlu(
           nlu,
           originalUser,
           aiLine: msg.text,
+          messageId: msg.backendMessageId,
         );
+        if (preview != null) {
+          msg.actionPreview = preview;
+          if (isExecuted) {
+            msg.isConfirmed = true;
+          }
+        }
       }
     }
 
@@ -690,6 +710,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    ChatScreen.isActive = false;
     WidgetsBinding.instance.removeObserver(this);
     chatLlmUpdateNotifier.removeListener(_onChatLlmUpdateNotifier);
     _scrollCtrl.removeListener(_onScrollLoadOlder);
@@ -767,14 +788,10 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
           searchPreview = _searchPreviewFromResult(actionResult);
           final resultText = nluString(actionResult['message']);
           final llmText = llmMeta?.text ?? '';
-          if (resultText != null && resultText.isNotEmpty) {
-            if (llmText.isNotEmpty && llmText != resultText) {
-              displayText = '$resultText\n\n$llmText';
-            } else {
-              displayText = resultText;
-            }
-          } else if (llmText.isNotEmpty) {
+          if (llmText.isNotEmpty) {
             displayText = llmText;
+          } else if (resultText != null && resultText.isNotEmpty) {
+            displayText = resultText;
           }
         }
 
@@ -823,8 +840,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                 metadata['transaction_id'] ?? metadata['transactionId'],
               ),
             );
-          } else if (intent == 'Action' &&
-              metadata['action_executed'] != true) {
+          } else if (intent == 'Action') {
             final report = _reportPreviewFromNlu(nlu);
             final search = _searchPreviewFromNlu(nlu);
             if (report != null) {
@@ -847,6 +863,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                 nlu,
                 originalUser,
                 aiLine: llmText.isNotEmpty ? llmText : null,
+                messageId: nluString(map['id']),
               );
               if (llmText.isNotEmpty) {
                 displayText = llmText;
@@ -861,10 +878,12 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       final savedFlag = (metadata?['saved'] == true);
 
       List<String>? suggestedActions;
-      if (nlu != null && nlu['suggested_actions'] is List) {
-        suggestedActions = (nlu['suggested_actions'] as List)
-            .map((e) => e.toString())
-            .toList();
+      if (nlu != null) {
+        if (nlu['suggested_actions'] is List) {
+          suggestedActions = (nlu['suggested_actions'] as List)
+              .map((e) => e.toString())
+              .toList();
+        }
       }
 
       final newMsg = _ChatMsg(
@@ -1206,11 +1225,17 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
         });
         _scrollToBottom();
 
-        // Run non-confirm actions directly, or automatically run confirmed ones
-        if (confirmMsg.actionPreview != null) {
+        // Run non-confirm actions directly, or automatically run confirmed ones (only if NOT already executed by backend)
+        final isAlreadyExecuted = (intentAction['action_executed'] == true) ||
+            (intentAction['action_result'] != null);
+        if (confirmMsg.actionPreview != null && !isAlreadyExecuted) {
           final action = confirmMsg.actionPreview!;
           if (!_actionNeedsConfirm(action.actionType) ||
               confirmMsg.isConfirmed) {
+            confirmMsg.isConfirmed = true;
+            if (confirmMsg.backendMessageId != null) {
+              _executedActionMessageIds.add(confirmMsg.backendMessageId!);
+            }
             await _runConfirmedAction(confirmMsg);
           }
         }
@@ -1346,27 +1371,30 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
 
       setState(() {
         msg.isConfirmed = true;
-        _messages.insert(
-          0,
-          _ChatMsg(
-            text: message,
-            isUser: false,
-            time: _now(),
-            chatEmotion: 'Happy',
-            searchPreview: searchPreview,
-            budgetSuggestionPreview: budgetPreview,
-            reportPreview: reportPreview,
-          ),
-        );
+        // Chỉ ghi đè text LLM nếu action có card xác nhận phức tạp
+        // Các action settings đơn giản (set_alert, tone, theme, set_username, budget_suggestion)
+        // giữ nguyên text LLM gốc — không tạo ra cảm giác "bubble mới"
+        final simpleKinds = {'tone', 'set_alert', 'theme', 'set_username', 'budget_suggestion'};
+        final isSimpleAction = simpleKinds.contains(kind);
+        if (!isSimpleAction) {
+          msg.text = message;
+        }
+        
+        final dynamic geminiJson = result['gemini_json'] ?? {};
+        final String? newEmotion = geminiJson['mimo_emotion'] ?? geminiJson['emotion'] ?? result['mimo_emotion'] ?? result['emotion'];
+        if (newEmotion != null && newEmotion.isNotEmpty) {
+          msg.chatEmotion = newEmotion;
+        }
+
+        if (searchPreview != null) msg.searchPreview = searchPreview;
+        if (budgetPreview != null) msg.budgetSuggestionPreview = budgetPreview;
+        if (reportPreview != null) msg.reportPreview = reportPreview;
       });
       _scrollToBottom();
 
       if (searchPreview != null ||
           budgetPreview != null ||
-          reportPreview != null ||
-          kind == 'goal' ||
-          kind == 'goal_contribute' ||
-          kind == 'loan') {
+          reportPreview != null) {
         await _persistActionResultMessage(message, result);
       }
 
@@ -1397,17 +1425,6 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
         overrides: overrides,
       );
       if (!mounted) return;
-      setState(() {
-        _messages.insert(
-          0,
-          _ChatMsg(
-            text:
-                res['message'] as String? ?? '✅ Đã áp dụng hạn mức thông minh!',
-            isUser: false,
-            time: _now(),
-          ),
-        );
-      });
       _scrollToBottom();
       await _persistBudgetStatusEvent(preview.targetMonth, 'applied');
     } catch (_) {
@@ -1718,7 +1735,11 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       });
       await StreakCelebration.instance.afterActivity(context);
       if (mounted) {
-        checkCategoryLimitAndSuggest(context, preview.category);
+        await checkCategoryLimitAndSuggest(
+          context,
+          preview.category,
+          walletId: _walletId ?? widget.walletId,
+        );
         final showAd = AdsService.instance.incrementAndCheckIfNotPremium();
         if (showAd) {
           showInterstitialAdDialog(
@@ -1985,7 +2006,11 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       });
       await StreakCelebration.instance.afterActivity(context);
       if (mounted && records.isNotEmpty) {
-        checkCategoryLimitAndSuggest(context, records.first.category);
+        await checkCategoryLimitAndSuggest(
+          context,
+          records.first.category,
+          walletId: _walletId ?? widget.walletId,
+        );
         final showAd = AdsService.instance.incrementAndCheckIfNotPremium();
         if (showAd) {
           showInterstitialAdDialog(
@@ -2862,26 +2887,22 @@ class _ReportStoryCard extends StatelessWidget {
   }
 }
 
-class _BudgetSuggestionCard extends StatefulWidget {
+class _BudgetSuggestionModal extends StatefulWidget {
   final _BudgetSuggestionPreview preview;
-  final bool isApplied;
-  final bool isDismissed;
   final void Function(Map<String, num> overrides)? onApply;
   final VoidCallback? onDismiss;
 
-  const _BudgetSuggestionCard({
+  const _BudgetSuggestionModal({
     required this.preview,
-    this.isApplied = false,
-    this.isDismissed = false,
     this.onApply,
     this.onDismiss,
   });
 
   @override
-  State<_BudgetSuggestionCard> createState() => _BudgetSuggestionCardState();
+  State<_BudgetSuggestionModal> createState() => _BudgetSuggestionModalState();
 }
 
-class _BudgetSuggestionCardState extends State<_BudgetSuggestionCard> {
+class _BudgetSuggestionModalState extends State<_BudgetSuggestionModal> {
   final Map<String, bool> _selected = {};
   final Map<String, int> _amounts = {};
 
@@ -2890,13 +2911,13 @@ class _BudgetSuggestionCardState extends State<_BudgetSuggestionCard> {
     super.initState();
     for (final item in widget.preview.items) {
       _selected[item.categoryCode] = true;
-      _amounts[item.categoryCode] = item.suggestedAmount;
+      final raw = item.suggestedAmount;
+      _amounts[item.categoryCode] = ((raw / 1000).round() * 1000);
     }
   }
 
   void _showEditDialog(String categoryCode, String label, int currentAmount) {
     final controller = TextEditingController(text: currentAmount.toString());
-    // Quick-input presets: ±10%, ±20%, x1.5
     final presets = [
       ('+10%', (currentAmount * 1.1).round()),
       ('+20%', (currentAmount * 1.2).round()),
@@ -2933,7 +2954,7 @@ class _BudgetSuggestionCardState extends State<_BudgetSuggestionCard> {
                   decoration: InputDecoration(
                     suffixText: 'đ',
                     suffixStyle: TextStyle(color: ctx.palette.textSecondary),
-                    hintText: 'Nhập số tiền hạn mức...',
+                    hintText: 'Nhập số tiền...',
                     hintStyle: TextStyle(
                       color: ctx.palette.textSecondary.withValues(alpha: 0.5),
                     ),
@@ -2961,10 +2982,7 @@ class _BudgetSuggestionCardState extends State<_BudgetSuggestionCard> {
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 4,
-                        vertical: 0,
-                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
                       visualDensity: VisualDensity.compact,
                       backgroundColor: AppColors.teal.withValues(alpha: 0.08),
                       side: BorderSide(
@@ -3005,6 +3023,293 @@ class _BudgetSuggestionCardState extends State<_BudgetSuggestionCard> {
     );
   }
 
+  String _formatTargetMonthLabel(String yyyyMM) {
+    try {
+      final parts = yyyyMM.split('-');
+      if (parts.length == 2) {
+        return '${parts[1]}/${parts[0]}';
+      }
+    } catch (_) {}
+    return yyyyMM;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const accent = AppColors.teal;
+    return Container(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.8,
+      ),
+      padding: EdgeInsets.only(
+        top: 20,
+        left: 20,
+        right: 20,
+        bottom: MediaQuery.of(context).padding.bottom + 20,
+      ),
+      decoration: BoxDecoration(
+        color: context.palette.card,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.auto_awesome, color: accent, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Hạn mức ${_formatTargetMonthLabel(widget.preview.targetMonth)}',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 16,
+                    color: accent,
+                  ),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Flexible(
+            child: ListView.separated(
+              shrinkWrap: true,
+              itemCount: widget.preview.items.length,
+              separatorBuilder: (ctx, idx) => const SizedBox(height: 8),
+              itemBuilder: (ctx, idx) {
+                final item = widget.preview.items[idx];
+                final style = CategoryTheme.of(item.categoryCode);
+                final isSel = _selected[item.categoryCode] ?? true;
+                final currentAmt = _amounts[item.categoryCode] ?? item.suggestedAmount;
+
+                return InkWell(
+                  onTap: () {
+                    setState(() {
+                      _selected[item.categoryCode] = !isSel;
+                    });
+                  },
+                  borderRadius: BorderRadius.circular(12),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Container(
+                          margin: const EdgeInsets.only(right: 12),
+                          padding: const EdgeInsets.all(2),
+                          decoration: BoxDecoration(
+                            color: isSel ? accent : Colors.transparent,
+                            border: Border.all(
+                              color: isSel ? accent : context.palette.textSecondary.withValues(alpha: 0.5),
+                              width: 1.5,
+                            ),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Icon(
+                            Icons.check,
+                            color: isSel ? Colors.white : Colors.transparent,
+                            size: 12,
+                          ),
+                        ),
+                        Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: style.color.withValues(alpha: 0.12),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Center(
+                            child: CategoryTheme.iconOf(item.categoryCode, size: 18),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Opacity(
+                            opacity: isSel ? 1.0 : 0.45,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  style.label,
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700,
+                                    color: context.palette.textPrimary,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                if (item.reason.isNotEmpty) ...[
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    item.reason,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: context.palette.textSecondary,
+                                    ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Opacity(
+                          opacity: isSel ? 1.0 : 0.45,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    '${formatVnd(currentAmt)}đ',
+                                    style: const TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w800,
+                                      color: accent,
+                                    ),
+                                  ),
+                                  Opacity(
+                                    opacity: isSel ? 1.0 : 0.0,
+                                    child: IconButton(
+                                      icon: const Icon(Icons.edit, size: 16, color: accent),
+                                      padding: const EdgeInsets.only(left: 4),
+                                      constraints: const BoxConstraints(),
+                                      onPressed: isSel ? () => _showEditDialog(
+                                        item.categoryCode,
+                                        style.label,
+                                        currentAmt,
+                                      ) : null,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              if (item.baseSpending > 0 && currentAmt != item.baseSpending)
+                                Text(
+                                  '${formatVnd(item.baseSpending)}đ',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: context.palette.textSecondary.withValues(alpha: 0.6),
+                                    decoration: TextDecoration.lineThrough,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    widget.onDismiss?.call();
+                  },
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    side: BorderSide(
+                      color: context.palette.textSecondary.withValues(alpha: 0.3),
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: Text(
+                    'Bỏ qua',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: context.palette.textSecondary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: FilledButton(
+                  onPressed: () {
+                    final overrides = <String, num>{};
+                    for (final item in widget.preview.items) {
+                      final isSel = _selected[item.categoryCode] ?? true;
+                      if (!isSel) {
+                        overrides[item.categoryCode] = -1;
+                      } else {
+                        overrides[item.categoryCode] =
+                            _amounts[item.categoryCode] ?? item.suggestedAmount;
+                      }
+                    }
+                    Navigator.pop(context);
+                    widget.onApply?.call(overrides);
+                  },
+                  style: FilledButton.styleFrom(
+                    backgroundColor: accent,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text(
+                    'Áp dụng',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BudgetSuggestionCard extends StatelessWidget {
+  final _BudgetSuggestionPreview preview;
+  final bool isApplied;
+  final bool isDismissed;
+  final void Function(Map<String, num> overrides)? onApply;
+  final VoidCallback? onDismiss;
+
+  const _BudgetSuggestionCard({
+    required this.preview,
+    this.isApplied = false,
+    this.isDismissed = false,
+    this.onApply,
+    this.onDismiss,
+  });
+
+  String _formatTargetMonthLabel(String yyyyMM) {
+    try {
+      final parts = yyyyMM.split('-');
+      if (parts.length == 2) {
+        return '${parts[1]}/${parts[0]}';
+      }
+    } catch (_) {}
+    return yyyyMM;
+  }
+
   @override
   Widget build(BuildContext context) {
     const accent = AppColors.teal;
@@ -3033,7 +3338,7 @@ class _BudgetSuggestionCardState extends State<_BudgetSuggestionCard> {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'Hạn mức ${_formatTargetMonthLabel(widget.preview.targetMonth)}',
+                  'Hạn mức ${_formatTargetMonthLabel(preview.targetMonth)}',
                   style: const TextStyle(
                     fontWeight: FontWeight.w800,
                     fontSize: 13,
@@ -3043,149 +3348,16 @@ class _BudgetSuggestionCardState extends State<_BudgetSuggestionCard> {
               ),
             ],
           ),
+          const SizedBox(height: 8),
+          Text(
+            'Mimo đã phân tích chi tiêu và có một số gợi ý hạn mức mới cho bạn.',
+            style: TextStyle(
+              fontSize: 12,
+              color: context.palette.textSecondary,
+            ),
+          ),
           const SizedBox(height: 12),
-          ...widget.preview.items.map((item) {
-            final style = CategoryTheme.of(item.categoryCode);
-            final isSel = _selected[item.categoryCode] ?? true;
-            final currentAmt =
-                _amounts[item.categoryCode] ?? item.suggestedAmount;
-
-            return InkWell(
-              onTap: widget.isApplied || widget.isDismissed
-                  ? null
-                  : () {
-                      setState(() {
-                        _selected[item.categoryCode] = !isSel;
-                      });
-                    },
-              borderRadius: BorderRadius.circular(12),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Container(
-                      margin: const EdgeInsets.only(right: 10),
-                      padding: const EdgeInsets.all(2),
-                      decoration: BoxDecoration(
-                        color: isSel ? accent : Colors.transparent,
-                        border: Border.all(
-                          color: isSel
-                              ? accent
-                              : context.palette.textSecondary.withValues(
-                                  alpha: 0.5,
-                                ),
-                          width: 1.5,
-                        ),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Icon(
-                        Icons.check,
-                        color: isSel ? Colors.white : Colors.transparent,
-                        size: 10,
-                      ),
-                    ),
-                    Container(
-                      width: 28,
-                      height: 28,
-                      decoration: BoxDecoration(
-                        color: style.color.withValues(alpha: 0.12),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Center(
-                        child: CategoryTheme.iconOf(
-                          item.categoryCode,
-                          size: 14,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Opacity(
-                        opacity: isSel ? 1.0 : 0.45,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              style.label,
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                                color: context.palette.textPrimary,
-                              ),
-                            ),
-                            if (item.reason.isNotEmpty) ...[
-                              const SizedBox(height: 2),
-                              Text(
-                                item.reason,
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  color: context.palette.textSecondary,
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Opacity(
-                      opacity: isSel ? 1.0 : 0.45,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                '${formatVnd(currentAmt)}đ',
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w800,
-                                  color: accent,
-                                ),
-                              ),
-                              if (!widget.isApplied &&
-                                  !widget.isDismissed &&
-                                  isSel)
-                                IconButton(
-                                  icon: const Icon(
-                                    Icons.edit,
-                                    size: 12,
-                                    color: accent,
-                                  ),
-                                  padding: const EdgeInsets.all(4),
-                                  constraints: const BoxConstraints(),
-                                  onPressed: () => _showEditDialog(
-                                    item.categoryCode,
-                                    style.label,
-                                    currentAmt,
-                                  ),
-                                ),
-                            ],
-                          ),
-                          if (item.baseSpending > 0 &&
-                              currentAmt != item.baseSpending)
-                            Text(
-                              '${formatVnd(item.baseSpending)}đ',
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: context.palette.textSecondary.withValues(
-                                  alpha: 0.6,
-                                ),
-                                decoration: TextDecoration.lineThrough,
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }),
-          const SizedBox(height: 12),
-          if (widget.isApplied)
+          if (isApplied)
             const Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -3201,20 +3373,20 @@ class _BudgetSuggestionCardState extends State<_BudgetSuggestionCard> {
                 ),
               ],
             )
-          else if (widget.isDismissed)
+          else if (isDismissed)
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(
                   Icons.cancel,
-                  color: context.palette.textSecondary.withValues(alpha: 0.6),
+                  color: Colors.grey,
                   size: 16,
                 ),
                 const SizedBox(width: 6),
-                Text(
+                const Text(
                   'Đã bỏ qua gợi ý',
                   style: TextStyle(
-                    color: context.palette.textSecondary.withValues(alpha: 0.6),
+                    color: Colors.grey,
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
                   ),
@@ -3222,73 +3394,35 @@ class _BudgetSuggestionCardState extends State<_BudgetSuggestionCard> {
               ],
             )
           else
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: widget.onDismiss,
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      side: BorderSide(
-                        color: context.palette.textSecondary.withValues(
-                          alpha: 0.3,
-                        ),
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: () {
+                  showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    backgroundColor: Colors.transparent,
+                    builder: (ctx) => _BudgetSuggestionModal(
+                      preview: preview,
+                      onApply: onApply,
+                      onDismiss: onDismiss,
                     ),
-                    child: Text(
-                      'Bỏ qua',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: context.palette.textSecondary,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
+                  );
+                },
+                style: FilledButton.styleFrom(
+                  backgroundColor: accent,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: FilledButton(
-                    onPressed: () {
-                      final overrides = <String, num>{};
-                      for (final item in widget.preview.items) {
-                        final isSel = _selected[item.categoryCode] ?? true;
-                        if (!isSel) {
-                          overrides[item.categoryCode] = -1;
-                        } else {
-                          overrides[item.categoryCode] =
-                              _amounts[item.categoryCode] ??
-                              item.suggestedAmount;
-                        }
-                      }
-                      widget.onApply?.call(overrides);
-                    },
-                    style: FilledButton.styleFrom(
-                      backgroundColor: accent,
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: const Text(
-                      'Áp dụng',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+                child: const Text('Xem gợi ý'),
+              ),
             ),
         ],
       ),
     );
   }
 }
-
 class _ActionConfirmCard extends StatelessWidget {
   final _ActionPreview preview;
   final VoidCallback? onConfirm;
@@ -3729,6 +3863,8 @@ class _SearchResultCard extends StatelessWidget {
                     children: [
                       Text(
                         item.note.isNotEmpty ? item.note : style.label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
@@ -3738,12 +3874,16 @@ class _SearchResultCard extends StatelessWidget {
                       const SizedBox(height: 2),
                       Row(
                         children: [
-                          Text(
-                            style.label,
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                              color: style.color,
+                          Flexible(
+                            child: Text(
+                              style.label,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                                color: style.color,
+                              ),
                             ),
                           ),
                           if (item.occurredAt != null) ...[
@@ -4274,7 +4414,10 @@ class _ChatBubble extends StatelessWidget {
         ? CrossAxisAlignment.end
         : CrossAxisAlignment.start;
 
-    final hasText = message.text.isNotEmpty;
+    final suppressText = !message.isUser &&
+        message.actionPreview != null &&
+        {'SET_ALERT', 'SUGGEST_BUDGET'}.contains(message.actionPreview!.actionType);
+    final hasText = message.text.isNotEmpty && !suppressText;
     final hasEmotion = !message.isUser && message.chatEmotion != null;
     final hasSpecialCard =
         !message.isUser &&

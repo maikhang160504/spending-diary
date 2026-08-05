@@ -1,0 +1,60 @@
+Line 1429: Nhằm chứng minh tính ưu việt của kiến trúc hai tầng, hệ thống đã tiến hành chuẩn đối sánh trên tập dữ liệu vàng với ba mô hình suy luận. Kết quả được phân tách rõ ràng theo từng tầng phân loại.
+Line 1430: 
+Line 1431: Bảng 3.1a: So sánh độ chính xác phân loại ý định tại tầng 1
+Line 1432: 
+Line 1433: | Mô hình suy luận | Accuracy | F1 Macro | Độ trễ trung bình |
+Line 1434: | :--- | :---: | :---: | :---: |
+Line 1435: | TF-IDF Classic | 84.17% | 79.20% | Dưới 10 ms |
+Line 1436: | PhoBERT Encoder | 86.67% | 83.57% | Khoảng 40 ms |
+Line 1437: | LLM Rules v2 + Qwen 2.5 | 95.83% | 95.45% | Khoảng 1.15 s |
+Line 1438: 
+Line 1439: Bảng 3.1a cho thấy mô hình Qwen 2.5 kết hợp bộ quy tắc chuyên gia đạt độ chính xác phân loại ý định vượt trội lên đến 95.83%, cao hơn đáng kể so với TF-IDF và PhoBERT.
+Line 1440: 
+Line 1437: | LLM Rules v2 + Qwen 2.5 | 95.83% | 95.45% | Khoảng 1.15 s |
+Line 1438: 
+Line 1439: Bảng 3.1a cho thấy mô hình Qwen 2.5 kết hợp bộ quy tắc chuyên gia đạt độ chính xác phân loại ý định vượt trội lên đến 95.83%, cao hơn đáng kể so với TF-IDF và PhoBERT.
+Line 1440: 
+Line 1441: Bảng 3.1b: So sánh độ chính xác phân loại danh mục chi tiêu tại tầng 2
+Line 1442: 
+Line 1443: | Mô hình suy luận | Accuracy | F1 Macro | Độ trễ trung bình |
+Line 1444: | :--- | :---: | :---: | :---: |
+Line 1445: | TF-IDF Classic | 68.33% | 65.87% | Dưới 10 ms |
+Line 1446: | PhoBERT Encoder | 71.67% | 62.88% | Khoảng 50 ms |
+Line 1447: | LLM Rules v2 + Qwen 2.5 | 91.67% | 86.14% | Khoảng 1.85 s |
+Line 1448: 
+Line 1439: Bảng 3.1a cho thấy mô hình Qwen 2.5 kết hợp bộ quy tắc chuyên gia đạt độ chính xác phân loại ý định vượt trội lên đến 95.83%, cao hơn đáng kể so với TF-IDF và PhoBERT.
+Line 1440: 
+Line 1441: Bảng 3.1b: So sánh độ chính xác phân loại danh mục chi tiêu tại tầng 2
+Line 1442: 
+Line 1443: | Mô hình suy luận | Accuracy | F1 Macro | Độ trễ trung bình |
+Line 1444: | :--- | :---: | :---: | :---: |
+Line 1445: | TF-IDF Classic | 68.33% | 65.87% | Dưới 10 ms |
+Line 1446: | PhoBERT Encoder | 71.67% | 62.88% | Khoảng 50 ms |
+Line 1447: | LLM Rules v2 + Qwen 2.5 | 91.67% | 86.14% | Khoảng 1.85 s |
+Line 1448: 
+Line 1449: Kết quả phân loại 18 danh mục chi tiêu cho thấy mô hình ngôn ngữ lớn vượt trội hơn hẳn các phương pháp truyền thống, đặc biệt ở khả năng phân biệt các danh mục có ranh giới mờ như ăn uống với mua sắm hay di chuyển với giải trí.
+Line 1450: 
+Line 1449: Kết quả phân loại 18 danh mục chi tiêu cho thấy mô hình ngôn ngữ lớn vượt trội hơn hẳn các phương pháp truyền thống, đặc biệt ở khả năng phân biệt các danh mục có ranh giới mờ như ăn uống với mua sắm hay di chuyển với giải trí.
+Line 1450: 
+Line 1451: Bảng 3.1c: Đánh giá độ chính xác phân loại loại lệnh điều khiển bởi LLM
+Line 1452: 
+Line 1453: | Loại lệnh | Số mẫu kiểm thử | Nhận diện đúng | Accuracy | Ghi chú |
+Line 1454: | :--- | :---: | :---: | :---: | :--- |
+Line 1455: | REPORT_GENERAL | 5 | 5 | 100% | Yêu cầu xem báo cáo tổng quan |
+Line 1456: | REPORT_COMPARE | 5 | 5 | 100% | So sánh hai khoảng thời gian |
+Line 1457: | SET_LIMIT | 5 | 5 | 100% | Đặt hạn mức chi tiêu |
+Line 1458: | SET_GOAL | 5 | 5 | 100% | Tạo mục tiêu tiết kiệm mới |
+Line 1459: | ADD_GOAL | 5 | 5 | 100% | Nạp tiền vào quỹ đã có |
+Line 1460: | SET_TONE | 3 | 3 | 100% | Đổi giọng điệu trợ lý |
+Line 1466: | Tổng / Trung bình | 45 | 45 | 100% | Toàn bộ 11 loại lệnh |
+Line 1467: 
+Line 1468: Bảng 3.1c đánh giá khả năng nhận diện chính xác từng loại lệnh điều khiển của mô hình ngôn ngữ lớn Qwen 2.5 kết hợp bộ quy tắc chuyên gia. Chỉ số này quyết định liệu hệ thống có thực thi đúng yêu cầu của người dùng hay không. Kết quả cho thấy nhờ bộ quy tắc chuyên gia phân tách rõ ràng và các ví dụ đối sánh trong lời chỉ thị, mô hình đạt tỷ lệ chính xác tuyệt đối 100% trên toàn bộ 11 loại lệnh. Đặc biệt, các trường hợp dễ nhầm lẫn trước đây như phân biệt SET_GOAL và ADD_GOAL, hay nhận diện SET_USERNAME thay vì phân loại nhầm thành trò chuyện xã giao, đã được khắc phục triệt để.
+Line 1469: 
+Line 1470: Dựa vào bảng số liệu trên, có thể thấy hệ thống đang phải đối mặt với bài toán đánh đổi kinh điển giữa tốc độ và độ chính xác. Hai mô hình TF-IDF và PhoBERT mang lại tốc độ phản hồi siêu nhanh nhưng độ chính xác trong việc phân loại ý định và danh mục lại thấp hơn, dễ dẫn đến sai sót khi gặp các câu lệnh phức tạp. Ngược lại, kiến trúc hai tầng sử dụng Qwen 2.5 kết hợp bộ quy tắc chuyên gia đạt độ chính xác vượt trội với thời gian phản hồi trung bình khoảng 1 đến 2 giây cho mỗi yêu cầu, nhanh hơn đáng kể so với kiến trúc đơn khối cũ nhờ việc phân tách quy tắc giúp giảm tải khối lượng token chỉ thị đầu vào.
+Line 1471: 
+Line 1472: 
+Line 1473: #### 3.5.2. Phân hệ nhận diện hóa đơn (Bill OCR)
+Line 1474: 
+Line 1475: Đặc thù của các loại hóa đơn bán lẻ tại Việt Nam là sự đa dạng về bố cục, phông chữ và chất lượng hình ảnh đầu vào thường không ổn định do chụp từ thiết bị di động. Các phương pháp trích xuất thông tin dựa trên biểu thức chính quy (Regex) truyền thống tỏ ra kém hiệu quả đối với bài toán này, điển hình là tỷ lệ nhận diện đúng tên cửa hàng chỉ đạt mức 52.1%. Để giải quyết vấn đề, phân hệ nhận diện hóa đơn được thiết kế với quy trình xử lý ba bước, vận hành trên hạ tầng máy chủ Modal Cloud nhằm tận dụng khả năng tính toán song song của GPU.
+Line 1476: 
+Line 1477: ```plantuml

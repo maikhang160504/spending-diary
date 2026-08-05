@@ -124,6 +124,8 @@ async function expenseFromText(payload) {
       top_k: payload.top_k,
     });
     const nlu = r.data;
+    const nlgResponse = nlu.nlg_response || nlu.llm_json?.response || nlu.response || null;
+    const nlgEmotion = nlu.mimo_emotion || nlu.llm_emotion || nlu.mascot_mood || 'Happy';
     return {
       extracted: {
         amount:      nlu.amount_spent || nlu.amount || 0,
@@ -133,6 +135,10 @@ async function expenseFromText(payload) {
         record_type: nlu.record_type || 'Expense',
       },
       nlu,
+      nlg: {
+        response: nlgResponse,
+        emotion: nlgEmotion,
+      },
       requires_category_selection: !nlu.category,
     };
   });

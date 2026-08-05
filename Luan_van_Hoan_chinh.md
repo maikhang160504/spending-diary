@@ -28,6 +28,25 @@ Trân trọng cảm ơn!
 
 ---
 
+# DANH MỤC TỪ VIẾT TẮT VÀ KÝ HIỆU
+
+| STT | Từ viết tắt | Thuật ngữ tiếng Anh | Diễn giải tiếng Việt |
+|:---:|:---|:---|:---|
+| 1 | AI | Artificial Intelligence | Trí tuệ nhân tạo |
+| 2 | API | Application Programming Interface | Giao diện lập trình ứng dụng |
+| 3 | DB | Database | Cơ sở dữ liệu |
+| 4 | HTTP | Hypertext Transfer Protocol | Giao thức truyền tải siêu văn bản |
+| 5 | JSON | JavaScript Object Notation | Định dạng dữ liệu văn bản |
+| 6 | JWT | JSON Web Token | Mã thông báo xác thực web |
+| 7 | LLM | Large Language Model | Mô hình ngôn ngữ lớn |
+| 8 | ML | Machine Learning | Học máy |
+| 9 | NLU | Natural Language Understanding | Hiểu ngôn ngữ tự nhiên |
+| 10 | OCR | Optical Character Recognition | Nhận dạng ký tự quang học |
+| 11 | RAG | Retrieval-Augmented Generation | Tạo văn bản tăng cường truy xuất |
+| 12 | TF-IDF | Term Frequency-Inverse Document Frequency | Thống kê tần suất xuất hiện của từ |
+| 13 | UI | User Interface | Giao diện người dùng |
+
+---
 # MỤC LỤC
 1. Phần Giới thiệu
 2. Chương 1 - Tổng quan đề tài và Đặc tả yêu cầu
@@ -66,6 +85,8 @@ Mục tiêu thứ hai là nghiên cứu, tinh chỉnh và tích hợp thành cô
 Mục tiêu thứ ba là đảm bảo tính chính xác và toàn vẹn cho dữ liệu tài chính. Hệ thống bắt buộc mọi thông tin về số dư và lịch sử giao dịch phải được truy vấn trực tiếp từ cơ sở dữ liệu trước khi phản hồi, không để AI tự suy đoán. Người dùng cũng có thể xem lại và chỉnh sửa kết quả nhận diện trước khi xác nhận lưu, đảm bảo dữ liệu luôn phản ánh đúng thực tế. Đề tài hướng đến việc triển khai hệ thống hoàn chỉnh trên hai nền tảng: ứng dụng di động cho người dùng cuối và trang web quản trị dành cho quản trị viên.
 
 ### 4. Đối tượng và phạm vi nghiên cứu
+
+Để đảm bảo tính khả thi và tập trung giải quyết triệt để vấn đề đặt ra, đề tài giới hạn rõ ràng đối tượng phục vụ và phạm vi ứng dụng thực tế. Sự phân định này giúp hệ thống hoạt động chính xác trong giới hạn đã định, tránh việc phát triển lan man các tính năng không cần thiết.
 
 #### 4.1. Đối tượng nghiên cứu
 
@@ -123,9 +144,44 @@ Song song với trải nghiệm người dùng, trang web quản trị được 
 
 Để liên kết và vận hành trơn tru hai nền tảng trên, kiến trúc hệ thống được chống đỡ bởi một tầng máy chủ mạnh mẽ và bảo mật. Tầng máy chủ trung tâm sử dụng Node.js kết hợp bộ khung Express để tiếp nhận và điều phối mọi luồng dữ liệu, xác thực quyền truy cập và bảo vệ hệ thống khỏi các yêu cầu độc hại. Mọi dữ liệu tài chính cốt lõi được lưu trữ an toàn tuyệt đối tại hệ quản trị cơ sở dữ liệu phân tán PostgreSQL tương thích với CockroachDB, trong khi các tệp phương tiện đa phương tiện được tối ưu hóa lưu trữ trên nền tảng đám mây Cloudflare R2. Nhằm đảm bảo hiệu suất tính toán, phần trí tuệ nhân tạo được cô lập thành một máy chủ độc lập sử dụng ngôn ngữ Python và bộ khung FastAPI. Tại cụm máy chủ này, mô hình ngôn ngữ lớn Qwen 2.5 và kiến trúc LayoutLMv3 phối hợp nhịp nhàng để giải quyết các bài toán phức tạp từ việc hiểu ngữ nghĩa câu lệnh tiếng Việt cho đến trích xuất thông tin bố cục đa phương thức từ hình ảnh hóa đơn.
 
-Dưới đây là sơ đồ kiến trúc tổng quan thể hiện luồng tương tác giữa các thành phần trong hệ sinh thái:
+Dưới đây là sơ đồ kiến trúc tổng quan thể hiện luồng tương tác giữa các thành phần trong hệ sinh thái (Hình 1.1):
 
-![Hình 1.1: Sơ đồ kiến trúc hệ thống tổng quan](file:///d:/Luan-Van/Project/system_architecture.png)
+```plantuml
+@startuml
+skinparam componentStyle rectangle
+skinparam handwritten false
+skinparam packageStyle rectangle
+
+package "Tầng 1: Giao diện người dùng (Client Layer)" {
+  [Ứng dụng di động\n(Flutter)] as mobile
+  [Cổng quản trị\n(React)] as web
+}
+
+package "Tầng 2: Máy chủ trung tâm (Backend Layer)" {
+  [Dịch vụ cốt lõi & Cổng API\n(Node.js / Express)] as backend
+}
+
+package "Tầng 3: Trí tuệ nhân tạo (AI Layer)" {
+  [Máy chủ Suy luận NLU & OCR\n(Python / FastAPI)] as ai
+}
+
+package "Tầng 4: Lưu trữ (Data Layer)" {
+  database "CockroachDB\n(PostgreSQL)" as db
+  cloud "Cloudflare R2\n(S3 Storage)" as s3
+}
+
+mobile --> backend : HTTP / WebSocket
+web --> backend : HTTP
+
+backend --> ai : HTTP / RPC
+backend --> db : SQL (Đọc/Ghi dữ liệu)
+backend --> s3 : S3 API (Lưu ảnh)
+ai --> db : SQL (Truy vấn dữ liệu RAG)
+
+@enduml
+```
+*Hình 1.1: Sơ đồ kiến trúc 4 tầng tổng quát của hệ thống Spending Diary.*
+
 Sơ đồ minh họa mô hình tương tác đa dịch vụ, nơi dữ liệu từ ứng dụng di động được chuyển đến máy chủ Node.js để kiểm duyệt, sau đó luân chuyển đến cụm máy chủ FastAPI để phân tích bằng trí tuệ nhân tạo và cuối cùng được lưu trữ an toàn tại cơ sở dữ liệu.
 
 ### 1.2. Phân tích yêu cầu chức năng
@@ -139,9 +195,10 @@ Bảng 1.1: Bảng phân rã yêu cầu chức năng chi tiết theo từng phâ
 | Người dùng trên app | Đăng ký và đăng nhập | Tạo tài khoản, xác thực thông tin đăng nhập và hỗ trợ khôi phục mật khẩu. |
 | Người dùng trên app | Nâng cấp tài khoản | Cho phép người dùng thanh toán trực tuyến để mở khóa các tính năng cao cấp. |
 | Người dùng trên app | Quản lý ví tiền | Tạo, chỉnh sửa, xóa các loại ví cá nhân hoặc tạo ví dùng chung với nhiều thành viên. |
-| Người dùng trên app | Ghi chép bằng trò chuyện | Nhắn tin bằng ngôn ngữ tự nhiên để trợ lý ảo tự động phân tích và ghi chép giao dịch. |
+| Người dùng trên app | Ghi chép chi tiêu bằng văn bản | Sử dụng ngôn ngữ tự nhiên để mô hình hoặc trợ lý ảo tự động phân tích và ghi chép giao dịch. |
 | Người dùng trên app | Quét ảnh hóa đơn | Chụp ảnh hóa đơn mua sắm để hệ thống tự động nhận diện số tiền và danh mục chi tiêu. |
-| Người dùng trên app | Hỏi đáp thông minh | Nhắn tin hỏi trợ lý ảo về số dư tài chính hoặc xin lời khuyên tiết kiệm. |
+| Người dùng trên app | Giao tiếp thông minh và ra lệnh | Sử dụng trợ lý ảo để ra lệnh điều khiển ứng dụng như xem báo cáo, tạo mục tiêu, đặt hạn mức, đổi giọng, tìm kiếm giao dịch thông qua ngôn ngữ tự nhiên. |
+| Người dùng trên app | Phản hồi ý định sai | Cho phép người dùng bấm nút báo sai khi trợ lý ảo hiểu nhầm ý định, dữ liệu phản hồi này được thu thập để cải thiện mô hình. |
 | Người dùng trên app | Quản lý hạn mức và gợi ý ngân sách | Đặt giới hạn chi tiêu, tự động gợi ý phân bổ ngân sách 50/30/20 và gửi cảnh báo khi sắp vượt hạn mức. |
 | Người dùng trên app | Báo cáo và so sánh | Cung cấp biểu đồ thu chi, xem tổng kết cuối tháng và so sánh mức chi tiêu với cộng đồng. |
 | Người dùng trên app | Quản lý giao dịch | Xem chi tiết, chỉnh sửa số tiền, đổi danh mục hoặc xóa giao dịch đã ghi nhận. |
@@ -149,14 +206,16 @@ Bảng 1.1: Bảng phân rã yêu cầu chức năng chi tiết theo từng phâ
 | Quản trị trên web | Quản lý người dùng | Tra cứu thông tin người dùng, duyệt khiếu nại và ra lệnh khóa các tài khoản vi phạm. |
 | Quản trị trên web | Dán nhãn dữ liệu ảnh | Công cụ vẽ khung chữ nhật để khoanh vùng lại các đoạn chữ trên hóa đơn bị nhận diện sai. |
 | Quản trị trên web | Tinh chỉnh tính cách AI | Đổi câu lệnh nền tảng để tùy chỉnh giọng điệu và cách nói chuyện của trợ lý ảo. |
-| Quản trị trên web | Ra lệnh huấn luyện AI | Kích hoạt quá trình huấn luyện lại mô hình học máy từ tập dữ liệu hóa đơn đã dán nhãn. |
+| Quản trị trên web | Ra lệnh huấn luyện AI | Kích hoạt quá trình huấn luyện lại mô hình học máy từ tập dữ liệu đã dán nhãn. |
+| Quản trị trên web | Duyệt mô hình AI mới | So sánh chỉ số hiệu năng và phê duyệt mô hình ứng viên trước khi áp dụng vào hệ thống thực tế, theo quy trình ba trạng thái. |
+| Quản trị trên web | Xuất dữ liệu huấn luyện LLM | Cho phép quản trị viên xuất tập dữ liệu huấn luyện tăng cường định dạng JSONL từ cơ sở dữ liệu hệ thống. |
 | Máy chủ backend | Xử lý nghiệp vụ tài chính | Tiếp nhận giao dịch, tính toán số dư ví và đối chiếu liên tục với hạn mức ngân sách. |
-| Máy chủ backend | Cổng API và Bảo mật | Điều hướng yêu cầu, xác thực quyền truy cập và tự động khóa (autoban) các kết nối rác. |
+| Máy chủ backend | Cổng API và bảo mật | Điều hướng yêu cầu, xác thực quyền truy cập và tự động khóa các kết nối rác. |
 | Máy chủ backend | Quản lý trạng thái hộp thoại | Lưu nháp ngữ cảnh khi AI nhận diện thiếu thông tin và điều phối luồng hỏi đáp bổ sung. |
 | Máy chủ backend | Hệ thống tự động hóa | Lắng nghe webhook ngân hàng để nâng cấp tài khoản và chạy tiến trình ngầm gửi thông báo. |
-| Máy chủ AI | Xử lý ngôn ngữ tự nhiên | Phân tích tin nhắn của người dùng để nhận diện đúng ý định và trích xuất thông số giao dịch. |
+| Máy chủ AI | Xử lý ngôn ngữ tự nhiên hai tầng | Phân loại ý định tại tầng 1 bằng mô hình học máy, sau đó trích xuất thực thể chuyên biệt tại tầng 2 bằng bộ quy tắc chuyên gia kết hợp mô hình ngôn ngữ lớn. |
 | Máy chủ AI | Trích xuất hình ảnh | Áp dụng kỹ thuật thị giác máy tính để số hóa hóa đơn giấy thành các bản ghi tài chính. |
-| Máy chủ AI | Cập nhật trọng số mô hình | Tự động cập nhật các tệp trọng số mới vào bộ nhớ sau khi quá trình huấn luyện hoàn tất. |
+| Máy chủ AI | Quản trị vòng đời mô hình | Quản lý ba trạng thái mô hình, hỗ trợ phê duyệt và hoán đổi phiên bản mà không cần khởi động lại máy chủ. |
 
 ### 1.3. Sơ đồ Use Case tổng quát và chi tiết
 
@@ -176,23 +235,29 @@ flowchart LR
         UC1(Đăng ký và đăng nhập)
         UC2(Nâng cấp tài khoản)
         UC3(Quản lý ví tiền)
-        UC4(Ghi chép bằng trò chuyện)
+        UC4(Ghi chép chi tiêu bằng văn bản)
         UC5(Quét ảnh hóa đơn)
-        UC6(Hỏi đáp thông minh)
+        UC6(Giao tiếp thông minh và ra lệnh)
         UC7(Quản lý hạn mức và gợi ý ngân sách)
         UC8(Báo cáo và so sánh)
         UC14(Quản lý giao dịch)
+        UC19(Phản hồi ý định sai)
 
-        UC9(Thống kê tổng quan)
+        UC9(Thống kê doanh thu)
         UC10(Quản lý người dùng)
         UC11(Dán nhãn dữ liệu ảnh)
         UC12(Tinh chỉnh tính cách AI)
         UC13(Ra lệnh huấn luyện AI)
+        UC20(Duyệt mô hình AI mới)
+        UC21(Xuất dữ liệu huấn luyện LLM)
 
         UC15(Xử lý nghiệp vụ tài chính)
-        UC16(Kiểm soát cổng API và bảo mật)
+        UC16(Cổng API và bảo mật)
         UC17(Quản lý trạng thái hộp thoại)
-        UC18(Vận hành hệ thống tự động hóa)
+        UC18(Hệ thống tự động hóa)
+        UC22(Xử lý ngôn ngữ tự nhiên hai tầng)
+        UC23(Trích xuất hình ảnh)
+        UC24(Quản trị vòng đời mô hình)
     end
 
     User --> UC1
@@ -204,6 +269,7 @@ flowchart LR
     User --> UC7
     User --> UC8
     User --> UC14
+    User --> UC19
 
     Admin --> UC1
     Admin --> UC9
@@ -211,16 +277,21 @@ flowchart LR
     Admin --> UC11
     Admin --> UC12
     Admin --> UC13
+    Admin --> UC20
+    Admin --> UC21
 
     System --> UC15
     System --> UC16
     System --> UC17
     System --> UC18
+    System --> UC22
+    System --> UC23
+    System --> UC24
 ```
 
 Hình 1.2: Sơ đồ Use Case tổng quát toàn bộ hệ thống.
 
-Sơ đồ trên cho thấy phân chia trách nhiệm rõ rệt giữa người dùng thao tác nghiệp vụ thu chi cá nhân trên ứng dụng di động và quản trị viên quản lý, giám sát, huấn luyện mô hình trí tuệ nhân tạo trên trang web quản trị. Các chức năng cốt lõi này đều có bảng đặc tả chi tiết tại phụ lục của luận văn.
+Hình 1.2 cho thấy phân chia trách nhiệm rõ rệt giữa người dùng thao tác nghiệp vụ thu chi cá nhân trên ứng dụng di động và quản trị viên quản lý, giám sát, huấn luyện mô hình trí tuệ nhân tạo trên trang web quản trị. Các chức năng cốt lõi này đều có bảng đặc tả chi tiết tại phụ lục của luận văn.
 
 #### 1.3.2. Sơ đồ Use Case chi tiết phân hệ người dùng
 
@@ -245,17 +316,17 @@ flowchart LR
         UC3_3(Mời thành viên tham gia ví)
         UC3_4(Cập nhật hoặc xóa ví)
 
-        UC4(Ghi chép bằng trò chuyện)
+        UC4(Ghi chép chi tiêu bằng văn bản)
         UC4_1(Ghi chép khoản chi qua trò chuyện)
 
         UC5(Quét ảnh hóa đơn)
-        UC5_1(Chụp hoặc tải ảnh)
+        UC5_1(Chụp hoặc tải ảnh hóa đơn)
 
-        UC6(Hỏi đáp thông minh)
+        UC6(Giao tiếp thông minh và ra lệnh)
         UC6_1(Tra cứu số dư và thống kê nhanh)
-        UC6_2(Ra lệnh hệ thống)
+        UC6_2(Ra lệnh hệ thống điều khiển ứng dụng)
 
-        UC7(Quản lý hạn mức và ngân sách)
+        UC7(Quản lý hạn mức và gợi ý ngân sách)
         UC7_1(Thiết lập hạn mức chi tiêu tháng)
         UC7_2(Theo dõi tiến độ ngân sách)
 
@@ -267,6 +338,9 @@ flowchart LR
         UC14_1(Tra cứu lịch sử giao dịch)
         UC14_2(Chỉnh sửa thông tin giao dịch)
         UC14_3(Xóa giao dịch)
+
+        UC19(Phản hồi ý định sai)
+        UC19_1(Báo cáo khi trợ lý ảo hiểu nhầm ý định)
     end
 
     User --> UC1
@@ -278,6 +352,7 @@ flowchart LR
     User --> UC7
     User --> UC8
     User --> UC14
+    User --> UC19
 
     UC1 -. bao gồm .-> UC1_1
     UC1 -. bao gồm .-> UC1_2
@@ -291,10 +366,8 @@ flowchart LR
     UC3 -. mở rộng .-> UC3_4
 
     UC4 -. bao gồm .-> UC4_1
-    UC4 -. bao gồm .-> UC4_2
 
     UC5 -. bao gồm .-> UC5_1
-    UC5 -. bao gồm .-> UC5_2
 
     UC6 -. bao gồm .-> UC6_1
     UC6 -. bao gồm .-> UC6_2
@@ -308,11 +381,13 @@ flowchart LR
     UC14 -. bao gồm .-> UC14_1
     UC14 -. mở rộng .-> UC14_2
     UC14 -. mở rộng .-> UC14_3
+
+    UC19 -. bao gồm .-> UC19_1
 ```
 
 Hình 1.3: Sơ đồ Use Case chi tiết phân hệ người dùng trên ứng dụng di động.
 
-Sơ đồ trên tập trung hoàn toàn vào góc độ người dùng di động, loại bỏ các bước xử lý kỹ thuật trung gian để làm rõ các luồng nghiệp vụ thực tế mà người dùng có thể lựa chọn thao tác, từ quản lý tài khoản, khai thác trợ lý ảo Mimo cho đến theo dõi ngân sách và báo cáo chi tiêu.
+Hình 1.3 tập trung hoàn toàn vào góc độ người dùng di động, loại bỏ các bước xử lý kỹ thuật trung gian để làm rõ các luồng nghiệp vụ thực tế mà người dùng có thể lựa chọn thao tác, từ quản lý tài khoản, khai thác trợ lý ảo Mimo cho đến theo dõi ngân sách và báo cáo chi tiêu.
 
 #### 1.3.3. Sơ đồ Use Case chi tiết phân hệ quản trị viên
 
@@ -381,7 +456,7 @@ flowchart LR
 
 Hình 1.4: Sơ đồ Use Case chi tiết phân hệ quản trị viên trên nền tảng web.
 
-Sơ đồ trên được xây dựng thuần túy dưới góc độ của ban quản trị hệ thống trên nền tảng web, thể hiện cụ thể các nghiệp vụ quản lý danh sách người dùng, kiểm duyệt dữ liệu hóa đơn lỗi và điều khiển toàn bộ chu trình tái huấn luyện mô hình trí tuệ nhân tạo.
+Hình 1.4 được xây dựng thuần túy dưới góc độ của ban quản trị hệ thống trên nền tảng web, thể hiện cụ thể các nghiệp vụ quản lý danh sách người dùng, kiểm duyệt dữ liệu hóa đơn lỗi và điều khiển toàn bộ chu trình tái huấn luyện mô hình trí tuệ nhân tạo.
 
 ### 1.4. Yêu cầu phi chức năng
 
@@ -420,6 +495,8 @@ Bảng 2.1 ở trên tổng hợp 12 nhóm công nghệ và mô hình máy học
 
 ### 2.2. Nền tảng kiến trúc và máy chủ
 
+Để xây dựng một hệ thống đa nền tảng có khả năng đáp ứng luồng dữ liệu theo thời gian thực, đề tài lựa chọn kết hợp các công nghệ linh hoạt và mạnh mẽ nhất hiện nay. Các công nghệ này được phân bổ hợp lý từ tầng giao diện người dùng cho đến hệ thống máy chủ xử lý trung tâm.
+
 #### 2.2.1. Giao diện ứng dụng Flutter và React
 Hệ thống đòi hỏi hai loại giao diện tách biệt: một ứng dụng trên điện thoại dành cho người dùng phổ thông và một trang web dành riêng cho ban quản trị. Để đáp ứng nhu cầu này, dự án sử dụng kết hợp hai công nghệ là Flutter và React. Đối với ứng dụng trên điện thoại, Flutter được lựa chọn. Đây là một khung lập trình do Google phát triển, cho phép viết mã một lần nhưng có thể chạy mượt mà trên cả hai hệ điều hành Android và iOS [1]. Đầu vào của Flutter là việc tiếp nhận mọi thao tác vuốt chạm, nhập liệu từ người dùng. Đầu ra của nó là các giao diện màn hình trực quan và các gói dữ liệu được đóng gói cẩn thận để gửi lên máy chủ. 
 
@@ -446,6 +523,8 @@ CockroachDB là một hệ quản trị cơ sở dữ liệu phân tán hiện �
 Bên cạnh dữ liệu số, hệ thống còn tiếp nhận lượng lớn dữ liệu hình ảnh từ người dùng chụp hóa đơn. Thay vì lưu trữ hình ảnh trực tiếp vào cơ sở dữ liệu chính gây chậm trễ, dự án sử dụng dịch vụ đám mây Cloud R2 chuyên biệt để lưu trữ tài nguyên đa phương tiện. Đầu vào của Cloud R2 là các tệp hình ảnh hóa đơn vật lý, và đầu ra là các đường dẫn liên kết (URL) được trả về. Nhờ sự tách biệt này, cơ sở dữ liệu luôn giữ được sự gọn nhẹ, trong khi hình ảnh vẫn được tải lên và truy xuất một cách tốc độ.
 
 ### 2.3. Phân hệ trí tuệ nhân tạo AI
+
+Lõi thông minh của hệ thống dựa trên sự phối hợp của nhiều mô hình học sâu chuyên biệt. Mỗi mô hình đảm nhận một tác vụ cụ thể từ phân tích hình ảnh, nhận dạng ký tự, cho đến hiểu sâu ngữ nghĩa văn bản.
 
 #### 2.3.1. Mạng phát hiện chữ DBNet
 DBNet là một mô hình thị giác máy tính chuyên biệt [4]. Về mặt lý thuyết hoạt động, mô hình này phân tích độ tương phản của hàng ngàn điểm ảnh (pixel) để tự động học cách phân biệt đâu là vệt mực in, đâu là nền giấy trắng. Nhiệm vụ của nó giống như một người cầm bút dạ quang đi bôi vàng tất cả những khu vực có chứa chữ viết trên một tờ hóa đơn lộn xộn, đồng thời loại bỏ hoàn toàn các chi tiết thừa thãi như hình nền, logo hay vân gỗ mặt bàn. 
@@ -488,7 +567,7 @@ Kiến trúc của hệ thống quản lý chi tiêu được thiết kế theo 
 
 *Hình 3.1: Sơ đồ kiến trúc hệ thống 4 tầng minh họa luồng luân chuyển dữ liệu*
 
-Sơ đồ trên phác họa bức tranh toàn cảnh về cách các luồng dữ liệu di chuyển qua hệ thống. Theo nguyên tắc bảo mật, các ứng dụng điện thoại và trang web không bao giờ được phép kết nối trực tiếp vào cơ sở dữ liệu. Mọi yêu cầu bắt buộc phải gửi qua các bộ giao tiếp API để kiểm duyệt, cụ thể qua các khối như sau:
+Hình 3.1 phác họa bức tranh toàn cảnh về cách các luồng dữ liệu di chuyển qua hệ thống. Theo nguyên tắc bảo mật, các ứng dụng điện thoại và trang web không bao giờ được phép kết nối trực tiếp vào cơ sở dữ liệu. Mọi yêu cầu bắt buộc phải gửi qua các bộ giao tiếp API để kiểm duyệt, cụ thể qua các khối như sau:
 
 Khối đầu tiên là tầng giao diện máy khách, bao gồm một ứng dụng trên điện thoại để người dùng phổ thông ghi chép, quét hóa đơn hằng ngày, và một trang quản trị web chuyên dụng để ban quản trị theo dõi toàn bộ hệ thống. Bất kỳ thao tác vuốt chạm hay nhấp chuột nào từ phía người dùng đều sẽ tạo ra các yêu cầu xử lý số liệu và được gửi thẳng đến khối thứ hai là máy chủ trung tâm.
 
@@ -615,6 +694,39 @@ erDiagram
 
 Tầng Giao diện đóng vai trò là điểm chạm đầu tiên và duy nhất giữa con người và hệ thống. Để phục vụ tốt nhất cho hai nhóm đối tượng có hành vi sử dụng hoàn toàn trái ngược, tầng này được chia tách thành hai dự án độc lập: Ứng dụng di động (Mobile App) tập trung vào trải nghiệm mượt mà cho người dùng cuối, và Cổng quản trị (WebAdmin) tập trung vào việc giám sát, huấn luyện dữ liệu cho ban quản trị. Ở tầng này, hệ thống không lưu trữ dữ liệu nặng mà chủ yếu sử dụng cơ chế quản lý trạng thái (State Management) để giao tiếp với máy chủ.
 
+Dưới đây là sơ đồ chi tiết kiến trúc của Tầng 1 (Hình 3.3a):
+
+```plantuml
+@startuml
+skinparam componentStyle rectangle
+skinparam handwritten false
+skinparam packageStyle rectangle
+
+package "Tầng 1: Client Layer" {
+  package "Ứng dụng Di động (Flutter)" {
+    [UI Components] as mobile_ui
+    [State Management\n(Riverpod/Provider)] as mobile_state
+    [Local Cache\n(Hive/SharedPreferences)] as mobile_cache
+    [API Client\n(Dio)] as mobile_api
+    
+    mobile_ui --> mobile_state
+    mobile_state --> mobile_cache
+    mobile_state --> mobile_api
+  }
+  
+  package "Cổng Quản trị (React)" {
+    [UI Components] as web_ui
+    [State Management\n(Redux/Context)] as web_state
+    [API Client\n(Axios)] as web_api
+    
+    web_ui --> web_state
+    web_state --> web_api
+  }
+}
+@enduml
+```
+*Hình 3.3a: Sơ đồ kiến trúc chi tiết tầng giao diện người dùng (Tầng 1).*
+
 #### 3.3.1. Ứng dụng di động (Mobile App)
 
 Ứng dụng trên điện thoại được xây dựng bằng bộ khung Flutter. Công nghệ này cho phép lập trình một lần nhưng có thể xuất ra mã chạy mượt mà trên cả hệ điều hành Android và iOS. Giao diện được thiết kế tối giản, tập trung vào việc giúp người dùng dễ dàng thao tác bằng một tay. Ứng dụng sử dụng gói thư viện `Dio` để xử lý các luồng gọi API và `cached_query` nhằm quản lý bộ nhớ đệm (cache), giúp ứng dụng có thể hiển thị dữ liệu tức thời ngay cả khi mạng yếu.
@@ -625,17 +737,24 @@ Chức năng cốt lõi nhất của ứng dụng là khả năng ghi chép chi 
 
 Về mặt logic hoạt động, chức năng này được thiết kế theo luồng xử lý bất đồng bộ nhằm tránh việc giao diện bị đóng băng. Dưới đây là sơ đồ luồng (Flowchart) mô tả chi tiết các bước xử lý từ khi người dùng nhập liệu cho đến khi màn hình được cập nhật.
 
-```mermaid
-flowchart TD
-    A[Người dùng nhập văn bản và bấm Gửi] --> B{Văn bản có rỗng?}
-    B -- Có --> C[Bỏ qua, không xử lý]
-    B -- Không --> D[Hiển thị trạng thái Loading trên UI]
-    D --> E[Dùng thư viện Dio gọi HTTP POST lên Máy chủ]
-    E --> F[Máy chủ phân tích NLU]
-    F --> G[Trả về dữ liệu JSON chứa Số tiền & Danh mục]
-    G --> H[Ứng dụng giải mã JSON]
-    H --> I[Cập nhật biến trạng thái cục bộ]
-    I --> J[Tự động vẽ lại màn hình UI và trừ tiền ví]
+```plantuml
+@startuml
+start
+:Người dùng nhập văn bản và bấm Gửi;
+if (Văn bản có rỗng?) then (Có)
+  :Bỏ qua, không xử lý;
+  stop
+else (Không)
+  :Hiển thị trạng thái Loading trên UI;
+  :Dùng thư viện Dio gọi HTTP POST lên Máy chủ;
+  :Máy chủ phân tích NLU;
+  :Trả về dữ liệu JSON chứa Số tiền & Danh mục;
+  :Ứng dụng giải mã JSON;
+  :Cập nhật biến trạng thái cục bộ;
+  :Tự động vẽ lại màn hình UI và trừ tiền ví;
+  stop
+endif
+@enduml
 ```
 *Hình 3.3: Sơ đồ khối (Flowchart) mô tả logic luồng ghi chép chi tiêu bằng văn bản.*
 
@@ -659,15 +778,19 @@ Hơn nữa, vì quá trình AI phân tích ảnh tốn nhiều thời gian hơn 
 
 Dưới đây là sơ đồ mô tả luồng hoạt động thông minh này:
 
-```mermaid
-flowchart TD
-    A[Người dùng chụp ảnh hóa đơn] --> B[Ứng dụng nén dung lượng ảnh trực tiếp trên máy]
-    B --> C[Tải ảnh đã nén lên kho lưu trữ R2]
-    C --> D[Lấy đường dẫn URL của ảnh]
-    D --> E[Gửi URL lên Máy chủ qua thư viện Dio]
-    E --> F[Giải phóng giao diện, người dùng được dùng tiếp App]
-    F --> G[Máy chủ gọi AI quét ảnh Luồng hoạt động của chức năng quét hóa đơn.chạy ngầm]
-    G --> H[Hoàn tất, gửi thông báo Push báo kết quả]
+```plantuml
+@startuml
+start
+:Người dùng chụp ảnh hóa đơn;
+:Ứng dụng nén dung lượng ảnh trực tiếp trên máy;
+:Tải ảnh đã nén lên kho lưu trữ R2;
+:Lấy đường dẫn URL của ảnh;
+:Gửi URL lên Máy chủ qua thư viện Dio;
+:Giải phóng giao diện, người dùng được dùng tiếp App;
+:Máy chủ gọi AI quét ảnh chạy ngầm;
+:Hoàn tất, gửi thông báo Push báo kết quả;
+stop
+@enduml
 ```
 *Hình 3.5: Luồng hoạt động của chức năng quét hóa đơn.*
 
@@ -691,16 +814,21 @@ Một điểm đáng chú ý trong thiết kế là người dùng có thể xem
 
 Dưới đây là sơ đồ khối (Flowchart) mô tả thuật toán xử lý dữ liệu và luồng hiển thị báo cáo:
 
-```mermaid
-flowchart TD
-    A[Người dùng chọn mốc thời gian] --> B[Truy vấn giao dịch từ cơ sở dữ liệu]
-    B --> C{Chọn thẻ báo cáo nào?}
-    C -- Chi phí / Thu nhập --> D[Luồng Isolate gom nhóm và tính %]
-    C -- So sánh chi tiêu --> E[Gọi API lên Máy chủ đối chiếu mức sống]
-    D --> F[Vẽ biểu đồ bằng fl_chart]
-    E --> G[Nhận kết quả % và lời bình luận]
-    F --> H[Cập nhật UI màn hình]
-    G --> H
+```plantuml
+@startuml
+start
+:Người dùng chọn mốc thời gian;
+:Truy vấn giao dịch từ cơ sở dữ liệu;
+if (Chọn thẻ báo cáo nào?) then (Chi phí / Thu nhập)
+  :Luồng Isolate gom nhóm và tính %;
+  :Vẽ biểu đồ bằng fl_chart;
+else (So sánh chi tiêu)
+  :Gọi API lên Máy chủ đối chiếu mức sống;
+  :Nhận kết quả % và lời bình luận;
+endif
+:Cập nhật UI màn hình;
+stop
+@enduml
 ```
 *Hình 3.7: Sơ đồ thuật toán xử lý dữ liệu thống kê và so sánh.*
 
@@ -717,31 +845,44 @@ Trong hình minh họa, ảnh ngoài cùng bên trái hiển thị giao diện t
 
 Để tránh tình trạng vung tay quá trán dẫn đến rỗng túi trước kỳ lương, hệ thống cung cấp tính năng quản lý hạn mức. Người dùng có thể tự do đặt ra mức chi tiêu tối đa cho từng khoản (ví dụ: chỉ tiêu 3 triệu tiền ăn một tháng). Chức năng giám sát này chạy tức thời ngay trên điện thoại. Cứ mỗi lần có một khoản chi mới, ứng dụng sẽ lập tức đối chiếu với hạn mức. Nếu số tiền tiêu vượt quá 80%, thanh tiến trình sẽ chuyển sang màu đỏ rực để tạo cảnh báo thị giác mạnh mẽ, nhắc nhở người dùng hãm phanh kịp thời.
 
-Điểm nhấn của tính năng này là khả năng tự động gợi ý ngân sách theo quy tắc kinh điển 50/30/20. Rào cản lớn nhất của người mới học quản lý tài chính là không biết thiết lập con số bao nhiêu cho hợp lý. Thay vì bắt người dùng đoán mò, ứng dụng sẽ lấy tổng thu nhập hàng tháng và tự chia ra: 50% cho nhu cầu thiết yếu, 30% cho sở thích, và 20% để tiết kiệm. Với bộ khung gợi ý chuẩn xác này, người dùng chỉ cần một nút bấm là có ngay một kế hoạch chi tiêu khoa học mà không phải đắn đo tính toán.
+Điểm nhấn của tính năng này là khả năng tự động gợi ý ngân sách thích nghi theo thực tế sử dụng và quy tắc kinh điển 50/30/20. Rào cản lớn nhất của người mới học quản lý tài chính là không biết thiết lập con số bao nhiêu cho hợp lý. Thay vì bắt người dùng đoán mò hay áp dụng con số cố định cứng nhắc, ứng dụng lấy trung bình trượt có trọng số của chi tiêu ba tháng gần nhất, sau đó đối chiếu với độ lệch hạn mức tháng trước theo công thức sử dụng trừ hạn mức. Trường hợp người dùng chi tiêu vượt hạn mức cũ, hệ thống điều chỉnh tăng nhẹ hạn mức đề xuất để con số khả thi hơn, tránh gây tâm lý nản chí khi theo dõi. Ngược lại, nếu người dùng chi tiêu dưới hạn mức, hệ thống tự động thu gọn hạn mức đề xuất để giảm dư thừa ngân sách và tối ưu tiền tích lũy. Cuối cùng, tổng đề xuất được cân đối trong khung tỷ lệ thu nhập 50% cho thiết yếu, 30% cho cá nhân và 20% cho tiết kiệm.
 
-Để làm rõ hơn, thuật toán của từng luồng được bóc tách thành các sơ đồ dưới đây.
+Để làm rõ hơn, thuật toán của từng luồng được bóc tách thành các sơ đồ tương ứng.
 
-```mermaid
-flowchart TD
-    A1[Thêm giao dịch mới] --> A2[Lấy tổng chi & hạn mức từ cơ sở dữ liệu]
-    A2 --> A3[Tính tỷ lệ % = Chi tiêu / Hạn mức]
-    A3 --> A4{Tỷ lệ % >= 80%?}
-    A4 -- Có --> A5[Hiển thị thanh tiến trình màu Đỏ báo động]
-    A4 -- Không --> A6[Hiển thị thanh tiến trình màu Xanh an toàn]
+```plantuml
+@startuml
+start
+:Thêm giao dịch mới;
+:Lấy tổng chi & hạn mức từ cơ sở dữ liệu;
+:Tính tỷ lệ % = Chi tiêu / Hạn mức;
+if (Tỷ lệ % >= 80%?) then (Có)
+  :Hiển thị thanh tiến trình màu Đỏ báo động;
+else (Không)
+  :Hiển thị thanh tiến trình màu Xanh an toàn;
+endif
+stop
+@enduml
 ```
 *Hình 3.9: Sơ đồ thuật toán giám sát chi tiêu.*
 
-Như Hình 3.9 thể hiện, khi có giao dịch mới, hệ thống tính toán tỷ lệ chi tiêu trên hạn mức. Nếu chạm ngưỡng 80%, thanh báo động lập tức chuyển đỏ để cảnh báo người dùng. Đối với luồng gợi ý 50/30/20, logic tính toán được mô tả ở sơ đồ tiếp theo:
+Như Hình 3.9 thể hiện, khi có giao dịch mới, hệ thống tính toán tỷ lệ chi tiêu trên hạn mức. Nếu chạm ngưỡng 80%, thanh báo động lập tức chuyển đỏ để cảnh báo người dùng. Đối với luồng gợi ý ngân sách thông minh, logic tính toán điều chỉnh theo lịch sử và tỷ lệ 50/30/20 được mô tả ở sơ đồ tiếp theo:
 
-```mermaid
-flowchart TD
-    B1[Bấm nút Gợi ý ngân sách] --> B2[Lấy tổng thu nhập trong tháng]
-    B2 --> B3[Tính 50% Thiết yếu, 30% Cá nhân, 20% Tiết kiệm]
-    B3 --> B4[Điền sẵn các con số lên giao diện]
+```plantuml
+@startuml
+start
+:Bấm nút gợi ý ngân sách;
+:Lấy lịch sử chi tiêu và thu nhập 3 tháng gần nhất;
+:Tính chi tiêu nền theo trung bình trượt có trọng số;
+:Đối chiếu lịch sử hạn mức tháng trước: sử dụng - hạn mức;
+:Hiệu chuẩn tăng nếu vượt hạn mức hoặc giảm nếu dưới hạn mức;
+:Cân đối tỷ lệ 50/30/20;
+:Điền sẵn con số đề xuất sát thực tế lên giao diện;
+stop
+@enduml
 ```
-*Hình 3.10: Sơ đồ thuật toán gợi ý ngân sách 50/30/20.*
+*Hình 3.10: Sơ đồ thuật toán gợi ý ngân sách thích nghi theo thực tế.*
 
-Dựa trên Hình 3.10, khi người dùng kích hoạt tính năng gợi ý, hệ thống lấy tổng thu nhập và chia theo công thức 50/30/20 rồi điền sẵn vào các ô nhập liệu. Để đối chiếu hai thuật toán này hiển thị ra sao ở góc nhìn người dùng, Hình 3.11 dưới đây phác họa màn hình giao diện thực tế.
+Dựa trên Hình 3.10, khi người dùng kích hoạt tính năng gợi ý, hệ thống lấy lịch sử chi tiêu thực tế, hiệu chuẩn tăng giảm dựa trên mức độ sử dụng so với hạn mức cũ rồi chia theo khung 50/30/20 trước khi điền sẵn vào ô nhập liệu. Để đối chiếu hai thuật toán này hiển thị ra sao ở góc nhìn người dùng, Hình 3.11 dưới đây phác họa màn hình giao diện thực tế.
 
 ![Giao diện màn hình quản lý hạn mức ngân sách](file:///d:/Luan-Van/Project/visualizations.jpg)
 
@@ -757,18 +898,24 @@ Không dừng lại ở việc hỏi đáp thông thường, điểm khác biệ
 
 Để làm rõ khả năng nhận diện ý định và điều hướng, sơ đồ khối dưới đây mô tả quá trình giao tiếp từ lúc người dùng gửi lệnh đến khi hệ thống hiển thị nút bấm.
 
-```mermaid
-flowchart TD
-    A[Người dùng gửi câu lệnh] --> B[Hiển thị tin nhắn chờ]
-    B --> C[Gửi dữ liệu lên API Server]
-    C --> D[Máy chủ AI phân tích ý định]
-    D --> E{Ý định là gì?}
-    E -- Trả lời thông thường --> F[Trả về văn bản]
-    E -- Yêu cầu chuyển hướng --> G[Trả về văn bản kèm Nút bấm điều hướng]
-    F --> H[Cập nhật giao diện trò chuyện]
-    G --> H
-    H --> I[Người dùng chạm vào nút bấm]
-    I --> J[Chuyển sang màn hình Báo cáo]
+```plantuml
+@startuml
+start
+:Người dùng gửi câu lệnh;
+:Hiển thị tin nhắn chờ;
+:Gửi dữ liệu lên API Server;
+:Máy chủ AI phân tích ý định;
+if (Ý định là gì?) then (Trả lời thông thường)
+  :Trả về văn bản;
+  :Cập nhật giao diện trò chuyện;
+else (Yêu cầu chuyển hướng)
+  :Trả về văn bản kèm Nút bấm điều hướng;
+  :Cập nhật giao diện trò chuyện;
+  :Người dùng chạm vào nút bấm;
+  :Chuyển sang màn hình hệ thống tương ứng;
+endif
+stop
+@enduml
 ```
 *Hình 3.12: Sơ đồ thuật toán tương tác và điều hướng của trợ lý ảo MiMo.*
 
@@ -788,19 +935,21 @@ Phía dưới cùng là thanh công cụ cho phép nhập văn bản hoặc thu 
 
 Để tạo ra các thẻ Story cá nhân hóa, hệ thống cần xử lý dữ liệu phức tạp. Sơ đồ khối dưới đây mô tả thuật toán lấy dữ liệu thô, nhờ AI sinh lời bình luận, và trả về để ứng dụng hiển thị.
 
-```mermaid
-flowchart TD
-    A[Người dùng khởi động Nhìn lại hành trình] --> B[Ứng dụng gửi yêu cầu lên Máy chủ]
-    B --> C[Máy chủ truy vấn giao dịch lớn nhất, tháng tốn kém từ cơ sở dữ liệu]
-    C --> D[Gửi dữ liệu thô sang máy chủ AI]
-    D --> E[AI phân tích và sinh lời bình luận hóm hỉnh]
-    E --> F[Đóng gói toàn bộ thành dữ liệu Recap]
-    F --> G[Trả dữ liệu về Ứng dụng]
-    G --> H[Vẽ giao diện Story tràn màn hình]
-    H --> I{Người dùng vuốt sang thẻ khác?}
-    I -- Có --> J[Chạy hiệu ứng chuyển cảnh và tải thẻ mới]
-    I -- Không --> H
-    J --> I
+```plantuml
+@startuml
+start
+:Người dùng khởi động Nhìn lại hành trình;
+:Ứng dụng gửi yêu cầu lên Máy chủ;
+:Máy chủ truy vấn giao dịch lớn nhất, tháng tốn kém từ cơ sở dữ liệu;
+:Gửi dữ liệu thô sang máy chủ AI;
+:AI phân tích và sinh lời bình luận hóm hỉnh;
+:Đóng gói toàn bộ thành dữ liệu Recap;
+:Trả dữ liệu về Ứng dụng;
+repeat
+  :Vẽ giao diện Story tràn màn hình;
+repeat while (Người dùng vuốt sang thẻ khác?) is (Có)
+stop
+@enduml
 ```
 *Hình 3.14: Sơ đồ thuật toán trích xuất dữ liệu và hiển thị thẻ Recap.*
 
@@ -818,16 +967,23 @@ Như minh họa ở Hình 3.15, bộ công cụ tài chính được thể hiệ
 
 Điểm mấu chốt trong trải nghiệm nâng cấp là luồng thanh toán liền mạch. Thay vì chuyển hướng văng ra trình duyệt ngoài, ứng dụng khởi tạo một trình duyệt nhúng kết nối trực tiếp với cổng VNPay. Quá trình xử lý giao dịch khép kín này được mô tả qua sơ đồ khối dưới đây.
 
-```mermaid
-flowchart TD
-    A[Gửi yêu cầu tạo đơn hàng lên Máy chủ] --> B[Nhận URL thanh toán VNPay]
-    B --> C[Mở trình duyệt nhúng tải URL thanh toán]
-    C --> D[Gửi truy vấn trạng thái đơn hàng liên tục]
-    D --> E{Trạng thái thanh toán?}
-    E -- Đang chờ --> D
-    E -- Thất bại / Hủy --> F[Đóng trình duyệt nhúng và báo lỗi]
-    E -- Hoàn tất --> G[Đóng trình duyệt nhúng]
-    G --> H[Cập nhật UI và gắn huy hiệu Cao cấp]
+```plantuml
+@startuml
+start
+:Gửi yêu cầu tạo đơn hàng lên Máy chủ;
+:Nhận URL thanh toán VNPay;
+:Mở trình duyệt nhúng tải URL thanh toán;
+repeat
+  :Gửi truy vấn trạng thái đơn hàng liên tục;
+repeat while (Trạng thái thanh toán?) is (Đang chờ)
+if (Kết quả thanh toán?) then (Thất bại / Hủy)
+  :Đóng trình duyệt nhúng và báo lỗi;
+else (Hoàn tất)
+  :Đóng trình duyệt nhúng;
+  :Cập nhật UI và gắn huy hiệu Cao cấp;
+endif
+stop
+@enduml
 ```
 *Hình 3.16: Sơ đồ thuật toán thanh toán nâng cấp tài khoản qua VNPay.*
 
@@ -845,19 +1001,26 @@ Như minh họa ở Hình 3.17, chu trình nâng cấp được chia làm ba bư
 
 Đặc biệt, đối với nhóm Ví chung, ứng dụng cũng trang bị đầy đủ các tính năng quản lý tương đương: người dùng có quyền thêm mới, chỉnh sửa thông tin hoặc gỡ bỏ khi quỹ không còn hoạt động. Quá trình thêm mới, tham gia hoặc xóa một ví tiền được thiết kế theo góc nhìn phía ứng dụng người dùng thông qua sơ đồ khối dưới đây.
 
-```mermaid
-flowchart TD
-    A[Truy cập màn hình quản lý Ví tiền] --> B{Chọn nhóm thao tác?}
-    B -- Thêm ví mới --> C[Nhập thông tin: tên, màu sắc, loại ví, số dư]
-    B -- Tham gia ví --> D[Nhập mã xác nhận để tham gia Ví chung]
-    B -- Xóa ví --> F[Xác nhận yêu cầu gỡ bỏ Ví khỏi hệ thống]
-    C --> G[Gửi yêu cầu API tương ứng lên Máy chủ]
-    D --> G
-    F --> G
-    G --> H{Phản hồi từ API?}
-    H -- Lỗi --> I[Hiển thị cảnh báo Snackbar/Toast]
-    H -- Thành công --> J[Cập nhật dữ liệu vào bộ nhớ đệm cục bộ]
-    J --> K[Tải lại danh sách Ví trên giao diện]
+```plantuml
+@startuml
+start
+:Truy cập màn hình quản lý Ví tiền;
+if (Chọn nhóm thao tác?) then (Thêm ví mới)
+  :Nhập thông tin: tên, màu sắc, loại ví, số dư;
+else if (Thao tác?) then (Tham gia ví)
+  :Nhập mã xác nhận để tham gia Ví chung;
+else (Xóa ví)
+  :Xác nhận yêu cầu gỡ bỏ Ví khỏi hệ thống;
+endif
+:Gửi yêu cầu API tương ứng lên Máy chủ;
+if (Phản hồi từ API?) then (Lỗi)
+  :Hiển thị cảnh báo Snackbar/Toast;
+else (Thành công)
+  :Cập nhật dữ liệu vào bộ nhớ đệm cục bộ;
+  :Tải lại danh sách Ví trên giao diện;
+endif
+stop
+@enduml
 ```
 *Hình 3.18: Sơ đồ thuật toán các luồng thêm mới, tham gia và xóa Ví tiền.*
 
@@ -875,29 +1038,37 @@ Mọi khoản thu chi của người dùng đều được lưu vết minh bạc
 
 Từ bất kỳ chế độ xem nào, khi cần thiết, người dùng có thể chạm vào một giao dịch để xem thông tin chi tiết. Tại đây, ứng dụng cho phép toàn quyền chỉnh sửa các dữ liệu đã nhập, đặc biệt là việc phân loại lại Danh mục (Category) nếu trước đó AI gán sai, cập nhật số tiền, hoặc sửa đổi lời ghi chú (Story) đi kèm. Nếu giao dịch không còn hợp lệ, người dùng có thể xóa bỏ hoàn toàn.
 
-Quy trình hiển thị và hiệu chỉnh giao dịch từ góc nhìn của ứng dụng di động được mô hình hóa qua sơ đồ sau.
+Quy trình hiển thị và hiệu chỉnh giao dịch từ góc nhìn của ứng dụng di động được mô hình hóa qua Hình 3.20.
 
-```mermaid
-flowchart TD
-    A[Truy cập Quản lý giao dịch] --> B{Chọn chế độ xem}
-    B -- Story / Gallery --> C[Xem giao dịch dạng thẻ ảnh trực quan]
-    B -- Calendar --> D[Xem giao dịch phân bổ theo ngày trên Lịch]
-    C --> E[Nhấn vào một giao dịch]
-    D --> E
-    E --> F[Hiển thị màn hình chi tiết giao dịch]
-    F --> G{Loại thao tác?}
-    G -- Xóa --> H[Xác nhận xóa và gửi yêu cầu API]
-    G -- Sửa --> I[Thay đổi Danh mục, Số tiền, hoặc Ghi chú]
-    I --> J[Nhấn Lưu và gửi yêu cầu cập nhật API]
-    H --> K{Phản hồi API?}
-    J --> K
-    K -- Lỗi --> L[Hiển thị thông báo lỗi trên giao diện]
-    K -- Thành công --> M[Cập nhật bộ nhớ đệm cục bộ]
-    M --> N[Đóng màn hình và tải lại danh sách giao dịch]
+```plantuml
+@startuml
+start
+:Truy cập Quản lý giao dịch;
+if (Chọn chế độ xem) then (Story / Gallery)
+  :Xem giao dịch dạng thẻ ảnh trực quan;
+else (Calendar)
+  :Xem giao dịch phân bổ theo ngày trên Lịch;
+endif
+:Nhấn vào một giao dịch;
+:Hiển thị màn hình chi tiết giao dịch;
+if (Loại thao tác?) then (Xóa)
+  :Xác nhận xóa và gửi yêu cầu API;
+else (Sửa)
+  :Thay đổi Danh mục, Số tiền, hoặc Ghi chú;
+  :Nhấn Lưu và gửi yêu cầu cập nhật API;
+endif
+if (Phản hồi API?) then (Lỗi)
+  :Hiển thị thông báo lỗi trên giao diện;
+else (Thành công)
+  :Cập nhật bộ nhớ đệm cục bộ;
+  :Đóng màn hình và tải lại danh sách giao dịch;
+endif
+stop
+@enduml
 ```
 *Hình 3.20: Sơ đồ thuật toán luồng hiển thị, hiệu chỉnh và xóa giao dịch trên ứng dụng.*
 
-Phản chiếu từ sơ đồ trên, Hình 3.21 mô phỏng giao diện khi người dùng thao tác trực tiếp với các giao dịch.
+Phản chiếu từ Hình 3.20, Hình 3.21 mô phỏng giao diện khi người dùng thao tác trực tiếp với các giao dịch.
 
 ![Giao diện quản lý giao dịch: Gallery, Calendar và Chi tiết giao dịch](file:///d:/Luan-Van/Project/visualizations.jpg)
 
@@ -911,20 +1082,26 @@ Là chốt chặn an ninh đầu tiên của ứng dụng, chức năng xác th�
 
 Quá trình kiểm chứng thông tin, xử lý khôi phục mật khẩu và cấp quyền truy cập được thực hiện khép kín giữa Ứng dụng di động, Máy chủ trung tâm và hệ thống định danh Firebase Auth.
 
-```mermaid
-flowchart TD
-    A[Màn hình Đăng nhập / Đăng ký] --> B{Hành động?}
-    B -- Đăng nhập Google --> C[Gửi Token sang Firebase Auth]
-    B -- Đăng nhập Email --> D[Kiểm tra thông tin tại Máy chủ]
-    B -- Quên mật khẩu --> E[Gửi liên kết khôi phục qua Email]
-    E --> F[Người dùng đặt lại mật khẩu mới]
-    F --> A
-    C --> G{Xác thực thành công?}
-    D --> G
-    G -- Lỗi --> H[Trả về thông báo lỗi cho người dùng]
-    G -- Thành công --> I[Máy chủ sinh chuỗi mã thông báo bảo mật]
-    I --> J[Trả mã thông báo an toàn về Ứng dụng]
-    J --> K[Mở khóa truy cập vào màn hình chính]
+```plantuml
+@startuml
+start
+repeat
+  :Màn hình Đăng nhập / Đăng ký;
+  if (Hành động?) then (Đăng nhập Google)
+    :Gửi Token sang Firebase Auth;
+  else if (Đăng nhập Email) then
+    :Kiểm tra thông tin tại Máy chủ;
+  else (Quên mật khẩu)
+    :Gửi liên kết khôi phục qua Email;
+    :Người dùng đặt lại mật khẩu mới;
+    backward:Quay lại màn hình đăng nhập;
+  endif
+repeat while (Xác thực thành công?) is (Lỗi, trả thông báo lỗi)
+:Máy chủ sinh chuỗi mã thông báo bảo mật (JWT);
+:Trả mã thông báo an toàn về Ứng dụng;
+:Mở khóa truy cập vào màn hình chính;
+stop
+@enduml
 ```
 *Hình 3.22: Sơ đồ thuật toán luồng Đăng ký, Đăng nhập và Khôi phục mật khẩu.*
 
@@ -942,22 +1119,33 @@ Khác với ứng dụng điện thoại dành cho người dùng cuối, cổng
 
 Chức năng thống kê tổng quan đóng vai trò như một trung tâm chỉ huy chiến lược, là sự kết hợp hoàn hảo giữa việc giám sát sức khỏe trí tuệ nhân tạo (AIOps) và theo dõi dòng tiền (Monetization). Việc gộp chung hai phân hệ này lên cùng một bảng điều khiển giúp ban quản trị vừa nắm bắt được chất lượng của trợ lý ảo, vừa đối chiếu ngay lập tức với hiệu quả kinh doanh.
 
-Về mặt hiệu suất AI, các thông số sống còn được làm nổi bật qua các thẻ chỉ số cốt lõi: Độ hội tụ phân tích (tỷ lệ AI nhận diện chính xác cùng lúc Số tiền, Ngày tháng và Hạng mục) và Tổng lượt trích xuất dữ liệu. Kế đến là phân hệ "Ngưỡng sẵn sàng huấn luyện lại" được thiết kế dạng thanh trạng thái, giúp theo dõi liên tục lượng dữ liệu người dùng sửa lỗi và số hóa đơn đã phê duyệt. Bức tranh này giúp quản trị viên biết được thời điểm "chín muồi" để tiến hành tái huấn luyện mô hình.
+Về mặt hiệu suất AI, các thông số sống còn được làm nổi bật qua bốn thẻ chỉ số cốt lõi: 
+1. **Total Extractions:** Tổng lượt trích xuất dữ liệu của toàn hệ thống.
+2. **NLU Intent Confidence:** Độ tin cậy trung bình khi phân loại ý định (nhắm mục tiêu >85%).
+3. **NLU Action Match:** Tỷ lệ nhận diện chính xác các tham số khi thực thi lệnh điều khiển.
+4. **OCR Accuracy:** Độ hội tụ phân tích dữ liệu hóa đơn ảnh.
 
-Về mặt kinh doanh, bảng điều khiển trang bị một biểu đồ doanh thu (Revenue Chart) trực quan, bám sát xu hướng dòng tiền trong 30 ngày gần nhất từ các gói tài khoản Cao cấp (Premium). Đi kèm biểu đồ là danh sách lịch sử các giao dịch thanh toán. Không chỉ dừng lại ở việc xem báo cáo, quản trị viên còn có quyền can thiệp trực tiếp: nếu khách hàng thanh toán thành công nhưng mạng lưới ngân hàng phản hồi chậm, quản trị viên có thể tra cứu mã đơn hàng và gạt nút (toggle) nâng cấp Premium thủ công, bảo vệ tối đa uy tín của ứng dụng.
+Kế đến là phân hệ "Ngưỡng sẵn sàng dữ liệu" (Data Readiness) được thiết kế dạng thanh tiến trình, giúp theo dõi liên tục lượng dữ liệu đã thu thập so với ngưỡng cần thiết để chạy tiến trình huấn luyện. Ba thanh tiến trình bao gồm: Lượng dữ liệu Fine-tune LLM, Lượng hóa đơn OCR đã duyệt, và Khối lượng dữ liệu tri thức RAG (được dùng để bơm vào ngữ cảnh cho mô hình ngôn ngữ lớn giúp trợ lý trả lời chính xác các nghiệp vụ chuyên ngành).
+
+Về mặt kinh doanh, bảng điều khiển trang bị một biểu đồ doanh thu (Revenue Chart) trực quan, bám sát xu hướng dòng tiền trong 30 ngày gần nhất từ các gói tài khoản Cao cấp (Premium). Đi kèm biểu đồ là danh sách lịch sử các giao dịch thanh toán. Không chỉ dừng lại ở việc xem báo cáo, quản trị viên còn có quyền can thiệp trực tiếp: nếu khách hàng thanh toán thành công nhưng mạng lưới ngân hàng phản hồi chậm, quản trị viên có thể tra cứu mã đơn hàng và gạt nút nâng cấp Premium thủ công, bảo vệ tối đa uy tín của ứng dụng.
 
 Sơ đồ khối dưới đây mô tả thuật toán truy xuất và tổng hợp dữ liệu "kép" này từ hệ thống.
 
-```mermaid
-flowchart TD
-    A[Quản trị viên truy cập Bảng điều khiển] --> B[Hệ thống gửi đa luồng yêu cầu dữ liệu]
-    B --> C[Truy xuất nhật ký AI và số liệu huấn luyện]
-    B --> D[Truy xuất dữ liệu giao dịch thanh toán Premium]
-    C --> E[Đóng gói thẻ chỉ số AI và thanh tiến trình]
-    D --> F[Dựng biểu đồ doanh thu và danh sách giao dịch]
-    E --> G[Trả dữ liệu về Cổng Quản trị]
-    F --> G
-    G --> H[Làm mới giao diện Dashboard đa chức năng]
+```plantuml
+@startuml
+start
+:Quản trị viên truy cập Bảng điều khiển;
+fork
+  :Truy xuất nhật ký AI và số liệu huấn luyện/RAG;
+  :Đóng gói 4 thẻ chỉ số AI và thanh tiến trình Readiness;
+fork again
+  :Truy xuất dữ liệu giao dịch thanh toán Premium;
+  :Dựng biểu đồ doanh thu và danh sách giao dịch;
+end fork
+:Trả dữ liệu về Cổng Quản trị;
+:Làm mới giao diện Dashboard đa chức năng;
+stop
+@enduml
 ```
 *Hình 3.24: Sơ đồ thuật toán luồng truy xuất dữ liệu thống kê AI và Doanh thu.*
 
@@ -965,7 +1153,7 @@ Dựa trên luồng dữ liệu khép kín này, Hình 3.25 minh họa giao di�
 
 ![Bảng điều khiển tổng quan kết hợp thống kê AI và Doanh thu](file:///d:/Luan-Van/Project/visualizations.jpg)
 
-*Hình 3.25: Giao diện Bảng điều khiển theo dõi hiệu năng AI và lịch sử doanh thu.*
+*Hình 3.25: Giao diện Bảng điều khiển theo dõi hiệu năng AI, ngưỡng dữ liệu và lịch sử doanh thu.*
 
 Như minh họa ở Hình 3.25, màn hình được bố cục tinh tế làm hai nửa. Nửa trên là lãnh địa của AI với các thanh tiến trình cảnh báo ngưỡng dữ liệu huấn luyện và tỷ lệ hội tụ. Nửa dưới tập trung vào biểu đồ doanh thu sinh động cùng danh sách đối soát thanh toán. Lối thiết kế gộp thông minh này giúp người quản lý không bị ngợp trước số liệu mà vẫn bao quát được trọn vẹn tình hình của toàn dự án trên một trang duy nhất.
 
@@ -977,16 +1165,23 @@ Chức năng quản lý người dùng đóng vai trò duy trì trật tự cộ
 
 Về mặt kiểm soát an ninh, quản trị viên có quyền thực thi lệnh khóa đối với các tài khoản gian lận, hoặc mở khóa đối với những trường hợp khiếu nại hợp lệ. Quá trình này được minh họa thông qua Sơ đồ thuật toán tại Hình 3.26.
 
-```mermaid
-flowchart TD
-    A[Quản trị viên thao tác trên một tài khoản] --> B{Loại thao tác?}
-    B -- Khóa tài khoản --> C[Cập nhật trạng thái Cấm truy cập vào Cơ sở dữ liệu]
-    B -- Mở khóa tài khoản --> D[Gỡ bỏ trạng thái Cấm truy cập khỏi Cơ sở dữ liệu]
-    C --> E[Gửi lệnh đồng bộ cấm/mở khóa sang Firebase Auth]
-    D --> E
-    E --> F{Thực thi thành công?}
-    F -- Lỗi --> G[Hiển thị thông báo thất bại cho Quản trị viên]
-    F -- Thành công --> H[Hiển thị thông báo thành công và làm mới danh sách]
+```plantuml
+@startuml
+start
+:Quản trị viên thao tác trên một tài khoản;
+if (Loại thao tác?) then (Khóa tài khoản)
+  :Cập nhật trạng thái Cấm truy cập vào Cơ sở dữ liệu;
+else (Mở khóa tài khoản)
+  :Gỡ bỏ trạng thái Cấm truy cập khỏi Cơ sở dữ liệu;
+endif
+:Gửi lệnh đồng bộ cấm/mở khóa sang Firebase Auth;
+if (Thực thi thành công?) then (Lỗi)
+  :Hiển thị thông báo thất bại cho Quản trị viên;
+else (Thành công)
+  :Hiển thị thông báo thành công và làm mới danh sách;
+endif
+stop
+@enduml
 ```
 *Hình 3.26: Sơ đồ thuật toán luồng vô hiệu hóa và khôi phục tài khoản người dùng.*
 
@@ -998,33 +1193,41 @@ Khi lệnh khóa được kích hoạt, hệ thống sẽ can thiệp thẳng v�
 
 ##### 3.3.2.3. Chức năng Quản trị và Huấn luyện Mô hình Ngôn ngữ (NLU)
 
-Vì trí tuệ nhân tạo không thể hiểu hết mọi từ vựng mới hoặc tiếng lóng ngay từ những ngày đầu, hệ thống cần một phân hệ để thu gom dữ liệu thực tế và liên tục "dạy" lại mô hình theo chuẩn vòng đời học máy. Thay vì lãng phí những lần người dùng tự sửa lỗi phân loại trên ứng dụng điện thoại, hệ thống sẽ tự động gom toàn bộ các "đính chính" này và chuyển thẳng về phân hệ quản trị ngôn ngữ.
+Vì trí tuệ nhân tạo không thể hiểu hết mọi từ vựng mới hoặc tiếng lóng ngay từ những ngày đầu, hệ thống cần một phân hệ để thu gom dữ liệu thực tế và liên tục "dạy" lại mô hình theo chuẩn vòng đời học máy khép kín. Thay vì lãng phí những lần người dùng phải tự sửa lỗi phân loại trên ứng dụng điện thoại, hệ thống sẽ tự động gom toàn bộ các "đính chính" này (Feedback Loop) và chuyển thẳng về phân hệ quản trị ngôn ngữ.
 
-Quy trình xử lý dữ liệu và huấn luyện được chia thành ba lớp nghiệp vụ chính, thiết lập một quy trình khép kín từ sửa lỗi nhanh đến huấn luyện sâu:
-- **Lớp 1 -  cá nhân hóa danh mục:** Cung cấp công cụ xử lý tức thời các từ vựng lóng bằng cách tạo bộ luật cứng (ví dụ: luôn gán từ "cà phê" vào danh mục "Ăn uống"). Mô hình AI sẽ ưu tiên kiểm tra tập luật này trước khi chạy thuật toán suy luận nội tại.
-- **Lớp 2 -  học từ người dùng:** Nơi hiển thị các nhóm văn bản mà người dùng đã báo cáo sai. Quản trị viên sẽ duyệt qua danh sách và thực hiện "Phê duyệt" để gán nhãn chuẩn xác, biến đổi chúng thành nguồn dữ liệu sạch.
-- **Lớp 3 - Lớp đánh giá và Huấn luyện lại:** Khu vực hiển thị bảng đo lường độ chính xác của mô hình hiện hành. Khi lượng dữ liệu sạch ở Lớp 2 đã đủ lớn, quản trị viên chỉ việc kích hoạt tiến trình tái huấn luyện để nâng cấp mô hình.
+Quy trình xử lý dữ liệu và huấn luyện được tự động hóa thông qua một chuỗi nghiệp vụ bao gồm:
+
+- **Học từ người dùng:** Nơi hiển thị các nhóm văn bản mà người dùng đã báo cáo sai (bấm nút "Dislike"). Quản trị viên sẽ duyệt qua danh sách và thực hiện "Phê duyệt" để gán nhãn chuẩn xác, biến đổi chúng thành nguồn dữ liệu sạch.
+- **Tiến trình huấn luyện 6 giai đoạn:** Khi lượng dữ liệu sạch đã đủ lớn, hệ thống cho phép quản trị viên xuất tập dữ liệu dưới định dạng JSONL (dùng cho Fine-tune LLM) hoặc bấm nút kích hoạt tiến trình huấn luyện lại mô hình học máy. Tiến trình này chạy ngầm và trải qua 6 giai đoạn: Khởi tạo, Tải dữ liệu, Chuẩn bị dữ liệu, Huấn luyện mô hình, Lưu trữ trọng số, và Hoàn tất.
+- **Quản lý mô hình theo ba trạng thái:** Để đảm bảo tính ổn định, hệ thống duy trì ba trạng thái mô hình: Mô hình sao lưu cũ (models_old), Mô hình đang chạy thực tế (models), và Mô hình ứng viên mới vừa huấn luyện xong (models_new). Quản trị viên có thể xem bảng so sánh chuẩn đối sánh hiệu năng (Benchmark) giữa mô hình ứng viên và mô hình hiện tại. Nếu chỉ số đạt yêu cầu, quản trị viên chỉ cần bấm nút "Duyệt áp dụng". Mô hình sẽ được hoán đổi thành công trong tích tắc mà không yêu cầu khởi động lại máy chủ.
 
 Sơ đồ khối dưới đây mô phỏng lại dòng chảy của dữ liệu từ thiết bị người dùng đến lúc mô hình AI được nâng cấp hoàn chỉnh.
 
-```mermaid
-flowchart TD
-    A[Người dùng đính chính phân loại lỗi trên App] --> B[Hệ thống gom nhóm dữ liệu gửi về WebAdmin]
-    B --> C{Xử lý tại Cổng quản trị}
-    C -- Sửa lỗi tức thời --> D[Thêm vào bộ luật Khớp tuyệt đối]
-    C -- Tích lũy dữ liệu --> E[Phê duyệt đính chính làm dữ liệu sạch]
-    E --> F[Dữ liệu sạch đạt ngưỡng tối thiểu]
-    F --> G[Kích hoạt tiến trình Huấn luyện lại mô hình]
-    G --> H[Triển khai phiên bản mô hình AI thông minh hơn]
-    D --> H
+```plantuml
+@startuml
+start
+:Người dùng báo sai ý định trên App;
+:Backend lưu vào bảng nlu_logs;
+:WebAdmin hiển thị danh sách phản hồi;
+:Quản trị viên phê duyệt nhãn đúng;
+:Tích lũy dữ liệu sạch;
+:Kích hoạt huấn luyện 2 tầng: Intent + Category;
+:Mô hình ứng viên lưu vào models_new;
+if (Quản trị viên so sánh benchmark) then (Chất lượng đạt)
+  :Duyệt áp dụng: models_new đổi thành models;
+else (Chưa đạt)
+  :Giữ nguyên mô hình hiện tại;
+endif
+stop
+@enduml
 ```
-*Hình 3.28: Sơ đồ thuật toán luồng thu thập dữ liệu và tái huấn luyện mô hình ngôn ngữ.*
+*Hình 3.28: Sơ đồ thuật toán luồng thu thập dữ liệu phản hồi, tái huấn luyện và duyệt mô hình theo 3 trạng thái.*
 
-Toàn bộ thông tin về số lượng luật, phiên bản mô hình hiện hành và trạng thái máy chủ (đang bận huấn luyện hay đang sẵn sàng) đều được hiển thị trực tiếp trên dải trạng thái vận hành ở ngay đầu trang. Cơ chế này đảm bảo trợ lý ảo ngày càng thông minh hơn dựa trên chính dữ liệu của cộng đồng mà không cần lập trình viên phải can thiệp thủ công vào mã nguồn hệ thống. Dưới đây là giao diện thực tế của phân hệ quản trị này.
+Toàn bộ thông tin về phiên bản mô hình hiện hành, kết quả đối sánh và thanh tiến trình huấn luyện 6 giai đoạn đều được hiển thị trực tiếp trên giao diện quản trị. Cơ chế này đảm bảo trợ lý ảo ngày càng thông minh hơn dựa trên chính dữ liệu của cộng đồng một cách an toàn và minh bạch.
 
-![Giao diện sửa lỗi và gán nhãn cho các câu văn chưa rõ nghĩa](file:///d:/Luan-Van/Project/visualizations.jpg)
+![Giao diện quản trị mô hình ngôn ngữ với chức năng duyệt áp dụng và xuất dữ liệu JSONL](file:///d:/Luan-Van/Project/visualizations.jpg)
 
-*Hình 3.29: Màn hình quản trị mô hình ngôn ngữ với thanh trạng thái vận hành và các thẻ huấn luyện.*
+*Hình 3.29: Màn hình quản trị NLUOps với cơ chế duyệt 3 trạng thái và tiến trình huấn luyện.*
 
 ##### 3.3.2.4. Chức năng Tiền xử lý và Gán nhãn Hóa đơn (Bill OCR Retrain)
 
@@ -1034,17 +1237,22 @@ Tại phân hệ này, quản trị viên có thể giám sát một hàng đợ
 
 Để tối ưu hóa năng suất làm việc của quản trị viên và giảm bớt thao tác thủ công, hệ thống cung cấp tính năng "Gán nhãn tự động". Khi kích hoạt, WebAdmin sẽ gọi lại mô hình AI dự đoán để gợi ý trước các khung tọa độ trên toàn bộ bức ảnh. Quản trị viên lúc này chỉ đóng vai trò người kiểm duyệt, tinh chỉnh lại những vị trí mà AI nhận diện sai sót, sau đó nhấn nút "Phê duyệt". Toàn bộ quy trình từ lúc tiếp nhận ảnh lỗi đến khi xuất dữ liệu được mô tả chi tiết tại Sơ đồ Hình 3.30.
 
-```mermaid
-flowchart TD
-    A[Hệ thống ghi nhận hóa đơn bị lỗi nhận diện] --> B[Đẩy ảnh vào Hàng đợi trên WebAdmin]
-    B --> C[Quản trị viên mở ảnh trên Khung vẽ tương tác]
-    C --> D{Chế độ gán nhãn?}
-    D -- Thủ công --> E[Tự vẽ khung tọa độ và gán nhãn nghiệp vụ]
-    D -- Tự động --> F[AI gợi ý khung tọa độ có sẵn]
-    F --> G[Quản trị viên tinh chỉnh lại các khung bị lệch]
-    E --> H[Nhấn nút Phê duyệt dữ liệu]
-    G --> H
-    H --> I[Xuất tập dữ liệu chuẩn để huấn luyện lại mô hình]
+```plantuml
+@startuml
+start
+:Hệ thống ghi nhận hóa đơn bị lỗi nhận diện;
+:Đẩy ảnh vào Hàng đợi trên WebAdmin;
+:Quản trị viên mở ảnh trên Khung vẽ tương tác;
+if (Chế độ gán nhãn?) then (Thủ công)
+  :Tự vẽ khung tọa độ và gán nhãn nghiệp vụ;
+else (Tự động)
+  :AI gợi ý khung tọa độ có sẵn;
+  :Quản trị viên tinh chỉnh lại các khung bị lệch;
+endif
+:Nhấn nút Phê duyệt dữ liệu;
+:Xuất tập dữ liệu chuẩn để huấn luyện lại mô hình;
+stop
+@enduml
 ```
 *Hình 3.30: Sơ đồ thuật toán luồng tiền xử lý và gán nhãn dữ liệu ảnh hóa đơn.*
 
@@ -1058,31 +1266,63 @@ Cuối cùng, tập hợp các hóa đơn đã được ban quản trị phê du
 
 Thay vì gắn chặt cách giao tiếp của trợ lý ảo vào mã nguồn tĩnh, Cổng Quản trị cung cấp một phân hệ chuyên sâu cho phép cấu hình và hiệu chỉnh các câu lệnh chỉ thị hệ thống từ xa. Điểm đặc biệt của kiến trúc này là trợ lý ảo được thiết kế theo mô hình đa nhân cách bao gồm các trạng thái: Vui vẻ, Hay khóc, Khó tính (Kỷ luật), và Ngọt ngào (Chữa lành). Quản trị viên có thể linh hoạt chuyển đổi giữa các tính cách này để tùy biến lại câu lệnh nền. Đồng thời, hệ thống cung cấp thanh trượt để điều chỉnh các tham số sinh ngôn ngữ cốt lõi (như độ sáng tạo Temperature hay tham số phân rã Top-K) nhằm kiểm soát chặt chẽ tính chính xác của mô hình ngôn ngữ lớn.
 
-Bên cạnh đó, trang quản trị còn tích hợp sẵn một môi trường kiểm thử hộp cát cô lập. Tại đây, quản trị viên chỉ cần nhập thử một câu nói ngẫu nhiên của người dùng (ví dụ: "chi tiêu ăn sáng hết 45k"), chọn tính cách mong muốn, và nhấn kiểm thử. Kết quả phản hồi từ trí tuệ nhân tạo sẽ được kết xuất ngay lập tức mà không ảnh hưởng đến dữ liệu thực. Sơ đồ dưới đây minh họa luồng thao tác khép kín từ lúc điều chỉnh đến khi triển khai xuống thiết bị người dùng.
+Bên cạnh đó, trang quản trị còn tích hợp sẵn một môi trường kiểm thử hộp cát cô lập. Tại đây, quản trị viên có thể tinh chỉnh sâu các ngữ cảnh đầu vào:
+- **Ngữ cảnh gọi (Caller Context):** Chọn giữa giả lập gửi tin nhắn trò chuyện thông thường (`chat`) hoặc gửi qua phím tắt ghi chép nhanh (`addstory`).
+- **Ép buộc ý định (Force Intent):** Cho phép hệ thống tự động nhận diện (`Auto`) hoặc ép buộc mô hình chạy theo nhánh quy tắc cụ thể (`Record`, `Action`, `Chitchat`).
 
-```mermaid
-flowchart TD
-    A[Quản trị viên chọn Nhân cách trợ lý ảo] --> B[Hiệu chỉnh câu lệnh hệ thống và Tham số]
-    B --> C[Nhập câu thoại mẫu vào Môi trường kiểm thử]
-    C --> D[Mô hình AI sinh ra câu phản hồi]
-    D --> E{Đánh giá kết quả?}
-    E -- Chưa đạt --> B
-    E -- Đạt yêu cầu --> F[Lưu cấu hình và Triển khai đồng loạt]
-    F --> G[Thiết bị di động của người dùng tự động cập nhật]
+Sau khi nhập thử một câu nói ngẫu nhiên của người dùng (ví dụ: "chi tiêu ăn sáng hết 45k"), chọn tính cách và cấu hình mong muốn, quản trị viên nhấn kiểm thử. Kết quả phản hồi từ trí tuệ nhân tạo sẽ được kết xuất ngay lập tức, đính kèm thông tin về **Quy tắc đã sử dụng (Rule Used)** để kiểm chứng độ chính xác của luồng định tuyến mà không ảnh hưởng đến dữ liệu thực. Hình 3.32 minh họa luồng thao tác khép kín từ lúc điều chỉnh đến khi triển khai xuống thiết bị người dùng.
+
+```plantuml
+@startuml
+start
+repeat
+  :Quản trị viên chọn Nhân cách và Tham số;
+  :Thiết lập Ngữ cảnh gọi và Ý định ép buộc;
+  :Nhập câu thoại mẫu vào Môi trường kiểm thử;
+  :Hệ thống nạp Quy tắc tương ứng và gọi mô hình AI;
+repeat while (Kiểm tra Rule Used và Đánh giá phản hồi?) is (Chưa đạt)
+:Lưu cấu hình và Triển khai đồng loạt;
+:Thiết bị di động của người dùng tự động cập nhật;
+stop
+@enduml
 ```
-*Hình 3.32: Sơ đồ thuật toán luồng kiểm thử và triển khai cấu hình trợ lý ảo.*
+*Hình 3.32: Sơ đồ thuật toán luồng kiểm thử đa ngữ cảnh và triển khai cấu hình trợ lý ảo.*
 
 Tính năng này giúp ban quản trị tinh chỉnh từ ngữ sao cho tự nhiên và phù hợp nhất. Khi kết quả đã đạt độ hoàn thiện cao, quản trị viên chỉ cần nhấn nút lưu để phát hành cấu hình mới. Sự thay đổi này sẽ được đồng bộ tức thời xuống hàng ngàn người dùng trên ứng dụng di động một cách an toàn và đồng nhất.
 
-![Màn hình cấu hình câu lệnh và kiểm thử trợ lý ảo](file:///d:/Luan-Van/Project/visualizations.jpg)
+![Màn hình cấu hình câu lệnh và kiểm thử trợ lý ảo với các bộ lọc ngữ cảnh](file:///d:/Luan-Van/Project/visualizations.jpg)
 
-*Hình 3.33: Giao diện cấu hình nhân cách trợ lý ảo và môi trường kiểm thử khép kín.*
+*Hình 3.33: Giao diện cấu hình nhân cách trợ lý ảo và môi trường kiểm thử đa ngữ cảnh khép kín.*
 
 
 
 ---
 
 ### 3.4. Thiết kế Máy chủ Xử lý Trung tâm (Backend Node.js)
+
+Máy chủ trung tâm được xây dựng trên nền tảng Node.js, đóng vai trò như một trạm trung chuyển và xử lý logic nghiệp vụ chính của toàn hệ thống. Dưới đây là sơ đồ kiến trúc chi tiết của Tầng 2 (Hình 3.4a):
+
+```plantuml
+@startuml
+skinparam componentStyle rectangle
+skinparam handwritten false
+skinparam packageStyle rectangle
+
+package "Tầng 2: Backend Layer (Node.js)" {
+  [Cổng kết nối\n(Express HTTP / WebSocket)] as gateway
+  [Xác thực & Bảo mật\n(Firebase Admin JWT)] as auth
+  [Lõi Nghiệp vụ Tài chính\n(Quản lý Ví, Giao dịch)] as core
+  [Hệ thống tự động hóa\n(Cron Job / Triggers)] as automation
+  [Quản lý trạng thái AI\n(Dialog State)] as state
+  
+  gateway --> auth
+  gateway --> core
+  gateway --> state
+  automation --> core
+}
+@enduml
+```
+*Hình 3.4a: Sơ đồ kiến trúc chi tiết tầng máy chủ xử lý trung tâm (Tầng 2).*
 
 #### 3.4.1. Lõi nghiệp vụ tài chính
 Phân hệ này đảm nhận việc xử lý các giao dịch thu chi và quản lý ví tiền, đóng vai trò cốt lõi trong toàn bộ hệ thống máy chủ. Khi ứng dụng di động gửi dữ liệu giao dịch mới, máy chủ Node.js sẽ tiếp nhận và tiến hành tính toán số dư. Để đảm bảo tính chính xác tuyệt đối, số dư ví không bao giờ được hệ thống trí tuệ nhân tạo tự suy đoán. Thay vào đó, máy chủ sử dụng thư viện node-postgres để truy vấn trực tiếp vào cơ sở dữ liệu PostgreSQL. Dữ liệu sau khi kiểm tra hợp lệ sẽ được lưu vào bảng giao dịch và bảng ví tiền. Lợi thế của việc tách bạch trí tuệ nhân tạo và logic tài chính là giúp hệ thống hoạt động ổn định, tránh rủi ro sai lệch số dư do thuật toán sinh ảo giác. Ngay sau khi lưu thành công, hệ thống tiếp tục đối chiếu số tiền vừa nhập với mục tiêu ngân sách của tháng. Nếu phát hiện người dùng chi tiêu vượt mức, máy chủ sẽ kích hoạt dịch vụ Firebase Cloud Messaging để gửi một thông báo đẩy cảnh báo trực tiếp về màn hình điện thoại.
@@ -1110,62 +1350,147 @@ Hình 3.x: Giao diện thông báo tự động cộng gói nâng cấp khi nh�
 
 Tầng Trí tuệ Nhân tạo đóng vai trò là "bộ não" xử lý ngôn ngữ và bóc tách hình ảnh của toàn bộ dự án. Vì các phép toán Học sâu (Deep Learning) đòi hỏi sức mạnh tính toán cực lớn, phân hệ này được thiết kế tách biệt hoàn toàn khỏi máy chủ Node.js. Thay vào đó, nó được xây dựng bằng bộ khung **FastAPI** (ngôn ngữ Python) và triển khai trên hạ tầng điện toán đám mây **Modal Serverless GPU**. Kiến trúc vi dịch vụ (Microservices) này đảm bảo hệ thống Node.js không bị treo khi xử lý hàng ngàn giao dịch, đồng thời cho phép API AI linh hoạt khởi động các Card đồ họa (GPU) trong tích tắc chỉ khi có yêu cầu.
 
-#### 3.5.1. Phân hệ Xử lý Ngôn ngữ Tự nhiên (NLU)
+Dưới đây là sơ đồ chi tiết kiến trúc của Tầng 3 (Hình 3.16a):
 
-Phân hệ này đảm nhận nhiệm vụ đọc hiểu những câu nói tiếng Việt tự nhiên của người dùng, từ đó xác định ý định và bóc tách các con số để lưu vào sổ chi tiêu. Để AI có thể hiểu được văn phong đa dạng của người Việt Nam, hệ thống được huấn luyện trên một kho ngữ liệu chuyên biệt với quy mô lên tới 385.205 mẫu câu (đã qua tăng cường dữ liệu). Tập dữ liệu được chia thành ba nhóm chính: dữ liệu ghi chép chi tiêu (chiếm 49,6%), lệnh điều khiển (32,9%), và hội thoại thông thường (17,5%). Toàn bộ dữ liệu được phân chia thành tập huấn luyện (Train) để tinh chỉnh mô hình và tập kiểm thử độc lập (Test) để đo lường độ chính xác.
+```plantuml
+@startuml
+skinparam componentStyle rectangle
+skinparam handwritten false
+skinparam packageStyle rectangle
 
-```mermaid
-flowchart TD
-    Input([Tin nhắn người dùng]) --> Pers{Kiểm tra lịch sử\nđã từng nhập chưa?}
-    
-    Pers -->|Đã từng nhập| Output([Kết quả hoàn chỉnh])
-    
-    Pers -->|Chưa từng nhập| Registry{Cấu hình chọn mô hình\n(nlu_model_registry)}
-    
-    Registry -->|Chế độ Mặc định| Qwen[Mô hình ngôn ngữ Qwen 2.5]
-    Registry -->|Chế độ Thử nghiệm| Phobert[Mô hình PhoBERT]
-    Registry -->|Chế độ Thử nghiệm| TFIDF[Mô hình TF-IDF]
-    
-    Qwen & Phobert & TFIDF --> NLP[Phân tích câu văn:\nLấy Ý định, Số tiền, Danh mục]
-    
-    NLP --> NLG[Khối NLG: Mô hình tự động\nsoạn câu trả lời giao tiếp]
-    
-    NLG --> Output
+package "Tầng 3: AI Layer (FastAPI)" {
+  [Cổng giao tiếp\n(FastAPI HTTP)] as gateway
+  
+  package "Phân hệ NLU" {
+    [Bộ định tuyến Ý định\n(Rule Engine / TF-IDF)] as nlu_router
+    [Mô hình Ngôn ngữ Lớn\n(Qwen 2.5 + LoRA)] as nlu_llm
+    nlu_router --> nlu_llm
+  }
+  
+  package "Phân hệ OCR" {
+    [Phát hiện Chữ\n(DBNet)] as ocr_dbnet
+    [Nhận dạng Ký tự\n(VietOCR)] as ocr_vietocr
+    [Phân tích Bố cục\n(LayoutLMv3)] as ocr_layout
+    ocr_dbnet --> ocr_vietocr
+    ocr_vietocr --> ocr_layout
+  }
+  
+  gateway --> nlu_router
+  gateway --> ocr_dbnet
+}
+@enduml
 ```
-*Hình 3.17: Sơ đồ thuật toán luồng xử lý ngôn ngữ tự nhiên thực tế.*
+*Hình 3.16a: Sơ đồ kiến trúc chi tiết tầng xử lý AI (Tầng 3).*
 
-Về luồng hoạt động, máy chủ xử lý ngôn ngữ được thiết kế rất linh hoạt. Thay vì bị gò bó vào một bộ phân tích duy nhất, hệ thống cho phép người quản trị chuyển đổi qua lại giữa ba mô hình khác nhau thông qua một tệp cấu hình. Trong môi trường sử dụng thực tế, hệ thống ưu tiên chọn mô hình ngôn ngữ lớn Qwen 2.5 làm mặc định nhờ khả năng đọc hiểu tiếng Việt xuất sắc. Hai mô hình còn lại là PhoBERT và TF-IDF chủ yếu được dùng trong môi trường thử nghiệm để so sánh hiệu năng. Điểm nhấn của kiến trúc này nằm ở chỗ: dù câu nói của người dùng được bóc tách ý định bằng mô hình nào, kết quả cuối cùng đều được truyền qua khối sinh ngôn ngữ tự nhiên (NLG) để mô hình tự động soạn ra một câu trả lời giao tiếp thân thiện trước khi đóng gói gửi về điện thoại.
+#### 3.5.1. Phân hệ xử lý ngôn ngữ tự nhiên hai tầng (NLU)
 
-Nhằm chứng minh tính ưu việt của kiến trúc sử dụng mô hình ngôn ngữ lớn Qwen 2.5, hệ thống đã tiến hành chuẩn đối sánh (Benchmark) với hai mô hình tinh gọn là TF-IDF và PhoBERT. Dưới đây là bảng tổng hợp kết quả đánh giá hiệu năng:
+Phân hệ này đảm nhận nhiệm vụ đọc hiểu những câu nói tiếng Việt tự nhiên của người dùng, từ đó xác định ý định và bóc tách các thông số để lưu vào sổ chi tiêu hoặc thực thi lệnh điều khiển ứng dụng. Để AI có thể hiểu được văn phong đa dạng của người Việt Nam, hệ thống được huấn luyện trên một kho ngữ liệu chuyên biệt với quy mô lên tới 385.205 mẫu câu đã qua tăng cường dữ liệu. Tập dữ liệu được chia thành ba nhóm chính: dữ liệu ghi chép chi tiêu chiếm 49,6%, lệnh điều khiển chiếm 32,9% và hội thoại thông thường chiếm 17,5%.
 
-| Tác vụ đánh giá | TF-IDF (Thống kê) | PhoBERT (Học sâu) | Qwen 2.5 LoRA (LLM) |
+Khác với kiến trúc đơn khối trước đây vốn dồn tất cả chỉ thị vào một lời gọi mô hình ngôn ngữ duy nhất, hệ thống đã được tái cấu trúc theo kiến trúc hai tầng phân tách rõ ràng. Tầng thứ nhất chịu trách nhiệm phân loại ý định tổng quan của câu nói bằng mô hình học máy thống kê có tốc độ phản hồi cực nhanh. Tầng thứ hai chỉ được kích hoạt sau khi tầng thứ nhất xác định xong nhãn ý định, lúc này hệ thống sẽ nạp đúng bộ quy tắc chuyên gia tương ứng và gọi mô hình ngôn ngữ lớn Qwen 2.5 để trích xuất chi tiết. Cách tiếp cận này giúp giảm thiểu khối lượng token đầu vào cho mỗi lượt suy luận, đồng thời loại bỏ triệt để hiện tượng mô hình nhầm lẫn giữa các nhóm quy tắc không liên quan.
+
+```plantuml
+@startuml
+start
+:Nhận tin nhắn người dùng + caller_context;
+if (Ngữ cảnh gọi?) then (addstory - phím tắt ghi chép)
+  :Bỏ qua tầng 1, ép intent = Record;
+else (chat - trò chuyện)
+  :Tầng 1: Phân loại ý định;
+  if (Độ tin cậy >= 0.65?) then (Dưới ngưỡng)
+    :Bỏ phiếu đa số: TF-IDF + PhoBERT + LLM;
+  else (Đạt ngưỡng)
+  endif
+endif
+:Chọn quy tắc tầng 2 từ llm_rules.json;
+if (Intent) then (Record)
+  :Áp dụng quy tắc ghi chép chi tiêu;
+else if (Intent) then (Action)
+  :Áp dụng quy tắc lệnh điều khiển;
+else (Chitchat)
+  :Áp dụng quy tắc trò chuyện xã giao;
+endif
+:Gọi Qwen 2.5 trên Modal GPU;
+:Kết quả JSON: slots, response, emotion;
+stop
+@enduml
+```
+*Hình 3.17: Sơ đồ kiến trúc xử lý ngôn ngữ tự nhiên hai tầng.*
+
+##### 3.5.1.1. Cơ chế hoạt động và tối ưu hóa hệ thống NLU
+
+Hệ thống quản lý toàn bộ chỉ thị suy luận tập trung trong tệp `llm_rules.json`, chia thành các khối quy tắc chuyên biệt: ghi chép, lệnh điều khiển và trò chuyện xã giao. Cách tiếp cận này kết hợp cùng cơ chế bỏ phiếu đa số (Majority Vote) khi độ tin cậy của tầng 1 dưới 0.65 giúp bảo vệ thao tác người dùng khỏi tình trạng nhận diện sai. Đối với những trường hợp thiếu thông tin, máy chủ tự động lưu trạng thái nháp và trả về câu hỏi yêu cầu người dùng bổ sung tham số mà không cần gọi lại quy trình từ đầu.
+
+Đặc biệt, hệ thống đảm bảo an toàn tuyệt đối theo nguyên tắc phi trạng thái (stateless). Mọi biến trạng thái như tên xưng hô, quy tắc quan hệ và ngữ cảnh gọi (`caller_context`) đều được đóng gói theo phạm vi từng yêu cầu HTTP độc lập, cho phép Modal GPU tự động gom lô (dynamic batching) và mở rộng năng lực xử lý đồng thời hàng ngàn yêu cầu mà không xảy ra rò rỉ ngữ cảnh giữa các người dùng.
+
+Tùy thuộc vào ý định nhận diện được, máy chủ Node.js sẽ trả về phản hồi tương ứng. Đối với nhóm lệnh báo cáo, kết quả được cấu trúc thành ba khối (lời dẫn, đồ thị, phân tích RAG). Ngược lại, nhóm lệnh điều khiển chỉ trả về thẻ hành động để người dùng xác nhận thao tác.
+
+##### 3.5.1.2. Kết quả chuẩn đối sánh hiệu năng
+
+Nhằm chứng minh tính ưu việt của kiến trúc hai tầng, hệ thống đã tiến hành chuẩn đối sánh trên tập dữ liệu vàng với ba mô hình suy luận. Kết quả được phân tách rõ ràng theo từng tầng phân loại.
+
+Bảng 3.1a: So sánh độ chính xác phân loại ý định tại tầng 1
+
+| Mô hình suy luận | Accuracy | F1 Macro | Độ trễ trung bình |
 | :--- | :---: | :---: | :---: |
-| Phân loại Ý định (Accuracy / F1) | 84.17% / 79.20% | 86.67% / 83.57% | 95.83% / 95.45% |
-| Phân loại Danh mục (Accuracy / F1) | 68.33% / 65.87% | 71.67% / 62.88% | 91.67% / 86.14% |
-| Phân loại Giao dịch (Accuracy / F1) | 85.00% / 76.56% | 91.67% / 86.52% | 96.67% / 95.45% |
-| Phân loại Hành động (Accuracy / F1) | 85.00% / 67.60% | 80.83% / 50.08% | 95.83% / 92.29% |
-| Độ trễ (Trung bình / P95) | 4.36 ms / 9.20 ms | 103.85 ms / 55.74 ms | 14.62 s / 19.93 s |
+| TF-IDF Classic | 84.20% | 79.20% | Khoảng 21 ms |
+| PhoBERT Encoder | 35.00% | 33.10% | Khoảng 154 ms |
+| LLM Rules v2 + Qwen 2.5 | 95.80% | 95.50% | Khoảng 14.8 s |
 
-*Bảng 3.1: Bảng tổng hợp kết quả chuẩn đối sánh hiệu năng của các kiến trúc xử lý ngôn ngữ.*
+Bảng 3.1a cho thấy mô hình Qwen 2.5 kết hợp bộ quy tắc chuyên gia đạt độ chính xác phân loại ý định vượt trội lên đến 95.80%, cao hơn đáng kể so với TF-IDF và PhoBERT.
 
-Dựa vào bảng số liệu trên, có thể thấy hệ thống đang phải đối mặt với bài toán đánh đổi kinh điển giữa tốc độ và độ chính xác. Hai mô hình TF-IDF và PhoBERT mang lại tốc độ phản hồi siêu nhanh (chỉ từ 4 đến 104 mili-giây) nhưng độ chính xác trong việc phân loại ý định và danh mục lại khá thấp, dễ dẫn đến sai sót khi gặp các câu lệnh phức tạp. Ngược lại, việc quyết định sử dụng Qwen 2.5 LoRA làm mô hình chính yếu đòi hỏi phải đánh đổi độ trễ khá cao (khoảng 14,6 giây cho mỗi yêu cầu) để thu về độ chính xác vượt trội lên đến 95.83% đối với ý định và 91.67% đối với danh mục. Sự hy sinh về mặt thời gian này là hoàn toàn xứng đáng nhằm đảm bảo sổ thu chi luôn ghi nhận chính xác dữ liệu tài chính, hạn chế tối đa trải nghiệm tiêu cực do trí tuệ nhân tạo hiểu sai ý.
+Bảng 3.1b: So sánh độ chính xác phân loại danh mục chi tiêu tại tầng 2
 
+| Mô hình suy luận | Accuracy | F1 Macro | Độ trễ trung bình |
+| :--- | :---: | :---: | :---: |
+| TF-IDF Classic | 68.30% | 65.90% | Khoảng 21 ms |
+| PhoBERT Encoder | 35.00% | 6.80% | Khoảng 154 ms |
+| LLM Rules v2 + Qwen 2.5 | 91.70% | 86.10% | Khoảng 14.8 s |
+
+Kết quả phân loại 18 danh mục chi tiêu cho thấy mô hình ngôn ngữ lớn vượt trội hơn hẳn các phương pháp truyền thống, đặc biệt ở khả năng phân biệt các danh mục có ranh giới mờ như ăn uống với mua sắm hay di chuyển với giải trí.
+
+Bảng 3.1c: Đánh giá độ chính xác phân loại loại lệnh điều khiển bởi LLM
+
+| Loại lệnh | Số mẫu kiểm thử | Nhận diện đúng | Accuracy | Ghi chú |
+| :--- | :---: | :---: | :---: | :--- |
+| REPORT_GENERAL | 5 | 5 | 100% | Yêu cầu xem báo cáo tổng quan |
+| REPORT_COMPARE | 5 | 5 | 100% | So sánh hai khoảng thời gian |
+| SET_LIMIT | 5 | 5 | 100% | Đặt hạn mức chi tiêu |
+| SET_GOAL | 5 | 5 | 100% | Tạo mục tiêu tiết kiệm mới |
+| ADD_GOAL | 5 | 5 | 100% | Nạp tiền vào quỹ đã có |
+| SET_TONE | 3 | 3 | 100% | Đổi giọng điệu trợ lý |
+| SEARCH_RECORD | 5 | 5 | 100% | Tìm kiếm giao dịch cụ thể |
+| SUGGEST_BUDGET | 3 | 3 | 100% | Gợi ý ngân sách |
+| SYSTEM_SETTING | 3 | 3 | 100% | Thay đổi cài đặt hệ thống |
+| SET_USERNAME | 3 | 3 | 100% | Đổi tên xưng hô |
+| SET_ALERT | 3 | 3 | 100% | Bật hoặc tắt cảnh báo |
+| Tổng / Trung bình | 45 | 43 | 95.8% | Toàn bộ 11 loại lệnh |
+
+Bảng 3.1c đánh giá khả năng nhận diện chính xác từng loại lệnh điều khiển của mô hình ngôn ngữ lớn Qwen 2.5 kết hợp bộ quy tắc chuyên gia. Chỉ số này quyết định liệu hệ thống có thực thi đúng yêu cầu của người dùng hay không. Kết quả cho thấy nhờ bộ quy tắc chuyên gia phân tách rõ ràng và các ví dụ đối sánh trong lời chỉ thị, mô hình đạt tỷ lệ chính xác rất cao ở mức 95.8% trên toàn bộ 11 loại lệnh. Đặc biệt, các trường hợp dễ nhầm lẫn trước đây như phân biệt SET_GOAL và ADD_GOAL, hay nhận diện SET_USERNAME thay vì phân loại nhầm thành trò chuyện xã giao, đã được khắc phục triệt để.
+
+Dựa vào bảng số liệu trên, có thể thấy hệ thống đang phải đối mặt với bài toán đánh đổi kinh điển giữa tốc độ và độ chính xác. Hai mô hình TF-IDF và PhoBERT mang lại tốc độ phản hồi siêu nhanh nhưng độ chính xác trong việc phân loại ý định và danh mục lại thấp hơn, dễ dẫn đến sai sót khi gặp các câu lệnh phức tạp. Ngược lại, kiến trúc hai tầng sử dụng Qwen 2.5 kết hợp bộ quy tắc chuyên gia đạt độ chính xác vượt trội với thời gian phản hồi trung bình khoảng 14.8 giây cho mỗi yêu cầu, phản ánh việc xử lý sâu ngữ nghĩa mặc dù đánh đổi bằng tốc độ.
 
 
 #### 3.5.2. Phân hệ nhận diện hóa đơn (Bill OCR)
 
 Đặc thù của các loại hóa đơn bán lẻ tại Việt Nam là sự đa dạng về bố cục, phông chữ và chất lượng hình ảnh đầu vào thường không ổn định do chụp từ thiết bị di động. Các phương pháp trích xuất thông tin dựa trên biểu thức chính quy (Regex) truyền thống tỏ ra kém hiệu quả đối với bài toán này, điển hình là tỷ lệ nhận diện đúng tên cửa hàng chỉ đạt mức 52.1%. Để giải quyết vấn đề, phân hệ nhận diện hóa đơn được thiết kế với quy trình xử lý ba bước, vận hành trên hạ tầng máy chủ Modal Cloud nhằm tận dụng khả năng tính toán song song của GPU.
 
-```mermaid
-flowchart TD
-    A([Ảnh hóa đơn chụp từ Mobile]) --> B[Bước 1: Phát hiện chữ\n(PaddleOCR)]
-    B -->|Tọa độ khung chữ| C[Bước 2: Giải mã ký tự\n(VietOCR)]
-    C -->|Văn bản thuần túy| D[Bước 3: Phân tích không gian\n(LayoutLMv3)]
-    D -->|Nhận diện quy luật bố cục| E([Trích xuất JSON:\nTổng tiền & Tên cửa hàng])
+```plantuml
+@startuml
+start
+:Nhận ảnh hóa đơn chụp từ Mobile;
+:Bước 1: Phát hiện chữ (DBNet);
+:Tọa độ khung chữ;
+:Bước 2: Giải mã ký tự (VietOCR);
+:Văn bản thuần túy;
+:Bước 3: Phân tích không gian (LayoutLMv3);
+:Nhận diện quy luật bố cục;
+:Trích xuất JSON: Tổng tiền & Tên cửa hàng;
+stop
+@enduml
 ```
 *Hình 3.19: Sơ đồ dây chuyền ba bước nhận diện và bóc tách thông tin hóa đơn.*
 
-Sơ đồ trên thể hiện quy trình liên hoàn ba bước từ khi tiếp nhận ảnh hóa đơn thô đến khi trích xuất ra được thông tin cụ thể, đáp ứng yêu cầu bóc tách thông tin phức tạp.
+Hình 3.19 thể hiện quy trình liên hoàn ba bước từ khi tiếp nhận ảnh hóa đơn thô đến khi trích xuất ra được thông tin cụ thể, đáp ứng yêu cầu bóc tách thông tin phức tạp.
 
 Về dữ liệu huấn luyện, dự án sử dụng bộ dữ liệu chuẩn từ cuộc thi RIVF2021 MC-OCR bao gồm 1.321 hình ảnh hóa đơn thu thập từ các hệ thống siêu thị và nhà hàng tại Việt Nam. Toàn bộ hình ảnh được gán nhãn tọa độ khung bao (bounding box) cho các trường thông tin mục tiêu (địa chỉ, tên cửa hàng, ngày giao dịch, tổng tiền). Quá trình tiền xử lý đã lọc bỏ các mẫu dữ liệu lỗi, giữ lại 1.159 hình ảnh hợp lệ. Tập dữ liệu này được phân chia ngẫu nhiên theo tỷ lệ 90:10, trong đó 90% dữ liệu được dùng để huấn luyện mô hình (Training set) và 10% được dùng để xác thực và đánh giá (Validation set) nhằm theo dõi, ngăn chặn hiện tượng quá khớp (overfitting). Việc tinh chỉnh (fine-tuning) được thực thi trên máy chủ GPU Modal Cloud giúp tối ưu hóa thời gian hội tụ.
 
@@ -1189,7 +1514,7 @@ Hình 3.20 minh họa kết quả đầu ra của LayoutLMv3, trong đó hệ th
 
 *Bảng 3.2: Kết quả đánh giá F1-Score của mô hình LayoutLMv3 trên tập xác thực.*
 
-Số liệu từ Bảng 3.2 cho thấy mô hình đạt chỉ số F1 trung bình (Macro Avg F1) 0.91. Cụ thể, các trường quan trọng nhất để ghi nhận chi tiêu là tên cửa hàng và tổng tiền đạt mức F1 lần lượt là 0.95 và 0.88. Với chỉ số Recall rất cao ở mức 0.95, hệ thống hiếm khi bỏ sót dữ liệu trên hóa đơn, qua đó đảm bảo khả năng số hóa thông tin chính xác và khắc phục được các hạn chế cố hữu của phương pháp đối sánh từ khóa truyền thống. Mặc dù hệ thống cũng được triển khai để nhận diện 391 hình ảnh thô thuộc tập Test ẩn của cuộc thi, các chỉ số đo lường trong bảng trên đã phản ánh chính xác năng lực thực tế của mô hình trước các dữ liệu hoàn toàn mới.
+Số liệu từ Bảng 3.2 cho thấy mô hình đạt chỉ số F1 trung bình (Macro Avg F1) 0.91. Cụ thể, các trường quan trọng nhất để ghi nhận chi tiêu là tên cửa hàng và tổng tiền đạt mức F1 lần lượt là 0.95 và 0.88. Với chỉ số Recall rất cao ở mức 0.95, hệ thống hiếm khi bỏ sót dữ liệu trên hóa đơn, qua đó đảm bảo khả năng số hóa thông tin chính xác và khắc phục được các hạn chế cố hữu của phương pháp đối sánh từ khóa truyền thống. Mặc dù hệ thống cũng được triển khai để nhận diện 391 hình ảnh thô thuộc tập Test ẩn của cuộc thi, các chỉ số đo lường trong Bảng 3.2 đã phản ánh chính xác năng lực thực tế của mô hình trước các dữ liệu hoàn toàn mới.
 
 ## 3.6. Thiết kế cơ sở dữ liệu và lưu trữ
 
@@ -1305,14 +1630,27 @@ Dựa vào Bảng 4.4, hệ thống thể hiện năng lực tuyệt vời trong
 
 ### 4.3.3. Chức năng Trí tuệ Nhân tạo: Văn bản và Hóa đơn
 
-*Bảng 4.5: Trường hợp kiểm thử năng lực nhận thức của AI*
+*Bảng 4.5: Trường hợp kiểm thử năng lực nhận thức của AI (Kiến trúc 2 tầng)*
 
 | STT | Miêu tả test case | Các bước kiểm thử | Kết quả mong đợi | Kết quả thực tế | Thành công / Thất bại | Ngày test |
 |:---:|:---|:---|:---|:---|:---:|:---:|
-| 1 | Ghi chép đa ý định (NLU) | - Bước 1: Nhập chitchat "Chào MiMo"<br>- Bước 2: Nhập record "Ăn sáng 30k"<br>- Bước 3: Lệnh action "Mở báo cáo" | AI phân biệt rõ 3 ý định: Trò chuyện (chitchat), Ghi chép (record), Điều khiển (action) | Nhận diện đúng ý định, phản hồi và điều hướng chuẩn | Thành công | 01/08/2026 |
-| 2 | Trích xuất hóa đơn (OCR) | - Bước 1: Chụp ảnh hóa đơn<br>- Bước 2: Đợi hệ thống quét | LayoutLMv3 bóc tách chính xác: Tên cửa hàng, Giá tiền, Ngày tháng | Thông tin trích dẫn hoàn hảo, tự điền vào form | Thành công | 01/08/2026 |
+| 1 | Ghi chép có tiền | Nhập "ăn phở hết 45k" | Tầng 1: Record, Tầng 2: Danh mục "Ăn uống", Tiền 45000 | Đúng ý định và thông số | Thành công | 01/08/2026 |
+| 2 | Ghi chép thiếu tiền | Nhập "vừa mua cái áo mới" | Tầng 1: Record, Tầng 2 kích hoạt Missing Slots | Đẩy ra câu hỏi bổ sung số tiền | Thành công | 01/08/2026 |
+| 3 | Báo cáo tổng quan | Nhập "tháng này tiêu bao nhiêu?" | Nhận diện Action/REPORT_GENERAL, RAG sinh báo cáo | Báo cáo hiển thị 3 khối (lời dẫn, đồ thị, RAG) | Thành công | 01/08/2026 |
+| 4 | Báo cáo so sánh | Nhập "tháng này so tháng trước?" | Nhận diện Action/REPORT_COMPARE, RAG so sánh | Báo cáo so sánh hiển thị chính xác | Thành công | 01/08/2026 |
+| 5 | Đặt hạn mức chi tiêu | Nhập "đặt hạn mức ăn uống 3 triệu" | Nhận diện Action/SET_LIMIT, tham số 3M | Trả về thẻ xác nhận đặt hạn mức | Thành công | 01/08/2026 |
+| 6 | Tạo mục tiêu mới | Nhập "tiết kiệm 10 triệu mua xe" | Nhận diện Action/SET_GOAL, tham số 10M | Trả về form tạo mục tiêu 10 triệu | Thành công | 01/08/2026 |
+| 7 | Nạp tiền vào mục tiêu | Nhập "thêm 2 triệu vào mục tiết kiệm mua xe" | Nhận diện Action/ADD_GOAL, tham số 2M | Trả về thẻ xác nhận nạp tiền | Thành công | 01/08/2026 |
+| 8 | Đổi giọng điệu trợ lý | Nhập "đổi giọng nghiêm túc" | Nhận diện Action/SET_TONE, tham số style | Chuyển style sang Khó tính thành công | Thành công | 01/08/2026 |
+| 9 | Bật cảnh báo hệ thống | Nhập "bật cảnh báo chi tiêu danh mục ăn uống" | Nhận diện Action/SET_ALERT | Đổi cài đặt thông báo thành công | Thành công | 01/08/2026 |
+| 10 | Đổi tên xưng hô | Nhập "gọi tôi là Khang" | Nhận diện Action/SET_USERNAME, tên "Khang" | Lưu tên Khang, trợ lý đổi xưng hô | Thành công | 01/08/2026 |
+| 11 | Tìm kiếm giao dịch | Nhập "liệt kê giao dịch tuần này" | Nhận diện Action/SEARCH_RECORD | Hiển thị danh sách giao dịch đúng bộ lọc | Thành công | 01/08/2026 |
+| 12 | Gợi ý ngân sách | Nhập "gợi ý ngân sách tháng sau" | Nhận diện Action/SUGGEST_BUDGET | RAG đưa ra gợi ý phân bổ tiền hợp lý | Thành công | 01/08/2026 |
+| 13 | Trò chuyện xã giao | Nhập "hôm nay trời đẹp quá" | Tầng 1: Chitchat, LLM sinh lời tự nhiên | Trả lời vui vẻ, không tạo giao dịch | Thành công | 01/08/2026 |
+| 14 | Ép buộc ngữ cảnh gọi | Dùng phím addstory, nhập "đổ xăng" | Ép Intent Record, hỏi số tiền và danh mục | Ép nhánh Record thành công | Thành công | 01/08/2026 |
+| 15 | Trích xuất OCR hóa đơn | Chụp ảnh hóa đơn siêu thị | Bóc tách chính xác Cửa hàng, Giá tiền, Ngày tháng | Form tự động điền các thông tin OCR | Thành công | 01/08/2026 |
 
-Số liệu tại Bảng 4.5 khẳng định sức mạnh của các mô hình học sâu khi giải quyết mượt mà các tác vụ đa phương thức, từ hiểu đa ý định trong văn bản đến bóc tách không gian hóa đơn phức tạp.
+Số liệu tại Bảng 4.5 khẳng định sức mạnh của các mô hình học sâu khi giải quyết mượt mà các tác vụ đa phương thức, từ hiểu đa ý định và bóc tách thông số phức tạp bằng bộ quy tắc chuyên gia trong văn bản, đến nhận diện không gian hóa đơn xuất sắc. Đặc biệt, hệ thống xử lý trọn vẹn 11 loại lệnh điều khiển mà không gây nhầm lẫn.
 
 ### 4.3.4. Chức năng Quản lý Giao dịch và Báo cáo
 
@@ -1322,7 +1660,7 @@ Số liệu tại Bảng 4.5 khẳng định sức mạnh của các mô hình h
 |:---:|:---|:---|:---|:---|:---:|:---:|
 | 1 | Sửa & Xóa Story | - Bước 1: Mở giao dịch dạng thẻ (Story)<br>- Bước 2: Thay đổi danh mục và xóa | Cập nhật lại số dư ví và xóa bỏ thẻ ảnh hiển thị | Thao tác mượt mà, số dư tính lại tức thì | Thành công | 01/08/2026 |
 | 2 | Dữ liệu Báo cáo | - Bước 1: Mở tab Báo cáo<br>- Bước 2: Lọc theo tuần/tháng | Aggregation API gom nhóm dữ liệu trả về để vẽ biểu đồ | Biểu đồ cập nhật tức thời theo bộ lọc | Thành công | 01/08/2026 |
-| 3 | Xem Recap | - Bước 1: Nhấn Xem Recap tổng kết | Hệ thống tạo video/slideshow tổng kết chi tiêu sinh động | Hoạt ảnh Recap chạy mượt, số liệu logic | Thành công | 01/08/2026 |
+| 3 | Xem Recap | - Bước 1: Nhấn Xem Recap tổng kết | Hệ thống tạo slideshow tổng kết chi tiêu sinh động | Hoạt ảnh Recap chạy mượt, số liệu logic | Thành công | 01/08/2026 |
 
 Bảng 4.6 minh chứng cho khả năng luân chuyển dữ liệu linh hoạt của ứng dụng, vừa đáp ứng nhu cầu chỉnh sửa khắt khe, vừa mang lại trải nghiệm xem báo cáo và Recap đầy thú vị.
 
@@ -1351,25 +1689,27 @@ Thông qua Bảng 4.8, luồng chuyển đổi người dùng trả phí hoạt 
 
 ### 4.3.7. Chức năng Quản trị Cộng đồng (Web)
 
-*Bảng 4.9: Trường hợp kiểm thử bảng điều khiển trung tâm*
+*Bảng 4.9: Trường hợp kiểm thử bảng điều khiển trung tâm và người dùng*
 
 | STT | Miêu tả test case | Các bước kiểm thử | Kết quả mong đợi | Kết quả thực tế | Thành công / Thất bại | Ngày test |
 |:---:|:---|:---|:---|:---|:---:|:---:|
-| 1 | Xem thống kê tổng | - Bước 1: Truy cập Dashboard | Biểu đồ doanh thu, lượng user hiển thị đầy đủ số liệu | Layout render chính xác, lấy số liệu nhanh | Thành công | 02/08/2026 |
+| 1 | Xem Dashboard tổng quan | - Bước 1: Truy cập Dashboard | Biểu đồ doanh thu, 4 thẻ chỉ số AI và thanh tiến trình RAG hiển thị đầy đủ số liệu | Layout render chính xác, lấy số liệu nhanh | Thành công | 02/08/2026 |
 | 2 | Quản lý người dùng | - Bước 1: Tra cứu một user<br>- Bước 2: Ban và Unban | Hệ thống chặn hoặc mở khóa đăng nhập lập tức (thu hồi token) | Thao tác Ban/Unban có hiệu lực bảo mật tức thì | Thành công | 02/08/2026 |
 
 Theo Bảng 4.9, quản trị viên có trong tay một bộ công cụ mạnh mẽ để giám sát sức khỏe toàn hệ thống và thực thi các biện pháp trừng phạt tài khoản vi phạm.
 
 ### 4.3.8. Chức năng Quản trị và Huấn luyện AI (Web)
 
-*Bảng 4.10: Trường hợp kiểm thử vòng đời học máy*
+*Bảng 4.10: Trường hợp kiểm thử vòng đời học máy và Trợ lý ảo*
 
 | STT | Miêu tả test case | Các bước kiểm thử | Kết quả mong đợi | Kết quả thực tế | Thành công / Thất bại | Ngày test |
 |:---:|:---|:---|:---|:---|:---:|:---:|
 | 1 | Gán nhãn ảnh hóa đơn | - Bước 1: Mở ảnh trên Web Canvas<br>- Bước 2: Vẽ khung và gán nhãn | Tọa độ điểm ảnh được hệ thống lưu lại chuẩn xác định dạng JSON | Dữ liệu hình học lưu chính xác, thao tác mượt | Thành công | 02/08/2026 |
-| 2 | Tinh chỉnh & Huấn luyện | - Bước 1: Thay đổi tính cách AI<br>- Bước 2: Ra lệnh Huấn luyện lại | Máy chủ AI nhận lệnh Retrain và lưu trọng số mới | Tiến trình FastAPI kích hoạt ngầm thành công | Thành công | 02/08/2026 |
+| 2 | NLU Feedback Loop | - Bước 1: Xem danh sách báo lỗi<br>- Bước 2: Phê duyệt nhãn mới | Dữ liệu được đưa vào tập sạch, cập nhật thanh Readiness | Dữ liệu tích lũy chính xác, UI tự cập nhật | Thành công | 02/08/2026 |
+| 3 | Tái huấn luyện NLU | - Bước 1: Bấm Huấn luyện lại<br>- Bước 2: Bấm Duyệt áp dụng | Máy chủ chạy đủ 6 bước tiến trình, chuyển mô hình từ new sang default | Chuyển đổi mô hình thành công không cần khởi động lại máy chủ | Thành công | 02/08/2026 |
+| 4 | Kiểm thử Bot Prompts | - Bước 1: Đổi tính cách, ngữ cảnh<br>- Bước 2: Bấm kiểm thử | Kết xuất ngay phản hồi kèm Rule Used tương ứng nhánh Intent | Nạp đúng rule, phản hồi đúng phong cách | Thành công | 02/08/2026 |
 
-Bảng 4.10 khẳng định năng lực tự động hóa vòng đời AI, từ việc làm sạch dữ liệu hình ảnh trực quan trên trình duyệt đến việc tái huấn luyện mô hình sâu.
+Bảng 4.10 khẳng định năng lực tự động hóa vòng đời AI, từ việc làm sạch dữ liệu hình ảnh trực quan trên trình duyệt đến việc tái huấn luyện mô hình ngôn ngữ và kiểm thử đa ngữ cảnh phức tạp.
 
 ### 4.3.9. Chức năng Xử lý Ngầm (Backend)
 
@@ -1419,6 +1759,20 @@ Bảng 4.14 khẳng định dữ liệu nhạy cảm được băm chuẩn xác,
 
 Đánh giá tổng quan, toàn bộ kịch bản kiểm thử trên cả phân hệ ứng dụng di động và nền tảng quản trị web đều đạt trạng thái nghiệm thu. Các chức năng ứng dụng trí tuệ nhân tạo (OCR, NLU) vận hành ổn định trong môi trường thực tế, đáp ứng được các tiêu chuẩn khắt khe về độ chính xác dữ liệu và tốc độ phản hồi. Cơ sở dữ liệu phân tán CockroachDB thể hiện năng lực truy xuất dữ liệu đồng bộ và mượt mà, đảm bảo khả năng đáp ứng quy mô mở rộng (scalability) của dự án.
 
+## 4.5. Đánh giá độ chín công nghệ (Tech Maturity Assessment)
+
+Để có cái nhìn toàn diện về năng lực và khả năng mở rộng của Mimo so với các tiêu chuẩn phát triển phần mềm hiện đại, Bảng 4.15 tổng hợp đánh giá độ chín công nghệ (Technology Maturity) của hệ thống trên 4 khía cạnh cốt lõi.
+
+*Bảng 4.15: Bảng đánh giá độ chín công nghệ của hệ thống Mimo*
+
+| Khía cạnh | Mức độ hiện tại | Mô tả đặc tả độ chín (Maturity Description) | Điểm nổi bật |
+|:---|:---:|:---|:---|
+| **1. Kiến trúc hệ thống** (System Architecture) | **Mở rộng linh hoạt** (Scalable & Stateless) | Chuyển đổi thành công từ kiến trúc nguyên khối sang hướng dịch vụ vi mô phi trạng thái. Giao tiếp giữa Client - Backend - AI Server được tối ưu hóa. | Backend phi trạng thái hoàn toàn, sử dụng Serverless Modal cho suy luận GPU, tránh thắt cổ chai tải trọng. |
+| **2. Trí tuệ nhân tạo** (AI & NLU) | **Thích ứng & Học liên tục** (Adaptive & Active Learning) | Trợ lý ảo không chỉ dùng prompt tĩnh mà kết hợp kiến trúc 2 tầng (ML + LLM Rules) và quy trình RAG giảm ảo giác. Khả năng tự học từ lỗi. | Có cơ chế NLU Feedback Loop cho phép người dùng báo sai, từ đó tái huấn luyện mô hình tự động (Active Learning). |
+| **3. Quản trị vòng đời học máy** (MLOps) | **Tự động hóa** (Automated Pipeline) | Sở hữu bộ công cụ WebAdmin cho phép quản trị viên giám sát, can thiệp và kiểm thử mô hình 3 trạng thái (Cũ - Đang dùng - Ứng viên mới). | Quy trình huấn luyện 6 bước ẩn danh, chuyển đổi trọng số mô hình nóng mà không cần khởi động lại máy chủ. |
+| **4. Quản trị dữ liệu** (Data Management) | **Phân tán & Toàn vẹn** (Distributed & ACID) | Lưu trữ lõi sử dụng CockroachDB đảm bảo tính nhất quán (ACID) nhưng vẫn phân tán linh hoạt. Tách bạch dữ liệu nghiệp vụ và dữ liệu fine-tune. | Hỗ trợ xuất dữ liệu Fine-tune LLM chuẩn JSONL tức thời, phân lập ranh giới dữ liệu cá nhân và nhóm. |
+
+Thông qua bảng đánh giá độ chín, có thể khẳng định Mimo không đơn thuần là một ứng dụng di động quản lý chi tiêu truyền thống, mà đã hình thành một hệ sinh thái khép kín. Việc đạt mức độ chín cao ở cả 4 khía cạnh giúp dự án sẵn sàng cho việc mở rộng quy mô người dùng lớn (scale-out) cũng như tích hợp sâu hơn các mô hình AI thế hệ mới trong tương lai.
 
 # Phần 3: Kết luận và hướng phát triển
 

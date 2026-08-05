@@ -737,6 +737,41 @@ async function executeReport(userId, { timeRange, categoryCode, reportKind, text
     console.error('Failed to query peer benchmark:', err);
   }
 
+  // 6. Fetch by_member if walletId is a group wallet
+  let byMember = null;
+  try {
+    if (walletId) {
+      const wRes = await query('SELECT type, name FROM wallets WHERE id = $1', [walletId]);
+      if (wRes.rows.length > 0 && wRes.rows[0].type === 'group') {
+        const memRes = await query(
+          `SELECT COALESCE(u.display_name, u.email, 'Thành viên') AS member_name,
+                  u.id AS user_id,
+                  COALESCE(SUM(t.amount), 0)::numeric AS total,
+                  COUNT(t.id)::int AS count
+           FROM wallet_members wm
+           JOIN users u ON wm.user_id = u.id
+           LEFT JOIN transactions t ON t.user_id = u.id 
+                 AND t.wallet_id = $1 
+                 AND t.is_deleted = FALSE 
+                 AND t.occurred_at BETWEEN $2 AND $3
+                 AND t.type = 'expense'
+           WHERE wm.wallet_id = $1
+           GROUP BY u.id, u.display_name, u.email
+           ORDER BY total DESC`,
+          [walletId, range.from, range.to]
+        );
+        byMember = memRes.rows.map(r => ({
+          userId: r.user_id,
+          memberName: r.member_name,
+          total: Number(r.total),
+          count: r.count
+        }));
+      }
+    }
+  } catch (err) {
+    console.error('Failed to query by_member for group wallet:', err);
+  }
+
   const payload = {
     kind: 'report',
     report_kind: kind,
@@ -748,6 +783,7 @@ async function executeReport(userId, { timeRange, categoryCode, reportKind, text
     by_category: enriched.slice(0, 8),
     by_day: days,
     prev_by_day: prevByDay,
+    by_member: byMember,
     range: dash.range,
     compare_percent: comparePercent,
     limit_amount: limitAmount,
@@ -762,6 +798,7 @@ async function executeReport(userId, { timeRange, categoryCode, reportKind, text
   payload.message = buildReportStory(payload);
   return payload;
 }
+
 
 async function executeSetLimit(userId, payload) {
   const actionDetails = payload.actionDetails || {};
@@ -856,7 +893,8 @@ async function executeSetGoal(userId, payload) {
   const toolType = payload.toolType || actionDetails.tool_type || actionDetails.toolType || null;
   const verb = String(payload.verb || actionDetails.verb || '').toUpperCase();
   const actionType = String(payload.actionType || '').toUpperCase();
-  const isAddAction = verb === 'ADD' || actionType === 'ADD_GOAL';
+  const isAddAction = verb === 'ADD' || actionType === 'ADD_GOAL' || actionType === 'GOP_TIEN' || actionType === 'CONTRIBUTE_GOAL';
+
 
 
 
@@ -1563,9 +1601,16 @@ function buildReportStory(actionResult) {
   if (limit_amount) {
     story += `, đã chạm mức ${limit_progress}% của hạn mức tháng (${formatVnd(limit_amount)}đ)`;
   }
+  if (actionResult.by_member && actionResult.by_member.length > 0) {
+    const topMem = actionResult.by_member[0];
+    if (topMem && topMem.total > 0) {
+      story += `. Trong nhóm, ${topMem.memberName} đang tiêu nhiều nhất (${formatVnd(topMem.total)}đ)`;
+    }
+  }
   story += `. Tém tém lại thôi!`;
   return story;
 }
+
 
 function detectReportKind(text, actionType) {
   const t = _norm(text || '');
@@ -1624,7 +1669,7 @@ function actionPreviewLabel(actionType, { amount, categoryCode } = {}) {
   return actionType;
 }
 
-function generateGoalRecapCommentary(goalData = {}, userProfile = {}) {
+async function generateGoalRecapCommentary(goalData = {}, userProfile = {}) {
   const userName = userProfile.displayName || userProfile.name || 'bạn';
   const goalName = goalData.name || 'Mục tiêu tài chính';
   const isGroup = Boolean(goalData.isGroup || goalData.is_group);
@@ -1638,19 +1683,54 @@ function generateGoalRecapCommentary(goalData = {}, userProfile = {}) {
   let mascotMood = 'Celebrate';
   let commentary = '';
 
-  if (!isGroup) {
-    if (tone.includes('strict') || tone.includes('dan')) {
-      commentary = `Hmm, công nhận lần này làm nghiêm túc đấy ${userName}! Bền bỉ ${totalContribs} lần đóng góp không thèm rút lõi giữa chừng, toàn bộ số tiền đã nằm gọn trong quỹ "${goalName}". Tiếp tục giữ vững phong độ, đừng có mà tiêu xài phung phí hết nghe chưa!`;
-    } else {
-      commentary = `100 điểm không có nhưng cho ${userName}! Bạn đã xuất sắc hoàn thành "${goalName}"${earlyDays > 0 ? ` sớm hơn hạn tận ${earlyDays} ngày` : ''}! Với ${totalContribs} lần kiên trì trích quỹ và kỷ luật tuyệt vời, ước mơ tài chính nào bạn cũng sẽ chinh phục được thôi!`;
+  const aiClient = require('../../services/aiClient');
+  const systemPrompt = `Bạn là MiMo, một trợ lý tài chính thông minh.
+Nhiệm vụ của bạn là viết một đoạn nhận xét (khoảng 3-4 câu) gửi lời chúc mừng người dùng đã hoàn thành mục tiêu/thử thách tài chính.
+Hãy viết một cách tự nhiên, sinh động, phù hợp với phong cách (tone) là: ${tone}.
+TUYỆT ĐỐI KHÔNG dùng định dạng markdown (như in đậm **, in nghiêng). Chỉ dùng văn bản thuần túy. Không dùng ngoặc kép hoặc ngoặc đơn trừ khi thật cần thiết.
+ĐỊNH DẠNG TRẢ VỀ LÀ JSON:
+{
+  "commentary": "nội dung nhận xét của bạn"
+}`;
+
+  const userPrompt = `[THÔNG TIN MỤC TIÊU]
+Tên người dùng: ${userName}
+Tên mục tiêu: ${goalName}
+Là nhóm: ${isGroup ? 'Có' : 'Không'}
+Mục tiêu chung: ${isChallenge ? 'Thử thách' : (isGroup ? 'Tiết kiệm nhóm' : 'Tiết kiệm cá nhân')}
+Số lần đóng góp: ${totalContribs}
+Hoàn thành sớm: ${earlyDays > 0 ? `${earlyDays} ngày` : 'Không'}
+Thành viên nổi bật (nếu có): ${topContributor ? `${topContributor.name} (${topContributor.percentage}%)` : 'Không có'}
+
+Viết đoạn nhận xét chúc mừng (JSON format):`;
+
+  try {
+    const result = await aiClient.testPrompt({
+      text: userPrompt,
+      override_prompt: systemPrompt
+    });
+    if (result && result.result && result.result.commentary) {
+      commentary = result.result.commentary;
     }
-  } else {
-    const mvpName = topContributor?.name || userName;
-    const mvpPercent = topContributor?.percentage ? ` (${topContributor.percentage}%)` : '';
-    if (tone.includes('strict') || tone.includes('dan')) {
-      commentary = `Không uổng công nhắc nhở hằng ngày, cuối cùng cả hội cũng hoàn thành quỹ "${goalName}"! Khen ngợi MVP ${mvpName}${mvpPercent} đã dẫn đầu đóng góp tích cực, các thành viên còn lại cũng rất hợp tác. Chúc cả nhóm tận hưởng thành quả xứng đáng!`;
+  } catch (err) {
+    console.error('Lỗi khi tạo nhận xét Recap bằng LLM:', err.message);
+  }
+
+  if (!commentary) {
+    if (!isGroup) {
+      if (tone.includes('strict') || tone.includes('dan')) {
+        commentary = `Hmm, công nhận lần này làm nghiêm túc đấy ${userName}! Bền bỉ ${totalContribs} lần đóng góp không thèm rút lõi giữa chừng, toàn bộ số tiền đã nằm gọn trong quỹ "${goalName}". Tiếp tục giữ vững phong độ, đừng có mà tiêu xài phung phí hết nghe chưa!`;
+      } else {
+        commentary = `100 điểm không có nhưng cho ${userName}! Bạn đã xuất sắc hoàn thành "${goalName}"${earlyDays > 0 ? ` sớm hơn hạn tận ${earlyDays} ngày` : ''}! Với ${totalContribs} lần kiên trì trích quỹ và kỷ luật tuyệt vời, ước mơ tài chính nào bạn cũng sẽ chinh phục được thôi!`;
+      }
     } else {
-      commentary = `Đoàn kết là chấp hết! Cả chiến đội đã cùng chinh phục thành công "${goalName}" xuất sắc! Đặc biệt vinh danh MVP ${mvpName}${mvpPercent} gánh team cùng tinh thần đồng tâm hiệp lực của tất cả thành viên. Chúc mừng chiến thắng chung của chúng ta!`;
+      const mvpName = topContributor?.name || userName;
+      const mvpPercent = topContributor?.percentage ? ` (${topContributor.percentage}%)` : '';
+      if (tone.includes('strict') || tone.includes('dan')) {
+        commentary = `Không uổng công nhắc nhở hằng ngày, cuối cùng cả hội cũng hoàn thành quỹ "${goalName}"! Khen ngợi MVP ${mvpName}${mvpPercent} đã dẫn đầu đóng góp tích cực, các thành viên còn lại cũng rất hợp tác. Chúc cả nhóm tận hưởng thành quả xứng đáng!`;
+      } else {
+        commentary = `Đoàn kết là chấp hết! Cả chiến đội đã cùng chinh phục thành công "${goalName}" xuất sắc! Đặc biệt vinh danh MVP ${mvpName}${mvpPercent} gánh team cùng tinh thần đồng tâm hiệp lực của tất cả thành viên. Chúc mừng chiến thắng chung của chúng ta!`;
+      }
     }
   }
 
@@ -1664,45 +1744,94 @@ function generateGoalRecapCommentary(goalData = {}, userProfile = {}) {
   };
 }
 
-function checkMissingSlots(actionType, payload, actionDetails) {
-  const missing = [];
+function checkMissingSlots(actionType, payload = {}, actionDetails = {}) {
   const t = String(actionType || '').toUpperCase();
-  
-  if (t.includes('GOAL')) {
-    let goalName = actionDetails?.goal_name || payload.goalName || null;
+  const missing = [];
+  const currentSlots = {};
+
+  const isEmpty = (val) => val === null || val === undefined || String(val).trim() === '';
+
+  if (t === 'SET_LIMIT' || t.includes('LIMIT')) {
+    const amount = resolveAmount(payload, actionDetails);
+    currentSlots.amount = amount;
+    if (!amount) missing.push('amount');
+  } else if (t === 'REPORT_COMPARE') {
+    const timeRange = payload.timeRange || payload.time_range || actionDetails.time_range || null;
+    currentSlots.time_range = timeRange;
+    if (isEmpty(timeRange)) missing.push('time_range');
+  } else if (t === 'SET_GOAL' || t.includes('GOAL') && !t.includes('ADD_GOAL')) {
+    let goalName = actionDetails?.goal_name || payload.goalName || payload.goal_name || null;
     if (!goalName && payload.text) {
       const m = payload.text.match(/(?:mục tiêu|muc tieu|thử thách|thu thach|quỹ|quy)\s+([A-Za-zÀ-ỹ\s]+?)(?:\s+\d+|\s*$)/i);
       if (m) goalName = m[1].trim();
     }
     const amount = resolveAmount(payload, actionDetails);
-    
-    if (!goalName) missing.push('goal_name');
+    const toolType = actionDetails?.tool_type || payload.toolType || payload.tool_type || null;
+
+    currentSlots.goal_name = goalName;
+    currentSlots.amount = amount;
+    currentSlots.tool_type = toolType;
+
+    if (isEmpty(goalName)) missing.push('goal_name');
     if (!amount) missing.push('amount');
-    
-    if (missing.length > 0) {
-      return {
-        kind: 'missing_slots',
-        action_type: actionType,
-        missing,
-        current_slots: { goal_name: goalName, amount },
-        message: `Mimo cần bổ sung thêm thông tin: ${missing.map(m => m === 'amount' ? 'số tiền' : 'tên mục tiêu').join(' và ')}.`
-      };
+    if (isEmpty(toolType)) {
+      missing.push('tool_type');
+    } else if (String(toolType).toLowerCase() === 'loan') {
+      const contactName = actionDetails?.contact_name || payload.contactName || payload.contact_name || null;
+      const loanType = actionDetails?.loan_type || payload.loanType || payload.loan_type || null;
+      currentSlots.contact_name = contactName;
+      currentSlots.loan_type = loanType;
+      if (isEmpty(contactName)) missing.push('contact_name');
+      if (isEmpty(loanType)) missing.push('loan_type');
     }
-  } else if (t.includes('LIMIT')) {
+  } else if (t === 'ADD_GOAL') {
     const amount = resolveAmount(payload, actionDetails);
-    if (!amount) {
-      return {
-        kind: 'missing_slots',
-        action_type: actionType,
-        missing: ['amount'],
-        current_slots: { amount },
-        message: 'Mimo chưa rõ hạn mức là bao nhiêu nè?'
-      };
-    }
+    currentSlots.amount = amount;
+    if (!amount) missing.push('amount');
+  } else if (t === 'SET_TONE' || t.includes('TONE')) {
+    const verbalStyle = actionDetails?.verbal_style || payload.verbalStyle || payload.verbal_style || payload.persona || null;
+    currentSlots.verbal_style = verbalStyle;
+    if (isEmpty(verbalStyle)) missing.push('verbal_style');
+  } else if (t === 'SET_ALERT' || t.includes('ALERT')) {
+    const enabled = actionDetails?.enabled !== undefined ? actionDetails.enabled : (payload.enabled !== undefined ? payload.enabled : null);
+    currentSlots.enabled = enabled;
+    if (enabled === null || enabled === undefined) missing.push('enabled');
+  } else if (t === 'SYSTEM_SETTING' || t.includes('SETTING')) {
+    const theme = actionDetails?.theme || payload.theme || null;
+    currentSlots.theme = theme;
+    if (isEmpty(theme)) missing.push('theme');
+  } else if (t === 'SET_USERNAME' || t.includes('USERNAME')) {
+    const query = actionDetails?.query || actionDetails?.item || payload.query || payload.username || null;
+    currentSlots.query = query;
+    if (isEmpty(query)) missing.push('query');
   }
-  
+
+  if (missing.length > 0) {
+    const fieldNamesVi = {
+      amount: 'số tiền',
+      goal_name: 'tên mục tiêu',
+      time_range: 'khoảng thời gian',
+      tool_type: 'loại công cụ',
+      contact_name: 'tên liên hệ',
+      loan_type: 'loại vay/mượn',
+      verbal_style: 'phong cách nói',
+      enabled: 'trạng thái bật/tắt',
+      theme: 'giao diện',
+      query: 'tên người dùng'
+    };
+    const labels = missing.map(m => fieldNamesVi[m] || m).join(', ');
+    return {
+      kind: 'missing_slots',
+      action_type: actionType,
+      missing,
+      current_slots: currentSlots,
+      message: `Mimo cần bạn cung cấp thêm: ${labels} nhé!`
+    };
+  }
+
   return null;
 }
+
 
 module.exports = {
   isReportAction,

@@ -43,10 +43,36 @@ User text  +  caller_context (chat | addstory)
   ↓
 [BE nhận kết quả]
   → Kiểm tra missing slots theo từng action_type
-  → Trả về missing_slots[] nếu thiếu → Mobile/App yêu cầu người dùng bổ sung
 ```
 
+### 2.3. Đảm bảo tính cách ly & an toàn đồng thời (Multi-tenancy & Concurrency Safety)
+
+Khi nhiều người dùng cùng gửi request đồng thời đến luồng 2 tầng (Stage 1 LLM Intent + Stage 2 LLM Trích xuất), hệ thống phải ngăn chặn tuyệt đối tình trạng:
+- **Nhầm lẫn ngữ cảnh cá nhân:** Thông tin người dùng A (`user_name`, hạn mức, relationship rules "CHA_ME") bị tiêm nhầm vào prompt của người dùng B.
+- **Race condition / Trạng thái chia sẻ:** Các request ghi đè lên bộ nhớ tạm của nhau.
+- **Nghẽn cổ chai (Bottleneck) khi tải cao:** Container inference bị khóa hoặc phản hồi sai stream.
+
+#### Giải pháp kiến trúc 4 lớp khắc phục nhầm lẫn đồng thời:
+
+1. **Stateless Request Context (Hoàn toàn không lưu state tại LLM Handler):**
+   - Mọi hàm xử lý trong `llm_intent_handler.py` (`run_llm_nlu_v2`) đều **stateless**. Không sử dụng bất kỳ biến toàn cục (`global`) hay instance variable chia sẻ nào để lưu trữ ngữ cảnh hội thoại hay persona.
+   - Toàn bộ thông tin cá nhân hóa (`user_name`, `relationship_rules`, `budget_remain`, `caller_context`) được truyền vào dưới dạng **Request-scoped parameters** qua từng lời gọi HTTP từ Backend Node.js.
+   - Prompt string được khởi tạo mới hoàn toàn trong biến cục bộ (`local scope`) của từng HTTP request execution thread.
+
+2. **Transaction / Correlation ID Isolation:**
+   - Mỗi HTTP request từ Node.js gửi đến FastAPI AI mang theo `request_id` (UUID) và `user_id`.
+   - Trong log và các luồng xử lý bất đồng bộ, UUID này được gắn kèm để đảm bảo truy vết chính xác từ đầu vào đến đầu ra, không bị xáo trộn giữa các concurrent requests.
+
+3. **Serverless Concurrency trên Modal Cloud (`modal_app.py`):**
+   - Cấu hình `allow_concurrent_inputs=10` trên container Modal để cho phép 10 request song song trên 1 GPU, tận dụng vLLM / HuggingFace dynamic batching mà không bị nghẽn.
+   - Khi vượt quá concurrency limit, Modal tự động scale-out thêm container mới (auto-scaling), bảo đảm tính cô lập tài nguyên cho các luồng request lớn.
+
+4. **Cách ly dữ liệu người dùng tại tầng Database & Training:**
+   - Khi người dùng gửi feedback `dislike` hoặc sửa lỗi category, bản ghi được gắn chặt với `user_id`.
+   - Lớp cá nhân hóa danh mục (Stage 2 Custom Category) chỉ load các rule thuộc quyền sở hữu của chính `user_id` đó trong phiên request, không áp dụng chéo sang người dùng khác.
+
 ---
+
 
 ## 3. XÓA toàn bộ luồng Gemini (ưu tiên cao nhất)
 
@@ -98,14 +124,52 @@ Toàn bộ rule kế thừa từ `llm_prompts.py` hiện tại. Cấu trúc:
 
 ```
 llm_rules.json
-├── record_rule        ← kế thừa UNIFIED_NLU_PROMPT phần Record + RECORD_SLOT_EXTRACTION_PROMPT
-├── action_rule        ← kế thừa UNIFIED_NLU_PROMPT phần Action + ACTION_SLOT_EXTRACTION_PROMPT
-├── chitchat_rule      ← kế thừa UNIFIED_NLU_PROMPT phần Chitchat
-├── action_slot_schema ← template đầu ra cố định cho từng action_type (để BE check missing)
-└── relationship_rules ← CHA_ME, NGUOI_YEU (kế thừa từ prompts.json relationship_override)
+├── intent_classification_rule  ← (MỚI) dùng cho LLM classify intent ở Stage 1 và majority vote
+├── record_rule                 ← kế thừa UNIFIED_NLU_PROMPT phần Record + RECORD_SLOT_EXTRACTION_PROMPT
+├── action_rule                 ← kế thừa UNIFIED_NLU_PROMPT phần Action + ACTION_SLOT_EXTRACTION_PROMPT
+├── chitchat_rule               ← kế thừa UNIFIED_NLU_PROMPT phần Chitchat
+├── action_slot_schema          ← template đầu ra cố định cho từng action_type (để BE check missing)
+└── relationship_rules          ← CHA_ME, NGUOI_YEU (kế thừa từ prompts.json relationship_override)
+```
+
+### 4.0 INTENT_CLASSIFICATION_RULE — phân loại intent bằng LLM (MỚI)
+
+Dùng khi LLM là model chính ở Stage 1, hoặc khi majority vote cần LLM classify intent bổ trợ.
+
+Kế thừa từ `INTENT_CLASSIFICATION_PROMPT` trong `llm_prompts.py` (dòng 93-106):
+
+```
+[SCHEMA ĐẦU RA — INTENT CLASSIFICATION]
+{
+  "intent": "Record" | "Action" | "Chitchat",
+  "confidence": 0.0-1.0
+}
+
+[QUY TẮC PHÂN LOẠI INTENT]
+- "Record": Khi người dùng ghi nhận chi tiêu hoặc thu nhập.
+  Ví dụ: "mua cà phê 30k", "được lương 10 triệu", "ăn sáng nè", "đổ xăng rồi".
+  Bao gồm cả khi không có số tiền nhưng CÓ động từ hành động chi tiêu/thu nhập
+  rõ ràng (ăn, mua, đổ, trả, nhận, chi, tiêu...).
+
+- "Action": Khi người dùng yêu cầu thực hiện hành động hệ thống.
+  Ví dụ: "tháng này tiêu bao nhiêu" (báo cáo), "đặt hạn mức 3 triệu" (cài đặt),
+  "gọi tôi là Khang" (đổi tên), "chuyển sang dark mode" (giao diện),
+  "bật cảnh báo" (cảnh báo), "liệt kê giao dịch tuần này" (tìm kiếm).
+
+- "Chitchat": Trò chuyện phiếm, tâm sự, hỏi đáp không liên quan trực tiếp
+  đến ghi chép hay lệnh hệ thống.
+  Ví dụ: "xin chào", "hôm nay trời đẹp quá", "bạn khỏe không".
+  LƯU Ý: Khi câu nhắc đến mua sắm/tiền bạc nhưng là nói phiếm
+  (không phải ghi nhận mới) → vẫn là Chitchat.
+
+Chỉ trả về JSON, không giải thích.
 ```
 
 ### 4.1 RECORD_RULE — đầy đủ kế thừa từ llm_prompts.py
+
+LƯU Ý QUAN TRỌNG VỀ LUỒNG XỬ LÝ RECORD:
+- Khi backend Stage 2 = LLM: Dùng toàn bộ RECORD_RULE bên dưới, LLM vừa classify category vừa sinh response trong 1 lần gọi.
+- Khi backend Stage 2 = TF-IDF hoặc Encoder: Model truyền thống classify category trước. Sau đó gọi LLM 1 lần riêng với RECORD_RULE (nhưng category đã biết, LLM chỉ sinh response/emotion/persona). Trong trường hợp này, system prompt bổ sung: "Danh mục đã được xác định là: {category}. Hãy sinh câu phản hồi phù hợp."
 
 ```
 [SCHEMA ĐẦU RA — RECORD]
@@ -120,6 +184,7 @@ llm_rules.json
   "response": "<NLG tiếng Việt, 2-3 câu, kèm emoji>",
   "suggested_actions": null
 }
+
 
 [QUY TẮC RECORD_TYPE]
 - "Expense": chi tiền ra — mua, đóng, ăn, trả, đổ, nạp.
@@ -316,7 +381,21 @@ nếu người dùng có đề cập đến danh mục dù ở bất kỳ intent
 - 2-3 câu, TIẾNG VIỆT 100%, kèm emoji.
 - Gọi người dùng bằng tên CONTEXT_META.username nếu có.
 - TUYỆT ĐỐI không dùng tiếng nước ngoài.
+
+[VÍ DỤ MẪU — FEW-SHOT EXAMPLES]
+- Ví dụ 1 (SET_GOAL — Tạo mục tiêu mới / Vay mượn):
+  Input: "mình muốn tiết kiệm 50 triệu mua xe máy trong 6 tháng tới"
+  Output JSON: {"action_type": "SET_GOAL", "slots": {"goal_name": "mua xe máy", "amount": 50000000, "due_date": "6 tháng", "tool_type": "saving"}, "emotion": "Happy", "response": "Mimo đã chuẩn bị mục tiêu tiết kiệm 50 triệu mua xe máy cho bạn rồi nè! 🏍️ Bạn xác nhận nhé?"}
+
+- Ví dụ 2 (ADD_GOAL — Nạp tiền vào quỹ mục tiêu đã có):
+  Input: "mới bỏ 2 triệu vào quỹ mua xe máy"
+  Output JSON: {"action_type": "ADD_GOAL", "slots": {"goal_name": "mua xe máy", "amount": 2000000}, "emotion": "Proud", "response": "Tuyệt vời! 🎉 Bạn đã nạp 2 triệu vào quỹ mua xe máy. Sắp hoàn thành mục tiêu rồi!"}
+
+- Ví dụ 3 (REPORT_COMPARE — So sánh chi tiêu):
+  Input: "tháng này tiêu có nhiều hơn tháng trước không?"
+  Output JSON: {"action_type": "REPORT_COMPARE", "slots": {"time_range": "tháng này so với tháng trước"}, "emotion": "Neutral", "response": "Để Mimo so sánh chi tiêu tháng này và tháng trước cho bạn xem nha! 📊"}
 ```
+
 
 ### 4.3 CHITCHAT_RULE — đầy đủ kế thừa từ llm_prompts.py
 
@@ -452,7 +531,9 @@ def _build_relationship_addition(text: str, prompts_config: dict) -> str:
 
 ---
 
-## 5. Template missing slots theo action_type — để BE check
+## 5. Kiểm soát chất lượng & Kiểm chứng Action Type do LLM nhận dạng
+
+### 5.1 Template missing slots theo action_type — để BE check
 
 Định nghĩa trong `action_slot_schema` của `llm_rules.json`:
 
@@ -549,7 +630,86 @@ function checkMissingSlots(actionType, slots, schema) {
 // Trả về missing_slots[] cho Mobile/App để hỏi người dùng bổ sung
 ```
 
+### 5.2 Đảm bảo độ chính xác & kiểm chứng nhãn Action Type do LLM nhận dạng
+
+Khi tách luồng Action và giao toàn bộ cho LLM Qwen nhận dạng `action_type`, hệ thống áp dụng cơ chế bảo đảm chất lượng theo **3 lớp bảo vệ (Accuracy Guarantees)** và **3 phương pháp kiểm thử (Verification Methods)**:
+
+#### A. 3 Lớp bảo vệ độ chính xác (Accuracy Guarantees)
+1. **Closed Enum Schema & Disambiguation Rules trong System Prompt:**
+   - LLM bị ép buộc tuân thủ danh sách 11 chuỗi `action_type` hợp lệ (không được bịa chuỗi lạ - hallucination).
+   - Trong `action_rule.system` của `llm_rules.json`, có quy tắc phân định rõ ràng các cặp lệnh dễ nhầm lẫn kèm câu mẫu (Few-shot examples):
+     - `SET_GOAL` (thiết lập mục tiêu mới, vay mượn) vs `ADD_GOAL` (nạp thêm tiền vào mục tiêu hiện có).
+     - `SET_LIMIT` (cài đặt hạn mức tối đa cho danh mục) vs `SUGGEST_BUDGET` (hỏi xin lời khuyên ngân sách).
+     - `REPORT_GENERAL` (xem tổng chi tiêu) vs `REPORT_COMPARE` (so sánh chi tiêu giữa 2 kỳ).
+2. **Backend Sanity Check & Slot Compatibility Validation:**
+   - Tại `action.service.js`, sau khi kiểm tra nhãn thuộc Enum hợp lệ, Backend thực hiện đối chiếu logic giữa `action_type` và `slots` thu được.
+   - Nếu phát hiện mâu thuẫn (ví dụ: người dùng nói "đặt hạn mức ăn uống 3 triệu" nhưng LLM trả `REPORT_GENERAL`), Backend dùng `action_slot_schema` phát hiện có từ khóa hạn mức/số tiền để tự động chỉnh lưu nhãn hoặc trả về `missing_slots` hỏi lại người dùng để không thực hiện nhầm lệnh.
+3. **Confirmation Loop (Xác nhận từ người dùng trước khi thực thi):**
+   - Với các hành động làm thay đổi CSDL (như tạo hạn mức `SET_LIMIT`, tạo mục tiêu `SET_GOAL`, đổi tên `SET_USERNAME`), hệ thống không thay đổi ngầm mà hiển thị Card/Confirmation Sheet trên App để người dùng xác nhận lần cuối trước khi ghi nhận vào DB.
+
+#### B. 3 Phương pháp kiểm thử & đánh giá (Verification Methods)
+1. **Kiểm thử tự động bằng Golden Set Benchmark (WebAdmin NluOps):**
+   - Bộ Test chuẩn `src/nlu/llm_benchmark.py` chứa 50-100 câu mẫu khó bao phủ đủ 11 action_type.
+   - Trên WebAdmin, admin bấm **"Chạy Benchmark LLM Rules"** để đo lường chỉ số **Action Type Match Rate** (Tỷ lệ khớp nhãn % so với Golden Label). Hệ thống cảnh báo đỏ nếu chỉ số này dưới 90% để Prompt Engineer chỉnh sửa `action_rule.system`.
+2. **Thu thập phản hồi lỗi từ người dùng (Online Telemetry qua Dislike):**
+### 5.3 Quy trình RAG & Quy cách hiển thị UI cho Báo cáo/Tra cứu (REPORT_*, SEARCH_RECORD)
+
+Với các lệnh yêu cầu truy xuất dữ liệu chi tiêu trong CSDL (`REPORT_GENERAL`, `REPORT_COMPARE`, `SEARCH_RECORD`), hệ thống tuân thủ **quy trình RAG (Retrieval-Augmented Generation) 2 lần gọi LLM** và quy cách hiển thị **3 phần tử UI tuần tự (3 Bubbles/Widgets)** trên Chat Screen:
+
+```
+[1. NLU FastAPI - Gọi LLM lần 1] 
+  → Nhận dạng intent = Action, action_type = REPORT_*/SEARCH_RECORD, trích xuất slots (time_range, category)
+  → LLM KHÔNG sinh số liệu tài chính, chỉ trả lời placeholder mở lời
+
+[2. Backend Node.js - RAG Query Engine]
+  → Query MongoDB (transactions collection) theo user_id, time_range, category
+  → Lấy số liệu thực tế: Tổng thu, Tổng chi, Top danh mục, Danh sách giao dịch chi tiết
+
+[3. NLG RAG Generator - Gọi LLM lần 2 & UI Rendering trên Chat Screen]
+  ──> Hiển thị tuần tự 3 Bubble/Widget trên Chat Screen:
+  1. [Bubble 1 - LLM Action Type Response]: "Để Mimo tổng hợp chi tiêu tháng này cho bạn xem nha! 📊"
+  2. [Bubble 2 / Widget - Chart & Table]: Biểu đồ trực quan / Bảng so sánh / Danh sách giao dịch đã lấy từ DB
+  3. [Bubble 3 - RAG NLG Response]: Lời nhận xét, phân tích số liệu từ LLM lần 2 (vd: "Tháng này bạn chi ăn uống tăng 15% so với tháng trước...")
+```
+
+### 5.4 Quy cách hiển thị cho nhóm Action còn lại (1 lần gọi LLM) & Giao thức đồng bộ Missing Slots
+
+#### A. Quy cách hiển thị UI cho Action thường (`SET_LIMIT`, `SET_GOAL`, `ADD_GOAL`, `SET_TONE`, `SET_ALERT`, `SYSTEM_SETTING`, `SET_USERNAME`)
+- Chỉ gọi LLM 1 lần duy nhất tại NLU. Trên Chat Screen hiển thị đúng **2 phần tử UI**:
+  1. **[Bubble 1 - LLM Response Text]:** Câu trả lời NLG từ LLM (vd: *"Mimo đã chuẩn bị đặt hạn mức Ăn uống 3 triệu/tháng cho bạn rồi nè! 🎉"*).
+  2. **[Card xác nhận thao tác]:** Thẻ hiển thị ngay bên dưới Bubble 1 với 2 nút `[Xác nhận]` / `[Hủy]`.
+- **LƯU Ý UX QUAN TRỌNG:** Sau khi người dùng bấm `[Xác nhận]` hoặc `[Hủy]`, **Card xác nhận tự động chuyển trạng thái (disabled / "Đã xác nhận") hoặc ẩn nút bấm**. Tuyệt đối **KHÔNG** hiển thị thêm một bubble tin nhắn phản hồi mới từ Mimo (như "Đã thực hiện/Đã lưu thành công") để giữ cho luồng chat gọn gàng, không bị rác tin nhắn.
+
+#### B. Giao thức đồng bộ Chat Screen - Backend khi bổ sung Missing Slots (Interactive Slot Filling)
+Khi Backend Node.js phát hiện thiếu trường bắt buộc qua hàm `checkMissingSlots(actionType, slots, schema)` (ví dụ: `missing_slots = ["amount"]`), hệ thống thực hiện đồng bộ giao diện Chat và Backend như sau:
+
+```
+[Backend Node.js]
+  ── Trả về JSON (status: "pending_slot") ──> [Flutter App (Chat Screen)]
+  {                                              1. Hiển thị lời hỏi LLM: "Bạn muốn đặt hạn mức Ăn uống bao nhiêu?"
+    "status": "pending_slot",                    2. Render Input Widget bên dưới bong bóng chat:
+    "action_type": "SET_LIMIT",                     - Quick Chips: ["1 triệu", "2 triệu", "3 triệu", "5 triệu"]
+    "slots": { "category": "Food" },                - Ô nhập text/số kèm nút Gửi
+    "missing_slots": ["amount"],                 3. Lưu state: pendingAction = { action_type: "SET_LIMIT", ... }
+    "pending_action_id": "req-uuid-101"
+  }
+
+[Flutter App] (Người dùng gõ/chọn "3,000,000đ")
+  ── Gửi POST /api/v1/ai/chat/reply-slot ──> [Backend Node.js]
+  {                                              1. Merge slot mới vào slots cũ -> { category: "Food", amount: 3000000 }
+    "pending_action_id": "req-uuid-101",         2. Check lại checkMissingSlots -> missing_slots = [] (Đã đủ!)
+    "fill_slots": { "amount": 3000000 }          3. Xóa pending_action_id trong cache
+  }                                              4. Trả response hoàn tất + Thẻ xác nhận (Action Card) về App
+
+[Flutter App (Chat Screen)]
+  → Hiển thị phản hồi hoàn tất của LLM (1 text bubble) + Card xác nhận cuối cùng
+  → Bấm [Xác nhận] -> Card tự động disabled, KHÔNG sinh bubble thông báo thừa
+```
+
 ---
+
+
+
 
 ## 6. Hai trường hợp đặc biệt với Record
 
@@ -691,62 +851,112 @@ Số lượng đề xuất: 500-1000 mẫu (đủ cho LoRA fine-tune với Qwen2
 
 ---
 
-## 9. Retrain NLU — chỉ intent model, chạy trên Modal
+## 9. Retrain NLU — train 2 tầng (intent + category), dữ liệu từ CSDL
 
 ### Những gì cần train
 
-| Model | Train ở đâu | Script |
-|---|---|---|
-| Intent TF-IDF (Record/Action/Chitchat) | Modal Cloud (GPU) | `text_nlu/train/retrain_all.py` (chỉ phần intent) |
-| Intent PhoBERT encoder | Modal Cloud (GPU) | `text_nlu/train/retrain_encoders.py` |
+| Stage | Model | Train ở đâu | Script |
+|---|---|---|---|
+| Stage 1: Intent | TF-IDF (Record/Action/Chitchat) | Modal Cloud (GPU) | `text_nlu/train/retrain_all.py` (phần intent) |
+| Stage 1: Intent | PhoBERT encoder intent | Modal Cloud (GPU) | `text_nlu/train/retrain_encoders.py` (phần intent) |
+| Stage 2: Category | TF-IDF (18 danh mục) | Modal Cloud (GPU) | `text_nlu/train/retrain_all.py` (phần category) |
+| Stage 2: Category | PhoBERT encoder category | Modal Cloud (GPU) | `text_nlu/train/retrain_encoders.py` (phần category) |
 
-Không còn train: category, record_type, action_type, action_slots, NER (LLM Qwen xử lý tất cả).
+LLM Qwen không cần train riêng cho intent hay category — chỉ sửa rule trong llm_rules.json.
 
-### Nguồn dữ liệu train
+Không còn train: record_type, action_type, action_slots, NER (LLM Qwen xử lý tất cả ở Stage 2 khi backend = LLM).
 
-- Tầng 1 (`nlu_corrections`): mẫu sai category mà admin đã sửa thủ công → đổi nhãn thành intent + category.
-- Tầng 2 aggregations: mẫu từ CSDL thực tế → loại bỏ mẫu sai, giữ mẫu đúng.
-- Nếu tầng 2 chưa có → dùng dataset gốc: `intent_record.csv`, `intent_action.csv`, `intent_chitchat.csv`.
+### Nguồn dữ liệu train — lấy từ CSDL
+
+Dữ liệu train cho intent (Stage 1):
+- Lấy từ bảng messages/conversations trong MongoDB.
+- Mỗi bản ghi chứa: text gốc + intent đã được hệ thống phân loại.
+- Lọc bỏ bản ghi đã bị đánh dấu sai qua nút dislike (trường is_intent_wrong = true).
+- Bổ sung bản ghi đã được người dùng sửa intent đúng (trường corrected_intent != null) làm mẫu train mới.
+- Chuẩn hóa: text → nhãn intent (Record / Action / Chitchat).
+- Nếu CSDL chưa đủ dữ liệu → dùng dataset gốc: `intent_record.csv`, `intent_action.csv`, `intent_chitchat.csv`.
+
+Dữ liệu train cho category (Stage 2):
+- Lấy từ bảng giao dịch Record trong MongoDB.
+- Mỗi bản ghi chứa: text gốc + category đã được hệ thống phân loại.
+- Ưu tiên dùng bản ghi đã được người dùng sửa category qua cá nhân hóa danh mục (trường user_corrected_category).
+- Chuẩn hóa: text → nhãn category (Food / Transport / Shopping / ... / Others).
+- Đảm bảo phân phối đều 18 danh mục, loại bỏ mẫu thiên lệch.
+
+### Nút dislike trên app — thu thập mẫu sai intent
+
+Luồng xử lý:
+1. Sau mỗi câu phản hồi cuối cùng của lượt, hiển thị nút dislike nhỏ.
+2. Người dùng bấm dislike → mở BottomSheet thu thập mẫu sai.
+3. BottomSheet hỏi: câu này thực chất là Action, Record, hay Chitchat?
+4. Người dùng chọn intent đúng → bấm gửi → thông báo "đã thu thập".
+5. Gọi API Backend Node.js → cập nhật trường đánh dấu trong bản ghi gốc:
+   - `is_intent_wrong = true`
+   - `corrected_intent = "Record" | "Action" | "Chitchat"`
+6. Khi train, hệ thống lấy dữ liệu từ CSDL → lọc bỏ bản ghi bị đánh dấu sai, dùng bản ghi đã sửa intent làm mẫu train mới.
+
+Vẫn giữ nguyên cơ chế thu thập mẫu sửa category hiện có (cá nhân hóa danh mục trên app).
 
 ---
 
-## 10. Áp dụng model mới — thủ công cho Stage 1 (intent classifier)
+## 10. Áp dụng model mới — thủ công cho cả Stage 1 (intent) và Stage 2 (category)
 
-> "Apply" = chuyển từ model intent classifier cũ sang mới. Không phải thay đổi Stage 2 LLM (LLM không cần train lại, chỉ sửa rule).
+> "Apply" = chuyển từ model cũ sang mới. Không phải thay đổi LLM (LLM không cần train lại, chỉ sửa rule).
 
-### Quy trình
+### Quy trình cho intent model (Stage 1)
 
 ```
-Retrain xong → Model lưu ở workspace + storage (pending)
-→ NluOpsPage hiển thị badge "Có model mới: Intent F1 = 92.4%"
+Retrain xong → Intent model lưu ở workspace + storage (pending)
+→ NluOpsPage hiển thị badge "Có model intent mới: F1 = 92.4%"
 → Admin so sánh với model cũ: F1 mới vs F1 cũ
-→ Nhấn nút "Áp dụng model mới"
+→ Nhấn nút "Áp dụng model intent mới"
+→ Hot-reload (không restart server): get_nlu_service().reload()
+```
+
+### Quy trình cho category model (Stage 2)
+
+```
+Retrain xong → Category model lưu ở workspace + storage (pending)
+→ NluOpsPage hiển thị badge "Có model category mới: F1 = 88.7%"
+→ Admin so sánh với model cũ: F1 mới vs F1 cũ
+→ Nhấn nút "Áp dụng model category mới"
 → Hot-reload (không restart server): get_nlu_service().reload()
 ```
 
 ### Điều kiện tự động áp dụng (tùy chọn)
 
 Chỉ auto-apply khi đủ 3 điều kiện:
-1. Intent F1 macro mới ≥ 0.90
+1. F1 macro mới ≥ 0.90 (intent) hoặc ≥ 0.85 (category)
 2. F1 mới tốt hơn model đang chạy ít nhất 0.5%
-3. Số mẫu train ≥ 500 câu
+3. Số mẫu train ≥ 500 câu (intent) hoặc ≥ 300 câu (category)
 
 ---
 
 ## 11. Thanh tiến trình train WebAdmin
 
-### NLU training stages
+### NLU Intent training stages (Stage 1)
 
 | Stage | Percent | Message hiển thị |
 |---|---|---|
-| PREPARING | 10% | Đang lấy dữ liệu từ CSDL... |
+| PREPARING | 10% | Đang lấy dữ liệu intent từ CSDL... |
 | CLEANING | 25% | Đang lọc mẫu sai, giữ mẫu đúng... |
 | TRAINING | 50% | Đang huấn luyện intent model trên Modal... |
 | EVALUATING | 75% | Đang tính Intent F1, Accuracy... |
 | SYNCING | 90% | Đang lưu model vào workspace và storage... |
 | SUCCESS | 100% | Hoàn tất! Intent F1: 92.4% |
 
-Thanh tiến trình **hiển thị real-time** ở NluOpsPage → WebAdmin poll `/nlu/train/status` mỗi 3 giây khi `training_active = true`.
+### NLU Category training stages (Stage 2)
+
+| Stage | Percent | Message hiển thị |
+|---|---|---|
+| PREPARING | 10% | Đang lấy dữ liệu category từ CSDL... |
+| CLEANING | 25% | Đang lọc và chuẩn hóa danh mục... |
+| TRAINING | 50% | Đang huấn luyện category model trên Modal... |
+| EVALUATING | 75% | Đang tính Category F1, Accuracy... |
+| SYNCING | 90% | Đang lưu model vào workspace và storage... |
+| SUCCESS | 100% | Hoàn tất! Category F1: 88.7% |
+
+Thanh tiến trình hiển thị real-time ở NluOpsPage → WebAdmin poll `/nlu/train/status` mỗi 3 giây khi `training_active = true`. Trường `model_type` cho biết đang train intent hay category.
 
 ### OCR training stages — thêm mới
 
@@ -754,7 +964,90 @@ Tương tự NLU, thêm endpoint `GET /ocr/train/status` và cập nhật `BillR
 
 ---
 
-## 12. Test nhanh với `modal serve`
+## 11b. Benchmark — đánh giá intent và category cho 3 model trên 2 stage
+
+### Stage 1 Benchmark — Intent Classification
+
+Đánh giá 3 model song song trên cùng golden set intent (50-100 câu):
+
+| Model | Metric | Mô tả |
+|---|---|---|
+| TF-IDF | Intent F1 macro, Accuracy, Latency | Model nhẹ, nhanh |
+| Encoder/PhoBERT | Intent F1 macro, Accuracy, Latency | Model chính xác hơn |
+| LLM Qwen | Intent F1 macro, Accuracy, Latency | Dùng intent_classification_rule |
+
+Golden set cố định: 20 câu Record + 20 câu Action + 10 câu Chitchat (hardcode trong BE).
+
+### Stage 2 Benchmark — Category Classification (chỉ cho Record)
+
+Đánh giá 3 model song song trên cùng golden set category (50-100 câu Record):
+
+| Model | Metric | Mô tả |
+|---|---|---|
+| TF-IDF | Category F1 macro, Accuracy, Latency | Model nhẹ |
+| Encoder/PhoBERT | Category F1 macro, Accuracy, Latency | Model chính xác hơn |
+| LLM Qwen | Category F1 macro, Accuracy, Latency | Dùng RECORD_RULE (phần category) |
+
+Golden set cố định: phân phối đều 18 danh mục, mỗi danh mục 3-5 câu mẫu.
+
+### Hiển thị trên WebAdmin
+
+NluOpsPage có 2 bảng benchmark riêng biệt:
+- Bảng Stage 1 (intent): so sánh 3 model, highlight model đang active.
+- Bảng Stage 2 (category): so sánh 3 model, highlight model đang active.
+- Nút "Chạy Benchmark" gọi `POST /nlu/benchmark` → trả kết quả cả 2 stage.
+
+
+---
+
+## 13. Giải pháp cho các vấn đề vận hành và tích hợp
+
+### 13.1. Đảm bảo tính chính xác và cô lập luồng khi nhiều người dùng gửi truy vấn đồng thời
+
+Với kiến trúc 2 tầng (Stage 1 phân loại ý định + Stage 2 trích xuất thông tin), hệ thống giải quyết triệt để nguy cơ nhầm lẫn dữ liệu giữa nhiều người dùng cùng truy cập bằng nguyên lý không lưu trạng thái (stateless inference):
+
+- **Cô lập ngữ cảnh yêu cầu:** Mỗi truy vấn `POST /api/v1/nlu/infer` được khởi tạo một vòng đời yêu cầu độc lập (Request Scope), đi kèm thông tin định danh `user_id` và đối tượng `profile` riêng biệt.
+- **Tập luật bộ nhớ chỉ đọc (Read-only rules):** Các tệp cấu hình như `llm_rules.json` và `prompts.json` được nạp vào bộ nhớ đệm chéo dưới dạng chỉ đọc (thread-safe), không ghi nhận hoặc chia sẻ trạng thái người dùng giữa các luồng.
+- **Xử lý song song trên đám mây Modal:** Các tiến trình suy luận LLM (Gemini hoặc Qwen) tiếp nhận `request_id` định danh duy nhất, đảm bảo tính đồng thời cao mà không bị xung đột hay rò rỉ dữ liệu giữa các hội thoại.
+
+---
+
+### 13.2. Cơ chế lọc dữ liệu báo cáo cho RAG theo ngữ cảnh ví (Ví chung và Ví cá nhân)
+
+Luồng xử lý ý định báo cáo (`REPORT_GENERAL`, `REPORT_COMPARE`) và tra cứu (`SEARCH_RECORD`) tuân thủ nghiêm ngặt nguyên tắc lọc theo vùng gian ví hiện tại tại giao diện Chat:
+
+- **Phân định vùng dữ liệu tại Backend Node.js:**
+  - **Khi ở Ví cá nhân:** Backend lọc các giao dịch có `user_id = current_user` và `wallet_id = personal_wallet_id`.
+  - **Khi ở Ví chung (Group Wallet):** Backend lọc toàn bộ giao dịch có `wallet_id = group_wallet_id` (bao gồm chi tiêu của toàn bộ thành viên tham gia), đồng thời gom nhóm tổng chi tiêu và tỷ lệ đóng góp theo từng thành viên (`by_member`).
+- **Tăng cường truy xuất dữ liệu cho RAG (Dynamic Structured RAG):**
+  - Dữ liệu tài chính sau khi lọc được đóng gói thành bảng ngữ cảnh cấu trúc.
+  - LLM tiếp nhận ngữ cảnh chính xác của ví đó để sinh lời bình NLU, đánh giá sức khỏe tài chính và cảnh báo lạm chi một cách khách quan, hoàn toàn không bị ảo giác số liệu.
+- **Quy chuẩn hiển thị bong bóng tin nhắn tại Chat Screen:**
+  - **Với ý định RAG (REPORT, COMPARE, SEARCH):** Giao diện hiển thị 3 bong bóng tin nhắn liên tiếp (Bong bóng 1: Lời dẫn từ NLU Stage 2 -> Bong bóng 2: Biểu đồ hoặc bảng số liệu động, có phân trang theo thành viên nếu là ví chung -> Bong bóng 3: Lời nhận xét, đánh giá từ RAG).
+  - **Với ý định điều khiển (SET_GOAL, SET_LIMIT...):** Giao diện hiển thị 2 bong bóng tin nhắn (Bong bóng 1: Lời thoại Mimo -> Bong bóng 2: Thẻ xác nhận hành động).
+
+---
+
+### 13.3. Quy trình duyệt mô hình 3 trạng thái (Cũ - Hiện tại - Mới) trên WebAdmin
+
+Để quản trị an toàn vòng đời mô hình sau khi huấn luyện lại (retrain), hệ thống áp dụng quy tắc 3 trạng thái và cơ chế duyệt trên WebAdmin:
+
+- **Quy luật 3 trạng thái mô hình:**
+  - **Mô hình cũ (Old):** Phiên bản đã từng hoạt động trước đó, lưu trữ để dự phòng khôi phục (Rollback).
+  - **Mô hình hiện tại (Current / Active):** Phiên bản đang trực tiếp phục vụ suy luận NLU cho hệ thống.
+  - **Mô hình mới (New / Candidate):** Phiên bản vừa huấn luyện xong, chờ quản trị viên đánh giá hiệu năng và phê duyệt.
+- **Cơ chế chuyển đổi trạng thái khi duyệt áp dụng:**
+  - Khi quản trị viên nhấn nút **"Duyệt áp dụng mô hình mới"**, hệ thống thực hiện chuyển đổi dịch vị nhãn:
+    - Mô hình `Hiện tại` chuyển thành mô hình `Cũ`.
+    - Mô hình `Mới` chuyển thành mô hình `Hiện tại` (kích hoạt suy luận chính thức).
+    - Mô hình `Cũ` trước đó được gỡ bỏ khỏi danh sách active, đảm bảo hệ thống luôn duy trì tối đa 3 mốc trạng thái.
+- **Giao diện quản trị viên (NluOpsPage):**
+  - Tích hợp bảng so sánh chỉ số đánh giá (`F1 Macro`, `Accuracy`, `Latency`) giữa mô hình Mới và mô hình Hiện tại.
+  - Bố trí nút thao tác **"Duyệt mô hình mới"** và nút **"Khôi phục mô hình cũ"** với hộp thoại xác nhận rõ ràng.
+
+---
+
+## 14. Test nhanh với `modal serve`
 
 Để test Qwen2.5 với logic mới trước khi deploy:
 
@@ -792,35 +1085,28 @@ for text, ctx in test_cases:
 
 ### FastAPI AI
 
-- [ ] Xóa `src/llm/gemini_keys.py`
+- [ ] Xóa `src/llm/gemini_keys.py` và các liên kết tới Gemini trong codebase
 - [ ] Sửa `src/llm/client.py` — xóa Gemini, chỉ giữ `call_qwen`
-- [ ] Sửa `src/nlu/llm_intent_handler.py` — xóa Gemini block, thêm `run_llm_nlu_v2()` + `_build_persona_addition()` + `_build_relationship_addition()`
-- [ ] Sửa `src/nlg/llm_runner.py` — xóa Gemini
-- [ ] Sửa `src/nlu/disambiguation_generator.py` — xóa Gemini
-- [ ] Tạo `src/prompts/llm_rules.json` với 3 rule block + `action_slot_schema`
-- [ ] Sửa `src/nlu/pipeline.py` — thêm nhánh `llm_v2` + xử lý `caller_context == "addstory"`
-- [ ] Sửa `src/api/app/schemas/nlu.py` — thêm `caller_context`, đổi `gemini_json` → `llm_json`
-- [ ] Sửa `src/api/app/services/nlu_service.py` — xóa reference `gemini_json`
-- [ ] Sửa `src/api/app/adapters/expense_ocr_nlu.py` — thêm version check workspace vs storage khi load
-- [ ] Sửa `text_nlu/train/retrain_all.py` — chỉ train intent model
-- [ ] Sửa `run_retraining()` trong `nlu.py` — lưu model vào cả workspace và storage
-- [ ] Thêm endpoint `POST /nlu/benchmark/llm-rules` với golden set 50 câu
-- [ ] Thêm endpoint `GET /ocr/train/status`
-- [ ] Xóa `.env` keys Gemini
+- [ ] Sửa `src/nlu/llm_intent_handler.py` — xóa Gemini block, thêm `run_llm_nlu_v2()` đảm bảo stateless request context + `_build_persona_addition()` + `_build_relationship_addition()`
+- [ ] Tạo `src/prompts/llm_rules.json` với 4 rule block (`intent_classification_rule`, `record_rule`, `action_rule`, `chitchat_rule`) + `action_slot_schema`
+- [ ] Sửa `src/nlu/pipeline.py` — cấu hình luồng 2 tầng (Stage 1 Intent + Stage 2 Record/Action/Chitchat) + xử lý `caller_context == "addstory"`
+- [ ] Sửa `text_nlu/train/retrain_all.py` — train 2 tầng: Stage 1 (Intent) + Stage 2 (Category cho Record), lấy dữ liệu từ CSDL, lọc mẫu sai dislike
+- [ ] Sửa `text_nlu/train/retrain_encoders.py` — train 2 tầng cho PhoBERT (intent + category)
+- [ ] Thêm endpoint `POST /nlu/benchmark` đánh giá song song 3 model cho cả Stage 1 (intent) và Stage 2 (category)
+- [ ] Thêm endpoint `GET /ocr/train/status` và `GET /nlu/train/status`
 
 ### Backend Node.js
 
 - [ ] Kiểm tra xóa Gemini call trong `src/modules/` và `src/services/`
+- [ ] Thêm API endpoint nhận phản hồi dislike từ App: cập nhật `is_intent_wrong = true` và `corrected_intent` vào bản ghi gốc trong MongoDB
 - [ ] Thêm `checkMissingSlots()` trong `action.service.js` dùng `action_slot_schema`
 - [ ] Trả về `missing_slots[]` trong response khi có trường thiếu
 
-### WebAdmin
+### WebAdmin & Mobile App
 
-- [ ] `NluOpsPage`: Bỏ Import CSV, bỏ auto-retrain tầng 2
-- [ ] `NluOpsPage`: Cập nhật `COMPARISON_ROWS` chỉ giữ intent model rows
-- [ ] `NluOpsPage`: Thêm tab/section "Benchmark LLM Rules" với 3 metric
-- [ ] `NluOpsPage`: Thêm badge model mới + nút so sánh + nút Áp dụng
-- [ ] `NluOpsPage`: Thanh tiến trình train với 6 stage
-- [ ] `BotPromptsPage`: Sửa test prompt dùng `run_llm_nlu_v2`, thêm dropdown caller_context (chat/addstory)
+- [ ] `NluOpsPage`: Loại bỏ hoàn toàn layer 2 cũ, chỉ giữ cá nhân hóa danh mục + train 2 tầng (intent & category)
+- [ ] `NluOpsPage`: Hiển thị 2 bảng Benchmark (Stage 1 Intent và Stage 2 Category) cho 3 model (TF-IDF, Encoder, LLM)
+- [ ] `NluOpsPage`: Thanh tiến trình train với 6 stage cho cả Intent và Category
 - [ ] `BillRetrainPage`: Thêm thanh tiến trình OCR retrain
-- [ ] Dashboard: Đổi nhãn "NLU Accuracy" → "Intent Accuracy"
+- [ ] `Mobile App (Flutter)`: Thêm nút Dislike sau câu phản hồi cuối của Mimo → mở BottomSheet thu thập intent sai → gọi API Node.js
+

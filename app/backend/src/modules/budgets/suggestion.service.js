@@ -241,6 +241,43 @@ function computeIncomeFactor(incomes) {
 }
 
 /**
+ * Step 2c: Budget Variance Calibration (Điều chỉnh theo lịch sử hạn mức tháng trước).
+ * Công thức: Δ = S(t-1) - L(t-1) (Sử dụng - Hạn mức tháng trước).
+ * - Nếu vượt hạn mức (Δ > 0): tăng nhẹ hạn mức đề xuất (α = 0.35) để sát thực tế hơn, tránh gây nản lòng.
+ * - Nếu dưới hạn mức (Δ < 0): giảm nhẹ hạn mức đề xuất (β = 0.25) để thu gọn ngân sách dư thừa, tăng tiết kiệm.
+ * - Danh mục cố định (Fixed costs) có hệ số điều chỉnh thận trọng hơn (α = 0.20, β = 0.15).
+ */
+function computeVarianceAdjustment(lastMonthSpent, lastMonthLimit, isFixedCost = false) {
+  if (!lastMonthLimit || lastMonthLimit <= 0) {
+    return { adjustment: 0, reasonText: null, variance: 0 };
+  }
+
+  const variance = lastMonthSpent - lastMonthLimit;
+  if (variance === 0) {
+    return { adjustment: 0, reasonText: null, variance: 0 };
+  }
+
+  const alpha = isFixedCost ? 0.20 : 0.35; // Hệ số điều chỉnh khi vượt hạn mức
+  const beta = isFixedCost ? 0.15 : 0.25;  // Hệ số điều chỉnh khi dưới hạn mức
+
+  if (variance > 0) {
+    const adjustment = Math.round(variance * alpha);
+    return {
+      adjustment,
+      variance,
+      reasonText: `tăng ${formatVnd(adjustment)}đ do vượt hạn mức tháng trước (${formatVnd(lastMonthSpent)}đ/${formatVnd(lastMonthLimit)}đ)`,
+    };
+  } else {
+    const adjustment = Math.round(variance * beta);
+    return {
+      adjustment,
+      variance,
+      reasonText: `giảm ${formatVnd(Math.abs(adjustment))}đ do chi tiêu dưới hạn mức tháng trước (${formatVnd(lastMonthSpent)}đ/${formatVnd(lastMonthLimit)}đ)`,
+    };
+  }
+}
+
+/**
  * Main: Compute suggestions for a single user.
  */
 async function computeSuggestionsForUser(userId, targetMonth) {
@@ -264,6 +301,7 @@ async function computeSuggestionsForUser(userId, targetMonth) {
   // Fetch user's active budgets and restrict suggestions to those categories
   const activeBudgets = await budgetsService.list(userId);
   const activeCats = new Set(activeBudgets.map(b => b.categoryCode).filter(Boolean));
+  const activeBudgetLimitMap = new Map(activeBudgets.map(b => [b.categoryCode, b.amountLimit]));
 
   // Collect all unique categories across 3 months (restricted to active budgets)
   const allCats = new Set();
@@ -325,18 +363,29 @@ async function computeSuggestionsForUser(userId, targetMonth) {
 
     if (baseSpending === null || baseSpending <= 0) continue;
 
+    // Lịch sử hạn mức tháng trước: sử dụng - hạn mức
+    const lastMonthEntry = monthlyData[0]?.data?.get(cat);
+    const lastMonthSpent = totals[0] || 0;
+    const lastMonthLimit = lastMonthEntry?.limit || activeBudgetLimitMap.get(cat) || 0;
+    const varianceCal = computeVarianceAdjustment(lastMonthSpent, lastMonthLimit, FIXED_COSTS_CATEGORIES.has(cat));
+
+    const adjustedBase = Math.max(0, baseSpending + varianceCal.adjustment);
+
     // Check if user exceeded peer benchmark last month
     const peerAvg = peerBenchmarks.get(cat);
     const peerExceeded = peerAvg ? totals[0] > peerAvg : false;
 
     const savingRate = FIXED_COSTS_CATEGORIES.has(cat) ? 0.00 : getSavingRate(cat, peerExceeded);
 
-    const suggested = Math.round(baseSpending * incomeFactor * (1 - savingRate) * holidayFactor);
+    const suggested = Math.round(adjustedBase * incomeFactor * (1 - savingRate) * holidayFactor);
 
     // Build reason text
     let reason = FIXED_COSTS_CATEGORIES.has(cat)
       ? `Dựa trên chi tiêu thực tế tháng trước (${formatVnd(Math.round(baseSpending))}đ) cho danh mục cố định`
       : `Dựa trên chi tiêu trung bình ${formatVnd(Math.round(baseSpending))}đ/tháng`;
+    if (varianceCal.reasonText) {
+      reason += `, ${varianceCal.reasonText}`;
+    }
     if (!FIXED_COSTS_CATEGORIES.has(cat) && savingRate > 0) {
       reason += `, giảm ${Math.round(savingRate * 100)}% để tiết kiệm`;
     }
@@ -428,9 +477,11 @@ async function computeSuggestionsForUser(userId, targetMonth) {
     }
   }
 
-  // Làm tròn cho gợi ý ngân sách (làm tròn đến hàng chục nghìn)
+  // Làm tròn cho gợi ý ngân sách (làm tròn đến 50.000đ)
   for (const s of suggestions) {
-    s.suggested_amount = Math.round(s.suggested_amount / 10000) * 10000;
+    if (s.suggested_amount > 0) {
+      s.suggested_amount = Math.max(50000, Math.round(s.suggested_amount / 50000) * 50000);
+    }
   }
 
   return suggestions;
@@ -459,8 +510,10 @@ async function computeFallbackFromPeer(userId, targetMonth, holidayFactor) {
     const avg = Number(row.avg_amount);
     let suggested = Math.round(avg * holidayFactor);
     
-    // Làm tròn đến hàng chục nghìn
-    suggested = Math.round(suggested / 10000) * 10000;
+    // Làm tròn đến 50.000đ
+    if (suggested > 0) {
+      suggested = Math.max(50000, Math.round(suggested / 50000) * 50000);
+    }
 
     return {
       category_code: row.category_id,
@@ -648,6 +701,7 @@ module.exports = {
   computeSuggestionsForUser,
   computeFallbackFromPeer,
   computeBaseSpending,
+  computeVarianceAdjustment,
   computeIncomeFactor,
   denoiseCategory,
   getHolidayFactor,

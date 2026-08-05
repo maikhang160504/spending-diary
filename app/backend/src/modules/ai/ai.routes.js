@@ -12,7 +12,9 @@ const {
   correctionSchema,
   confirmActionSchema,
   executeActionSchema,
+  dislikeIntentSchema,
 } = require('./ai.schema');
+
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -145,7 +147,9 @@ router.post(
 router.post('/expense/from-bill', upload.single('file'), controller.expenseFromBill);
 
 router.post('/corrections', validate({ body: correctionSchema }), controller.saveCorrection);
+router.post('/dislike-intent', validate({ body: dislikeIntentSchema }), controller.dislikeIntent);
 router.post(
+
   '/actions/confirm',
   validate({ body: confirmActionSchema }),
   controller.confirmAction

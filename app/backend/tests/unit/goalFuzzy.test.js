@@ -65,6 +65,7 @@ describe('Saving Goal Fuzzy Matching', () => {
       targetAmount: 20000000
     }));
     expect(result.kind).toBe('goal');
-    expect(result.message).toContain('Đã tạo mục tiêu mới "Mua laptop"');
+    expect(result.message).toContain('Đã tạo mục tiêu tiết kiệm cá nhân "Mua laptop"');
   });
 });
+

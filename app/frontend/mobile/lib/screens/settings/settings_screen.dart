@@ -152,7 +152,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _changeAvatar() async {
-    final messenger = ScaffoldMessenger.of(context);
     XFile? xFile;
     try {
       final picker = ImagePicker();
@@ -164,12 +163,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
     } catch (e) {
       debugPrint('Failed to pick avatar image: $e');
       if (mounted) {
-        messenger.showSnackBar(
-          const SnackBar(
-            content: Text(
+        MimoSnackBar.showError(
+          context,
+          message:
               'Không thể mở thư viện ảnh. Hãy cấp quyền trong phần Cài đặt.',
-            ),
-          ),
+          emotion: 'Sad',
         );
       }
       return;
@@ -1109,8 +1107,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                         _AiStyleSwapSelector(
                                           selected: _verbalStyle,
                                           isPremium: _isPremium,
-                                          onPremiumLocked: () =>
-                                              showPremiumUpsellSheet(context),
+                                          onPremiumLocked: () {
+                                            MimoSnackBar.showWarning(
+                                              context,
+                                              message:
+                                                  'Bạn cần nâng cấp gói Premium để sử dụng giọng điệu này nhé!',
+                                              emotion: 'Sad',
+                                            );
+                                            showPremiumUpsellSheet(context);
+                                          },
                                           onSelected: (style) async {
                                             if (style == _verbalStyle) return;
                                             if ((style == 'kho_tinh' ||
@@ -1147,14 +1152,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                                   });
                                                 } catch (e) {
                                                   if (mounted) {
-                                                    ScaffoldMessenger.of(
+                                                    MimoSnackBar.showError(
                                                       context,
-                                                    ).showSnackBar(
-                                                      const SnackBar(
-                                                        content: Text(
+                                                      message:
                                                           'Không thể cập nhật phong cách. Vui lòng thử lại.',
-                                                        ),
-                                                      ),
+                                                      emotion: 'Sad',
                                                     );
                                                   }
                                                 }
@@ -1234,14 +1236,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                                       );
                                                     } else {
                                                       if (context.mounted) {
-                                                        ScaffoldMessenger.of(
+                                                        MimoSnackBar.showWarning(
                                                           context,
-                                                        ).showSnackBar(
-                                                          const SnackBar(
-                                                            content: Text(
+                                                          message:
                                                               'Không thể bật thông báo nếu chưa cấp quyền',
-                                                            ),
-                                                          ),
+                                                          emotion: 'Alert',
                                                         );
                                                       }
                                                     }

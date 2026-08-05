@@ -13,6 +13,7 @@ import '../../widgets/error_banner.dart';
 import '../../widgets/skeleton.dart';
 import '../../widgets/mimo_overlay.dart';
 import '../../widgets/premium_upsell_bottom_sheet.dart';
+import '../../widgets/mimo_snackbar.dart';
 
 class GoalScreen extends StatefulWidget {
   final bool isChallenge;
@@ -331,25 +332,23 @@ class _GoalScreenState extends State<GoalScreen> with AutomaticKeepAliveClientMi
                             return;
                           }
                           setSheetState(() { isSubmitting = true; });
-                          final scaffoldMessenger = ScaffoldMessenger.of(context);
                           ctx.pop();
                           try {
                             await _api.contributeGoal(goalId, amount);
                             if (!mounted) return;
-                            scaffoldMessenger.showSnackBar(
-                              const SnackBar(
-                                content: Text('🎉 Thêm tiền thành công!'),
-                                backgroundColor: AppColors.teal,
-                              ),
-                            );
                             _loadGoals();
+                            if (mounted) {
+                              MimoSnackBar.showSuccess(
+                                context,
+                                message: 'Đã nạp ${formatVnd(amount.toInt())} vào "$goalName" thành công!',
+                                emotion: 'Celebrate',
+                              );
+                            }
                           } catch (e) {
                             if (mounted) {
-                              scaffoldMessenger.showSnackBar(
-                                SnackBar(
-                                  content: Text('Thất bại: $e'),
-                                  backgroundColor: AppColors.danger,
-                                ),
+                              MimoSnackBar.showError(
+                                context,
+                                message: 'Thất bại: $e',
                               );
                             }
                           }
@@ -608,6 +607,7 @@ class _GoalScreenState extends State<GoalScreen> with AutomaticKeepAliveClientMi
     return Scaffold(
       backgroundColor: context.palette.bg,
       body: SafeArea(
+        top: false,
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 600),
@@ -623,8 +623,8 @@ class _GoalScreenState extends State<GoalScreen> with AutomaticKeepAliveClientMi
                     _GoalHeader(
                       isChallenge: widget.isChallenge,
                       onAdd: _showCreateGoal,
-                  onJoin: _showJoinGoal,
-                ),
+                      onJoin: _showJoinGoal,
+                    ),
                 if (_error != null)
                   ErrorBanner(message: _error!, onRetry: _loadGoals),
                 const SizedBox(height: 12),
@@ -721,6 +721,7 @@ class _GoalHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final topPadding = MediaQuery.of(context).padding.top;
     return Container(
       decoration: BoxDecoration(
         gradient: AppGradients.teal,
@@ -733,7 +734,7 @@ class _GoalHeader extends StatelessWidget {
           ),
         ],
       ),
-      padding: const EdgeInsets.fromLTRB(24, 20, 20, 24),
+      padding: EdgeInsets.fromLTRB(24, 16 + topPadding, 20, 24),
       child: Row(
         children: [
           if (Navigator.canPop(context)) ...[
@@ -840,15 +841,21 @@ class _ApiGoalCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isChallenge = goal['type']?.toString().startsWith('challenge') == true;
     final targetAmountVal = goal['target_amount'] ?? goal['targetAmount'];
-    final currentAmountVal = goal['current_amount'] ?? goal['currentAmount'];
+    final memberAmountVal = goal['member_current_amount'] ?? goal['memberCurrentAmount'];
+    final currentAmountVal = isChallenge
+        ? (memberAmountVal ?? goal['current_amount'] ?? goal['currentAmount'])
+        : (goal['current_amount'] ?? goal['currentAmount']);
     final targetAmount = num.tryParse(targetAmountVal?.toString() ?? '')?.toInt() ?? 0;
     final currentAmount = num.tryParse(currentAmountVal?.toString() ?? '')?.toInt() ?? 0;
     final remaining = targetAmount - currentAmount;
     final percent = targetAmount > 0 ? currentAmount / targetAmount : 0.0;
     final emoji = goal['emoji'] as String? ?? '🎯';
     final name = goal['name'] as String? ?? 'Mục tiêu';
-    final status = goal['status'] as String? ?? 'active';
+    final status = isChallenge
+        ? (goal['member_status'] ?? goal['status'] ?? 'active')
+        : (goal['status'] as String? ?? 'active');
     final isCompleted = status == 'completed' || percent >= 1.0;
     final isNearGoal = percent >= 0.8 && !isCompleted;
 

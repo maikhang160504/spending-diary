@@ -115,6 +115,7 @@ export default function BillRetrainPage() {
   const [drawMode, setDrawMode] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [toast, setToast] = useState(null);
+  const [modalTrainStatus, setModalTrainStatus] = useState({ isTraining: false });
   const [activeCategory, setActiveCategory] = useState("Others");
   const [prelabelJobs, setPrelabelJobs] = useState([]);
   const [page, setPage] = useState(1);
@@ -128,7 +129,25 @@ export default function BillRetrainPage() {
     setPrelabelJobs((prev) => prev.map((j) => (j.id === id ? { ...j, ...patch } : j)));
   }, []);
 
-  const filteredSamples = useMemo(() => {
+  useEffect(() => {
+    const fetchTrainStatus = async () => {
+      try {
+        const res = await api.get('/api/admin/bill-retrain/train/status');
+        setModalTrainStatus(res.data);
+      } catch (err) {
+        console.error("Lỗi lấy trạng thái train:", err);
+      }
+    };
+    
+    fetchTrainStatus();
+    const interval = setInterval(() => {
+      if (modalTrainStatus?.isTraining) {
+        fetchTrainStatus();
+      }
+    }, 3000);
+    
+    return () => clearInterval(interval);
+  }, [modalTrainStatus?.isTraining]);  const filteredSamples = useMemo(() => {
     return samples.filter(s => {
       if (s.status === "exported_archived") return false;
       if (filterStatus !== "all" && s.status !== filterStatus) return false;
@@ -610,9 +629,20 @@ export default function BillRetrainPage() {
         <div className="bill-toolbar-group">
           <span className="bill-toolbar-label">Modal Cloud</span>
           <div className="bill-toolbar-actions">
-            <button type="button" className="btn btn-secondary" onClick={onModalTrigger} disabled={loading}>
-              Train LayoutLMv3
+            <button type="button" className="btn btn-secondary" onClick={onModalTrigger} disabled={loading || modalTrainStatus?.isTraining}>
+              {modalTrainStatus?.isTraining ? "Đang train..." : "Train LayoutLMv3"}
             </button>
+            {modalTrainStatus?.isTraining && (
+              <div style={{ marginLeft: 10, display: 'flex', flexDirection: 'column', minWidth: 200 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', marginBottom: 2 }}>
+                  <span>{modalTrainStatus.message}</span>
+                  <span>{modalTrainStatus.progress_percent}%</span>
+                </div>
+                <div style={{ height: 6, background: '#eee', borderRadius: 3, overflow: 'hidden' }}>
+                  <div style={{ width: `${modalTrainStatus.progress_percent}%`, height: '100%', background: 'var(--primary)', transition: 'width 0.3s ease' }}></div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

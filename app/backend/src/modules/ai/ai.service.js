@@ -208,8 +208,8 @@ async function _enrichNluWithAction(userId, payload, response) {
       });
       response.action_result = actionResult;
       let story = actionResult.message;
-
-      const runLlm = Boolean(payload.runLlm || payload.run_llm || response.gemini_json || response.llama_json);
+      const hasLlmResponse = Boolean(response.gemini_json?.response || response.gemini_json?.story || response.nlg_response || response.response);
+      const runLlm = !hasLlmResponse && Boolean(payload.runLlm || payload.run_llm);
       if (runLlm) {
         try {
           let nlgPersona = payload.nlgPersona || payload.emotion;
@@ -273,6 +273,7 @@ async function _enrichNluWithAction(userId, payload, response) {
         ...response.action_details,
       });
       response.action_result = actionResult;
+      response.action_executed = true;
 
       // Handle settings updated push for TONE
       if (actionType === 'SET_TONE' && actionResult.changed && actionResult.verbalStyle) {
@@ -281,7 +282,8 @@ async function _enrichNluWithAction(userId, payload, response) {
       }
 
       let story = actionResult.message;
-      const runLlm = Boolean(payload.runLlm || payload.run_llm || response.gemini_json || response.llama_json);
+      const hasLlmResponse = Boolean(response.gemini_json?.response || response.gemini_json?.story || response.nlg_response || response.response);
+      const runLlm = !hasLlmResponse && Boolean(payload.runLlm || payload.run_llm);
       if (runLlm) {
         try {
           let nlgPersona = payload.nlgPersona || payload.emotion;
@@ -789,8 +791,28 @@ async function _processTextBackground(userId, transactionId, payload) {
 
     let storyId = null;
     let summaryText = null;
-    let aiCommentContent = aiResponse.nlg?.response || null;
-    let aiEmotion = aiResponse.nlg?.emotion || 'Happy';
+    // Ưu tiên đọc từ gemini_json (kết quả LLM Gemini) trước, rồi mới fallback
+    const geminiJson = aiResponse.nlu?.gemini_json || aiResponse.gemini_json || {};
+    const llamaJson = aiResponse.nlu?.llama_json || aiResponse.llama_json || {};
+    let aiCommentContent =
+      geminiJson.response ||
+      geminiJson.story ||
+      aiResponse.nlg?.response ||
+      aiResponse.nlg_response ||
+      llamaJson.response ||
+      llamaJson.story ||
+      aiResponse.nlu?.nlg_response ||
+      aiResponse.nlu?.response ||
+      null;
+    let aiEmotion =
+      geminiJson.mimo_emotion ||
+      geminiJson.emotion ||
+      aiResponse.nlg?.emotion ||
+      llamaJson.mimo_emotion ||
+      llamaJson.emotion ||
+      aiResponse.nlu?.mimo_emotion ||
+      aiResponse.nlu?.llm_emotion ||
+      'Happy';
 
     // If completed (auto-saved), create story items
     if (!needsReview) {
@@ -806,12 +828,14 @@ async function _processTextBackground(userId, transactionId, payload) {
       if (!aiCommentContent) {
         aiCommentContent = summaryText;
       }
+      // Tiêu đề story dùng câu LLM nếu có, fallback về summaryText
+      const storyTitle = aiCommentContent || summaryText;
 
       const occurredAt = payload.occurredAt ? new Date(payload.occurredAt) : new Date();
       const storyRes = await query(
         `INSERT INTO stories (user_id, wallet_id, title, total_amount, occurred_on)
          VALUES ($1, $2, $3, $4, $5) RETURNING id`,
-        [userId, payload.walletId, summaryText, finalAmount, occurredAt]
+        [userId, payload.walletId, storyTitle, finalAmount, occurredAt]
       );
       storyId = storyRes.rows[0].id;
 
@@ -1053,9 +1077,20 @@ async function _processBillBackground(userId, walletId, transactionId, fileBuffe
         note: extracted.note,
         imageUrl,
         storyId,
-        mascot_mood: aiResponse.nlu?.mascot_mood || null,
+        mascotMood: mascotMood,
+        mascot_mood: mascotMood,
         ai_confidence: extracted.confidence != null ? Number(extracted.confidence) : null,
+        aiComment:
+          aiResponse.nlu?.nlg_response ||
+          aiResponse.nlu?.llm_json?.response ||
+          aiResponse.nlu?.response ||
+          aiResponse.nlu?.gemini_json?.response ||
+          aiResponse.nlu?.gemini_json?.story ||
+          null,
         story:
+          aiResponse.nlu?.nlg_response ||
+          aiResponse.nlu?.llm_json?.response ||
+          aiResponse.nlu?.response ||
           aiResponse.nlu?.gemini_json?.response ||
           aiResponse.nlu?.gemini_json?.story ||
           null,
@@ -1706,7 +1741,7 @@ async function _processAiChatBackground(userId, sessionId, userMessage, contextM
       amount: amount,
       category: category,
       nlu: aiResponse,
-      ...(aiResponse.action_result ? { action_result: aiResponse.action_result } : {}),
+      ...(aiResponse.action_result ? { action_result: aiResponse.action_result, action_executed: true } : {}),
       ...(aiResponse.action_type ? { action_type: aiResponse.action_type } : {}),
       ...(llmError ? { llmError } : {}),
     };

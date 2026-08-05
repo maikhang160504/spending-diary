@@ -5,6 +5,8 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 
 import '../firebase_options.dart';
+import '../routes/app_routes.dart';
+import '../screens/chat/chat_screen.dart';
 import 'push_notification_service.dart';
 
 @pragma('vm:entry-point')
@@ -106,6 +108,13 @@ class FcmService {
   }
 
   void _onForegroundMessage(RemoteMessage message) {
+    final type = (message.data['type'] as String?)?.toLowerCase();
+    if (type == 'chat_reply') {
+      if (ChatScreen.isActive) {
+        debugPrint('[FCM] Suppressing CHAT_REPLY because user is on chat screen');
+        return;
+      }
+    }
     PushNotificationService.instance.showFromRemoteMessage(message);
   }
 

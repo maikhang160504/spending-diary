@@ -10,6 +10,7 @@ import '../../theme/app_radii.dart';
 import '../../widgets/loading_indicator.dart';
 import '../../widgets/responsive_container.dart';
 import '../../services/bill_processing_service.dart';
+import '../../services/streak_celebration.dart';
 
 class CameraInputScreen extends StatefulWidget {
   final String? imagePath;
@@ -75,8 +76,13 @@ class _CameraInputScreenState extends State<CameraInputScreen> {
         );
       }
 
+      // Cập nhật streak sau khi gửi story text thành công
+      if (mounted) {
+        await StreakCelebration.instance.afterActivity(context);
+      }
+
       // Return to home or pop
-      context.go(AppRoutes.home);
+      if (mounted) context.go(AppRoutes.home);
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() { _isLoading = false; _error = e.localizedMessage; });

@@ -1,27 +1,28 @@
 1. kiểm tra các action ở app, kiểm tra luồn của accept ảnh hóa đơn ở retrain, và ở các phần modal, các luồn retrain cần kiểm tra và sửa chưa
-12. tạo tool để sử dụng 1 tài khoản để thử autoban bằng request
-15. miss thông tin từ input người dùng ở chat, ràng buộc cho các trường của action type, viết thành 1 file khác để LLM đọc và làm theo prompt hiện tại khác là khó
-17. thanh tiến trình của quá trình train ở webadmin
-20/ kiểm thử retrain đối với 3 mô hình
-21. kiểm tra đầu ra của AI trước khi đưa ra cho người dùng
-22. mô hình mới train được áp dụng thủ công hay tự động(điều kiện của tự độngh) có cần kiểm tra trước khi áp dụng không 
-25. reponsive cho webadmin
-13. lấy dữ liệu ở đâu ra chạy fine tune (lấy ngẫu nhiên dữ liệu trong csdl để tạo thành file train_llm_finetune_data_import.json), retrain nlu lấy từ csdl nhưng loại bỏ những mẫu sai để thay thế bằng những mẫu đúng ở tầng 2 (nếu chưa có)
-14. Nạp tập dữ liệu huấn luyện bổ sung (Import CCSV) nên loại bỏ chức năng này. và bỏ Tự động huấn luyện lại ở tầng 2 
-15. So sánh chỉ số chất lượng mô hình (F1/Accuracy) không lấy những lần lỗi
-16. Lựa chọn Bộ suy luận NLU vận hành là chọn mô hình nhận dạng intent classifier (record, action,chitchat)
-17. tìm và xóa luồng dùng gemini không cần nữa chỉ dùng LLM qwen2.5
-
+17. modal run --detach modal_app.py::run_nlu_benchmark  
+12. tại sao encoder lại thấp trong benchmark như vậy dùng model là mới nhất và quá trình train cũng rất thành công
+1. tôi dùng addstory mà banner lại hiển thị là bbill
+2. mascot lại không lấy đúng câu phản hồi của LLM do gửi dư prompt xem và chỉnh lại addstory stage 2
+3. story được lưu cũng không lấy đúng câu mà LLM reponse (lấy câu mặc đinh) 
+5. ví cá nhân ban đầu luôn đứng đầu, và đang ở ví A thì chuyển sang mmàn hình khác thì quay lại vẫn là ví A chứ không phải là ví đâu tiên (ví dụ đang ở ví riêng Cá nhân cchuyển sang ví chung xong quay lại vẫn là ví Cá Nhân) 
+6. nếu người dùng đổi category của bill thì lấy item đã nhận dạng + số tiền để tạo mẫu sai
+7 . giữ chuổi đang bị sai, chuổi hiển thị là số 0, không chúc mừng khi hoàn thành lửa mơi
+8. nạp vào ví 1tr -> BONUS(income), thêm rule để biết phân rõ income và enpense
+9. phân biệt rõ ràng giữa yêu cầu action nhắc nợ và record dept vào prompt
+10. test thiếu thông tin
 #### Sửa luận #####
-- thiếu hình 3.4 thành nhập liệu ở camera
 - thêm ảnh đợi quét hóa đơn 3.5, 
-- thiếu ảnh so sánh 
-- nhắc đến phụ lục ở trong đoạn văn và không dùng footnote
-- sửa bố cục luận văn chương số 4: test case mới đúng
-- in đậm mục lục
-- chưa thấy chức năng nào nhắc nói tới RAG
-- sơ đồ tổng usecase tổng quát, chưa liên kết với nhau và chưa chi tiết, sửa luôn ERD
-- sửa từ ngữ (Bổ trợ tri thức	RAG	Kiến trúc giúp AI trả lời dựa trên thông tin được truy xuất từ cơ sở dữ liệu.)
-- giải thích cho kết quả đã đánh giá
-
+- chưa thấy chức năng nào nhắc nói tới RAG, viết lại lý thuyết RAG và cách ứng dụng nó vào hệ thống (NLU)
+- sửa luôn ERD, sơ đồ usecase,chuyển sơ đồ flow -> sơ đồ activity ở chương 3
+- thay đổi luồn ở NLU và cách đánh giá
+- tóm tắt : lí do, chức năng, kết quả, đánh giá (2 đoạn)
+- có 1,2 câu mô tả trước khi vào mục nhỏ (từ mục lớn vào mục nhỏ)
+- thêm bảng tóm tắt usecase,
+- giải thích kí hiệu f1, accuracy
+- xem các biểu đồ
+- viết phụ lục
+- vẽ lại hình kiến trúc 4 tầng tổng quát cho cả hệ thống và sơ đồ chi tiết cho từng tầng(tầng 1,2,3) tầng 4 không cần thiết
 #### viết kịch bản demo
+- đăng ký tài khoản, đăng nhập, điền onboaring, ghi chép chi tiêu bằng camere, quét bill, tạo ví mới tham gia ví chung, sau đó ghi chép chi tiêu bằng chat, ra lệnh cho hệ thống(xem báo cáo, tạo mục tiêu, thêm tiền cho mục tiêu vừa tạo, đổi giọng,). xem báo cáo, xem mục tiêu, thêm tiền mục tiêu, xem recap, gợi ý chi tiêu, điều chỉnh hạn mức, giao dịch tự động, đổi tone. thanh toán premium
+- xem báo cáo, thực hiện gán nhãn bill, xem mẫu cá nhận vừa sửa. xem quản lí người dùng, ban và unban( gửi khiếu nại),train model(hiển thị tiến trình train), thay đổi mô hình chạy intent và category, model mới phải được admin duyệt mới thay thế model cũ(vậy tồn tại 3 model(cũ, hiện tại và mới) khi ap dụng thi hiện tại thành cũ, mới thành hiện tại và mới biến mất), xem prompt và test thử với prompt
+

@@ -5,8 +5,8 @@ function getAuthToken() {
   return localStorage.getItem("admin_token");
 }
 
-function handleAuthError(status) {
-  if (status === 401 || status === 403) {
+function handleAuthError(status, path = "") {
+  if (status === 401 && !path.includes("/auth/login") && !path.includes("/login")) {
     localStorage.removeItem("admin_token");
     window.location.href = "/login";
   }
@@ -26,7 +26,7 @@ async function fetchMultipart(path, form, timeoutMs = BILL_OCR_TIMEOUT_MS) {
       signal: controller.signal,
     });
     if (!response.ok) {
-      handleAuthError(response.status);
+      handleAuthError(response.status, path);
       const err = await response.json().catch(() => ({}));
       throw new Error(err.message || "Request failed");
     }
@@ -56,7 +56,7 @@ async function fetchJson(path, options = {}, timeoutMs = 60000) {
       signal: controller.signal,
     });
     if (!response.ok) {
-      handleAuthError(response.status);
+      handleAuthError(response.status, path);
       const err = await response.json().catch(() => ({}));
       throw new Error(err.message || "API request failed");
     }
@@ -73,17 +73,18 @@ async function fetchJson(path, options = {}, timeoutMs = 60000) {
 
 async function request(path, options = {}) {
   const token = getAuthToken();
+  const { headers, ...restOptions } = options;
   const response = await fetch(`${API_BASE_URL}${path}`, {
-    headers: {
-      "Content-Type": "application/json",
+    headers: { 
+      "Content-Type": "application/json", 
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(options.headers || {})
+      ...(headers || {}) 
     },
-    ...options
+    ...restOptions
   });
 
   if (!response.ok) {
-    handleAuthError(response.status);
+    handleAuthError(response.status, path);
     const errorPayload = await response.json().catch(() => ({}));
     throw new Error(errorPayload.message || "API request failed");
   }
@@ -160,19 +161,6 @@ export async function cleanupInvalidNluOverrides(confirm = false) {
   });
 }
 
-export async function getNluAggregations() {
-  return request("/api/admin/nlu/aggregations");
-}
-
-export async function curateNluAggregations(corrections, autoRetrain = false, trainTarget = "local") {
-  return request("/api/admin/nlu/curate", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({ corrections, autoRetrain, trainTarget })
-  });
-}
 
 export async function getBotPrompts() {
   return request("/api/admin/prompts");
@@ -234,11 +222,11 @@ export async function getNluInferenceBackend() {
   return request("/api/admin/train/inference-backend");
 }
 
-export async function setNluInferenceBackend(backend, retrainPassword) {
+export async function setNluInferenceBackend(payload, retrainPassword) {
   return request("/api/admin/train/inference-backend", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ backend, retrainPassword }),
+    body: JSON.stringify({ ...payload, retrainPassword }),
   });
 }
 
@@ -261,6 +249,39 @@ export async function syncNluEncoderKaggle(skipDownload = false) {
 export async function getNluModelMeta() {
   return request("/api/admin/train/model-meta");
 }
+
+export async function promoteNluModel(retrainPassword) {
+  return request("/api/admin/train/promote", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ retrainPassword }),
+  });
+}
+export async function exportFinetuneData() {
+  const token = getAuthToken();
+  const res = await fetch(`${API_BASE_URL}/api/admin/train/export-finetune`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    }
+  });
+  if (!res.ok) {
+    handleAuthError(res.status, "/api/admin/train/export-finetune");
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || "Xuất tập dữ liệu thất bại");
+  }
+  const blob = await res.blob();
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "mimo_nlu_finetune.jsonl";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
+
 
 export async function getNluTrainHistory() {
   return request("/api/admin/train/history");

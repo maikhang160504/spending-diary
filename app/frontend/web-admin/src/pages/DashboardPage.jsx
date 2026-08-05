@@ -150,7 +150,6 @@ function ModelSubChart({ title, modelKey, historyData }) {
     }
     if (!run.metrics || !run.metrics[key]) {
       if (metric === "test_set") return 150;
-      if (metric === "f1_score" && key === "ner") return 91.5;
       return 88.0;
     }
     const val = run.metrics[key][metric];
@@ -185,9 +184,9 @@ function ModelSubChart({ title, modelKey, historyData }) {
 
   const chartColor = modelKey === "ocr" ? "var(--accent-blue)" 
                   : modelKey === "intent" ? "var(--accent-emerald)" 
-                  : modelKey === "record_type" ? "var(--accent-amber)" 
                   : modelKey === "category" ? "#a855f7" 
                   : "var(--accent-blue)";
+
 
   const encoderColor = "#c084fc";
 
@@ -277,7 +276,17 @@ function ModelSubChart({ title, modelKey, historyData }) {
             <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: chartColor, display: "inline-block" }}></span>
             {title}
           </h3>
-          <div className="pro-max-chart-subtitle">
+          {modelKey !== "ocr" && (
+            <div style={{ display: "flex", gap: "10px", marginTop: "4px", fontSize: "11px", color: "var(--text-secondary)", fontWeight: "500" }}>
+              <span style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: chartColor }}></span> TF-IDF
+              </span>
+              <span style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: encoderColor }}></span> PhoBERT Encoder
+              </span>
+            </div>
+          )}
+          <div className="pro-max-chart-subtitle" style={{ marginTop: "8px" }}>
             <span>Mới nhất: <strong style={{ color: chartColor, fontFamily: "var(--font-mono)" }}>{latestVal}{isCount ? "" : "%"}</strong></span>
             {runs.length > 1 && !isCount && (
               <span className="pro-max-stat-pill" style={{
@@ -308,7 +317,11 @@ function ModelSubChart({ title, modelKey, historyData }) {
         {hoveredIndex !== null && runs[hoveredIndex] && (
           <div className="pro-max-tooltip">
             <div style={{ fontSize: "11px", color: "var(--text-secondary)", marginBottom: "3px" }}>
-              Run #{runs[hoveredIndex].run_index || (hoveredIndex + 1)}
+              Run #{runs[hoveredIndex].run_index || (hoveredIndex + 1)} {modelKey !== "ocr" && (
+                <span style={{ color: runs[hoveredIndex].train_type === "encoder" ? encoderColor : chartColor, marginLeft: "4px", fontWeight: "600" }}>
+                  ({runs[hoveredIndex].train_type === "encoder" ? "PhoBERT" : "TF-IDF"})
+                </span>
+              )}
             </div>
             <div style={{ fontSize: "14px", fontWeight: "700", color: "var(--text-primary)", fontFamily: "var(--font-mono)" }}>
               {metricLabels[selectedMetric]}: {getMetricValue(runs[hoveredIndex], modelKey, selectedMetric)}{isCount ? "" : "%"}
@@ -1006,9 +1019,9 @@ function DashboardPage() {
       }}>
         <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
           <div>
-            <h2 className="panel-title" style={{ fontSize: "18px", fontWeight: "600", color: "var(--text-primary)" }}>So sánh Hiệu năng NLU (Benchmark)</h2>
+            <h2 className="panel-title" style={{ fontSize: "18px", fontWeight: "600", color: "var(--text-primary)" }}>So sánh hiệu năng NLU (benchmark)</h2>
             <p className="form-desc" style={{ fontSize: "13px", color: "var(--text-secondary)", marginTop: "4px" }}>
-              So sánh chéo hiệu năng của 3 kiến trúc mô hình NLU phục vụ chương thực nghiệm của Luận văn.
+              So sánh chéo hiệu năng của 3 kiến trúc mô hình NLU phục vụ chương thực nghiệm của luận văn.
             </p>
           </div>
           <button
@@ -1026,7 +1039,7 @@ function DashboardPage() {
               fontSize: "12px"
             }}
           >
-            {runningBenchmark ? "Đang chạy đánh giá..." : "Chạy đánh giá Benchmark"}
+            {runningBenchmark ? "Đang chạy đánh giá..." : "Chạy đánh giá benchmark"}
           </button>
         </div>
         <NluBenchmarkChart data={benchmarkResults} />
@@ -1042,7 +1055,7 @@ function DashboardPage() {
           marginBottom: "30px"
         }}>
           <div className="panel-header" style={{ marginBottom: "20px" }}>
-            <h2 className="panel-title" style={{ fontSize: "18px", fontWeight: "600", color: "var(--text-primary)" }}>Độ hội tụ huấn luyện Fine-tune LLM</h2>
+            <h2 className="panel-title" style={{ fontSize: "18px", fontWeight: "600", color: "var(--text-primary)" }}>Độ hội tụ huấn luyện fine-tune LLM</h2>
             <p className="form-desc" style={{ fontSize: "13px", color: "var(--text-secondary)", marginTop: "4px" }}>
               Biểu đồ độ dốc loss qua các step huấn luyện LoRA trên Nvidia H100 GPU.
             </p>
@@ -1061,22 +1074,22 @@ function DashboardPage() {
         }}>
           <div className="panel-header" style={{ marginBottom: "20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div>
-              <h2 className="panel-title" style={{ fontSize: "18px", fontWeight: "600", color: "var(--text-primary)" }}>Model Accuracy & Telemetry Runs</h2>
+              <h2 className="panel-title" style={{ fontSize: "18px", fontWeight: "600", color: "var(--text-primary)" }}>Chi tiết đo lường hiệu năng (telemetry runs)</h2>
               <p className="form-desc" style={{ fontSize: "13px", color: "var(--text-secondary)", marginTop: "4px" }}>
                 Chi tiết các metric đánh giá chất lượng qua các lần chạy huấn luyện.
               </p>
             </div>
-            <span className="badge badge-success" style={{ padding: "4px 10px", fontSize: "12px", background: "rgba(16, 185, 129, 0.12)", color: "var(--accent-emerald)", borderRadius: "12px", fontWeight: "600" }}>Target: &gt;90%</span>
+            <span className="badge badge-success" style={{ padding: "4px 10px", fontSize: "12px", background: "rgba(16, 185, 129, 0.12)", color: "var(--accent-emerald)", borderRadius: "12px", fontWeight: "600" }}>Mục tiêu: &gt;90%</span>
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "20px" }}>
-            <ModelSubChart title="OCR / KIE (LayoutLMv3)" modelKey="ocr" historyData={ocrHistory} />
-            <ModelSubChart title="NLU Intent Classifier" modelKey="intent" historyData={trainHistory} />
-            <ModelSubChart title="NLU Record Type Model" modelKey="record_type" historyData={trainHistory} />
-            <ModelSubChart title="NLU Category Model" modelKey="category" historyData={trainHistory} />
-            <ModelSubChart title="NLU Named Entity (NER)" modelKey="ner" historyData={trainHistory} />
+            <ModelSubChart title="Độ chính xác OCR / KIE" modelKey="ocr" historyData={ocrHistory} />
+            <ModelSubChart title="Độ chính xác ý định (tầng 1)" modelKey="intent" historyData={trainHistory} />
+            <ModelSubChart title="Độ chính xác danh mục (tầng 2)" modelKey="category" historyData={trainHistory} />
           </div>
+
         </div>
+
 
         {/* Fusion Weight Configuration */}
         <div className="panel" style={{

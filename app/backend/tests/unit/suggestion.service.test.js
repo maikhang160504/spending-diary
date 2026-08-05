@@ -12,6 +12,7 @@ const {
   isHolidayMonth,
   denoiseCategory,
   computeBaseSpending,
+  computeVarianceAdjustment,
   computeIncomeFactor,
   buildSuggestionStory,
   formatVnd,
@@ -365,3 +366,38 @@ describe('Full Smart Budget Formula', () => {
     expect(suggested).toBe(4250000); // 5M * 0.85
   });
 });
+
+// ── computeVarianceAdjustment ───────────────────────────────────────
+
+describe('computeVarianceAdjustment', () => {
+  it('returns 0 adjustment when no last month limit is present', () => {
+    expect(computeVarianceAdjustment(3000000, 0)).toEqual({
+      adjustment: 0,
+      reasonText: null,
+      variance: 0,
+    });
+  });
+
+  it('returns positive adjustment when last month spending exceeded budget limit', () => {
+    // spent 5,000,000 > limit 4,000,000 -> variance +1,000,000 -> alpha 0.35 -> +350,000
+    const res = computeVarianceAdjustment(5000000, 4000000, false);
+    expect(res.adjustment).toBe(350000);
+    expect(res.variance).toBe(1000000);
+    expect(res.reasonText).toContain('tăng 350.000đ do vượt hạn mức tháng trước');
+  });
+
+  it('returns negative adjustment when last month spending was below budget limit', () => {
+    // spent 3,000,000 < limit 5,000,000 -> variance -2,000,000 -> beta 0.25 -> -500,000
+    const res = computeVarianceAdjustment(3000000, 5000000, false);
+    expect(res.adjustment).toBe(-500000);
+    expect(res.variance).toBe(-2000000);
+    expect(res.reasonText).toContain('giảm 500.000đ do chi tiêu dưới hạn mức tháng trước');
+  });
+
+  it('uses conservative factors for fixed cost categories', () => {
+    // spent 6,000,000 > limit 5,000,000 -> variance +1,000,000 -> alpha 0.20 -> +200,000
+    const res = computeVarianceAdjustment(6000000, 5000000, true);
+    expect(res.adjustment).toBe(200000);
+  });
+});
+

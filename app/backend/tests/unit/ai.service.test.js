@@ -19,8 +19,10 @@ jest.mock('../../src/services/aiClient', () => ({
 // Mock chatService
 jest.mock('../../src/modules/chat/chat.service', () => ({
   getMessages: jest.fn(),
-  addMessage: jest.fn(),
+  addMessage: jest.fn().mockResolvedValue({ id: 'msg-100' }),
+  updateMessageContent: jest.fn().mockResolvedValue({}),
 }));
+
 
 // Mock wsHub
 jest.mock('../../src/services/wsHub', () => ({
@@ -51,6 +53,8 @@ describe('ai.service unit tests', () => {
       if (sql.includes('wallet_members') && sql.includes('LIMIT 1')) {
         return Promise.resolve({ rows: [{ wallet_id: 'wallet-123' }] });
       }
+
+
       if (sql.includes('user_settings') && sql.includes('verbal_style')) {
         return Promise.resolve({ rows: [{ verbal_style: 'funny' }] });
       }
@@ -122,13 +126,18 @@ describe('ai.service unit tests', () => {
     const passedOptions = aiClient.aiChat.mock.calls[0][2];
     expect(passedOptions.profile).toBeDefined();
     expect(passedOptions.profile.spent_last_month).toBe(4500000);
+
+
     expect(passedOptions.chat_summary).toContain('REPORT');
 
     expect(result.response).toBe('Mimo hiểu rồi nha!');
-    expect(chatService.addMessage).toHaveBeenCalledWith('user-123', 'session-456', expect.objectContaining({
-      role: 'assistant',
-      content: 'Mimo hiểu rồi nha!',
-    }));
+    expect(chatService.updateMessageContent).toHaveBeenCalledWith(
+      'user-123',
+      'session-456',
+      'msg-100',
+      'Mimo hiểu rồi nha!',
+      expect.any(Object)
+    );
   });
 
   test('aiChat generates fallback text when LLM response is empty and intent is Record', async () => {
@@ -159,9 +168,13 @@ describe('ai.service unit tests', () => {
     const result = await aiService.aiChat('user-123', 'session-456', 'cơm sườn 50k');
 
     expect(result.response).toBe('Mimo đã ghi nhận khoản chi 50.000đ cho Ăn uống vào ví của bạn. Hãy cân đối chi tiêu hợp lý nhé!');
-    expect(chatService.addMessage).toHaveBeenCalledWith('user-123', 'session-456', expect.objectContaining({
-      role: 'assistant',
-      content: 'Mimo đã ghi nhận khoản chi 50.000đ cho Ăn uống vào ví của bạn. Hãy cân đối chi tiêu hợp lý nhé!',
-    }));
+    expect(chatService.updateMessageContent).toHaveBeenCalledWith(
+      'user-123',
+      'session-456',
+      'msg-100',
+      'Mimo đã ghi nhận khoản chi 50.000đ cho Ăn uống vào ví của bạn. Hãy cân đối chi tiêu hợp lý nhé!',
+      expect.any(Object)
+    );
   });
 });
+

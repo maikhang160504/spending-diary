@@ -1,0 +1,531 @@
+--- BLOCK 0 ---
+flowchart LR
+    User([Người dùng])
+    Admin([Quản trị viên])
+    System([Hệ thống tự động])
+
+    subgraph Hệ thống Spending Diary
+        UC1(Đăng ký và đăng nhập)
+        UC2(Nâng cấp tài khoản)
+        UC3(Quản lý ví tiền)
+        UC4(Ghi chép chi tiêu bằng văn bản)
+        UC5(Quét ảnh hóa đơn)
+        UC6(Giao tiếp thông minh và ra lệnh)
+        UC7(Quản lý hạn mức và gợi ý ngân sách)
+        UC8(Báo cáo và so sánh)
+        UC14(Quản lý giao dịch)
+        UC19(Phản hồi ý định sai)
+
+        UC9(Thống kê doanh thu)
+        UC10(Quản lý người dùng)
+        UC11(Dán nhãn dữ liệu ảnh)
+        UC12(Tinh chỉnh tính cách AI)
+        UC13(Ra lệnh huấn luyện AI)
+        UC20(Duyệt mô hình AI mới)
+        UC21(Xuất dữ liệu huấn luyện LLM)
+
+        UC15(Xử lý nghiệp vụ tài chính)
+        UC16(Cổng API và bảo mật)
+        UC17(Quản lý trạng thái hộp thoại)
+        UC18(Hệ thống tự động hóa)
+        UC22(Xử lý ngôn ngữ tự nhiên hai tầng)
+        UC23(Trích xuất hình ảnh)
+        UC24(Quản trị vòng đời mô hình)
+    end
+
+    User --> UC1
+    User --> UC2
+    User --> UC3
+    User --> UC4
+    User --> UC5
+    User --> UC6
+    User --> UC7
+    User --> UC8
+    User --> UC14
+    User --> UC19
+
+    Admin --> UC1
+    Admin --> UC9
+    Admin --> UC10
+    Admin --> UC11
+    Admin --> UC12
+    Admin --> UC13
+    Admin --> UC20
+    Admin --> UC21
+
+    System --> UC15
+    System --> UC16
+    System --> UC17
+    System --> UC18
+    System --> UC22
+    System --> UC23
+    System --> UC24
+
+--- BLOCK 1 ---
+flowchart LR
+    User([Người dùng])
+
+    subgraph Phân hệ người dùng Spending Diary
+        UC1(Đăng ký và đăng nhập)
+        UC1_1(Đăng ký tài khoản mới)
+        UC1_2(Đăng nhập ứng dụng)
+        UC1_3(Khôi phục mật khẩu)
+
+        UC2(Nâng cấp tài khoản)
+        UC2_1(Thanh toán nâng cấp Premium)
+
+        UC3(Quản lý ví tiền)
+        UC3_1(Tạo ví chi tiêu cá nhân)
+        UC3_2(Tạo ví chia sẻ nhóm)
+        UC3_3(Mời thành viên tham gia ví)
+        UC3_4(Cập nhật hoặc xóa ví)
+
+        UC4(Ghi chép chi tiêu bằng văn bản)
+        UC4_1(Ghi chép khoản chi qua trò chuyện)
+
+        UC5(Quét ảnh hóa đơn)
+        UC5_1(Chụp hoặc tải ảnh hóa đơn)
+
+        UC6(Giao tiếp thông minh và ra lệnh)
+        UC6_1(Tra cứu số dư và thống kê nhanh)
+        UC6_2(Ra lệnh hệ thống điều khiển ứng dụng)
+
+        UC7(Quản lý hạn mức và gợi ý ngân sách)
+        UC7_1(Thiết lập hạn mức chi tiêu tháng)
+        UC7_2(Theo dõi tiến độ ngân sách)
+
+        UC8(Báo cáo và so sánh)
+        UC8_1(Xem biểu đồ cơ cấu chi tiêu)
+        UC8_2(So sánh thu chi giữa các chu kỳ)
+
+        UC14(Quản lý giao dịch)
+        UC14_1(Tra cứu lịch sử giao dịch)
+        UC14_2(Chỉnh sửa thông tin giao dịch)
+        UC14_3(Xóa giao dịch)
+
+        UC19(Phản hồi ý định sai)
+        UC19_1(Báo cáo khi trợ lý ảo hiểu nhầm ý định)
+    end
+
+    User --> UC1
+    User --> UC2
+    User --> UC3
+    User --> UC4
+    User --> UC5
+    User --> UC6
+    User --> UC7
+    User --> UC8
+    User --> UC14
+    User --> UC19
+
+    UC1 -. bao gồm .-> UC1_1
+    UC1 -. bao gồm .-> UC1_2
+    UC1 -. mở rộng .-> UC1_3
+
+    UC2 -. bao gồm .-> UC2_1
+
+    UC3 -. bao gồm .-> UC3_1
+    UC3 -. bao gồm .-> UC3_2
+    UC3 -. mở rộng .-> UC3_3
+    UC3 -. mở rộng .-> UC3_4
+
+    UC4 -. bao gồm .-> UC4_1
+
+    UC5 -. bao gồm .-> UC5_1
+
+    UC6 -. bao gồm .-> UC6_1
+    UC6 -. bao gồm .-> UC6_2
+
+    UC7 -. bao gồm .-> UC7_1
+    UC7 -. mở rộng .-> UC7_2
+
+    UC8 -. bao gồm .-> UC8_1
+    UC8 -. mở rộng .-> UC8_2
+
+    UC14 -. bao gồm .-> UC14_1
+    UC14 -. mở rộng .-> UC14_2
+    UC14 -. mở rộng .-> UC14_3
+
+    UC19 -. bao gồm .-> UC19_1
+
+--- BLOCK 2 ---
+flowchart LR
+    Admin([Quản trị viên])
+
+    subgraph Phân hệ quản trị viên Spending Diary
+        UC1(Đăng nhập quản trị)
+
+        UC9(Thống kê tổng quan)
+        UC9_1(Xem biểu đồ tăng trưởng người dùng)
+        UC9_2(Theo dõi lưu lượng giao dịch)
+        UC9_3(Giám sát trạng thái máy chủ)
+
+        UC10(Quản lý người dùng)
+        UC10_1(Tìm kiếm và lọc tài khoản)
+        UC10_2(Xem chi tiết hồ sơ người dùng)
+        UC10_3(Đình chỉ tài khoản vi phạm)
+        UC10_4(Mở khóa tài khoản)
+
+        UC11(Dán nhãn dữ liệu ảnh)
+        UC11_1(Xem danh sách hóa đơn nhận diện lỗi)
+        UC11_2(Chỉnh sửa vùng nhãn hóa đơn)
+        UC11_3(Duyệt nhãn dữ liệu chuẩn)
+
+        UC12(Tinh chỉnh tính cách AI)
+        UC12_1(Tạo mới hồ sơ tính cách)
+        UC12_2(Chỉnh sửa chỉ thị hệ thống AI)
+
+        UC13(Ra lệnh huấn luyện AI)
+        UC13_1(Xuất tập dữ liệu huấn luyện)
+        UC13_2(Kích hoạt tiến trình huấn luyện AI)
+        UC13_3(Phát hành mô hình AI mới)
+    end
+
+    Admin --> UC1
+    Admin --> UC9
+    Admin --> UC10
+    Admin --> UC11
+    Admin --> UC12
+    Admin --> UC13
+
+    UC9 -. bao gồm .-> UC9_1
+    UC9 -. bao gồm .-> UC9_2
+    UC9 -. mở rộng .-> UC9_3
+
+    UC10 -. bao gồm .-> UC10_1
+    UC10 -. bao gồm .-> UC10_2
+    UC10 -. mở rộng .-> UC10_3
+    UC10 -. mở rộng .-> UC10_4
+
+    UC11 -. bao gồm .-> UC11_1
+    UC11 -. bao gồm .-> UC11_2
+    UC11 -. bao gồm .-> UC11_3
+
+    UC12 -. bao gồm .-> UC12_1
+    UC12 -. bao gồm .-> UC12_2
+
+    UC13 -. bao gồm .-> UC13_1
+    UC13 -. bao gồm .-> UC13_2
+    UC13 -. mở rộng .-> UC13_3
+
+--- BLOCK 3 ---
+erDiagram
+    %% Nhóm Tài khoản
+    users {
+        uuid id PK
+        string email
+    }
+    refresh_tokens {
+        uuid id PK
+        uuid user_id FK
+    }
+    user_settings {
+        uuid user_id PK
+        string verbal_style
+    }
+    system_settings {
+        string key PK
+        string value
+    }
+
+    %% Nhóm Giao dịch
+    wallets {
+        uuid id PK
+        uuid owner_id FK
+        float balance
+    }
+    wallet_members {
+        uuid wallet_id PK
+        uuid user_id PK
+    }
+    categories {
+        uuid id PK
+        uuid user_id FK
+        string name
+    }
+    transactions {
+        uuid id PK
+        uuid wallet_id FK
+        uuid category_id FK
+        float amount
+    }
+
+    %% Nhóm Kế hoạch
+    budgets {
+        uuid id PK
+        uuid wallet_id FK
+        float limit_amount
+    }
+    goals {
+        uuid id PK
+        uuid user_id FK
+        float target_amount
+    }
+    loans {
+        uuid id PK
+        uuid user_id FK
+        float amount
+    }
+    recurring_transactions {
+        uuid id PK
+        uuid wallet_id FK
+    }
+    stories {
+        uuid id PK
+        uuid user_id FK
+    }
+
+    %% Nhóm AI
+    chat_sessions {
+        uuid id PK
+        uuid user_id FK
+    }
+    chat_messages {
+        uuid id PK
+        uuid session_id FK
+        string content
+    }
+    bill_retrain_queue {
+        uuid id PK
+        uuid transaction_id FK
+    }
+
+    %% Quan hệ
+    users ||--o{ refresh_tokens : "đăng nhập"
+    users ||--|| user_settings : "cài đặt"
+    users ||--o{ wallets : "sở hữu"
+    users ||--o{ wallet_members : "tham gia"
+    users ||--o{ categories : "tạo"
+    users ||--o{ goals : "đặt"
+    users ||--o{ loans : "quản lý"
+    users ||--o{ stories : "đăng"
+    users ||--o{ chat_sessions : "trò chuyện"
+    
+    wallets ||--o{ wallet_members : "chứa"
+    wallets ||--o{ transactions : "phát sinh"
+    wallets ||--o{ budgets : "áp dụng"
+    wallets ||--o{ recurring_transactions : "thiết lập"
+    
+    categories ||--o{ transactions : "phân loại"
+    transactions ||--o| bill_retrain_queue : "cung cấp hóa đơn"
+    chat_sessions ||--o{ chat_messages : "chứa"
+
+--- BLOCK 4 ---
+flowchart TD
+    A[Người dùng nhập văn bản và bấm Gửi] --> B{Văn bản có rỗng?}
+    B -- Có --> C[Bỏ qua, không xử lý]
+    B -- Không --> D[Hiển thị trạng thái Loading trên UI]
+    D --> E[Dùng thư viện Dio gọi HTTP POST lên Máy chủ]
+    E --> F[Máy chủ phân tích NLU]
+    F --> G[Trả về dữ liệu JSON chứa Số tiền & Danh mục]
+    G --> H[Ứng dụng giải mã JSON]
+    H --> I[Cập nhật biến trạng thái cục bộ]
+    I --> J[Tự động vẽ lại màn hình UI và trừ tiền ví]
+
+--- BLOCK 5 ---
+flowchart TD
+    A[Người dùng chụp ảnh hóa đơn] --> B[Ứng dụng nén dung lượng ảnh trực tiếp trên máy]
+    B --> C[Tải ảnh đã nén lên kho lưu trữ R2]
+    C --> D[Lấy đường dẫn URL của ảnh]
+    D --> E[Gửi URL lên Máy chủ qua thư viện Dio]
+    E --> F[Giải phóng giao diện, người dùng được dùng tiếp App]
+    F --> G[Máy chủ gọi AI quét ảnh Luồng hoạt động của chức năng quét hóa đơn.chạy ngầm]
+    G --> H[Hoàn tất, gửi thông báo Push báo kết quả]
+
+--- BLOCK 6 ---
+flowchart TD
+    A[Người dùng chọn mốc thời gian] --> B[Truy vấn giao dịch từ cơ sở dữ liệu]
+    B --> C{Chọn thẻ báo cáo nào?}
+    C -- Chi phí / Thu nhập --> D[Luồng Isolate gom nhóm và tính %]
+    C -- So sánh chi tiêu --> E[Gọi API lên Máy chủ đối chiếu mức sống]
+    D --> F[Vẽ biểu đồ bằng fl_chart]
+    E --> G[Nhận kết quả % và lời bình luận]
+    F --> H[Cập nhật UI màn hình]
+    G --> H
+
+--- BLOCK 7 ---
+flowchart TD
+    A1[Thêm giao dịch mới] --> A2[Lấy tổng chi & hạn mức từ cơ sở dữ liệu]
+    A2 --> A3[Tính tỷ lệ % = Chi tiêu / Hạn mức]
+    A3 --> A4{Tỷ lệ % >= 80%?}
+    A4 -- Có --> A5[Hiển thị thanh tiến trình màu Đỏ báo động]
+    A4 -- Không --> A6[Hiển thị thanh tiến trình màu Xanh an toàn]
+
+--- BLOCK 8 ---
+flowchart TD
+    B1[Bấm nút gợi ý ngân sách] --> B2[Lấy lịch sử chi tiêu và thu nhập 3 tháng gần nhất]
+    B2 --> B3[Tính chi tiêu nền theo trung bình trượt có trọng số]
+    B3 --> B4[Đối chiếu lịch sử hạn mức tháng trước: sử dụng - hạn mức]
+    B4 --> B5[Hiệu chuẩn tăng nếu vượt hạn mức hoặc giảm nếu dưới hạn mức]
+    B5 --> B6[Cân đối tỷ lệ 50/30/20]
+    B6 --> B7[Điền sẵn con số đề xuất sát thực tế lên giao diện]
+
+--- BLOCK 9 ---
+flowchart TD
+    A[Người dùng gửi câu lệnh] --> B[Hiển thị tin nhắn chờ]
+    B --> C[Gửi dữ liệu lên API Server]
+    C --> D[Máy chủ AI phân tích ý định]
+    D --> E{Ý định là gì?}
+    E -- Trả lời thông thường --> F[Trả về văn bản]
+    E -- Yêu cầu chuyển hướng --> G[Trả về văn bản kèm Nút bấm điều hướng]
+    F --> H[Cập nhật giao diện trò chuyện]
+    G --> H
+    H --> I[Người dùng chạm vào nút bấm]
+    I --> J[Chuyển sang màn hình Báo cáo]
+
+--- BLOCK 10 ---
+flowchart TD
+    A[Người dùng khởi động Nhìn lại hành trình] --> B[Ứng dụng gửi yêu cầu lên Máy chủ]
+    B --> C[Máy chủ truy vấn giao dịch lớn nhất, tháng tốn kém từ cơ sở dữ liệu]
+    C --> D[Gửi dữ liệu thô sang máy chủ AI]
+    D --> E[AI phân tích và sinh lời bình luận hóm hỉnh]
+    E --> F[Đóng gói toàn bộ thành dữ liệu Recap]
+    F --> G[Trả dữ liệu về Ứng dụng]
+    G --> H[Vẽ giao diện Story tràn màn hình]
+    H --> I{Người dùng vuốt sang thẻ khác?}
+    I -- Có --> J[Chạy hiệu ứng chuyển cảnh và tải thẻ mới]
+    I -- Không --> H
+    J --> I
+
+--- BLOCK 11 ---
+flowchart TD
+    A[Gửi yêu cầu tạo đơn hàng lên Máy chủ] --> B[Nhận URL thanh toán VNPay]
+    B --> C[Mở trình duyệt nhúng tải URL thanh toán]
+    C --> D[Gửi truy vấn trạng thái đơn hàng liên tục]
+    D --> E{Trạng thái thanh toán?}
+    E -- Đang chờ --> D
+    E -- Thất bại / Hủy --> F[Đóng trình duyệt nhúng và báo lỗi]
+    E -- Hoàn tất --> G[Đóng trình duyệt nhúng]
+    G --> H[Cập nhật UI và gắn huy hiệu Cao cấp]
+
+--- BLOCK 12 ---
+flowchart TD
+    A[Truy cập màn hình quản lý Ví tiền] --> B{Chọn nhóm thao tác?}
+    B -- Thêm ví mới --> C[Nhập thông tin: tên, màu sắc, loại ví, số dư]
+    B -- Tham gia ví --> D[Nhập mã xác nhận để tham gia Ví chung]
+    B -- Xóa ví --> F[Xác nhận yêu cầu gỡ bỏ Ví khỏi hệ thống]
+    C --> G[Gửi yêu cầu API tương ứng lên Máy chủ]
+    D --> G
+    F --> G
+    G --> H{Phản hồi từ API?}
+    H -- Lỗi --> I[Hiển thị cảnh báo Snackbar/Toast]
+    H -- Thành công --> J[Cập nhật dữ liệu vào bộ nhớ đệm cục bộ]
+    J --> K[Tải lại danh sách Ví trên giao diện]
+
+--- BLOCK 13 ---
+flowchart TD
+    A[Truy cập Quản lý giao dịch] --> B{Chọn chế độ xem}
+    B -- Story / Gallery --> C[Xem giao dịch dạng thẻ ảnh trực quan]
+    B -- Calendar --> D[Xem giao dịch phân bổ theo ngày trên Lịch]
+    C --> E[Nhấn vào một giao dịch]
+    D --> E
+    E --> F[Hiển thị màn hình chi tiết giao dịch]
+    F --> G{Loại thao tác?}
+    G -- Xóa --> H[Xác nhận xóa và gửi yêu cầu API]
+    G -- Sửa --> I[Thay đổi Danh mục, Số tiền, hoặc Ghi chú]
+    I --> J[Nhấn Lưu và gửi yêu cầu cập nhật API]
+    H --> K{Phản hồi API?}
+    J --> K
+    K -- Lỗi --> L[Hiển thị thông báo lỗi trên giao diện]
+    K -- Thành công --> M[Cập nhật bộ nhớ đệm cục bộ]
+    M --> N[Đóng màn hình và tải lại danh sách giao dịch]
+
+--- BLOCK 14 ---
+flowchart TD
+    A[Màn hình Đăng nhập / Đăng ký] --> B{Hành động?}
+    B -- Đăng nhập Google --> C[Gửi Token sang Firebase Auth]
+    B -- Đăng nhập Email --> D[Kiểm tra thông tin tại Máy chủ]
+    B -- Quên mật khẩu --> E[Gửi liên kết khôi phục qua Email]
+    E --> F[Người dùng đặt lại mật khẩu mới]
+    F --> A
+    C --> G{Xác thực thành công?}
+    D --> G
+    G -- Lỗi --> H[Trả về thông báo lỗi cho người dùng]
+    G -- Thành công --> I[Máy chủ sinh chuỗi mã thông báo bảo mật]
+    I --> J[Trả mã thông báo an toàn về Ứng dụng]
+    J --> K[Mở khóa truy cập vào màn hình chính]
+
+--- BLOCK 15 ---
+flowchart TD
+    A[Quản trị viên truy cập Bảng điều khiển] --> B[Hệ thống gửi đa luồng yêu cầu dữ liệu]
+    B --> C[Truy xuất nhật ký AI và số liệu huấn luyện/RAG]
+    B --> D[Truy xuất dữ liệu giao dịch thanh toán Premium]
+    C --> E[Đóng gói 4 thẻ chỉ số AI và thanh tiến trình Readiness]
+    D --> F[Dựng biểu đồ doanh thu và danh sách giao dịch]
+    E --> G[Trả dữ liệu về Cổng Quản trị]
+    F --> G
+    G --> H[Làm mới giao diện Dashboard đa chức năng]
+
+--- BLOCK 16 ---
+flowchart TD
+    A[Quản trị viên thao tác trên một tài khoản] --> B{Loại thao tác?}
+    B -- Khóa tài khoản --> C[Cập nhật trạng thái Cấm truy cập vào Cơ sở dữ liệu]
+    B -- Mở khóa tài khoản --> D[Gỡ bỏ trạng thái Cấm truy cập khỏi Cơ sở dữ liệu]
+    C --> E[Gửi lệnh đồng bộ cấm/mở khóa sang Firebase Auth]
+    D --> E
+    E --> F{Thực thi thành công?}
+    F -- Lỗi --> G[Hiển thị thông báo thất bại cho Quản trị viên]
+    F -- Thành công --> H[Hiển thị thông báo thành công và làm mới danh sách]
+
+--- BLOCK 17 ---
+flowchart TD
+    A[Người dùng báo sai ý định trên App] --> B[Backend lưu vào bảng nlu_logs]
+    B --> C[WebAdmin hiển thị danh sách phản hồi]
+    C --> D[Quản trị viên phê duyệt nhãn đúng]
+    D --> E[Tích lũy dữ liệu sạch]
+    E --> F[Kích hoạt huấn luyện 2 tầng: Intent + Category]
+    F --> G[Mô hình ứng viên lưu vào models_new]
+    G --> H{Quản trị viên so sánh benchmark}
+    H -->|Chất lượng đạt| I[Duyệt áp dụng: models_new đổi thành models]
+    H -->|Chưa đạt| J[Giữ nguyên mô hình hiện tại]
+
+--- BLOCK 18 ---
+flowchart TD
+    A[Hệ thống ghi nhận hóa đơn bị lỗi nhận diện] --> B[Đẩy ảnh vào Hàng đợi trên WebAdmin]
+    B --> C[Quản trị viên mở ảnh trên Khung vẽ tương tác]
+    C --> D{Chế độ gán nhãn?}
+    D -- Thủ công --> E[Tự vẽ khung tọa độ và gán nhãn nghiệp vụ]
+    D -- Tự động --> F[AI gợi ý khung tọa độ có sẵn]
+    F --> G[Quản trị viên tinh chỉnh lại các khung bị lệch]
+    E --> H[Nhấn nút Phê duyệt dữ liệu]
+    G --> H
+    H --> I[Xuất tập dữ liệu chuẩn để huấn luyện lại mô hình]
+
+--- BLOCK 19 ---
+flowchart TD
+    A[Quản trị viên chọn Nhân cách và Tham số] --> B[Thiết lập Ngữ cảnh gọi và Ý định ép buộc]
+    B --> C[Nhập câu thoại mẫu vào Môi trường kiểm thử]
+    C --> D[Hệ thống nạp Quy tắc tương ứng và gọi mô hình AI]
+    D --> E{Kiểm tra Rule Used và Đánh giá phản hồi?}
+    E -- Chưa đạt --> A
+    E -- Đạt yêu cầu --> F[Lưu cấu hình và Triển khai đồng loạt]
+    F --> G[Thiết bị di động của người dùng tự động cập nhật]
+
+--- BLOCK 20 ---
+flowchart TD
+    Input(["Tin nhắn người dùng + caller_context"]) --> Check{"Ngữ cảnh gọi?"}
+
+    Check -->|"addstory (phím tắt ghi chép)"| ForceRecord["Bỏ qua tầng 1, ép intent = Record"]
+    Check -->|"chat (trò chuyện)"| Stage1["Tầng 1: Phân loại ý định"]
+
+    Stage1 --> Conf{"Độ tin cậy >= 0.65?"}
+    Conf -->|"Đạt ngưỡng"| LoadRule
+    Conf -->|"Dưới ngưỡng"| Vote["Bỏ phiếu đa số: TF-IDF + PhoBERT + LLM"]
+    Vote --> LoadRule
+
+    ForceRecord --> LoadRule["Chọn quy tắc tầng 2 từ llm_rules.json"]
+
+    LoadRule -->|Record| RecordRule["Quy tắc ghi chép chi tiêu"]
+    LoadRule -->|Action| ActionRule["Quy tắc lệnh điều khiển"]
+    LoadRule -->|Chitchat| ChitchatRule["Quy tắc trò chuyện xã giao"]
+
+    RecordRule & ActionRule & ChitchatRule --> LLM["Gọi Qwen 2.5 trên Modal GPU"]
+    LLM --> Output(["Kết quả JSON: slots, response, emotion"])
+
+--- BLOCK 21 ---
+flowchart TD
+    A([Ảnh hóa đơn chụp từ Mobile]) --> B[Bước 1: Phát hiện chữ\n(PaddleOCR)]
+    B -->|Tọa độ khung chữ| C[Bước 2: Giải mã ký tự\n(VietOCR)]
+    C -->|Văn bản thuần túy| D[Bước 3: Phân tích không gian\n(LayoutLMv3)]
+    D -->|Nhận diện quy luật bố cục| E([Trích xuất JSON:\nTổng tiền & Tên cửa hàng])
+

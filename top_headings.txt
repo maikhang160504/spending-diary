@@ -1,0 +1,10 @@
+## 3.6. Thiết kế cơ sở dữ liệu và lưu trữ
+## 4.1. Mục tiêu và phương pháp kiểm thử
+## 4.2. Kịch bản kiểm thử
+## 4.3. Kết quả kiểm thử chức năng hệ thống
+## 4.4. Kết quả kiểm thử tính khả dụng, cơ sở dữ liệu và bảo mật
+## 4.5. Đánh giá độ chín công nghệ (Tech Maturity Assessment)
+## Phụ lục A: Đặc tả quy trình sử dụng chi tiết
+## Phụ lục B: Mô tả chi tiết dữ liệu hệ thống
+## Phụ lục C: Cấu trúc chỉ thị điều khiển mô hình trí tuệ nhân tạo
+## Phụ lục D: Danh mục giao diện chi tiết của ứng dụng

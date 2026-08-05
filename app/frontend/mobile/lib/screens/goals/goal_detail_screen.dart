@@ -9,6 +9,7 @@ import '../../theme/app_radii.dart';
 import '../../theme/app_spacing.dart';
 import '../../utils/formatters.dart';
 import '../../widgets/loading_indicator.dart';
+import '../../widgets/mimo_snackbar.dart';
 import 'goal_recap_screen.dart';
 
 class GoalDetailScreen extends StatefulWidget {
@@ -154,7 +155,10 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
       constraints: const BoxConstraints(maxWidth: 600),
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadii.xl))),
       builder: (ctx) {
-        final isChallenge = _goal['type'] == 'challenge';
+        final isChallenge = _goal['type']?.toString().startsWith('challenge') == true;
+        final targetAmountVal = (_goal['target_amount'] as num?)?.toDouble() ?? 0;
+        final isGroupGoal = _goal['is_group'] == true || _goal['isGroup'] == true;
+        final typeStr = _goal['type']?.toString() ?? 'savings';
         return StatefulBuilder(
           builder: (ctx, setSheetState) => Padding(
             padding: EdgeInsets.only(left: 20, right: 20, top: 20, bottom: MediaQuery.of(ctx).viewInsets.bottom + 20),
@@ -195,22 +199,53 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
                             setSheetState(() {
                               isSubmitting = true;
                             });
-                            final scaffoldMessenger = ScaffoldMessenger.of(context);
                             ctx.pop();
                             try {
                               await _api.contributeGoal(widget.goalId, amount);
                               if (!mounted) return;
-                              scaffoldMessenger.showSnackBar(
-                                const SnackBar(
-                                  content: Text('🎉 Thêm tiền thành công!'),
-                                  backgroundColor: AppColors.teal,
-                                ),
-                              );
                               _loadGoalDetail();
+                              if (mounted) {
+                                final isCompletedNow = isChallenge
+                                    ? (((_myProgress?['currentAmount'] as num?)?.toDouble() ?? 0) + amount >= targetAmountVal)
+                                    : (((_goal['current_amount'] as num?)?.toDouble() ?? 0) + amount >= targetAmountVal);
+
+                                MimoSnackBar.showSuccess(
+                                  context,
+                                  message: isCompletedNow
+                                      ? 'Chúc mừng bạn đã hoàn thành mục tiêu "${_goal['name'] ?? 'Mục tiêu'}"!'
+                                      : 'Đã nạp ${formatVnd(amount.toInt())} vào mục tiêu thành công!',
+                                  emotion: 'Celebrate',
+                                );
+
+                                if (isCompletedNow) {
+                                  final targetAmt = (_goal['target_amount'] as num?)?.toInt() ?? 0;
+                                  final currAmt = isChallenge
+                                      ? (((_myProgress?['currentAmount'] as num?)?.toInt() ?? 0) + amount.toInt())
+                                      : (((_goal['current_amount'] as num?)?.toInt() ?? 0) + amount.toInt());
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => GoalRecapScreen(
+                                        goal: {
+                                          ..._goal,
+                                          'name': _goal['name'] ?? 'Mục tiêu',
+                                          'targetAmount': targetAmt,
+                                          'currentAmount': currAmt,
+                                          'emoji': _goal['emoji'] ?? '🎯',
+                                          'isGroup': isGroupGoal,
+                                          'type': typeStr,
+                                          'contributionsCount': _contributions.length + 1,
+                                        },
+                                      ),
+                                    ),
+                                  );
+                                }
+                              }
                             } catch (e) {
                               if (mounted) {
-                                scaffoldMessenger.showSnackBar(
-                                  SnackBar(content: Text('Không thể thực hiện đóng góp: $e')),
+                                MimoSnackBar.showError(
+                                  context,
+                                  message: 'Không thể thực hiện đóng góp: $e',
                                 );
                               }
                             }
@@ -229,7 +264,7 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
   }
 
   void _showEditGoalSheet() {
-    final isChallenge = _goal['type'] == 'challenge';
+    final isChallenge = _goal['type']?.toString().startsWith('challenge') == true;
     final nameCtrl = TextEditingController(text: _goal['name']);
     final targetAmountVal = (_goal['target_amount'] as num?)?.toInt() ?? 0;
     final amountCtrl = TextEditingController(text: formatVnd(targetAmountVal).replaceAll('đ', '').trim());
@@ -423,7 +458,9 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
         ? ((_myProgress?['currentAmount'] as num?)?.toInt() ?? 0)
         : currentAmount;
     final double percent = targetAmount > 0 ? displayCurr / targetAmount : 0.0;
-    final bool isCompleted = status == 'completed' || percent >= 1.0;
+    final bool isCompleted = isChallenge
+        ? (_myProgress?['status'] == 'completed' || percent >= 1.0)
+        : (status == 'completed' || percent >= 1.0);
     final int remaining = targetAmount - displayCurr;
 
     // Calculations for deadline
@@ -442,7 +479,9 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
     return Scaffold(
       backgroundColor: context.palette.bg,
       body: SafeArea(
-        child: Center(
+        top: false,
+        child: Align(
+          alignment: Alignment.topCenter,
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 800),
             child: SingleChildScrollView(
@@ -459,7 +498,7 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
                     bottomRight: Radius.circular(AppRadii.xl),
                   ),
                 ),
-                padding: const EdgeInsets.fromLTRB(12, 14, 24, 24),
+                padding: EdgeInsets.fromLTRB(12, 14 + MediaQuery.of(context).padding.top, 24, 24),
                 child: Row(
                   children: [
                     IconButton(
@@ -848,40 +887,7 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
                       physics: const NeverScrollableScrollPhysics(),
                       itemCount: _progressLeaderboard.length,
                       separatorBuilder: (ctx, i) => Divider(height: 1, color: context.palette.divider),
-                      itemBuilder: (ctx, i) {
-                        final m = _progressLeaderboard[i];
-                        final uName = m['username'] as String? ?? 'Thành viên';
-                        final avatar = m['avatarUrl'] as String?;
-                        final pct = (m['percentage'] as num?)?.toInt() ?? 0;
-                        final isDone = m['status'] == 'completed' || pct >= 100;
-
-                        return ListTile(
-                          leading: CircleAvatar(
-                            backgroundColor: AppColors.teal.withValues(alpha: 0.15),
-                            backgroundImage: avatar != null ? NetworkImage(avatar) : null,
-                            child: avatar == null
-                                ? Text(uName[0].toUpperCase(), style: const TextStyle(color: AppColors.teal, fontWeight: FontWeight.w700))
-                                : null,
-                          ),
-                          title: Text(uName, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-                          subtitle: Text('Đã hoàn thành $pct%', style: const TextStyle(color: AppColors.muted, fontSize: 12)),
-                          trailing: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: isDone ? AppColors.teal.withValues(alpha: 0.15) : context.palette.surfaceAlt,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              isDone ? 'Hoàn thành 🎉' : 'Đang đua ⚡',
-                              style: TextStyle(
-                                color: isDone ? AppColors.teal : context.palette.textSecondary,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 11,
-                              ),
-                            ),
-                          ),
-                        );
-                      },
+                      itemBuilder: (ctx, i) => _buildChallengeLeaderboardItem(context, _progressLeaderboard[i], i, targetAmount),
                     ),
                   ),
                 ),
@@ -938,12 +944,25 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
                           final pct = (m['percentage'] as num?)?.toInt() ?? 0;
 
                           return ListTile(
-                            leading: CircleAvatar(
-                              backgroundColor: AppColors.teal.withValues(alpha: 0.15),
-                              backgroundImage: avatar != null ? NetworkImage(avatar) : null,
-                              child: avatar == null
-                                  ? Text(uName[0].toUpperCase(), style: const TextStyle(color: AppColors.teal, fontWeight: FontWeight.w700))
-                                  : null,
+                            leading: SizedBox(
+                              width: 72,
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  SizedBox(
+                                    width: 24,
+                                    child: Text('${i + 1}', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: AppColors.muted), textAlign: TextAlign.center),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  CircleAvatar(
+                                    backgroundColor: AppColors.teal.withValues(alpha: 0.15),
+                                    backgroundImage: avatar != null ? NetworkImage(avatar) : null,
+                                    child: avatar == null
+                                        ? Text(uName[0].toUpperCase(), style: const TextStyle(color: AppColors.teal, fontWeight: FontWeight.w700))
+                                        : null,
+                                  ),
+                                ],
+                              ),
                             ),
                             title: Text(uName, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
                             subtitle: Text('Đóng góp $pct%', style: const TextStyle(color: AppColors.muted, fontSize: 12)),
@@ -1114,4 +1133,168 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
       ),
     );
   }
+
+  Widget _buildChallengeLeaderboardItem(BuildContext context, dynamic m, int index, int targetAmt) {
+    final uName = m['username'] as String? ?? 'Thành viên';
+    final avatar = m['avatarUrl'] as String?;
+    final currentAmt = (m['currentAmount'] as num?)?.toInt() ?? 0;
+    final pct = (m['percentage'] as num?)?.toInt() ?? 0;
+    final isDone = m['status'] == 'completed' || pct >= 100;
+    final double progressRatio = targetAmt > 0 ? (currentAmt / targetAmt).clamp(0.0, 1.0) : 0.0;
+    final bool isCurrentUser = m['userId'] != null && m['userId'] == _currentUserId;
+
+    Widget rankBadge;
+    if (index == 0) {
+      rankBadge = Container(
+        width: 28, height: 28,
+        decoration: const BoxDecoration(
+          color: Color(0xFFFEF3C7),
+          shape: BoxShape.circle,
+        ),
+        child: const Center(
+          child: Text('🥇', style: TextStyle(fontSize: 14)),
+        ),
+      );
+    } else if (index == 1) {
+      rankBadge = Container(
+        width: 28, height: 28,
+        decoration: const BoxDecoration(
+          color: Color(0xFFF1F5F9),
+          shape: BoxShape.circle,
+        ),
+        child: const Center(
+          child: Text('🥈', style: TextStyle(fontSize: 14)),
+        ),
+      );
+    } else if (index == 2) {
+      rankBadge = Container(
+        width: 28, height: 28,
+        decoration: const BoxDecoration(
+          color: Color(0xFFFFEDD5),
+          shape: BoxShape.circle,
+        ),
+        child: const Center(
+          child: Text('🥉', style: TextStyle(fontSize: 14)),
+        ),
+      );
+    } else {
+      rankBadge = Container(
+        width: 28, height: 28,
+        decoration: BoxDecoration(
+          color: context.palette.surfaceAlt,
+          shape: BoxShape.circle,
+        ),
+        child: Center(
+          child: Text(
+            '${index + 1}',
+            style: TextStyle(
+              fontWeight: FontWeight.w800,
+              fontSize: 12,
+              color: context.palette.textSecondary,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              rankBadge,
+              const SizedBox(width: 10),
+              CircleAvatar(
+                radius: 18,
+                backgroundColor: AppColors.teal.withValues(alpha: 0.15),
+                backgroundImage: avatar != null ? NetworkImage(avatar) : null,
+                child: avatar == null
+                    ? Text(
+                        uName.isNotEmpty ? uName[0].toUpperCase() : 'U',
+                        style: const TextStyle(color: AppColors.teal, fontWeight: FontWeight.w700, fontSize: 13),
+                      )
+                    : null,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            uName,
+                            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (isCurrentUser) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: AppColors.teal.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: const Text(
+                              'Bạn',
+                              style: TextStyle(color: AppColors.teal, fontSize: 10, fontWeight: FontWeight.w700),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${formatVnd(currentAmt)} / ${formatVnd(targetAmt)}',
+                      style: TextStyle(
+                        color: context.palette.textSecondary,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                decoration: BoxDecoration(
+                  color: isDone
+                      ? const Color(0xFF10B981).withValues(alpha: 0.15)
+                      : AppColors.teal.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  isDone ? 'Hoàn thành 🎉' : '$pct%',
+                  style: TextStyle(
+                    color: isDone ? const Color(0xFF10B981) : AppColors.teal,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 11,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: progressRatio,
+              minHeight: 7,
+              backgroundColor: context.palette.surfaceAlt,
+              valueColor: AlwaysStoppedAnimation<Color>(
+                isDone ? const Color(0xFF10B981) : AppColors.teal,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
+

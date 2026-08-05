@@ -107,16 +107,17 @@ class _HomeScreenState extends State<HomeScreen> {
           );
         }
       });
+      _selectedWalletId ??= ApiClient.lastSelectedWalletId;
       if (_selectedWalletId == null && walletsList.isNotEmpty) {
-        final personalWallets = walletsList.where((w) => w['type'] != 'group').toList();
-        _selectedWalletId = personalWallets.isNotEmpty 
-            ? personalWallets[0]['id'] as String? 
-            : walletsList[0]['id'] as String?;
-      }
-      if (walletsList.any((w) => w['id'] == _selectedWalletId && w['type'] == 'group')) {
-        final personalWallets = walletsList.where((w) => w['type'] != 'group').toList();
-        if (personalWallets.isNotEmpty) {
-          _selectedWalletId = personalWallets[0]['id'] as String?;
+        final lastSelected = ApiClient.lastSelectedWalletId;
+        final lastExists = lastSelected != null && walletsList.any((w) => w['id'] == lastSelected);
+        if (lastExists) {
+          _selectedWalletId = lastSelected;
+        } else {
+          final personalWallets = walletsList.where((w) => w['type'] != 'group').toList();
+          _selectedWalletId = personalWallets.isNotEmpty 
+              ? personalWallets[0]['id'] as String? 
+              : walletsList[0]['id'] as String?;
         }
       }
       ApiClient.lastSelectedWalletId = _selectedWalletId;

@@ -1,20 +1,19 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, Fragment } from "react";
 import {
   getNluOverrides,
   addNluOverride,
   deleteNluOverride,
   cleanupInvalidNluOverrides,
-  getNluAggregations,
-  curateNluAggregations,
   triggerNluTrain,
   getNluTrainStatus,
   getNluModelMeta,
   getNluTrainHistory,
-  importNluCsv,
   reloadAiModels,
   getNluInferenceBackend,
   setNluInferenceBackend,
   triggerLlmFinetune,
+  exportFinetuneData,
+  promoteNluModel,
 } from "../services/api";
 
 const NLU_METRIC_SOURCES = {
@@ -61,18 +60,12 @@ function getMetricValue(modelKey, metricKey, metricsObj) {
 
 const COMPARISON_ROWS = {
   tfidf: [
-    { key: "nlu_record", label: "Category Model (category)", desc: "Phân loại danh mục chi tiêu tự động — TF-IDF" },
-    { key: "nlu_chitchat", label: "Intent Model (intent-model)", desc: "Nhận diện ý định giao dịch / Trò chuyện — TF-IDF" },
-    { key: "fusion", label: "Record Type Model (recordtype)", desc: "Phân loại Thu nhập / Chi tiêu — TF-IDF" },
-    { key: "nlu_action", label: "Action Model (actiontype)", desc: "Nhận diện hành động thao tác ví — TF-IDF" },
-    { key: "nlu_action_slots", label: "Action Slots (verb, category, time…)", desc: "Dự đoán slot chi tiết theo action_type (TF-IDF per field)" },
-    { key: "ner", label: "Named Entity Recognition (spaCy NER)", desc: "Nhận diện thực thể tên riêng, số tiền, ngày tháng" },
+    { key: "nlu_chitchat", label: "Intent Model (Stage 1)", desc: "Phân loại ý định Record / Action / Chitchat — TF-IDF" },
+    { key: "nlu_record", label: "Category Model (Stage 2)", desc: "Phân loại 18 danh mục chi tiêu tự động — TF-IDF" },
   ],
   encoder: [
-    { key: "nlu_record", label: "Category (PhoBERT encoder)", desc: "Phân loại danh mục chi tiêu — embedding PhoBERT" },
-    { key: "nlu_chitchat", label: "Intent (PhoBERT encoder)", desc: "Record / Action / Chitchat — embedding PhoBERT" },
-    { key: "fusion", label: "Record Type (PhoBERT encoder)", desc: "Thu nhập / Chi tiêu — embedding PhoBERT" },
-    { key: "nlu_action", label: "Action Type (PhoBERT encoder)", desc: "SET_LIMIT, ADD_GOAL, … — embedding PhoBERT" },
+    { key: "nlu_chitchat", label: "Intent (Stage 1 - PhoBERT)", desc: "Record / Action / Chitchat — embedding PhoBERT" },
+    { key: "nlu_record", label: "Category (Stage 2 - PhoBERT)", desc: "Phân loại 18 danh mục chi tiêu — embedding PhoBERT" },
   ],
 };
 
@@ -86,7 +79,7 @@ function filterHistoryByType(history, type) {
 
 
 function NluOpsPage() {
-  const [activeTab, setActiveTab] = useState("layer1");
+  const [activeTab, setActiveTab] = useState("model");
   const [toastMessage, setToastMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -96,10 +89,11 @@ function NluOpsPage() {
   const [newKeyword, setNewKeyword] = useState("");
   const [newCategory, setNewCategory] = useState("Food");
   const [newUserId, setNewUserId] = useState("");
-
-  // Layer 2 state
-  const [aggregations, setAggregations] = useState([]);
-  const [autoRetrainAfterCurate, setAutoRetrainAfterCurate] = useState("local");
+  
+  // Modal & Pagination for Layer 1
+  const [showAddRuleModal, setShowAddRuleModal] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
 
   // Model status state
   const [isTraining, setIsTraining] = useState(false);
@@ -118,14 +112,13 @@ function NluOpsPage() {
   });
   const [trainHistory, setTrainHistory] = useState([]);
   const [reloadingNlu, setReloadingNlu] = useState(false);
-  const [inferenceBackend, setInferenceBackend] = useState("tfidf");
+  const [intentBackend, setIntentBackend] = useState("tfidf");
+  const [categoryBackend, setCategoryBackend] = useState("tfidf");
   const [savingBackend, setSavingBackend] = useState(false);
   const [compareTrainType, setCompareTrainType] = useState("tfidf");
 
-  // CSV Import state
-  const [csvFile, setCsvFile] = useState(null);
-  const [autoRetrainCsv, setAutoRetrainCsv] = useState("local");
-  const [importingCsv, setImportingCsv] = useState(false);
+  // Model 3-state
+  const [promotingModel, setPromotingModel] = useState(false);
 
   const renderMetricCell = (modelKey, metricKey, trainType = compareTrainType) => {
     const filtered = filterHistoryByType(trainHistory, trainType);
@@ -179,22 +172,21 @@ function NluOpsPage() {
     setLoading(true);
     Promise.all([
       getNluOverrides().catch(() => []),
-      getNluAggregations().catch(() => []),
       getNluTrainStatus().catch(() => ({ training_active: false })),
       getNluModelMeta().catch(() => ({ version: "v1.2.0-fallback", trainedAt: "2026-06-21", f1Score: "91.2%" })),
       getNluTrainHistory().catch(() => []),
       getNluInferenceBackend().catch(() => ({ backend: "tfidf" })),
     ])
-      .then(([overridesData, aggregationsData, statusData, metaData, historyData, backendData]) => {
+      .then(([overridesData, statusData, metaData, historyData, backendData]) => {
         setLayer1Rules(overridesData);
-        setAggregations(aggregationsData.map(item => ({ ...item, approved: false })));
         setIsTraining(statusData.training_active);
         setTrainProgressInfo(statusData);
         setModelMeta(metaData);
         setTrainHistory(historyData);
-        setInferenceBackend(backendData?.backend || metaData?.inferenceBackend || "tfidf");
-        const backend = backendData?.backend || metaData?.inferenceBackend || "tfidf";
-        setCompareTrainType(backend === "encoder" ? "encoder" : "tfidf");
+        setIntentBackend(backendData?.intent_backend || metaData?.intent_backend || "tfidf");
+        setCategoryBackend(backendData?.category_backend || metaData?.category_backend || "tfidf");
+        const intent_b = backendData?.intent_backend || metaData?.intent_backend || "tfidf";
+        setCompareTrainType(intent_b === "encoder" ? "encoder" : "tfidf");
         setLoading(false);
       })
       .catch((err) => {
@@ -235,8 +227,6 @@ function NluOpsPage() {
     setActiveTab(tab);
     if (tab === "layer1") {
       getNluOverrides().then(data => setLayer1Rules(data)).catch(() => {});
-    } else if (tab === "layer2") {
-      getNluAggregations().then(data => setAggregations(data.map(item => ({ ...item, approved: false })))).catch(() => {});
     } else if (tab === "model") {
       getNluTrainStatus().then(data => setIsTraining(data.training_active)).catch(() => {});
       getNluModelMeta().then(data => setModelMeta(data)).catch(() => {});
@@ -316,147 +306,106 @@ function NluOpsPage() {
       setLoading(false);
     }
   };
+  const handleInferenceBackendChange = async (newIntentBackend, newCategoryBackend) => {
+    const pwd = window.prompt("Nhập mật khẩu Retrain để lưu chuyển đổi mô hình (mặc định: retrain123):", "retrain123");
+    if (pwd === null) return;
 
-  const handleImportCsv = (e) => {
-    e.preventDefault();
-    if (!csvFile) {
-      showToast("Vui lòng chọn một tập tin CSV!");
-      return;
+    setSavingBackend(true);
+    try {
+      await setNluInferenceBackend({
+        intent_backend: newIntentBackend,
+        category_backend: newCategoryBackend,
+        backend: newIntentBackend,
+      }, pwd);
+      setIntentBackend(newIntentBackend);
+      setCategoryBackend(newCategoryBackend);
+      setCompareTrainType(newIntentBackend === "encoder" ? "encoder" : "tfidf");
+      showToast("Đã cập nhật cấu hình mô hình NLU thành công!");
+      getNluModelMeta().then(setModelMeta).catch(() => {});
+    } catch (err) {
+      showToast("Cập nhật mô hình thất bại: " + (err.message || err));
+    } finally {
+      setSavingBackend(false);
     }
-    setImportingCsv(true);
-    const autoRetrain = autoRetrainCsv !== "none";
-    importNluCsv(csvFile, autoRetrain, autoRetrainCsv)
-      .then((data) => {
-        showToast(`Đã import thành công ${data.addedCount} dòng mới!`);
-        setCsvFile(null);
-        const fileInput = document.getElementById("nlu-csv-file-input");
-        if (fileInput) fileInput.value = "";
-        setImportingCsv(false);
-        fetchAllData();
-      })
-      .catch((err) => {
-        showToast("Import thất bại: " + err.message);
-        setImportingCsv(false);
-      });
   };
 
-  // Toggle checks in Aggregation tab
-  const toggleAggregateApprove = (idx) => {
-    const next = [...aggregations];
-    next[idx].approved = !next[idx].approved;
-    setAggregations(next);
+  const handlePromoteModel = async () => {
+    if (!window.confirm("Bạn có chắc chắn muốn duyệt áp dụng mô hình mới (Candidate -> Active) và chuyển mô hình hiện tại thành Cũ (Old) không?")) return;
+    const pwd = window.prompt("Nhập mật khẩu Retrain để duyệt mô hình (mặc định: retrain123):", "retrain123");
+    if (pwd === null) return;
+
+    setPromotingModel(true);
+    try {
+      const data = await promoteNluModel(pwd);
+      showToast(data?.message || "Đã duyệt áp dụng mô hình mới thành công!");
+      fetchAllData();
+    } catch (err) {
+      showToast("Duyệt áp dụng thất bại: " + (err.message || err));
+    } finally {
+      setPromotingModel(false);
+    }
   };
 
-  // Curation export
-  const handleExportCuration = () => {
-    const selected = aggregations.filter((a) => a.approved);
-    if (selected.length === 0) {
-      showToast("Vui lòng tích chọn ít nhất một cụm câu để duyệt xuất.");
-      return;
+  const handleExportFinetuneData = async () => {
+    try {
+      await exportFinetuneData();
+      showToast("Đã bắt đầu tải tệp dữ liệu JSONL!");
+    } catch (err) {
+      showToast("Xuất dữ liệu thất bại: " + (err.message || err));
     }
-    if (!window.confirm(`Duyệt và xuất ${selected.length} cụm câu đã sửa sang dataset huấn luyện chính?\n\nHành động này không thể hoàn tác.`)) return;
-    setLoading(true);
-    const autoRetrain = autoRetrainAfterCurate !== "none";
-    curateNluAggregations(selected, autoRetrain, autoRetrainAfterCurate)
-      .then((res) => {
-        getNluAggregations().then(data => {
-          setAggregations(data.map(item => ({ ...item, approved: false })));
-          setLoading(false);
-        });
-        if (autoRetrain) {
-          setIsTraining(true);
-        }
-        showToast(res.message || `Đã thêm ${selected.length} mẫu vào dataset huấn luyện chính!`);
-      })
-      .catch((err) => {
-        showToast("Xuất dữ liệu thất bại: " + err.message);
-        setLoading(false);
-      });
+  };
+
+  const handleLlmFinetune = async () => {
+    const pwd = window.prompt("Nhập mật khẩu Retrain để kích hoạt fine-tune LLM trên GPU Modal (mặc định: retrain123):", "retrain123");
+    if (pwd === null) return;
+
+    setIsLlmTraining(true);
+    try {
+      const data = await triggerLlmFinetune(
+        llmTrainParams.epochs,
+        llmTrainParams.lr,
+        llmTrainParams.batchSize,
+        pwd
+      );
+      showToast(data?.message || "Đã gửi yêu cầu Fine-tune LLM lên Modal GPU thành công!");
+    } catch (err) {
+      showToast("Fine-tune LLM thất bại: " + (err.message || err));
+    } finally {
+      setIsLlmTraining(false);
+    }
   };
 
   // Trigger retraining in background
-  const handleRetrain = (target = "local") => {
+  const handleRetrain = async (target = "local") => {
     const label = target === "encoder" ? "PhoBERT Encoder" : "TF-IDF & NLU";
-    const pw = window.prompt(`Bạn có chắc chắn muốn bắt đầu huấn luyện lại mô hình ${label} không?\nQuá trình này sẽ diễn ra chạy nền.\n\nNhập mật khẩu quản trị hệ thống (PASSWORD_RETRAIN) để xác nhận:`);
+    const pw = window.prompt(`Bạn có chắc chắn muốn bắt đầu huấn luyện lại mô hình ${label} không?\nQuá trình này sẽ diễn ra chạy nền.\n\nNhập mật khẩu quản trị hệ thống (PASSWORD_RETRAIN) để xác nhận:`, "retrain123");
     if (!pw) return;
     setLoading(true);
-    triggerNluTrain(target, pw)
-      .then((res) => {
-        setIsTraining(true);
-        showToast(res.message || `Đã bắt đầu retrain mô hình ${label} chạy nền!`);
-        setLoading(false);
-      })
-      .catch((err) => {
-        showToast("Huấn luyện thất bại: " + err.message);
-        setLoading(false);
-      });
+    try {
+      const res = await triggerNluTrain(target, pw);
+      setIsTraining(true);
+      showToast(res.message || `Đã bắt đầu retrain mô hình ${label} chạy nền!`);
+      fetchAllData();
+    } catch (err) {
+      showToast("Huấn luyện thất bại: " + (err.message || err));
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleReloadNlu = () => {
+  const handleReloadNlu = async () => {
     if (!window.confirm("Bạn có chắc chắn muốn nạp nóng lại mô hình NLU mới nhất từ đĩa không?")) return;
     setReloadingNlu(true);
-    reloadAiModels("nlu")
-      .then((res) => {
-        setReloadingNlu(false);
-        const ver = res.nlu_version ? ` (${res.nlu_version})` : "";
-        showToast((res.message || "Model NLU đã được nạp nóng thành công!") + ver);
-        fetchAllData();
-      })
-      .catch((err) => {
-        setReloadingNlu(false);
-        showToast("Tải lại model thất bại: " + err.message);
-      });
-  };
-
-  const handleLlmFinetune = () => {
-    const pw = window.prompt("Bắt đầu huấn luyện Fine-tune Qwen2.5-14B-Instruct trên GPU Modal H100?\n\nTác vụ này sẽ chạy nền trong khoảng 1 giờ và tiêu thụ tài nguyên đám mây.\n\nNhập mật khẩu quản trị hệ thống (PASSWORD_RETRAIN) để xác nhận:");
-    if (!pw) return;
-
-    setIsLlmTraining(true);
-    triggerLlmFinetune(llmTrainParams.epochs, llmTrainParams.lr, llmTrainParams.batchSize, pw)
-      .then((res) => {
-        showToast("Đã kích hoạt fine-tune Qwen2.5-14B-Instruct trên GPU Modal H100!");
-        setIsLlmTraining(false);
-      })
-      .catch((err) => {
-        showToast("Fine-tune LLM thất bại: " + err.message);
-        setIsLlmTraining(false);
-      });
-  };
-
-  const handleInferenceBackendChange = (backend) => {
-    if (backend === inferenceBackend) return;
-    const confirmMsg = backend === "llm" 
-      ? "Kích hoạt mô hình Qwen2.5-14B-Instruct làm bộ xử lý NLU mặc định?\n\nMô hình sẽ được nạp nóng vào GPU VRAM tự động."
-      : `Chuyển đổi bộ xử lý NLU mặc định thành mô hình ${backend.toUpperCase()}?`;
-    if (!window.confirm(confirmMsg)) return;
-
-    const pwd = window.prompt("Yêu cầu nhập mật khẩu bảo mật hệ thống (Retrain Password):");
-    if (pwd === null) return;
-    if (!pwd) {
-      alert("Mật khẩu không được để trống!");
-      return;
+    try {
+      const res = await reloadAiModels("nlu");
+      const ver = res.nlu_version ? ` (${res.nlu_version})` : "";
+      showToast((res.message || "Model NLU đã được nạp nóng thành công!") + ver);
+      fetchAllData();
+    } catch (err) {
+      showToast("Tải lại model thất bại: " + (err.message || err));
+    } finally {
+      setReloadingNlu(false);
     }
-
-    setSavingBackend(true);
-    setNluInferenceBackend(backend, pwd)
-      .then((res) => {
-        setSavingBackend(false);
-        const activeBackend = res.backend || backend;
-        setInferenceBackend(activeBackend);
-        setCompareTrainType(activeBackend === "encoder" ? "encoder" : "tfidf");
-        
-        if (activeBackend === "llm") {
-          window.alert("Mô hình LLM Qwen2.5-14B-Instruct đã được kích hoạt thành công làm bộ xử lý NLU mặc định!\n\nLưu ý: Mô hình sẽ bắt đầu được tải nóng vào GPU. Request đầu tiên có thể mất một chút thời gian.");
-        } else {
-          showToast(res.message || `Bộ xử lý NLU mặc định đã đổi thành → ${activeBackend.toUpperCase()}`);
-        }
-        getNluModelMeta().then(setModelMeta).catch(() => {});
-      })
-      .catch((err) => {
-        setSavingBackend(false);
-        showToast("Đổi backend thất bại: " + err.message);
-      });
   };
 
   const filteredRules = layer1Rules.filter((r) =>
@@ -464,17 +413,69 @@ function NluOpsPage() {
     (r.userId || '').toLowerCase().includes(searchExact.toLowerCase()) ||
     (r.email || '').toLowerCase().includes(searchExact.toLowerCase())
   );
+  
+  const totalPages = Math.max(1, Math.ceil(filteredRules.length / pageSize));
+  const paginatedRules = filteredRules.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   const getBackendLabel = (bk) => {
-    if (bk === "llm") return "Qwen2.5 LLM";
-    if (bk === "encoder") return "PhoBERT Encoder";
+    if (bk === "llm_v2") return "LLM Rules (2 Tầng - Mặc định)";
+    if (bk === "llm") return "LLM Classic (Đơn khối cũ)";
+    if (bk === "encoder" || bk === "pho_bert") return "PhoBERT Encoder";
     return "TF-IDF Classic";
   };
 
   const getBackendBadgeColor = (bk) => {
-    if (bk === "llm") return "var(--accent-emerald)";
-    if (bk === "encoder") return "#a855f7"; // purple
+    if (bk === "llm_v2" || bk === "llm") return "var(--accent-emerald)";
+    if (bk === "encoder" || bk === "pho_bert") return "#a855f7"; // purple
     return "var(--accent-blue)";
+  };
+
+  const renderProgressStepper = (currentStage) => {
+    const stages = ["PREPARING", "CLEANING", "TRAINING", "EVALUATING", "SYNCING", "SUCCESS"];
+    const currentIndex = stages.indexOf(currentStage);
+    
+    return (
+      <div style={{ display: "flex", alignItems: "center", gap: "8px", width: "100%", marginTop: "12px", marginBottom: "8px" }}>
+        {stages.map((stage, idx) => {
+          let state = "pending"; // default
+          if (idx < currentIndex || currentStage === "SUCCESS") state = "completed";
+          else if (idx === currentIndex) state = "active";
+          else if (currentStage === "ERROR") state = "error";
+
+          let bgColor = "var(--bg-obsidian-800)";
+          let textColor = "var(--text-muted)";
+          let shadow = "none";
+          if (state === "completed") { bgColor = "var(--accent-emerald)"; textColor = "var(--bg-obsidian-950)"; }
+          else if (state === "active") { bgColor = "var(--accent-amber)"; textColor = "var(--bg-obsidian-950)"; shadow = "0 0 8px var(--accent-amber)"; }
+          else if (state === "error" && idx === currentIndex) { bgColor = "var(--accent-rose)"; textColor = "white"; shadow = "0 0 8px var(--accent-rose)"; }
+          
+          return (
+            <div key={stage} style={{ display: "contents" }}>
+              <div style={{
+                background: bgColor,
+                color: textColor,
+                fontSize: "10px",
+                fontWeight: "700",
+                padding: "6px 8px",
+                borderRadius: "6px",
+                textAlign: "center",
+                flex: 1,
+                boxShadow: shadow,
+                transition: "all 0.3s ease",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis"
+              }}>
+                {stage}
+              </div>
+              {idx < stages.length - 1 && (
+                <div style={{ height: "2px", flex: 0.2, background: idx < currentIndex ? "var(--accent-emerald)" : "var(--bg-obsidian-800)", transition: "all 0.3s ease" }}></div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
   };
 
   return (
@@ -497,27 +498,50 @@ function NluOpsPage() {
           boxShadow: "var(--shadow-glow)"
         }}>
           <span style={{ fontSize: "11px", color: "var(--text-secondary)", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.05em" }}>Đang hoạt động:</span>
-          <span style={{
-            fontSize: "13px",
-            fontWeight: "700",
-            color: "var(--text-primary)",
-            background: `${getBackendBadgeColor(inferenceBackend)}22`,
-            border: `1px solid ${getBackendBadgeColor(inferenceBackend)}55`,
-            padding: "4px 10px",
-            borderRadius: "6px",
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "6px"
-          }}>
+          <div style={{ display: "flex", gap: "8px" }}>
             <span style={{
-              width: "6px",
-              height: "6px",
-              borderRadius: "50%",
-              background: getBackendBadgeColor(inferenceBackend),
-              boxShadow: `0 0 8px ${getBackendBadgeColor(inferenceBackend)}`
-            }}></span>
-            {getBackendLabel(inferenceBackend)}
-          </span>
+              fontSize: "13px",
+              fontWeight: "700",
+              color: "var(--text-primary)",
+              background: `${getBackendBadgeColor(intentBackend)}22`,
+              border: `1px solid ${getBackendBadgeColor(intentBackend)}55`,
+              padding: "4px 10px",
+              borderRadius: "6px",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px"
+            }}>
+              <span style={{
+                width: "6px",
+                height: "6px",
+                borderRadius: "50%",
+                background: getBackendBadgeColor(intentBackend),
+                boxShadow: `0 0 8px ${getBackendBadgeColor(intentBackend)}`
+              }}></span>
+              Tầng 1: {getBackendLabel(intentBackend)}
+            </span>
+            <span style={{
+              fontSize: "13px",
+              fontWeight: "700",
+              color: "var(--text-primary)",
+              background: `${getBackendBadgeColor(categoryBackend)}22`,
+              border: `1px solid ${getBackendBadgeColor(categoryBackend)}55`,
+              padding: "4px 10px",
+              borderRadius: "6px",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px"
+            }}>
+              <span style={{
+                width: "6px",
+                height: "6px",
+                borderRadius: "50%",
+                background: getBackendBadgeColor(categoryBackend),
+                boxShadow: `0 0 8px ${getBackendBadgeColor(categoryBackend)}`
+              }}></span>
+              Tầng 2: {getBackendLabel(categoryBackend)}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -537,10 +561,7 @@ function NluOpsPage() {
           <span className="bill-stat-label" style={{ fontSize: "10px", color: "var(--text-muted)", letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: "600", display: "block", marginBottom: "4px" }}>Cá nhân hóa danh mục</span>
           <span className="bill-stat-value" style={{ fontSize: "20px", fontWeight: "700", color: "var(--accent-blue-hover)", fontFamily: "var(--font-sans)" }}>{layer1Rules.length} rules</span>
         </div>
-        <div className="bill-stat" style={{ paddingRight: "20px", borderRight: "1px solid var(--border-color)" }}>
-          <span className="bill-stat-label" style={{ fontSize: "10px", color: "var(--text-muted)", letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: "600", display: "block", marginBottom: "4px" }}>Cụm sửa đổi Layer 2</span>
-          <span className="bill-stat-value" style={{ fontSize: "20px", fontWeight: "700", color: "var(--accent-amber-hover)", fontFamily: "var(--font-sans)" }}>{aggregations.length} clusters</span>
-        </div>
+
         <div className="bill-stat" style={{ paddingRight: "20px", borderRight: "1px solid var(--border-color)" }}>
           <span className="bill-stat-label" style={{ fontSize: "10px", color: "var(--text-muted)", letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: "600", display: "block", marginBottom: "4px" }}>Phiên bản Model</span>
           <span className="bill-stat-value" style={{ fontSize: "18px", fontWeight: "700", color: "var(--text-primary)", fontFamily: "var(--font-mono)", letterSpacing: "-0.5px" }}>{modelMeta.version || "Unknown"}</span>
@@ -572,25 +593,19 @@ function NluOpsPage() {
 
       <div className="tabs-header" style={{ marginBottom: "28px" }}>
         <button
-          className={`tab-btn ${activeTab === "layer1" ? "active" : ""}`}
-          onClick={() => handleTabChange("layer1")}
-          style={{ fontSize: "14px", padding: "12px 20px" }}
-        >
-          Layer 1: Cá nhân hóa danh mục
-        </button>
-        <button
-          className={`tab-btn ${activeTab === "layer2" ? "active" : ""}`}
-          onClick={() => handleTabChange("layer2")}
-          style={{ fontSize: "14px", padding: "12px 20px" }}
-        >
-          Layer 2: Thu thập đính chính
-        </button>
-        <button
           className={`tab-btn ${activeTab === "model" ? "active" : ""}`}
           onClick={() => handleTabChange("model")}
           style={{ fontSize: "14px", padding: "12px 20px" }}
         >
           Trọng số & Huấn luyện
+        </button>
+
+        <button
+          className={`tab-btn ${activeTab === "layer1" ? "active" : ""}`}
+          onClick={() => handleTabChange("layer1")}
+          style={{ fontSize: "14px", padding: "12px 20px" }}
+        >
+          Layer 1: Cá nhân hóa danh mục
         </button>
       </div>
 
@@ -603,7 +618,7 @@ function NluOpsPage() {
 
       {/* TAB 1: EXACT MATCH OVERRIDES */}
       {activeTab === "layer1" && (
-        <div className="dashboard-grid" style={{ gap: "24px" }}>
+        <div>
           <div className="panel" style={{
             background: "var(--bg-obsidian-900)",
             border: "1px solid var(--border-color)",
@@ -611,7 +626,7 @@ function NluOpsPage() {
             padding: "24px",
             boxShadow: "0 4px 20px rgba(0, 0, 0, 0.15)"
           }}>
-            <div className="panel-header" style={{ paddingBottom: "20px", borderBottom: "1px solid var(--border-color)" }}>
+            <div className="panel-header" style={{ paddingBottom: "20px", borderBottom: "1px solid var(--border-color)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
                 <h2 className="panel-title" style={{ fontSize: "16px", fontWeight: "600", color: "var(--text-primary)" }}>Layer 1: Cá nhân hóa danh mục</h2>
                 <span className="form-desc" style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "2px", display: "block" }}>
@@ -634,8 +649,19 @@ function NluOpsPage() {
                   placeholder="Tìm kiếm từ khóa hoặc người dùng..."
                   style={{ width: "260px", padding: "8px 14px", fontSize: "13px", background: "var(--bg-obsidian-950)", borderRadius: "8px", border: "1px solid var(--border-color)" }}
                   value={searchExact}
-                  onChange={(e) => setSearchExact(e.target.value)}
+                  onChange={(e) => {
+                    setSearchExact(e.target.value);
+                    setCurrentPage(1);
+                  }}
                 />
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  style={{ whiteSpace: "nowrap", fontSize: "13px", background: "var(--accent-blue)", border: "none" }}
+                  onClick={() => setShowAddRuleModal(true)}
+                >
+                  + Thêm quy tắc
+                </button>
               </div>
             </div>
 
@@ -651,7 +677,7 @@ function NluOpsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredRules.map((rule, idx) => (
+                  {paginatedRules.map((rule, idx) => (
                     <tr key={idx} style={{ transition: "background 0.15s ease" }}>
                       <td className="monospaced" style={{ padding: "14px 18px" }}>
                         <div style={{ color: "var(--text-primary)", fontWeight: "500", fontSize: "13px" }}>{rule.username || 'Active Client'}</div>
@@ -712,261 +738,157 @@ function NluOpsPage() {
                   )}
                 </tbody>
               </table>
+              
+              {/* Pagination Controls */}
+              {filteredRules.length > 0 && (
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 18px", background: "var(--bg-obsidian-950)", borderTop: "1px solid var(--border-color)" }}>
+                  <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>
+                    Hiển thị {(currentPage - 1) * pageSize + 1} - {Math.min(currentPage * pageSize, filteredRules.length)} trong tổng số {filteredRules.length} quy tắc
+                  </span>
+                  <div style={{ display: "flex", gap: "8px" }}>
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                      disabled={currentPage === 1}
+                      style={{
+                        padding: "6px 12px",
+                        background: currentPage === 1 ? "transparent" : "var(--bg-obsidian-800)",
+                        color: currentPage === 1 ? "var(--text-muted)" : "var(--text-primary)",
+                        border: "1px solid var(--border-color)",
+                        borderRadius: "6px",
+                        cursor: currentPage === 1 ? "not-allowed" : "pointer",
+                        fontSize: "12px"
+                      }}
+                    >
+                      Trước
+                    </button>
+                    <span style={{ padding: "6px 12px", fontSize: "12px", color: "var(--text-primary)", background: "var(--bg-obsidian-900)", border: "1px solid var(--border-color)", borderRadius: "6px" }}>
+                      Trang {currentPage} / {totalPages}
+                    </span>
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                      disabled={currentPage === totalPages}
+                      style={{
+                        padding: "6px 12px",
+                        background: currentPage === totalPages ? "transparent" : "var(--bg-obsidian-800)",
+                        color: currentPage === totalPages ? "var(--text-muted)" : "var(--text-primary)",
+                        border: "1px solid var(--border-color)",
+                        borderRadius: "6px",
+                        cursor: currentPage === totalPages ? "not-allowed" : "pointer",
+                        fontSize: "12px"
+                      }}
+                    >
+                      Tiếp
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
-          <div className="panel" style={{
-            background: "var(--bg-obsidian-900)",
-            border: "1px solid var(--border-color)",
-            borderRadius: "16px",
-            padding: "24px",
-            boxShadow: "0 4px 20px rgba(0, 0, 0, 0.15)",
-            height: "fit-content"
-          }}>
-            <div className="panel-header" style={{ paddingBottom: "20px", borderBottom: "1px solid var(--border-color)", display: "flex", alignItems: "center", gap: "8px" }}>
-              <div className="brand-dot" style={{ background: "var(--accent-blue)" }}></div>
-              <h2 className="panel-title" style={{ fontSize: "16px", fontWeight: "600", color: "var(--text-primary)" }}>Thêm quy tắc cá nhân hóa danh mục</h2>
-            </div>
-            <form onSubmit={handleAddRule} style={{ display: "flex", flexDirection: "column", gap: "18px", marginTop: "16px" }}>
-              <div className="form-group">
-                <label className="form-label" style={{ color: "var(--text-primary)" }}>User ID người dùng (UUID)</label>
-                <input
-                  type="text"
-                  className="form-input monospaced"
-                  placeholder="Ví dụ: 8f6d7c89-a29b-..."
-                  style={{ background: "var(--bg-obsidian-950)", fontSize: "13px" }}
-                  value={newUserId}
-                  onChange={(e) => setNewUserId(e.target.value)}
-                  required
-                />
-                <span className="form-desc" style={{ fontSize: "11px", color: "var(--text-muted)" }}>Luật sẽ chỉ áp dụng riêng cho phiên hội thoại của client này.</span>
-              </div>
+          {/* Add Rule Modal */}
+          {showAddRuleModal && (
+            <div style={{
+              position: "fixed",
+              top: 0, left: 0, right: 0, bottom: 0,
+              background: "rgba(0, 0, 0, 0.7)",
+              backdropFilter: "blur(4px)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 999
+            }}>
+              <div style={{
+                background: "var(--bg-obsidian-900)",
+                border: "1px solid var(--border-color)",
+                borderRadius: "16px",
+                padding: "24px",
+                width: "480px",
+                maxWidth: "90vw",
+                boxShadow: "0 10px 40px rgba(0,0,0,0.5)"
+              }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingBottom: "20px", borderBottom: "1px solid var(--border-color)" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <div className="brand-dot" style={{ background: "var(--accent-blue)" }}></div>
+                    <h2 className="panel-title" style={{ fontSize: "16px", fontWeight: "600", color: "var(--text-primary)" }}>Thêm quy tắc cá nhân hóa danh mục</h2>
+                  </div>
+                  <button 
+                    onClick={() => setShowAddRuleModal(false)}
+                    style={{ background: "transparent", border: "none", color: "var(--text-muted)", fontSize: "20px", cursor: "pointer" }}
+                  >×</button>
+                </div>
+                <form onSubmit={(e) => { handleAddRule(e); setShowAddRuleModal(false); }} style={{ display: "flex", flexDirection: "column", gap: "18px", marginTop: "20px" }}>
+                  <div className="form-group">
+                    <label className="form-label" style={{ color: "var(--text-primary)" }}>User ID người dùng (UUID)</label>
+                    <input
+                      type="text"
+                      className="form-input monospaced"
+                      placeholder="Ví dụ: 8f6d7c89-a29b-..."
+                      style={{ background: "var(--bg-obsidian-950)", fontSize: "13px" }}
+                      value={newUserId}
+                      onChange={(e) => setNewUserId(e.target.value)}
+                      required
+                    />
+                    <span className="form-desc" style={{ fontSize: "11px", color: "var(--text-muted)" }}>Luật sẽ chỉ áp dụng riêng cho phiên hội thoại của client này.</span>
+                  </div>
 
-              <div className="form-group">
-                <label className="form-label" style={{ color: "var(--text-primary)" }}>Cụm từ khớp tuyệt đối (Keyword)</label>
-                <input
-                  type="text"
-                  className="form-input"
-                  placeholder="Ví dụ: uống trà sữa xingfu"
-                  style={{ background: "var(--bg-obsidian-950)", fontSize: "13px" }}
-                  value={newKeyword}
-                  onChange={(e) => setNewKeyword(e.target.value)}
-                  required
-                />
-                <span className="form-desc" style={{ fontSize: "11px", color: "var(--text-muted)" }}>Chuỗi chữ thường không dấu hoặc có dấu để bắt trùng khớp.</span>
-              </div>
+                  <div className="form-group">
+                    <label className="form-label" style={{ color: "var(--text-primary)" }}>Cụm từ khớp tuyệt đối (Keyword)</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="Ví dụ: uống trà sữa xingfu"
+                      style={{ background: "var(--bg-obsidian-950)", fontSize: "13px" }}
+                      value={newKeyword}
+                      onChange={(e) => setNewKeyword(e.target.value)}
+                      required
+                    />
+                    <span className="form-desc" style={{ fontSize: "11px", color: "var(--text-muted)" }}>Chuỗi chữ thường không dấu hoặc có dấu để bắt trùng khớp.</span>
+                  </div>
 
-              <div className="form-group">
-                <label className="form-label" style={{ color: "var(--text-primary)" }}>Danh mục gán tĩnh</label>
-                <select
-                  className="form-select"
-                  value={newCategory}
-                  onChange={(e) => setNewCategory(e.target.value)}
-                  style={{ background: "var(--bg-obsidian-950)", fontSize: "13px", height: "40px" }}
-                >
-                  <option value="Food">Food (Ăn uống)</option>
-                  <option value="Shopping">Shopping (Mua sắm)</option>
-                  <option value="Transport">Transport (Di chuyển)</option>
-                  <option value="Entertainment">Entertainment (Giải trí)</option>
-                  <option value="Housing">Housing (Nhà ở)</option>
-                  <option value="Health">Health (Sức khoẻ)</option>
-                  <option value="Education">Education (Học tập)</option>
-                  <option value="Travel">Travel (Du lịch)</option>
-                  <option value="Others">Others (Khác)</option>
-                  <option value="Salary">Salary (Lương)</option>
-                  <option value="Bonus">Bonus (Thưởng/Lì xì)</option>
-                  <option value="Business">Business (Kinh doanh)</option>
-                  <option value="Essentials">Essentials (Thiết yếu)</option>
-                  <option value="Beauty">Beauty (Làm đẹp)</option>
-                  <option value="Social">Social (Xã hội)</option>
-                </select>
-              </div>
+                  <div className="form-group">
+                    <label className="form-label" style={{ color: "var(--text-primary)" }}>Danh mục gán tĩnh</label>
+                    <select
+                      className="form-select"
+                      value={newCategory}
+                      onChange={(e) => setNewCategory(e.target.value)}
+                      style={{ background: "var(--bg-obsidian-950)", fontSize: "13px", height: "40px" }}
+                    >
+                      <option value="Food">Food (Ăn uống)</option>
+                      <option value="Shopping">Shopping (Mua sắm)</option>
+                      <option value="Transport">Transport (Di chuyển)</option>
+                      <option value="Entertainment">Entertainment (Giải trí)</option>
+                      <option value="Housing">Housing (Nhà ở)</option>
+                      <option value="Health">Health (Sức khoẻ)</option>
+                      <option value="Education">Education (Học tập)</option>
+                      <option value="Travel">Travel (Du lịch)</option>
+                      <option value="Others">Others (Khác)</option>
+                      <option value="Salary">Salary (Lương)</option>
+                      <option value="Bonus">Bonus (Thưởng/Lì xì)</option>
+                      <option value="Business">Business (Kinh doanh)</option>
+                      <option value="Essentials">Essentials (Thiết yếu)</option>
+                      <option value="Beauty">Beauty (Làm đẹp)</option>
+                      <option value="Social">Social (Xã hội)</option>
+                    </select>
+                  </div>
 
-              <button type="submit" className="btn btn-primary" style={{
-                marginTop: "8px",
-                background: "var(--accent-blue)",
-                color: "var(--text-primary)",
-                fontWeight: "600",
-                width: "100%",
-                padding: "12px",
-                border: "none",
-                borderRadius: "8px"
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = "var(--accent-blue-hover)";
-                e.currentTarget.style.boxShadow = "0 0 15px var(--accent-blue-glow)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = "var(--accent-blue)";
-                e.currentTarget.style.boxShadow = "none";
-              }}
-              >
-                Lưu quy tắc cá nhân hóa
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* TAB 2: CORRECTION AGGREGATION & CURATION */}
-      {activeTab === "layer2" && (
-        <div className="panel" style={{
-          background: "var(--bg-obsidian-900)",
-          border: "1px solid var(--border-color)",
-          borderRadius: "16px",
-          padding: "24px",
-          boxShadow: "0 4px 20px rgba(0, 0, 0, 0.15)"
-        }}>
-          <div className="panel-header" style={{ paddingBottom: "20px", borderBottom: "1px solid var(--border-color)", display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "16px" }}>
-            <div>
-              <h2 className="panel-title" style={{ fontSize: "16px", fontWeight: "600", color: "var(--text-primary)" }}>Cụm gom lỗi sửa của người dùng (Layer 2)</h2>
-              <span className="form-desc" style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "2px", display: "block" }}>
-                Các phản hồi điều chỉnh nhãn của khách hàng được tự động gom nhóm. Duyệt các dòng này để lưu vào tập huấn luyện bổ sung.
-              </span>
-            </div>
-            
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "12px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                  <span style={{ fontSize: "13px", color: "var(--text-secondary)" }}>Tự động huấn luyện lại:</span>
-                  <select
-                    value={autoRetrainAfterCurate}
-                    onChange={(e) => setAutoRetrainAfterCurate(e.target.value)}
+                  <button
+                    type="submit"
+                    className="btn btn-primary"
                     style={{
-                      background: "var(--bg-obsidian-950)",
-                      border: "1px solid var(--border-color)",
-                      color: "var(--text-primary)",
-                      borderRadius: "6px",
-                      padding: "6px 12px",
-                      fontSize: "13px",
-                      outline: "none",
-                      cursor: "pointer"
+                      background: "var(--accent-blue)",
+                      border: "none",
+                      fontWeight: "600",
+                      height: "44px",
+                      borderRadius: "10px",
+                      marginTop: "8px"
                     }}
                   >
-                    <option value="none">Không</option>
-                    <option value="local">Cục bộ (CPU)</option>
-                  </select>
-                </div>
-                <button
-                  className="btn btn-primary"
-                  onClick={handleExportCuration}
-                  disabled={aggregations.length === 0 || !aggregations.some(a => a.approved)}
-                  style={{
-                    background: "var(--accent-emerald)",
-                    color: "var(--bg-obsidian-950)",
-                    fontWeight: "600",
-                    padding: "10px 18px",
-                    borderRadius: "8px",
-                    opacity: (!aggregations.some(a => a.approved)) ? 0.5 : 1,
-                    cursor: (!aggregations.some(a => a.approved)) ? "not-allowed" : "pointer"
-                  }}
-                >
-                  Duyệt và xuất các câu đã chọn ({aggregations.filter(a => a.approved).length})
-                </button>
+                    + Thêm luật ưu tiên
+                  </button>
+                </form>
               </div>
             </div>
-          </div>
-
-          <div className="table-container" style={{ borderRadius: "12px", border: "1px solid var(--border-color)", overflow: "hidden", marginTop: "20px" }}>
-            <table className="custom-table">
-              <thead>
-                <tr style={{ background: "var(--bg-obsidian-950)" }}>
-                  <th style={{ width: "50px", padding: "14px 18px" }}>
-                    <input
-                      type="checkbox"
-                      checked={aggregations.length > 0 && aggregations.every((a) => a.approved)}
-                      onChange={(e) => {
-                        const checked = e.target.checked;
-                        setAggregations(aggregations.map((a) => ({ ...a, approved: checked })));
-                      }}
-                      style={{ width: "16px", height: "16px", accentColor: "var(--accent-emerald)", cursor: "pointer" }}
-                    />
-                  </th>
-                  <th style={{ padding: "14px 18px", color: "var(--text-primary)", fontSize: "11px", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.08em" }}>Nội dung câu nói</th>
-                  <th style={{ padding: "14px 18px", color: "var(--text-primary)", fontSize: "11px", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.08em" }}>Người dùng sửa thành</th>
-                  <th style={{ padding: "14px 18px", color: "var(--text-primary)", fontSize: "11px", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.08em" }}>Loại ví</th>
-                  <th style={{ padding: "14px 18px", color: "var(--text-primary)", fontSize: "11px", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.08em" }}>AI đoán ban đầu</th>
-                  <th style={{ padding: "14px 18px", color: "var(--text-primary)", fontSize: "11px", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.08em" }}>Số lượt sửa (Votes)</th>
-                  <th style={{ padding: "14px 18px", color: "var(--text-primary)", fontSize: "11px", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.08em", textAlign: "right" }}>Trạng thái</th>
-                </tr>
-              </thead>
-              <tbody>
-                {aggregations.map((agg, idx) => (
-                  <tr key={idx} style={{
-                    transition: "background 0.15s ease",
-                    background: agg.approved ? "rgba(16, 185, 129, 0.02)" : "transparent"
-                  }}>
-                    <td style={{ padding: "14px 18px" }}>
-                      <input
-                        type="checkbox"
-                        checked={agg.approved}
-                        onChange={() => toggleAggregateApprove(idx)}
-                        style={{ width: "16px", height: "16px", accentColor: "var(--accent-emerald)", cursor: "pointer" }}
-                      />
-                    </td>
-                    <td className="monospaced" style={{ padding: "14px 18px", color: "var(--text-primary)" }}>
-                      <code style={{ background: "var(--bg-obsidian-950)", padding: "4px 8px", borderRadius: "6px", border: "1px solid var(--border-color)", fontFamily: "var(--font-mono)" }}>"{agg.text}"</code>
-                    </td>
-                    <td style={{ padding: "14px 18px" }}>
-                      <span className="badge badge-success" style={{
-                        background: "rgba(16, 185, 129, 0.08)",
-                        border: "1px solid rgba(16, 185, 129, 0.3)",
-                        color: "var(--accent-emerald-hover)",
-                        padding: "4px 10px",
-                        borderRadius: "8px",
-                        fontWeight: "600",
-                        fontSize: "11px"
-                      }}>
-                        {agg.targetCategory}
-                      </span>
-                    </td>
-                    <td style={{ padding: "14px 18px" }}>
-                      <span className="badge" style={{
-                        background: "rgba(2, 132, 199, 0.08)",
-                        border: "1px solid rgba(2, 132, 199, 0.3)",
-                        color: "var(--accent-blue-hover)",
-                        padding: "4px 10px",
-                        borderRadius: "8px",
-                        fontWeight: "600",
-                        fontSize: "11px",
-                        textTransform: "uppercase"
-                      }}>{agg.recordType || "Expense"}</span>
-                    </td>
-                    <td style={{ padding: "14px 18px" }}>
-                      <span className="badge badge-danger" style={{
-                        background: "rgba(239, 68, 68, 0.08)",
-                        border: "1px solid rgba(239, 68, 68, 0.3)",
-                        color: "var(--accent-rose-hover)",
-                        padding: "4px 10px",
-                        borderRadius: "8px",
-                        fontWeight: "600",
-                        fontSize: "11px"
-                      }}>
-                        {agg.originalCategory}
-                      </span>
-                    </td>
-                    <td style={{ padding: "14px 18px", fontWeight: "700", fontFamily: "var(--font-mono)", fontSize: "14px", color: "var(--text-primary)" }}>
-                      {agg.count.toLocaleString()}
-                    </td>
-                    <td style={{ padding: "14px 18px", textAlign: "right", fontSize: "13px", fontWeight: "600" }}>
-                      {agg.approved ? (
-                        <span style={{ color: "var(--accent-emerald)" }}>✓ Đã xếp hàng chờ</span>
-                      ) : (
-                        <span style={{ color: "var(--text-muted)" }}>Chờ duyệt</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-                {aggregations.length === 0 && (
-                  <tr>
-                    <td colSpan="7" style={{ textAlign: "center", padding: "40px", color: "var(--text-muted)" }}>
-                      Không tìm thấy cụm từ đính chính nào trong chỉ mục logs.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+          )}
         </div>
       )}
 
@@ -975,163 +897,49 @@ function NluOpsPage() {
         <>
           {/* Active Model Cards Selector Section */}
           <div style={{ marginBottom: "30px" }}>
-            <h2 style={{ fontSize: "16px", fontWeight: "600", color: "var(--text-primary)", marginBottom: "16px" }}>Lựa chọn Bộ suy luận NLU vận hành</h2>
+            <h2 style={{ fontSize: "16px", fontWeight: "600", color: "var(--text-primary)", marginBottom: "16px" }}>Cấu hình Mô hình NLU theo Tầng</h2>
             
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "24px" }}>
-              {/* Card 1: TF-IDF Classic */}
-              <div style={{
-                background: "var(--bg-obsidian-900)",
-                border: inferenceBackend === "tfidf" ? "1px solid var(--accent-blue-hover)" : "1px solid var(--border-color)",
-                borderRadius: "16px",
-                padding: "24px",
-                boxShadow: inferenceBackend === "tfidf" ? "0 0 15px rgba(56, 189, 248, 0.15)" : "none",
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "space-between",
-                opacity: (isTraining || isLlmTraining) ? 0.7 : 1,
-                transition: "all 0.3s ease"
-              }}>
-                <div>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "12px" }}>
-                    <span style={{ fontSize: "28px" }}>📊</span>
-                    <span style={{
-                      fontSize: "10px",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.08em",
-                      fontWeight: "700",
-                      background: "rgba(2, 132, 199, 0.15)",
-                      color: "var(--accent-blue-hover)",
-                      padding: "4px 8px",
-                      borderRadius: "6px"
-                    }}>TF-IDF Classic</span>
-                  </div>
-                  <h3 style={{ fontSize: "16px", fontWeight: "700", color: "var(--text-primary)", marginBottom: "6px" }}>Phân loại TF-IDF & spaCy</h3>
-                  <p style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "12px", fontFamily: "var(--font-mono)" }}>Local CPU · ~20 MB · Trễ: &lt; 15ms</p>
-                  <p style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: "1.5" }}>
-                    Bộ phân loại intent và category cổ điển dựa trên tần suất từ (TF-IDF) và spaCy NER. Hoạt động cực nhẹ, phản hồi tức thời nhưng không hiểu ngữ nghĩa phức tạp.
-                  </p>
+              {/* Tầng 1 */}
+              <div style={{ background: "var(--bg-obsidian-900)", border: "1px solid var(--border-color)", borderRadius: "16px", padding: "24px", boxShadow: intentBackend === "llm_v2" ? "0 0 15px var(--accent-emerald-glow)" : "none", opacity: (isTraining || isLlmTraining) ? 0.7 : 1 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "12px" }}>
+                  <span style={{ fontSize: "28px" }}>🎯</span>
+                  <span style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: "700", background: "var(--bg-obsidian-800)", color: "var(--text-muted)", padding: "4px 8px", borderRadius: "6px" }}>Layer 1</span>
                 </div>
-                <div style={{ marginTop: "20px" }}>
-                  {inferenceBackend === "tfidf" ? (
-                    <button disabled style={{ width: "100%", padding: "10px", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "var(--text-muted)", borderRadius: "8px", fontWeight: "600", cursor: "not-allowed" }}>
-                      Đang kích hoạt
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => handleInferenceBackendChange("tfidf")}
-                      disabled={savingBackend || isTraining || isLlmTraining}
-                      style={{ width: "100%", padding: "10px", background: "var(--bg-obsidian-950)", border: "1px solid var(--accent-blue)", color: "var(--accent-blue-hover)", borderRadius: "8px", fontWeight: "600", cursor: "pointer", transition: "all 0.2s" }}
-                      onMouseEnter={(e) => { e.currentTarget.style.background = "var(--accent-blue-glow)"; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.background = "var(--bg-obsidian-950)"; }}
-                    >
-                      Kích hoạt bộ lọc Classic
-                    </button>
-                  )}
-                </div>
+                <h3 style={{ fontSize: "16px", fontWeight: "700", color: "var(--text-primary)", marginBottom: "12px" }}>Tầng 1: Phân loại Ý định (Intent)</h3>
+                <p style={{ fontSize: "13px", color: "var(--text-secondary)", marginBottom: "16px", lineHeight: "1.5" }}>Chọn mô hình dùng để nhận diện mục đích của câu nhập (Record, Action, Chitchat).</p>
+                
+                <select 
+                  value={intentBackend} 
+                  onChange={(e) => handleInferenceBackendChange(e.target.value, categoryBackend)}
+                  disabled={savingBackend || isTraining || isLlmTraining}
+                  style={{ width: "100%", padding: "12px", borderRadius: "8px", background: "var(--bg-obsidian-950)", border: "1px solid var(--border-color)", color: "var(--text-primary)", outline: "none", cursor: "pointer", fontWeight: "500", appearance: "none" }}
+                >
+                  <option value="tfidf">📊 TF-IDF Classic (Local CPU)</option>
+                  <option value="encoder">🧬 PhoBERT Encoder (Local CPU/GPU)</option>
+                  <option value="llm_v2">🔥 Qwen2.5 LLM Rules (Mặc định)</option>
+                </select>
               </div>
 
-              {/* Card 2: PhoBERT Encoder */}
-              <div style={{
-                background: "var(--bg-obsidian-900)",
-                border: inferenceBackend === "encoder" ? "1px solid #c084fc" : "1px solid var(--border-color)",
-                borderRadius: "16px",
-                padding: "24px",
-                boxShadow: inferenceBackend === "encoder" ? "0 0 15px rgba(192, 132, 252, 0.15)" : "none",
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "space-between",
-                opacity: (isTraining || isLlmTraining) ? 0.7 : 1,
-                transition: "all 0.3s ease"
-              }}>
-                <div>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "12px" }}>
-                    <span style={{ fontSize: "28px" }}>🧬</span>
-                    <span style={{
-                      fontSize: "10px",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.08em",
-                      fontWeight: "700",
-                      background: "rgba(168, 85, 247, 0.15)",
-                      color: "#c084fc",
-                      padding: "4px 8px",
-                      borderRadius: "6px"
-                    }}>BERT Encoder</span>
-                  </div>
-                  <h3 style={{ fontSize: "16px", fontWeight: "700", color: "var(--text-primary)", marginBottom: "6px" }}>Phân loại PhoBERT Encoder</h3>
-                  <p style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "12px", fontFamily: "var(--font-mono)" }}>Local CPU/GPU · ~540 MB · Trễ: &lt; 80ms</p>
-                  <p style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: "1.5" }}>
-                    Sử dụng biểu diễn ngữ nghĩa của ngôn ngữ tiếng Việt từ PhoBERT kết hợp mạng nơ-ron MLP để phân lớp. Nhận diện ý định thông minh hơn, chịu lỗi chính tả tốt.
-                  </p>
+              {/* Tầng 2 */}
+              <div style={{ background: "var(--bg-obsidian-900)", border: "1px solid var(--border-color)", borderRadius: "16px", padding: "24px", boxShadow: categoryBackend === "llm_v2" ? "0 0 15px var(--accent-emerald-glow)" : "none", opacity: (isTraining || isLlmTraining) ? 0.7 : 1 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "12px" }}>
+                  <span style={{ fontSize: "28px" }}>📂</span>
+                  <span style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: "700", background: "var(--bg-obsidian-800)", color: "var(--text-muted)", padding: "4px 8px", borderRadius: "6px" }}>Layer 2</span>
                 </div>
-                <div style={{ marginTop: "20px" }}>
-                  {inferenceBackend === "encoder" ? (
-                    <button disabled style={{ width: "100%", padding: "10px", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "var(--text-muted)", borderRadius: "8px", fontWeight: "600", cursor: "not-allowed" }}>
-                      Đang kích hoạt
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => handleInferenceBackendChange("encoder")}
-                      disabled={savingBackend || isTraining || isLlmTraining}
-                      style={{ width: "100%", padding: "10px", background: "var(--bg-obsidian-950)", border: "1px solid #a855f7", color: "#c084fc", borderRadius: "8px", fontWeight: "600", cursor: "pointer", transition: "all 0.2s" }}
-                      onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(168, 85, 247, 0.1)"; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.background = "var(--bg-obsidian-950)"; }}
-                    >
-                      Kích hoạt PhoBERT
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Card 3: Qwen2.5 14B Fine-tuned */}
-              <div style={{
-                background: "var(--bg-obsidian-900)",
-                border: inferenceBackend === "llm" ? "1px solid var(--accent-emerald-hover)" : "1px solid var(--border-color)",
-                borderRadius: "16px",
-                padding: "24px",
-                boxShadow: inferenceBackend === "llm" ? "0 0 15px var(--accent-emerald-glow)" : "none",
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "space-between",
-                opacity: (isTraining || isLlmTraining) ? 0.7 : 1,
-                transition: "all 0.3s ease"
-              }}>
-                <div>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "12px" }}>
-                    <span style={{ fontSize: "28px" }}>🔥</span>
-                    <span style={{
-                      fontSize: "10px",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.08em",
-                      fontWeight: "700",
-                      background: "var(--accent-emerald-glow)",
-                      color: "var(--accent-emerald-hover)",
-                      padding: "4px 8px",
-                      borderRadius: "6px"
-                    }}>LLM Agent</span>
-                  </div>
-                  <h3 style={{ fontSize: "16px", fontWeight: "700", color: "var(--text-primary)", marginBottom: "6px" }}>Qwen2.5-14B Fine-tuned (Mặc định)</h3>
-                  <p style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "12px", fontFamily: "var(--font-mono)" }}>Modal GPU (A10G) · ~29.5 GB · Trễ: &lt; 800ms</p>
-                  <p style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: "1.5" }}>
-                    Sử dụng mô hình ngôn ngữ lớn đã fine-tune khớp hội thoại ví Mimo. Phân tích tự nhiên Gen Z slang (ét ô ét, mlem), xử lý đa luồng chi tiêu và phản hồi cực vui nhộn.
-                  </p>
-                </div>
-                <div style={{ marginTop: "20px" }}>
-                  {inferenceBackend === "llm" ? (
-                    <button disabled style={{ width: "100%", padding: "10px", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "var(--text-muted)", borderRadius: "8px", fontWeight: "600", cursor: "not-allowed" }}>
-                      Đang kích hoạt làm mặc định
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => handleInferenceBackendChange("llm")}
-                      disabled={savingBackend || isTraining || isLlmTraining}
-                      style={{ width: "100%", padding: "10px", background: "var(--bg-obsidian-950)", border: "1px solid var(--accent-emerald)", color: "var(--accent-emerald-hover)", borderRadius: "8px", fontWeight: "600", cursor: "pointer", transition: "all 0.2s" }}
-                      onMouseEnter={(e) => { e.currentTarget.style.background = "var(--accent-emerald-glow)"; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.background = "var(--bg-obsidian-950)"; }}
-                    >
-                      Kích hoạt làm Mặc định
-                    </button>
-                  )}
-                </div>
+                <h3 style={{ fontSize: "16px", fontWeight: "700", color: "var(--text-primary)", marginBottom: "12px" }}>Tầng 2: Phân loại Danh mục (Category)</h3>
+                <p style={{ fontSize: "13px", color: "var(--text-secondary)", marginBottom: "16px", lineHeight: "1.5" }}>Chọn mô hình dùng để phân lớp 18 danh mục chi tiêu/thu nhập.</p>
+                
+                <select 
+                  value={categoryBackend} 
+                  onChange={(e) => handleInferenceBackendChange(intentBackend, e.target.value)}
+                  disabled={savingBackend || isTraining || isLlmTraining}
+                  style={{ width: "100%", padding: "12px", borderRadius: "8px", background: "var(--bg-obsidian-950)", border: "1px solid var(--border-color)", color: "var(--text-primary)", outline: "none", cursor: "pointer", fontWeight: "500", appearance: "none" }}
+                >
+                  <option value="tfidf">📊 TF-IDF Classic (Local CPU)</option>
+                  <option value="encoder">🧬 PhoBERT Encoder (Local CPU/GPU)</option>
+                  <option value="llm_v2">🔥 Qwen2.5 LLM Rules (Mặc định)</option>
+                </select>
               </div>
             </div>
           </div>
@@ -1266,23 +1074,42 @@ function NluOpsPage() {
                     </div>
                   </div>
 
-                  <button 
-                    onClick={handleLlmFinetune}
-                    disabled={isTraining || isLlmTraining}
-                    style={{
-                      background: "var(--accent-emerald)",
-                      color: "var(--bg-obsidian-950)",
-                      border: "none",
-                      borderRadius: "8px",
-                      padding: "8px 16px",
-                      fontSize: "12px",
-                      fontWeight: "700",
-                      cursor: (isTraining || isLlmTraining) ? "not-allowed" : "pointer",
-                      opacity: (isTraining || isLlmTraining) ? 0.6 : 1
-                    }}
-                  >
-                    {isLlmTraining ? "Đang Fine-tune..." : "Bắt đầu Fine-tune"}
-                  </button>
+                  <div style={{ display: "flex", gap: "8px", justifyContent: "center" }}>
+                    <button 
+                      onClick={handleExportFinetuneData}
+                      disabled={isTraining || isLlmTraining}
+                      style={{
+                        background: "var(--bg-obsidian-800)",
+                        color: "var(--text-primary)",
+                        border: "1px solid var(--border-color)",
+                        borderRadius: "8px",
+                        padding: "8px 16px",
+                        fontSize: "12px",
+                        fontWeight: "600",
+                        cursor: (isTraining || isLlmTraining) ? "not-allowed" : "pointer",
+                        opacity: (isTraining || isLlmTraining) ? 0.6 : 1
+                      }}
+                    >
+                      Xuất JSONL
+                    </button>
+                    <button 
+                      onClick={handleLlmFinetune}
+                      disabled={isTraining || isLlmTraining}
+                      style={{
+                        background: "var(--accent-emerald)",
+                        color: "var(--bg-obsidian-950)",
+                        border: "none",
+                        borderRadius: "8px",
+                        padding: "8px 16px",
+                        fontSize: "12px",
+                        fontWeight: "700",
+                        cursor: (isTraining || isLlmTraining) ? "not-allowed" : "pointer",
+                        opacity: (isTraining || isLlmTraining) ? 0.6 : 1
+                      }}
+                    >
+                      {isLlmTraining ? "Đang chạy..." : "Bắt đầu Fine-tune"}
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -1332,38 +1159,49 @@ function NluOpsPage() {
                   <strong className="monospaced" style={{ fontSize: "13px" }}>{modelMeta.trainedAt}</strong>
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--border-color)", paddingBottom: "12px" }}>
-                  <span style={{ fontSize: "13px", color: "var(--text-secondary)" }}>Bộ giải mã NLU hiện tại</span>
-                  <strong className="monospaced" style={{ color: "var(--accent-emerald)", fontSize: "13px" }}>{inferenceBackend.toUpperCase()}</strong>
+                  <span style={{ fontSize: "13px", color: "var(--text-secondary)" }}>Bộ giải mã (Tầng 1 / Tầng 2)</span>
+                  <strong className="monospaced" style={{ color: "var(--accent-emerald)", fontSize: "13px" }}>{intentBackend.toUpperCase()} / {categoryBackend.toUpperCase()}</strong>
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--border-color)", paddingBottom: "12px" }}>
                   <span style={{ fontSize: "13px", color: "var(--text-secondary)" }}>F1-Score Đánh giá Chung</span>
                   <strong className="monospaced" style={{ color: "var(--accent-emerald-hover)", fontSize: "13px" }}>{modelMeta.f1Score}</strong>
                 </div>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingBottom: "12px" }}>
-                  <span style={{ fontSize: "13px", color: "var(--text-secondary)" }}>Tiến trình huấn luyện nền</span>
-                  <strong className="monospaced" style={{ fontSize: "13px" }}>
-                    {isTraining ? (
-                      <span style={{ color: "var(--accent-amber-hover)", display: "flex", alignItems: "center", gap: "6px" }}>
-                        <span className="status-dot pulse" style={{ background: "var(--accent-amber)", boxShadow: "0 0 8px var(--accent-amber)", width: "6px", height: "6px", borderRadius: "50%" }}></span>
-                        Đang huấn luyện NLU nền...
-                      </span>
-                    ) : isLlmTraining ? (
-                      <span style={{ color: "var(--accent-amber-hover)", display: "flex", alignItems: "center", gap: "6px" }}>
-                        <span className="status-dot pulse" style={{ background: "var(--accent-amber)", boxShadow: "0 0 8px var(--accent-amber)", width: "6px", height: "6px", borderRadius: "50%" }}></span>
-                        Modal H100 Fine-tuning...
-                      </span>
-                    ) : (
-                      <span style={{ color: "var(--accent-emerald-hover)", display: "flex", alignItems: "center", gap: "6px" }}>
-                        <span className="status-dot" style={{ background: "var(--accent-emerald)", boxShadow: "0 0 8px var(--accent-emerald)", width: "6px", height: "6px", borderRadius: "50%" }}></span>
-                        Trạng thái nghỉ (Idle)
-                      </span>
-                    )}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--border-color)", paddingBottom: "12px" }}>
+                  <span style={{ fontSize: "13px", color: "var(--text-secondary)" }}>Loại mô hình huấn luyện (Model Type)</span>
+                  <strong className="monospaced" style={{ color: "#c084fc", fontSize: "13px" }}>
+                    {trainProgressInfo?.model_type || "intent_and_category"}
                   </strong>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", paddingBottom: "12px", borderTop: "1px solid var(--border-color)", paddingTop: "12px" }}>
+                  <span style={{ fontSize: "13px", color: "var(--text-secondary)", marginBottom: "4px" }}>Tiến trình huấn luyện nền (6 Stages)</span>
+                  
+                  {isLlmTraining ? (
+                    <span style={{ color: "var(--accent-amber-hover)", display: "flex", alignItems: "center", gap: "6px", marginTop: "8px", fontSize: "13px", fontWeight: "600" }}>
+                      <span className="status-dot pulse" style={{ background: "var(--accent-amber)", boxShadow: "0 0 8px var(--accent-amber)", width: "6px", height: "6px", borderRadius: "50%" }}></span>
+                      Modal H100 Fine-tuning...
+                    </span>
+                  ) : (isTraining || (trainProgressInfo && trainProgressInfo.status !== "IDLE" && trainProgressInfo.status !== "SUCCESS" && trainProgressInfo.status !== "ERROR")) ? (
+                    <div style={{ width: "100%" }}>
+                      {renderProgressStepper(trainProgressInfo?.stage || "PREPARING")}
+                      <div style={{ fontSize: "12px", color: "var(--accent-amber-hover)", display: "flex", alignItems: "center", gap: "6px", marginTop: "4px" }}>
+                        <span className="status-dot pulse" style={{ background: "var(--accent-amber)", boxShadow: "0 0 8px var(--accent-amber)", width: "6px", height: "6px", borderRadius: "50%" }}></span>
+                        {trainProgressInfo?.progress ? `${trainProgressInfo.progress}%` : ""} — {trainProgressInfo?.message || "Đang huấn luyện NLU nền..."}
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ width: "100%" }}>
+                      {renderProgressStepper(trainProgressInfo?.stage || "IDLE")}
+                      <div style={{ fontSize: "12px", color: "var(--accent-emerald-hover)", display: "flex", alignItems: "center", gap: "6px", marginTop: "4px" }}>
+                        <span className="status-dot" style={{ background: "var(--accent-emerald)", boxShadow: "0 0 8px var(--accent-emerald)", width: "6px", height: "6px", borderRadius: "50%" }}></span>
+                        Trạng thái nghỉ ({trainProgressInfo?.stage || "IDLE"})
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
 
-            {/* Import CSV Panel */}
+            {/* Panel 1: Quản trị trạng thái mô hình NLU (Model Lifecycle - 3 States) */}
             <div className="panel" style={{
               background: "var(--bg-obsidian-900)",
               border: "1px solid var(--border-color)",
@@ -1371,91 +1209,112 @@ function NluOpsPage() {
               padding: "24px",
               boxShadow: "0 4px 20px rgba(0, 0, 0, 0.15)"
             }}>
-              <div className="panel-header" style={{ paddingBottom: "20px", borderBottom: "1px solid var(--border-color)" }}>
+              <div className="panel-header" style={{ paddingBottom: "20px", borderBottom: "1px solid var(--border-color)", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "16px" }}>
                 <div>
-                  <h2 className="panel-title" style={{ fontSize: "16px", fontWeight: "600", color: "var(--text-primary)" }}>Nạp tập dữ liệu huấn luyện bổ sung (Import CSV)</h2>
+                  <h2 className="panel-title" style={{ fontSize: "16px", fontWeight: "600", color: "var(--text-primary)" }}>Quản trị trạng thái mô hình NLU (3 Trạng thái)</h2>
                   <span className="form-desc" style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "2px", display: "block" }}>
-                    Tải lên tệp CSV chứa dữ liệu mẫu để tích hợp trực tiếp vào tập huấn luyện lõi.
+                    Cơ chế chuyển đổi an toàn giữa 3 trạng thái mô hình: Cũ (Old / Dự phòng) — Hiện tại (Current / Active) — Mới huấn luyện (Candidate / New).
                   </span>
                 </div>
+                {(() => {
+                  const hasNewCandidate = Boolean(
+                    modelMeta?.has_candidate ||
+                    modelMeta?.candidate ||
+                    (modelMeta?.pendingRunIndex && modelMeta.pendingRunIndex > (modelMeta?.lastAcceptedRunIndex || 0)) ||
+                    trainProgressInfo?.model_state === "candidate"
+                  );
+                  return (
+                    <button
+                      onClick={handlePromoteModel}
+                      disabled={promotingModel || !hasNewCandidate}
+                      title={!hasNewCandidate ? "Chưa có mô hình mới (Candidate) nào chờ duyệt áp dụng" : "Duyệt đưa mô hình mới vào hoạt động"}
+                      style={{
+                        background: hasNewCandidate ? "var(--accent-purple)" : "var(--bg-obsidian-800)",
+                        color: hasNewCandidate ? "#fff" : "var(--text-muted)",
+                        fontWeight: "600",
+                        padding: "10px 20px",
+                        borderRadius: "8px",
+                        border: hasNewCandidate ? "none" : "1px solid var(--border-color)",
+                        cursor: (!hasNewCandidate || promotingModel) ? "not-allowed" : "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "8px",
+                        boxShadow: hasNewCandidate ? "0 0 12px rgba(168, 85, 247, 0.3)" : "none",
+                        opacity: hasNewCandidate ? 1 : 0.6,
+                        transition: "all 0.2s"
+                      }}
+                    >
+                      {promotingModel ? "Đang duyệt áp dụng..." : "🚀 Duyệt áp dụng mô hình mới (Promote Candidate → Active)"}
+                    </button>
+                  );
+                })()}
               </div>
 
-              <div style={{ display: "flex", flexDirection: "column", gap: "20px", marginTop: "20px" }}>
-                {/* Formatting Guidelines */}
-                <div style={{ background: "var(--bg-obsidian-950)", padding: "18px", borderRadius: "12px", border: "1px solid var(--border-color)" }}>
-                  <h3 style={{ color: "var(--text-primary)", fontSize: "13px", fontWeight: "600", marginBottom: "10px" }}>Hướng dẫn định dạng tệp CSV:</h3>
-                  <p style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: "1.6", margin: 0 }}>
-                    • Mã hóa tệp bắt buộc là <strong>UTF-8</strong>.<br />
-                    • Dòng tiêu đề: <code style={{ color: "var(--accent-blue-hover)", fontFamily: "var(--font-mono)" }}>text,label,type,is_money</code><br />
-                    • <strong>text</strong>: Câu mô tả (Ví dụ: <code style={{ fontFamily: "var(--font-mono)" }}>"Ăn sáng hết 35k"</code>)<br />
-                    • <strong>label</strong>: Tên danh mục chuẩn (Ví dụ: <code style={{ fontFamily: "var(--font-mono)" }}>Food, Shopping, ...</code>)
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "20px", marginTop: "20px" }}>
+                {/* State 1: Old / Backup */}
+                <div style={{
+                  background: "var(--bg-obsidian-950)",
+                  border: "1px solid var(--border-color)",
+                  borderRadius: "12px",
+                  padding: "18px",
+                  opacity: 0.75
+                }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+                    <span style={{ fontSize: "12px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", background: "rgba(255,255,255,0.05)", padding: "4px 8px", borderRadius: "6px" }}>
+                      Trạng thái 1: Cũ (Old)
+                    </span>
+                    <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>Dự phòng roll-back</span>
+                  </div>
+                  <h3 style={{ fontSize: "15px", fontWeight: "700", color: "var(--text-secondary)", marginBottom: "6px" }}>
+                    {trainHistory.length > 1 ? `Phiên bản #${trainHistory.length - 1}` : "Chưa có bản lưu dự phòng"}
+                  </h3>
+                  <p style={{ fontSize: "12px", color: "var(--text-muted)", margin: 0, fontFamily: "var(--font-mono)" }}>
+                    {trainHistory.length > 1 ? `Ngày: ${trainHistory[trainHistory.length - 2]?.finished_at || "N/A"}` : "Hệ thống đang chạy phiên bản duy nhất"}
                   </p>
                 </div>
 
-                {/* Upload Area */}
-                <form 
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    if (!csvFile) return;
-                    if (!window.confirm(`Bạn có chắc chắn muốn nạp dữ liệu từ tệp "${csvFile.name}" và cập nhật dataset huấn luyện NLU không?`)) return;
-                    handleImportCsv(e);
-                  }} 
-                  style={{ display: "flex", flexDirection: "column", gap: "16px" }}
-                >
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label" style={{ color: "var(--text-primary)", marginBottom: "8px", display: "block" }}>Chọn tệp CSV dữ liệu</label>
-                    <input
-                      id="nlu-csv-file-input"
-                      type="file"
-                      accept=".csv"
-                      className="form-input"
-                      style={{ background: "var(--bg-obsidian-950)", padding: "8px 12px" }}
-                      onChange={(e) => setCsvFile(e.target.files?.[0] || null)}
-                      required
-                    />
+                {/* State 2: Current / Active */}
+                <div style={{
+                  background: "var(--bg-obsidian-950)",
+                  border: "1px solid var(--accent-emerald)",
+                  borderRadius: "12px",
+                  padding: "18px",
+                  boxShadow: "0 0 15px rgba(16, 185, 129, 0.15)"
+                }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+                    <span style={{ fontSize: "12px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--accent-emerald-hover)", background: "var(--accent-emerald-glow)", padding: "4px 8px", borderRadius: "6px" }}>
+                      Trạng thái 2: Hiện tại (Current)
+                    </span>
+                    <span style={{ fontSize: "12px", color: "var(--accent-emerald-hover)", fontWeight: "600" }}>● ACTIVE</span>
                   </div>
+                  <h3 style={{ fontSize: "15px", fontWeight: "700", color: "var(--text-primary)", marginBottom: "6px" }}>
+                    {modelMeta.version || "Phiên bản hiện tại"}
+                  </h3>
+                  <p style={{ fontSize: "12px", color: "var(--text-muted)", margin: 0, fontFamily: "var(--font-mono)" }}>
+                    Cập nhật: {modelMeta.trainedAt} · {modelMeta.trainingRows ? `${modelMeta.trainingRows} mẫu` : ""}
+                  </p>
+                </div>
 
-                  <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                      <span style={{ fontSize: "13px", color: "var(--text-secondary)" }}>Tự động huấn luyện:</span>
-                      <select
-                        value={autoRetrainCsv}
-                        onChange={(e) => setAutoRetrainCsv(e.target.value)}
-                        style={{
-                          background: "var(--bg-obsidian-950)",
-                          border: "1px solid var(--border-color)",
-                          color: "var(--text-primary)",
-                          borderRadius: "6px",
-                          padding: "6px 12px",
-                          fontSize: "13px",
-                          outline: "none",
-                          cursor: "pointer"
-                        }}
-                      >
-                        <option value="none">Không</option>
-                        <option value="local">Cục bộ (CPU)</option>
-                      </select>
-                    </div>
+                {/* State 3: Candidate / New */}
+                <div style={{
+                  background: "var(--bg-obsidian-950)",
+                  border: "1px dashed #a855f7",
+                  borderRadius: "12px",
+                  padding: "18px"
+                }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+                    <span style={{ fontSize: "12px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.06em", color: "#c084fc", background: "rgba(168, 85, 247, 0.15)", padding: "4px 8px", borderRadius: "6px" }}>
+                      Trạng thái 3: Mới (Candidate)
+                    </span>
+                    <span style={{ fontSize: "12px", color: "#c084fc", fontWeight: "600" }}>Chờ duyệt áp dụng</span>
                   </div>
-
-                  <button
-                    type="submit"
-                    className="btn btn-primary"
-                    disabled={importingCsv || !csvFile}
-                    style={{
-                      background: "var(--accent-emerald)",
-                      color: "var(--bg-obsidian-950)",
-                      fontWeight: "600",
-                      width: "100%",
-                      padding: "10px",
-                      borderRadius: "8px",
-                      opacity: (importingCsv || !csvFile) ? 0.6 : 1,
-                      cursor: (importingCsv || !csvFile) ? "not-allowed" : "pointer"
-                    }}
-                  >
-                    {importingCsv ? "Đang nạp dữ liệu..." : "Nạp dữ liệu vào CSV hệ thống"}
-                  </button>
-                </form>
+                  <h3 style={{ fontSize: "15px", fontWeight: "700", color: "var(--text-primary)", marginBottom: "6px" }}>
+                    {Boolean(modelMeta?.has_candidate || modelMeta?.candidate || trainProgressInfo?.model_state === "candidate") ? "Mô hình mới sẵn sàng" : "Chưa có mô hình chờ duyệt"}
+                  </h3>
+                  <p style={{ fontSize: "12px", color: "var(--text-muted)", margin: 0, fontFamily: "var(--font-mono)" }}>
+                    {Boolean(modelMeta?.has_candidate || modelMeta?.candidate || trainProgressInfo?.model_state === "candidate") ? "Hãy bấm nút Duyệt để kích hoạt vào luồng hoạt động" : "Hệ thống sẽ tạo Candidate sau khi hoàn tất huấn luyện"}
+                  </p>
+                </div>
               </div>
             </div>
           </div>
@@ -1560,54 +1419,7 @@ function NluOpsPage() {
               </table>
             </div>
 
-            {compareTrainType === "tfidf" && (() => {
-              const filtered = filterHistoryByType(trainHistory, "tfidf");
-              const latest = filtered.length ? filtered[filtered.length - 1] : null;
-              const slots = latest?.metrics?.action_slots || modelMeta?.actionSlots;
-              const fields = slots?.fields;
-              if (!fields || typeof fields !== "object") return null;
-              const summary = slots.summary || {};
-              return (
-                <div style={{ marginTop: "20px", padding: "16px", background: "var(--bg-obsidian-950)", borderRadius: "12px", border: "1px solid var(--border-color)" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px", flexWrap: "wrap", gap: "8px" }}>
-                    <h3 style={{ margin: 0, fontSize: "14px", fontWeight: "600", color: "var(--text-primary)" }}>Chi tiết trích xuất Action Slots theo trường</h3>
-                    <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>
-                      {summary.trained_fields ?? Object.keys(fields).length} fields
-                      {summary.dataset_rows != null ? ` · ${summary.dataset_rows.toLocaleString()} rows CSV` : ""}
-                      {summary.avg_weighted_f1 != null ? ` · avg F1 ${(summary.avg_weighted_f1 * 100).toFixed(1)}%` : ""}
-                    </span>
-                  </div>
-                  <div className="table-container" style={{ borderRadius: "8px", border: "1px solid var(--border-color)", overflow: "hidden" }}>
-                    <table className="custom-table">
-                      <thead>
-                        <tr style={{ background: "var(--bg-obsidian-900)" }}>
-                          <th style={{ padding: "10px 14px", fontSize: "10px" }}>Tên Slot Field</th>
-                          <th style={{ padding: "10px 14px", fontSize: "10px" }}>Kiểu dữ liệu</th>
-                          <th style={{ padding: "10px 14px", fontSize: "10px" }}>Số mẫu train</th>
-                          <th style={{ padding: "10px 14px", fontSize: "10px" }}>Accuracy</th>
-                          <th style={{ padding: "10px 14px", fontSize: "10px" }}>Weighted F1</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {Object.entries(fields).map(([name, m]) => (
-                          <tr key={name}>
-                            <td style={{ padding: "10px 14px", fontFamily: "var(--font-mono)", fontSize: "12px" }}>{name}</td>
-                            <td style={{ padding: "10px 14px", fontSize: "12px" }}>{m.type || "—"}</td>
-                            <td style={{ padding: "10px 14px", fontSize: "12px" }}>{m.train_samples ?? "—"}</td>
-                            <td style={{ padding: "10px 14px", fontSize: "12px" }}>
-                              {m.accuracy != null ? `${(m.accuracy * 100).toFixed(1)}%` : "—"}
-                            </td>
-                            <td style={{ padding: "10px 14px", fontSize: "12px" }}>
-                              {m.weighted_f1 != null ? `${(m.weighted_f1 * 100).toFixed(1)}%` : "—"}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              );
-            })()}
+
           </div>
         </>
       )}
