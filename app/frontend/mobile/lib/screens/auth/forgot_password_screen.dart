@@ -27,7 +27,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     if (email.isEmpty || !email.contains('@')) {
       MimoSnackBar.showWarning(
         context,
-        message: 'Vui lÃ²ng nháº­p má»™t email há»£p lá»‡.',
+        message: 'Vui lòng nhập một email hợp lệ.',
       );
       return;
     }
@@ -67,7 +67,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'QuÃªn máº­t kháº©u?',
+                'Quên mật khẩu?',
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
@@ -76,7 +76,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               ),
               const SizedBox(height: 12),
               const Text(
-                'Äá»«ng lo láº¯ng! Vui lÃ²ng nháº­p Ä‘á»‹a chá»‰ email Ä‘Ã£ Ä‘Äƒng kÃ½ tÃ i khoáº£n cá»§a báº¡n Ä‘á»ƒ nháº­n mÃ£ khÃ´i phá»¥c.',
+                'Đừng lo lắng! Vui lòng nhập địa chỉ email đã đăng ký tài khoản của bạn để nhận mã khôi phục.',
                 style: TextStyle(
                   fontSize: 16,
                   color: AppColors.textSecondary,
@@ -128,7 +128,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                           ),
                         )
                       : const Text(
-                          'Gá»­i mÃ£ xÃ¡c nháº­n',
+                          'Gửi mã xác nhận',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,

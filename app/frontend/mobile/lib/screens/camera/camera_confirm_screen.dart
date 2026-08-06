@@ -115,7 +115,7 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
             final isGroup = targetWallet['type'] == 'group';
             final name = targetWallet['name'] as String?;
             if (name != null) {
-              _targetWalletName = isGroup ? '$name (VÃ­ chung)' : name;
+              _targetWalletName = isGroup ? '$name (Ví chung)' : name;
             }
           }
         });
@@ -168,10 +168,10 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
       _saveError = null;
     });
     try {
-      if (wallets.isEmpty) throw Exception('KhÃ´ng cÃ³ vÃ­ nÃ o');
+      if (wallets.isEmpty) throw Exception('Không có ví nào');
       if (_amount <= 0) {
         throw Exception(
-          'Vui lÃ²ng nháº­p sá»‘ tiá»n há»£p lá»‡ (lá»›n hÆ¡n 0)',
+          'Vui lòng nhập số tiền hợp lệ (lớn hơn 0)',
         );
       }
 
@@ -277,12 +277,12 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
       }
 
       final reviewMsg = reviewTxId != null
-          ? 'ÄÃ£ cáº­p nháº­t bill sau khi kiá»ƒm tra'
+          ? 'Đã cập nhật bill sau khi kiểm tra'
           : null;
 
       final mimoMsg = llm.text.isNotEmpty
           ? llm.text
-          : (reviewMsg ?? 'ÄÃ£ lÆ°u! Mimo ghi nháº­n rá»“i nhÃ©');
+          : (reviewMsg ?? 'Đã lưu! Mimo ghi nhận rồi nhé');
       Future.delayed(const Duration(milliseconds: 400), () {
         mimoController.show(
           MiMoResponse(emotionAsset: llm.emotionAsset, message: mimoMsg),
@@ -298,7 +298,7 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
       if (!mounted) return;
       setState(() {
         _saving = false;
-        _saveError = 'KhÃ´ng thá»ƒ lÆ°u giao dá»‹ch';
+        _saveError = 'Không thể lưu giao dịch';
       });
     }
   }
@@ -348,14 +348,14 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'Chá»‰nh sá»­a giao dá»‹ch',
+                    'Chỉnh sửa giao dịch',
                     style: Theme.of(ctx).textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w700,
                     ),
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'Sá»‘ tiá»n',
+                    'Số tiền',
                     style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
                       fontWeight: FontWeight.w600,
                     ),
@@ -366,13 +366,13 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
                     keyboardType: TextInputType.number,
                     inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                     decoration: const InputDecoration(
-                      hintText: 'Nháº­p sá»‘ tiá»n',
-                      suffixText: 'Ä‘',
+                      hintText: 'Nhập số tiền',
+                      suffixText: 'đ',
                     ),
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'Danh má»¥c',
+                    'Danh mục',
                     style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
                       fontWeight: FontWeight.w600,
                     ),
@@ -416,7 +416,7 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'VÃ­ lÆ°u',
+                    'Ví lưu',
                     style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
                       fontWeight: FontWeight.w600,
                     ),
@@ -439,7 +439,7 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
                         .map(
                           (w) => DropdownMenuItem<String>(
                             value: w['id'] as String,
-                            child: Text(w['name'] as String? ?? 'VÃ­'),
+                            child: Text(w['name'] as String? ?? 'Ví'),
                           ),
                         )
                         .toList(),
@@ -453,7 +453,7 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'Ghi chÃº',
+                    'Ghi chú',
                     style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
                       fontWeight: FontWeight.w600,
                     ),
@@ -462,7 +462,7 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
                   TextField(
                     controller: noteCtrl,
                     decoration: const InputDecoration(
-                      hintText: 'Ghi chÃº cho giao dá»‹ch',
+                      hintText: 'Ghi chú cho giao dịch',
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -476,7 +476,7 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
                           ScaffoldMessenger.of(ctx).showSnackBar(
                             SnackBar(
                               content: const Text(
-                                'Vui lÃ²ng nháº­p sá»‘ tiá»n há»£p lá»‡ (lá»›n hÆ¡n 0)',
+                                'Vui lòng nhập số tiền hợp lệ (lớn hơn 0)',
                               ),
                               backgroundColor: AppColors.danger,
                             ),
@@ -497,7 +497,7 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
                             final name = targetWallet['name'] as String?;
                             if (name != null) {
                               _targetWalletName = isGroup
-                                  ? '$name (VÃ­ chung)'
+                                  ? '$name (Ví chung)'
                                   : name;
                             }
                           }
@@ -508,7 +508,7 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
                         backgroundColor: AppColors.teal,
                         padding: const EdgeInsets.symmetric(vertical: 14),
                       ),
-                      child: const Text('LÆ°u chá»‰nh sá»­a'),
+                      child: const Text('Lưu chỉnh sửa'),
                     ),
                   ),
                 ],
@@ -572,8 +572,8 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
                             ),
                             Text(
                               isReviewBill
-                                  ? 'Kiá»ƒm tra bill'
-                                  : 'AI xÃ¡c nháº­n',
+                                  ? 'Kiểm tra bill'
+                                  : 'AI xác nhận',
                               style: Theme.of(context).textTheme.bodyLarge
                                   ?.copyWith(
                                     color: Colors.white,
@@ -608,7 +608,7 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
                               const SizedBox(width: 6),
                               Flexible(
                                 child: Text(
-                                  'AI nháº­n dáº¡ng vá»›i Ä‘á»™ chÃ­nh xÃ¡c $confidencePct%',
+                                  'AI nhận dạng với độ chính xác $confidencePct%',
                                   style: Theme.of(context).textTheme.bodySmall
                                       ?.copyWith(
                                         color: _confidenceColor,
@@ -643,7 +643,7 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
                                 const SizedBox(width: 6),
                                 Flexible(
                                   child: Text(
-                                    'Äá»™ chÃ­nh xÃ¡c tháº¥p â€” hÃ£y kiá»ƒm tra láº¡i',
+                                    'Độ chính xác thấp — hãy kiểm tra lại',
                                     style: Theme.of(context).textTheme.bodySmall
                                         ?.copyWith(color: AppColors.danger),
                                     overflow: TextOverflow.ellipsis,
@@ -716,7 +716,7 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
                                           CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          'Giao dá»‹ch má»›i',
+                                          'Giao dịch mới',
                                           style: Theme.of(context)
                                               .textTheme
                                               .bodySmall
@@ -758,22 +758,22 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
                               const Divider(color: Colors.white24, height: 1),
                               const SizedBox(height: 16),
                               _DetailRow(
-                                label: 'Danh má»¥c',
+                                label: 'Danh mục',
                                 value: CategoryTheme.of(_category).label,
                               ),
                               _DetailRow(
-                                label: 'Sá»‘ tiá»n',
+                                label: 'Số tiền',
                                 value: formatVnd(_amount),
                               ),
                               if (_note.isNotEmpty)
-                                _DetailRow(label: 'Ghi chÃº', value: _note),
+                                _DetailRow(label: 'Ghi chú', value: _note),
                               if (_targetWalletName != null)
                                 _DetailRow(
-                                  label: 'VÃ­ lÆ°u',
+                                  label: 'Ví lưu',
                                   value: _targetWalletName!,
                                 ),
                               _DetailRow(
-                                label: 'Thá»i gian',
+                                label: 'Thời gian',
                                 value: _formatNow(),
                               ),
                             ],
@@ -784,7 +784,7 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
                           const Padding(
                             padding: EdgeInsets.symmetric(vertical: 12),
                             child: Text(
-                              'Äá»™ chÃ­nh xÃ¡c cao â€” Ä‘ang lÆ°u tá»± Ä‘á»™ng...',
+                              'Độ chính xác cao — đang lưu tự động...',
                               style: TextStyle(color: Colors.white70),
                             ),
                           ),
@@ -808,7 +808,7 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
                                       ),
                                     ),
                                   ),
-                                  child: const Text('Chá»‰nh sá»­a'),
+                                  child: const Text('Chỉnh sửa'),
                                 ),
                               ),
                               const SizedBox(width: 12),
@@ -836,7 +836,7 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
                                           ),
                                         )
                                       : const Text(
-                                          'XÃ¡c nháº­n âœ“',
+                                          'Xác nhận ✓',
                                           style: TextStyle(
                                             fontWeight: FontWeight.w700,
                                           ),

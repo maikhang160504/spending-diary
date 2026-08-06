@@ -274,9 +274,11 @@ _BudgetSuggestionPreview? _budgetSuggestionFromResult(
   if (targetMonth.isEmpty) return null;
   final items = (result['suggestions'] as List<dynamic>? ?? []).map((e) {
     final m = nluMap(e) ?? {};
+    final rawAmt = nluInt(m['suggestedAmount']) ?? 0;
+    final roundedAmt = ((rawAmt / 1000).round() * 1000);
     return _BudgetSuggestionItem(
       categoryCode: nluString(m['categoryCode']) ?? 'Other',
-      suggestedAmount: nluInt(m['suggestedAmount']) ?? 0,
+      suggestedAmount: roundedAmt,
       baseSpending: nluInt(m['baseSpending']) ?? 0,
       reason: nluString(m['reason']) ?? '',
     );
@@ -285,9 +287,7 @@ _BudgetSuggestionPreview? _budgetSuggestionFromResult(
   return _BudgetSuggestionPreview(
     targetMonth: targetMonth,
     items: items,
-    totalSuggested:
-        nluInt(result['totalSuggested']) ??
-        items.fold<int>(0, (s, i) => s + i.suggestedAmount),
+    totalSuggested: items.fold<int>(0, (s, i) => s + i.suggestedAmount),
   );
 }
 
@@ -345,7 +345,7 @@ bool _actionNeedsConfirm(String actionType) {
   if (t.contains('REPORT')) return false;
   if (t.contains('SUGGEST')) return false;
   if (t.contains('SEARCH')) return false;
-  if (t == 'SET_TONE' || t == 'SET_USERNAME') return false;
+  if (t == 'SET_USERNAME') return false;
   return true;
 }
 
@@ -694,17 +694,18 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       } else {
         final originalUser =
             nluString(nlu['text']) ?? nluString(nlu['clean_content']) ?? '';
+        final isMissingSlots = actionResult != null && actionResult['kind'] == 'missing_slots';
+        msg.isMissingSlots = isMissingSlots;
+        
         final preview = _actionPreviewFromNlu(
           nlu,
           originalUser,
           aiLine: msg.text,
           messageId: msg.backendMessageId,
         );
-        if (preview != null) {
-          msg.actionPreview = preview;
-          if (isExecuted) {
-            msg.isConfirmed = true;
-          }
+        msg.actionPreview = preview;
+        if (isExecuted && !isMissingSlots) {
+          msg.isConfirmed = true;
         }
       }
     }
@@ -888,17 +889,22 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                 displayText = llmMeta.text;
               }
             } else {
+              final actionResult = nluMap(metadata['action_result']);
+              final isMissingSlots = actionResult != null && actionResult['kind'] == 'missing_slots';
               final llmText = (llmMeta?.text ?? displayText).trim();
               final originalUser =
                   nluString(nlu['text']) ??
                   nluString(nlu['clean_content']) ??
                   '';
-              actionPreview = _actionPreviewFromNlu(
+              
+              final preview = _actionPreviewFromNlu(
                 nlu,
                 originalUser,
                 aiLine: llmText.isNotEmpty ? llmText : null,
                 messageId: nluString(map['id']),
               );
+              
+              actionPreview = preview;
               if (displayText.isEmpty && llmText.isNotEmpty) {
                 displayText = llmText;
               }
@@ -938,6 +944,9 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
             : null,
         suggestedActions: suggestedActions,
         isPremiumLocked: isPremiumLocked,
+        isMissingSlots: metadata != null && 
+            metadata['action_result'] != null && 
+            metadata['action_result']['kind'] == 'missing_slots',
       );
       if (metadata != null) {
         final createdAt = DateTime.tryParse(
@@ -1983,6 +1992,7 @@ class _ChatMsg {
   bool isBudgetApplied = false;
   bool isBudgetDismissed = false;
   bool isPremiumLocked = false;
+  bool isMissingSlots = false;
 
   _ChatMsg({
     required this.text,
@@ -2000,6 +2010,7 @@ class _ChatMsg {
     this.downloadUrl,
     this.suggestedActions,
     this.isPremiumLocked = false,
+    this.isMissingSlots = false,
   });
 }
 
@@ -3781,6 +3792,145 @@ class _ActionConfirmCard extends StatelessWidget {
   }
 }
 
+class _MissingSlotInputCard extends StatefulWidget {
+  final _ActionPreview preview;
+  final ValueChanged<String> onSubmit;
+
+  const _MissingSlotInputCard({
+    super.key,
+    required this.preview,
+    required this.onSubmit,
+  });
+
+  @override
+  State<_MissingSlotInputCard> createState() => _MissingSlotInputCardState();
+}
+
+class _MissingSlotInputCardState extends State<_MissingSlotInputCard> {
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: context.palette.card,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: AppColors.teal.withValues(alpha: 0.15),
+          width: 1.5,
+        ),
+        boxShadow: context.palette.softShadow,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: AppColors.teal.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Center(
+                  child: Icon(
+                    Icons.edit_note_rounded,
+                    color: AppColors.teal,
+                    size: 16,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Bổ sung thông tin',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 13,
+                    color: context.palette.textPrimary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            widget.preview.summary,
+            style: TextStyle(
+              fontSize: 12,
+              color: context.palette.textSecondary,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _controller,
+                  textInputAction: TextInputAction.send,
+                  onSubmitted: (val) {
+                    if (val.trim().isNotEmpty) {
+                      widget.onSubmit(val.trim());
+                    }
+                  },
+                  decoration: InputDecoration(
+                    hintText: 'Nhập thông tin tại đây...',
+                    hintStyle: TextStyle(
+                      fontSize: 13,
+                      color: context.palette.textSecondary.withValues(alpha: 0.6),
+                    ),
+                    filled: true,
+                    fillColor: context.palette.surfaceAlt,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              FilledButton(
+                onPressed: () {
+                  final val = _controller.text.trim();
+                  if (val.isNotEmpty) {
+                    widget.onSubmit(val);
+                  }
+                },
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.teal,
+                  padding: EdgeInsets.zero,
+                  minimumSize: const Size(44, 44),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Icon(Icons.send_rounded, size: 18),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _ActionChip extends StatelessWidget {
   final String label;
   final Color? accent;
@@ -4571,13 +4721,23 @@ class _ChatBubbleState extends State<_ChatBubble> {
                     ),
                   if (widget.message.actionPreview != null &&
                       _actionNeedsConfirm(widget.message.actionPreview!.actionType))
-                    _ActionConfirmCard(
-                      preview: widget.message.actionPreview!,
-                      isConfirmed: widget.message.isConfirmed,
-                      isRejected: widget.message.isRejected,
-                      onConfirm: () => widget.onConfirmAction?.call(widget.message),
-                      onReject: () => widget.onRejectAction?.call(widget.message),
-                    ),
+                    if (widget.message.isMissingSlots)
+                      _MissingSlotInputCard(
+                        preview: widget.message.actionPreview!,
+                        onSubmit: (val) {
+                          if (widget.onSendMessage != null) {
+                            widget.onSendMessage!(val);
+                          }
+                        },
+                      )
+                    else
+                      _ActionConfirmCard(
+                        preview: widget.message.actionPreview!,
+                        isConfirmed: widget.message.isConfirmed,
+                        isRejected: widget.message.isRejected,
+                        onConfirm: () => widget.onConfirmAction?.call(widget.message),
+                        onReject: () => widget.onRejectAction?.call(widget.message),
+                      ),
                   if (widget.message.budgetSuggestionPreview != null)
                     _BudgetSuggestionCard(
                       preview: widget.message.budgetSuggestionPreview!,

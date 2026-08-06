@@ -36,7 +36,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     if (pass.length < 8) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Máº­t kháº©u pháº£i cÃ³ Ã­t nháº¥t 8 kÃ½ tá»±.'),
+          content: Text('Mật khẩu phải có ít nhất 8 ký tự.'),
         ),
       );
       return;
@@ -45,7 +45,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     if (pass != confirm) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Máº­t kháº©u xÃ¡c nháº­n khÃ´ng khá»›p.'),
+          content: Text('Mật khẩu xác nhận không khớp.'),
         ),
       );
       return;
@@ -69,13 +69,13 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
               Icon(Icons.check_circle, color: AppColors.teal),
               SizedBox(width: 8),
               Text(
-                'ThÃ nh cÃ´ng',
+                'Thành công',
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
             ],
           ),
           content: const Text(
-            'Máº­t kháº©u cá»§a báº¡n Ä‘Ã£ Ä‘Æ°á»£c thay Ä‘á»•i thÃ nh cÃ´ng. Vui lÃ²ng Ä‘Äƒng nháº­p láº¡i.',
+            'Mật khẩu của bạn đã được thay đổi thành công. Vui lòng đăng nhập lại.',
           ),
           actions: [
             FilledButton(
@@ -84,7 +84,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                 ctx.pop(); // close dialog
                 context.go(AppRoutes.login);
               },
-              child: const Text('ÄÄƒng nháº­p'),
+              child: const Text('Đăng nhập'),
             ),
           ],
         ),
@@ -119,7 +119,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'Táº¡o máº­t kháº©u má»›i',
+                'Tạo mật khẩu mới',
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
@@ -128,7 +128,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
               ),
               const SizedBox(height: 12),
               const Text(
-                'Vui lÃ²ng nháº­p máº­t kháº©u má»›i cá»§a báº¡n. Máº­t kháº©u pháº£i cÃ³ Ã­t nháº¥t 8 kÃ½ tá»±.',
+                'Vui lòng nhập mật khẩu mới của bạn. Mật khẩu phải có ít nhất 8 ký tự.',
                 style: TextStyle(
                   fontSize: 16,
                   color: AppColors.textSecondary,
@@ -140,7 +140,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                 controller: _passwordController,
                 obscureText: _obscureText,
                 decoration: InputDecoration(
-                  labelText: 'Máº­t kháº©u má»›i',
+                  labelText: 'Mật khẩu mới',
                   prefixIcon: const Icon(
                     Icons.lock_outline,
                     color: AppColors.textSecondary,
@@ -170,7 +170,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                 controller: _confirmController,
                 obscureText: _obscureConfirmText,
                 decoration: InputDecoration(
-                  labelText: 'XÃ¡c nháº­n máº­t kháº©u',
+                  labelText: 'Xác nhận mật khẩu',
                   prefixIcon: const Icon(
                     Icons.lock_outline,
                     color: AppColors.textSecondary,
@@ -221,7 +221,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                           ),
                         )
                       : const Text(
-                          'Äá»•i máº­t kháº©u',
+                          'Lưu mật khẩu mới',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,

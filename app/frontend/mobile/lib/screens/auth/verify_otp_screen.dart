@@ -28,7 +28,7 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
     final otp = _otpController.text.trim();
     if (otp.length != 6) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vui lÃ²ng nháº­p Ä‘á»§ 6 sá»‘ OTP.')),
+        const SnackBar(content: Text('Vui lòng nhập đủ 6 số OTP.')),
       );
       return;
     }
@@ -69,7 +69,7 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'Nháº­p mÃ£ xÃ¡c nháº­n',
+                'Nhập mã xác nhận',
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
@@ -87,7 +87,7 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
                   children: [
                     const TextSpan(
                       text:
-                          'MÃ£ xÃ¡c nháº­n 6 sá»‘ Ä‘Ã£ Ä‘Æ°á»£c gá»­i tá»›i email\n',
+                          'Mã xác nhận 6 số đã được gửi tới email\n',
                     ),
                     TextSpan(
                       text: widget.email,
@@ -150,7 +150,7 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
                           ),
                         )
                       : const Text(
-                          'XÃ¡c nháº­n',
+                          'Xác nhận',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,

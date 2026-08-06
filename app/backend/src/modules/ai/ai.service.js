@@ -231,18 +231,13 @@ async function _enrichNluWithAction(userId, payload, response) {
             response.gemini_json = secondRes.gemini_json || response.gemini_json;
             response.llama_json = secondRes.llama_json || response.llama_json;
             response.nlg_response = secondStory;
-            if (response.gemini_json) response.gemini_json.story = secondStory;
           }
         } catch (err) {
           logger.error({ err: err.message, userId }, 'Second LLM call for search failed');
         }
       }
 
-      const displayEmotion = pickMimoEmotionFromNlu(response, 'Action');
       response.gemini_json = response.gemini_json || {};
-      response.gemini_json.mimo_emotion = displayEmotion;
-      response.gemini_json.emotion = displayEmotion;
-      response.mimo_emotion = displayEmotion;
 
       await logAi(userId, 'action_executed', { text: payload.text, actionType }, actionResult, { backend: response.backend });
       return response;
@@ -387,14 +382,7 @@ async function _enrichNluWithAction(userId, payload, response) {
     response.action_result = actionResult;
     response.action_signature = actionService.buildActionSignature(actionType, timeRange);
 
-    const displayEmotion = pickMimoEmotionFromNlu(response, 'Action');
     response.gemini_json = response.gemini_json || {};
-    response.gemini_json.story = story;
-    response.gemini_json.mimo_emotion = displayEmotion;
-    response.gemini_json.emotion = displayEmotion;
-    response.mimo_emotion = displayEmotion;
-    response.llm_emotion = displayEmotion;
-    response.mascot_mood = displayEmotion;
     response.nlg_response = story;
 
     await logAi(userId, 'action_executed', { text: payload.text, actionType, timeRange }, actionResult, {

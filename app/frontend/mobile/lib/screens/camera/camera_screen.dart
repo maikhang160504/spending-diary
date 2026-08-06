@@ -45,7 +45,7 @@ class _CameraScreenState extends State<CameraScreen>
   @override
   void initState() {
     super.initState();
-    _mode = widget.initialMode ?? 'áº¢nh';
+    _mode = widget.initialMode ?? 'Ảnh';
     WidgetsBinding.instance.addObserver(this);
     _initCamera();
   }
@@ -83,7 +83,7 @@ class _CameraScreenState extends State<CameraScreen>
   }
 
   Future<void> _initCameraController(CameraDescription camera) async {
-    // Full HD (1920Ã—1080) â€” Ä‘á»§ nÃ©t cho OCR bill, nháº¹ hÆ¡n ultraHigh/max.
+    // Full HD (1920x1080) — đủ nét cho OCR bill, nhẹ hơn ultraHigh/max.
     final ctrl = CameraController(
       camera,
       ResolutionPreset.veryHigh,
@@ -170,7 +170,7 @@ class _CameraScreenState extends State<CameraScreen>
       }
       targetId ??= '';
 
-      // Gá»­i Ä‘i ngay láº­p tá»©c (khÃ´ng block UI) vÃ  quay láº¡i mÃ n hÃ¬nh trÆ°á»›c Ä‘á»ƒ hiá»ƒn thá»‹ banner
+      // Gửi đi ngay lập tức (không block UI) và quay lại màn hình trước để hiển thị banner
       BillProcessingService.instance.submitBill(
         walletId: targetId,
         imagePath: imagePath,
@@ -180,7 +180,7 @@ class _CameraScreenState extends State<CameraScreen>
       context.pop();
       MimoSnackBar.showSuccess(
         context,
-        message: 'ÄÃ£ gá»­i hÃ³a Ä‘Æ¡n! Äang phÃ¢n tÃ­ch ngáº§m...',
+        message: 'Đã gửi hóa đơn! Đang phân tích ngầm...',
       );
     } else {
       context.push(
@@ -224,7 +224,7 @@ class _CameraScreenState extends State<CameraScreen>
         MimoSnackBar.showInfo(
           context,
           message:
-              'KhÃ´ng thá»ƒ má»Ÿ thÆ° viá»‡n áº£nh. HÃ£y cáº¥p quyá»n trong pháº§n CÃ i Ä‘áº·t.',
+              'Không thể mở thư viện ảnh. Hãy cấp quyền trong phần Cài đặt.',
         );
       }
       return;
@@ -249,21 +249,21 @@ class _CameraScreenState extends State<CameraScreen>
               ),
               const SizedBox(height: 16),
               const Text(
-                'Cáº§n quyá»n truy cáº­p camera',
+                'Cần quyền truy cập camera',
                 style: TextStyle(color: Colors.white, fontSize: 15),
               ),
               const SizedBox(height: 8),
               TextButton(
                 onPressed: openAppSettings,
                 child: const Text(
-                  'Má»Ÿ cÃ i Ä‘áº·t',
+                  'Mở cài đặt',
                   style: TextStyle(color: AppColors.teal),
                 ),
               ),
               TextButton(
                 onPressed: () => context.pop(),
                 child: const Text(
-                  'Quay láº¡i',
+                  'Quay lại',
                   style: TextStyle(color: Colors.white54),
                 ),
               ),
@@ -314,9 +314,9 @@ class _CameraScreenState extends State<CameraScreen>
                         child: Row(
                           children: [
                             _ModeChip(
-                              label: 'áº¢nh',
-                              selected: _mode == 'áº¢nh',
-                              onTap: () => setState(() => _mode = 'áº¢nh'),
+                              label: 'Ảnh',
+                              selected: _mode == 'Ảnh',
+                              onTap: () => setState(() => _mode = 'Ảnh'),
                             ),
                             _ModeChip(
                               label: 'Bill',
@@ -361,7 +361,7 @@ class _CameraScreenState extends State<CameraScreen>
                 ),
                 child: Center(
                   child: AspectRatio(
-                    aspectRatio: 3 / 4, // áº£nh Ä‘á»©ng tá»‰ lá»‡ 4:3
+                    aspectRatio: 3 / 4, // ảnh đứng tỉ lệ 4:3
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(16),
                       child: GestureDetector(
@@ -439,7 +439,7 @@ class _CameraScreenState extends State<CameraScreen>
                                                 SizedBox(width: 8),
                                                 Flexible(
                                                   child: Text(
-                                                    'CÄƒn chá»‰nh hÃ³a Ä‘Æ¡n vÃ o khung',
+                                                    'Căn chỉnh hóa đơn vào khung',
                                                     style: TextStyle(
                                                       color: Colors.white,
                                                       fontSize: 13,
@@ -545,7 +545,7 @@ class _CameraScreenState extends State<CameraScreen>
                                             ),
                                           ),
                                           child: Text(
-                                            '${_zoomLevel.toStringAsFixed(1)}Ã—',
+                                            '${_zoomLevel.toStringAsFixed(1)}×',
                                             style: const TextStyle(
                                               color: Colors.white,
                                               fontSize: 13,
@@ -583,7 +583,7 @@ class _CameraScreenState extends State<CameraScreen>
                         // If landscape, arrange vertically
                         _CtrlBtn(
                           icon: Icons.photo_library_outlined,
-                          label: 'ThÆ° viá»‡n',
+                          label: 'Thư viện',
                           onTap: _pickFromGallery,
                         ),
                         const SizedBox(height: 32),
@@ -649,7 +649,7 @@ class _CameraScreenState extends State<CameraScreen>
                               children: [
                                 _CtrlBtn(
                                   icon: Icons.photo_library_outlined,
-                                  label: 'ThÆ° viá»‡n',
+                                  label: 'Thư viện',
                                   onTap: _pickFromGallery,
                                 ),
                                 GestureDetector(
@@ -712,8 +712,8 @@ class _CameraScreenState extends State<CameraScreen>
                         const SizedBox(height: 12),
                         Text(
                           _isTakingPhoto
-                              ? 'Mimso Ä‘ang Ä‘á»c hÃ³a Ä‘Æ¡n...'
-                              : 'Chá»¥p Ä‘á»ƒ xá»­ lÃ½ tá»± Ä‘á»™ng',
+                              ? 'Mimo đang đọc hóa đơn...'
+                              : 'Chụp để xử lý tự động',
                           style: TextStyle(
                             color: _isTakingPhoto
                                 ? Colors.yellow
@@ -803,7 +803,7 @@ class _ModeChip extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
-            label == 'áº¢nh' ? Icons.image_outlined : Icons.receipt_outlined,
+            label == 'Ảnh' ? Icons.image_outlined : Icons.receipt_outlined,
             size: 14,
             color: selected ? AppColors.textPrimary : Colors.white,
           ),
@@ -866,7 +866,7 @@ class _BillScanFrameOverlayState extends State<_BillScanFrameOverlay>
               colorFilter: ColorFilter.mode(
                 Colors.black.withValues(
                   alpha: 0.7,
-                ), // Tá»‘i hÆ¡n Ä‘á»ƒ ná»•i báº­t khung
+                ), // Tối hơn để nổi bật khung
                 BlendMode.srcOut,
               ),
               child: Stack(
@@ -899,7 +899,7 @@ class _BillScanFrameOverlayState extends State<_BillScanFrameOverlay>
                 height: frameH,
                 child: CustomPaint(
                   painter: _ScannerCornersPainter(
-                    color: Colors.white, // Tráº¯ng sang trá»ng thay vÃ¬ vÃ ng
+                    color: Colors.white, // Trắng sang trọng thay vì vàng
                     strokeWidth: 4.5,
                     cornerLength: 40.0,
                     radius: 16.0,
@@ -922,7 +922,7 @@ class _BillScanFrameOverlayState extends State<_BillScanFrameOverlay>
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
                         colors: [
-                          Color(0x0014B8A6), // AppColors.teal trong suá»‘t
+                          Color(0x0014B8A6), // AppColors.teal trong suốt
                           Color(0xFF14B8A6), // AppColors.teal
                           Color(0x0014B8A6),
                         ],

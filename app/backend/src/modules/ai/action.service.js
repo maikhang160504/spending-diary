@@ -1182,7 +1182,7 @@ async function executeSearch(userId, payload) {
   const categoryCode = resolveCategoryCode(payload.categoryCode || slots.category, details, payload.text);
 
   if (categoryCode && q) {
-    const aliases = [];
+      const aliases = [];
     for (const [alias, code] of Object.entries(VI_CATEGORY_MAP)) {
       if (code === categoryCode) aliases.push(alias);
     }
@@ -1212,10 +1212,27 @@ async function executeSearch(userId, payload) {
   }
   
   let timeRange = null;
-  if (payload.timeRange && typeof payload.timeRange === 'object' && payload.timeRange.from) {
+  if (payload.timeRange && typeof payload.timeRange === 'object' && !Array.isArray(payload.timeRange) && payload.timeRange.from) {
     timeRange = payload.timeRange;
   } else if (typeof payload.timeRange === 'string') {
     timeRange = inferTimeRangeFromText(payload.timeRange) || inferTimeRangeFromText(payload.text || '');
+  } else if (Array.isArray(payload.timeRange)) {
+    if (payload.timeRange.length === 2) {
+      const isDate1 = !isNaN(Date.parse(payload.timeRange[0]));
+      const isDate2 = !isNaN(Date.parse(payload.timeRange[1]));
+      if (isDate1 && isDate2 && payload.timeRange[0].length >= 10 && payload.timeRange[1].length >= 10) {
+        timeRange = {
+          from: payload.timeRange[0],
+          to: payload.timeRange[1],
+          period_label: `Từ ${payload.timeRange[0]} đến ${payload.timeRange[1]}`,
+          granularity: 'custom'
+        };
+      } else {
+        timeRange = inferTimeRangeFromText(payload.timeRange[0] || payload.text || '');
+      }
+    } else {
+      timeRange = inferTimeRangeFromText(payload.timeRange[0] || payload.text || '');
+    }
   } else {
     timeRange = inferTimeRangeFromText(payload.text || '');
   }

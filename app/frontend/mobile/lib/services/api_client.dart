@@ -1,4 +1,4 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -194,20 +194,20 @@ class ApiClient {
         return true;
       }
 
-      // Chá»‰ xÃ³a token náº¿u server pháº£n há»“i lá»—i xÃ¡c thá»±c rÃµ rÃ ng
+      // Chỉ xóa token nếu server phản hồi lỗi xác thực rõ ràng
       if (response.statusCode == 400 ||
           response.statusCode == 401 ||
           response.statusCode == 403) {
         await clearTokens();
       }
     } catch (_) {
-      // Bá» qua lá»—i káº¿t ná»‘i (SocketException/Timeout) Ä‘á»ƒ khÃ´ng tá»± Ä‘á»™ng logout khi máº¥t máº¡ng
+      // Bỏ qua lỗi kết nối (SocketException/Timeout) để không tự động logout khi mất mạng
     }
 
     return false;
   }
 
-  // â”€â”€â”€ Auth â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ————————————————————————————————————————————————————————————————————————————
   Future<Map<String, dynamic>> login(String email, String password) async {
     _isOnboardingBypassed = null;
     final result = await _request(
@@ -346,7 +346,7 @@ class ApiClient {
     await _request('DELETE', '/users/me/fcm/token', body: {'token': token});
   }
 
-  // â”€â”€â”€ Wallets â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ————————————————————————————————————————————————————————————————————————————
   Future<List<dynamic>> getWallets() async {
     final result = await _request('GET', '/wallets');
     return result['data'] as List<dynamic>;
@@ -409,13 +409,13 @@ class ApiClient {
     return result['data'] as Map<String, dynamic>;
   }
 
-  // â”€â”€â”€ Categories â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ————————————————————————————————————————————————————————————————————————————
   Future<List<dynamic>> getCategories() async {
     final result = await _request('GET', '/categories');
     return result['data'] as List<dynamic>;
   }
 
-  // â”€â”€â”€ Transactions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ————————————————————————————————————————————————————————————————————————————
   Future<Map<String, dynamic>> getTransactions({
     String? walletId,
     String? type,
@@ -465,7 +465,7 @@ class ApiClient {
     await _request('DELETE', '/transactions/$id');
   }
 
-  // â”€â”€â”€ Stats â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ————————————————————————————————————————————————————————————————————————————
   Future<Map<String, dynamic>> getDashboard({
     String? walletId,
     String? from,
@@ -483,12 +483,12 @@ class ApiClient {
     final result = await _request(
       'GET',
       '/stats/peer-compare',
-      queryParams: {'month': ?month},
+      queryParams: {if (month != null) 'month': month},
     );
     return result['data'] as Map<String, dynamic>;
   }
 
-  // â”€â”€â”€ Budgets â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ————————————————————————————————————————————————————————————————————————————
   Future<List<dynamic>> getBudgets() async {
     final result = await _request('GET', '/budgets/summary');
     return result['data'] as List<dynamic>;
@@ -529,7 +529,7 @@ class ApiClient {
     return result['data'] as Map<String, dynamic>;
   }
 
-  // â”€â”€â”€ Goals â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ————————————————————————————————————————————————————————————————————————————
   Future<List<dynamic>> getGoals([String? type]) async {
     final path = type != null ? '/goals?type=' : '/goals';
     final result = await _request('GET', path);
@@ -586,7 +586,7 @@ class ApiClient {
     return result['data'] as Map<String, dynamic>;
   }
 
-  // â”€â”€â”€ Recurring Rules â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ————————————————————————————————————————————————————————————————————————————
   Future<List<dynamic>> getRecurringRules() async {
     final result = await _request('GET', '/recurring');
     return result['data'] as List<dynamic>;
@@ -611,7 +611,7 @@ class ApiClient {
     await _request('DELETE', '/recurring/$id');
   }
 
-  // â”€â”€â”€ AI â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ————————————————————————————————————————————————————————————————————————————
   Future<Map<String, dynamic>> aiNlu(String text, {bool runLlm = false}) async {
     final result = await _request(
       'POST',
@@ -651,7 +651,7 @@ class ApiClient {
     required String filePath,
   }) async {
     final token = await accessToken;
-    // Bill OCR: giá»¯ cáº¡nh dÃ i lá»›n hÆ¡n Ä‘á»ƒ chá»¯ trÃªn hoÃ¡ Ä‘Æ¡n váº«n Ä‘á»c Ä‘Æ°á»£c.
+    // Bill OCR: giữ cạnh dài lớn hơn để chữ trên hoá đơn vẫn đọc được.
     final uploadPath = await compressForUpload(
       filePath,
       maxSize: 1600,
@@ -700,7 +700,7 @@ class ApiClient {
     final result = await _request(
       'POST',
       '/budgets/suggestions/apply',
-      body: {'month': month, '?overrides': overrides},
+      body: {'month': month, 'overrides': overrides},
     );
     return {
       'data': result['data'],
@@ -714,7 +714,7 @@ class ApiClient {
       '/budgets/suggestions/dismiss',
       body: {'month': month},
     );
-    return result['message'] as String? ?? 'ÄÃ£ bá» qua gá»£i Ã½.';
+    return result['message'] as String? ?? 'Đã bỏ qua gợi ý.';
   }
 
   Future<bool> aiIsActionConfirmed(String actionSignature) async {
@@ -733,7 +733,7 @@ class ApiClient {
     await _request(
       'POST',
       '/ai/actions/confirm',
-      body: {'actionSignature': actionSignature, 'actionType': ?actionType},
+      body: {'actionSignature': actionSignature, 'actionType': actionType},
     );
   }
 
@@ -764,11 +764,11 @@ class ApiClient {
     await _request(
       'POST',
       '/ai/actions/reject',
-      body: {'text': ?text, 'predicted': ?predicted},
+      body: {'text': text, 'predicted': predicted},
     );
   }
 
-  // â”€â”€â”€ User Settings â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ————————————————————————————————————————————————————————————————————————————
   Future<Map<String, dynamic>> getSettings() async {
     final result = await _request('GET', '/users/me/settings');
     return result['data'] as Map<String, dynamic>;
@@ -792,7 +792,7 @@ class ApiClient {
     return result['data'] as Map<String, dynamic>;
   }
 
-  // â”€â”€â”€ Chat â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ————————————————————————————————————————————————————————————————————————————
   Future<List<dynamic>> getChatSessions() async {
     final result = await _request('GET', '/chat/sessions');
     return result['data'] as List<dynamic>;
@@ -805,7 +805,7 @@ class ApiClient {
     final result = await _request(
       'POST',
       '/chat/sessions',
-      body: {'title': ?title, if (walletId != null) 'walletId': walletId},
+      body: {'title': title, if (walletId != null) 'walletId': walletId},
     );
     return result['data'] as Map<String, dynamic>;
   }
@@ -879,7 +879,7 @@ class ApiClient {
     await _request('DELETE', '/chat/sessions/$sessionId');
   }
 
-  // â”€â”€â”€ Stories â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ————————————————————————————————————————————————————————————————————————————
   Future<List<dynamic>> getStories({String? walletId}) async {
     final result = await _request(
       'GET',
@@ -894,7 +894,7 @@ class ApiClient {
     return result['data'] as Map<String, dynamic>;
   }
 
-  // â”€â”€â”€ Group Stats â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ————————————————————————————————————————————————————————————————————————————
   Future<Map<String, dynamic>> getGroupOverview(String walletId) async {
     final result = await _request('GET', '/group-stats/$walletId/overview');
     return result['data'] as Map<String, dynamic>;
@@ -929,7 +929,7 @@ class ApiClient {
     return result['data'] as List<dynamic>;
   }
 
-  // â”€â”€â”€ Stats â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ————————————————————————————————————————————————————————————————————————————
   Future<List<dynamic>> getStatsByCategory({
     String? range,
     String? walletId,
@@ -941,7 +941,7 @@ class ApiClient {
       'GET',
       '/stats/by-category',
       queryParams: {
-        'range': ?range,
+        if (range != null) 'range': range,
         if (walletId != null) 'walletId': walletId,
         if (from != null) 'from': from,
         if (to != null) 'to': to,
@@ -952,7 +952,7 @@ class ApiClient {
   }
 
   Future<List<dynamic>> getStatsByMonth({int? year, String? walletId}) async {
-    final params = {'year': ?year?.toString(), if (walletId != null) 'walletId': walletId};
+    final params = {if (year != null) 'year': year.toString(), if (walletId != null) 'walletId': walletId};
     final result = await _request(
       'GET',
       '/stats/by-month',
@@ -987,7 +987,7 @@ class ApiClient {
     return result['data'] as Map<String, dynamic>;
   }
 
-  // â”€â”€â”€ Wallet Members â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ————————————————————————————————————————————————————————————————————————————
   Future<List<dynamic>> getWalletMembers(String walletId) async {
     final result = await _request('GET', '/wallets/$walletId/members');
     return result['data'] as List<dynamic>;
@@ -1010,7 +1010,7 @@ class ApiClient {
     await _request('DELETE', '/wallets/$walletId/members/$memberId');
   }
 
-  // â”€â”€â”€ Loans â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ————————————————————————————————————————————————————————————————————————————
   Future<List<dynamic>> getLoans() async {
     final result = await _request('GET', '/loans');
     return (result['data'] as List<dynamic>?) ?? [];
@@ -1037,23 +1037,23 @@ class ApiClient {
     return await _request('POST', '/ai/goal-recap', body: body);
   }
 
-  // â”€â”€â”€ Payments / Premium â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ————————————————————————————————————————————————————————————————————————————
 
-  /// Táº¡o Ä‘Æ¡n hÃ ng Premium má»›i.
-  /// Tráº£ vá»: { orderId, code, amount, transferContent, qrUrl, bank, accountNumber, accountName }
+  /// Tạo đơn hàng Premium mới.
+  /// Trả về : { orderId, code, amount, transferContent, qrUrl, bank, accountNumber, accountName }
   Future<Map<String, dynamic>> createPaymentOrder() async {
     final result = await _request('POST', '/payments/create');
     return result['data'] as Map<String, dynamic>;
   }
 
-  /// Polling: kiá»ƒm tra tráº¡ng thÃ¡i Ä‘Æ¡n hÃ ng gáº§n nháº¥t.
-  /// Tráº£ vá» null náº¿u chÆ°a cÃ³ Ä‘Æ¡n. Status: pending | completed | cancelled
+  /// Polling: kiểm tra trạng thái đơn hàng gần nhất.
+  /// Trả về null nếu chưa có đơn. Status: pending | completed | cancelled
   Future<Map<String, dynamic>?> getPaymentStatus() async {
     final result = await _request('GET', '/payments/status');
     return result['data'] as Map<String, dynamic>?;
   }
 
-  /// Láº¥y tráº¡ng thÃ¡i Premium cá»§a user hiá»‡n táº¡i.
+  /// Lấy trạng thái Premium của user hiện tại.
   Future<bool> getMyPremiumStatus() async {
     final result = await _request('GET', '/payments/my');
     final data = result['data'] as Map<String, dynamic>?;
