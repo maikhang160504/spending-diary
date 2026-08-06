@@ -659,6 +659,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
           transactionId: nluString(
             rMap['transaction_id'] ?? rMap['transactionId'],
           ),
+          nlu: rMap,
         );
       }).toList();
     }
@@ -1739,6 +1740,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
           text: aiText,
           emotionAsset: preview.emotionAsset ?? 'Success',
         ).toStoryPersistFields(),
+        'aiExtracted': true,
         if (preview.nlu != null) 'aiMeta': {'nlu': preview.nlu},
       });
       preview.transactionId = tx['id'] as String?;
@@ -1828,6 +1830,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
             text: 'Ghi nhận giao dịch tự động',
             emotionAsset: 'Success',
           ).toStoryPersistFields(),
+          'aiExtracted': true,
+          if (preview.nlu != null) 'aiMeta': {'nlu': preview.nlu},
         });
         preview.transactionId = tx['id'] as String?;
       }
