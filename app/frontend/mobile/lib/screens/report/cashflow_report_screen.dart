@@ -21,7 +21,8 @@ class CashflowReportScreen extends StatefulWidget {
 
 class _CashflowReportScreenState extends State<CashflowReportScreen> {
   String? _selectedWalletId;
-  String _selectedPeriod = 'Theo tháng'; // 'Theo tuần', 'Theo tháng', 'Theo năm'
+  String _selectedPeriod =
+      'Theo tháng'; // 'Theo tuần', 'Theo tháng', 'Theo năm'
   bool _compareYoY = false;
   String _selectedTab = 'Chi'; // 'Chi', 'Thu', 'Chênh lệch'
   bool _isAnalyzingAI = false;
@@ -50,7 +51,9 @@ class _CashflowReportScreenState extends State<CashflowReportScreen> {
     final now = DateTime.now();
     if (_selectedPeriod == 'Theo tuần') {
       if (_periodOffset == 0) return 'Tuần hiện tại';
-      final startOfWeek = now.subtract(Duration(days: now.weekday - 1)).subtract(Duration(days: 7 * _periodOffset));
+      final startOfWeek = now
+          .subtract(Duration(days: now.weekday - 1))
+          .subtract(Duration(days: 7 * _periodOffset));
       final endOfWeek = startOfWeek.add(const Duration(days: 6));
       return '${DateFormat('dd/MM').format(startOfWeek)} - ${DateFormat('dd/MM').format(endOfWeek)}';
     } else if (_selectedPeriod == 'Theo tháng') {
@@ -65,6 +68,7 @@ class _CashflowReportScreenState extends State<CashflowReportScreen> {
   }
 
   Future<void> _loadReportData() async {
+    _aiInsight = null;
     setState(() => _isLoading = true);
     try {
       final now = DateTime.now();
@@ -89,7 +93,9 @@ class _CashflowReportScreenState extends State<CashflowReportScreen> {
       final typeParam = isIncome ? 'income' : 'expense';
 
       if (_selectedPeriod == 'Theo tuần') {
-        final startOfWeek = now.subtract(Duration(days: now.weekday - 1)).subtract(Duration(days: 7 * _periodOffset));
+        final startOfWeek = now
+            .subtract(Duration(days: now.weekday - 1))
+            .subtract(Duration(days: 7 * _periodOffset));
         final endOfWeek = startOfWeek.add(const Duration(days: 6));
         final fromStr = DateFormat('yyyy-MM-dd').format(startOfWeek);
         final toStr = DateFormat('yyyy-MM-dd').format(endOfWeek);
@@ -99,9 +105,23 @@ class _CashflowReportScreenState extends State<CashflowReportScreen> {
         final prevFromStr = DateFormat('yyyy-MM-dd').format(prevStart);
         final prevToStr = DateFormat('yyyy-MM-dd').format(prevEnd);
 
-        final curDashRes = await AppQueries.dashboard(_selectedWalletId, from: fromStr, to: toStr).result;
-        final prevDashRes = await AppQueries.dashboard(_selectedWalletId, from: prevFromStr, to: prevToStr).result;
-        final catRes = await AppQueries.statsByCategory('custom', _selectedWalletId, from: fromStr, to: toStr, type: typeParam).result;
+        final curDashRes = await AppQueries.dashboard(
+          _selectedWalletId,
+          from: fromStr,
+          to: toStr,
+        ).result;
+        final prevDashRes = await AppQueries.dashboard(
+          _selectedWalletId,
+          from: prevFromStr,
+          to: prevToStr,
+        ).result;
+        final catRes = await AppQueries.statsByCategory(
+          'custom',
+          _selectedWalletId,
+          from: fromStr,
+          to: toStr,
+          type: typeParam,
+        ).result;
 
         final curDash = curDashRes.data ?? {};
         final prevDash = prevDashRes.data ?? {};
@@ -112,8 +132,12 @@ class _CashflowReportScreenState extends State<CashflowReportScreen> {
         labels = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
 
         for (int i = 0; i < 7; i++) {
-          final curDayData = i < curByDay.length ? (curByDay[i] as Map<String, dynamic>) : null;
-          final prevDayData = i < prevByDay.length ? (prevByDay[i] as Map<String, dynamic>) : null;
+          final curDayData = i < curByDay.length
+              ? (curByDay[i] as Map<String, dynamic>)
+              : null;
+          final prevDayData = i < prevByDay.length
+              ? (prevByDay[i] as Map<String, dynamic>)
+              : null;
 
           final curExp = (curDayData?['expense'] as num?)?.toDouble() ?? 0.0;
           final curInc = (curDayData?['income'] as num?)?.toDouble() ?? 0.0;
@@ -141,7 +165,10 @@ class _CashflowReportScreenState extends State<CashflowReportScreen> {
 
         for (final c in rawCats) {
           final map = c as Map<String, dynamic>;
-          final amt = (map['amount'] as num?)?.toInt() ?? (map['total'] as num?)?.toInt() ?? 0;
+          final amt =
+              (map['amount'] as num?)?.toInt() ??
+              (map['total'] as num?)?.toInt() ??
+              0;
           final code = map['categoryCode']?.toString() ?? 'Other';
           totalCatAmt += amt;
           cats.add({
@@ -153,7 +180,11 @@ class _CashflowReportScreenState extends State<CashflowReportScreen> {
         }
       } else if (_selectedPeriod == 'Theo tháng') {
         final targetMonth = DateTime(now.year, now.month - _periodOffset, 1);
-        final targetMonthEnd = DateTime(now.year, now.month - _periodOffset + 1, 0);
+        final targetMonthEnd = DateTime(
+          now.year,
+          now.month - _periodOffset + 1,
+          0,
+        );
         final fromStr = DateFormat('yyyy-MM-dd').format(targetMonth);
         final toStr = DateFormat('yyyy-MM-dd').format(targetMonthEnd);
 
@@ -162,9 +193,23 @@ class _CashflowReportScreenState extends State<CashflowReportScreen> {
         final prevFromStr = DateFormat('yyyy-MM-dd').format(prevMonth);
         final prevToStr = DateFormat('yyyy-MM-dd').format(prevMonthEnd);
 
-        final curDashRes = await AppQueries.dashboard(_selectedWalletId, from: fromStr, to: toStr).result;
-        final prevDashRes = await AppQueries.dashboard(_selectedWalletId, from: prevFromStr, to: prevToStr).result;
-        final catRes = await AppQueries.statsByCategory('custom', _selectedWalletId, from: fromStr, to: toStr, type: typeParam).result;
+        final curDashRes = await AppQueries.dashboard(
+          _selectedWalletId,
+          from: fromStr,
+          to: toStr,
+        ).result;
+        final prevDashRes = await AppQueries.dashboard(
+          _selectedWalletId,
+          from: prevFromStr,
+          to: prevToStr,
+        ).result;
+        final catRes = await AppQueries.statsByCategory(
+          'custom',
+          _selectedWalletId,
+          from: fromStr,
+          to: toStr,
+          type: typeParam,
+        ).result;
 
         final curDash = curDashRes.data ?? {};
         final prevDash = prevDashRes.data ?? {};
@@ -197,8 +242,12 @@ class _CashflowReportScreenState extends State<CashflowReportScreen> {
             final dayNum = int.tryParse(dayStr.substring(8, 10)) ?? 1;
             int weekIdx = (dayNum - 1) ~/ 7;
             if (weekIdx >= curWeeks.length) weekIdx = curWeeks.length - 1;
-            curWeeks[weekIdx]['income'] = (curWeeks[weekIdx]['income'] ?? 0) + ((map['income'] as num?)?.toInt() ?? 0);
-            curWeeks[weekIdx]['expense'] = (curWeeks[weekIdx]['expense'] ?? 0) + ((map['expense'] as num?)?.toInt() ?? 0);
+            curWeeks[weekIdx]['income'] =
+                (curWeeks[weekIdx]['income'] ?? 0) +
+                ((map['income'] as num?)?.toInt() ?? 0);
+            curWeeks[weekIdx]['expense'] =
+                (curWeeks[weekIdx]['expense'] ?? 0) +
+                ((map['expense'] as num?)?.toInt() ?? 0);
           }
         }
 
@@ -209,8 +258,12 @@ class _CashflowReportScreenState extends State<CashflowReportScreen> {
             final dayNum = int.tryParse(dayStr.substring(8, 10)) ?? 1;
             int weekIdx = (dayNum - 1) ~/ 7;
             if (weekIdx >= prevWeeks.length) weekIdx = prevWeeks.length - 1;
-            prevWeeks[weekIdx]['income'] = (prevWeeks[weekIdx]['income'] ?? 0) + ((map['income'] as num?)?.toInt() ?? 0);
-            prevWeeks[weekIdx]['expense'] = (prevWeeks[weekIdx]['expense'] ?? 0) + ((map['expense'] as num?)?.toInt() ?? 0);
+            prevWeeks[weekIdx]['income'] =
+                (prevWeeks[weekIdx]['income'] ?? 0) +
+                ((map['income'] as num?)?.toInt() ?? 0);
+            prevWeeks[weekIdx]['expense'] =
+                (prevWeeks[weekIdx]['expense'] ?? 0) +
+                ((map['expense'] as num?)?.toInt() ?? 0);
           }
         }
 
@@ -245,7 +298,10 @@ class _CashflowReportScreenState extends State<CashflowReportScreen> {
 
         for (final c in rawCats) {
           final map = c as Map<String, dynamic>;
-          final amt = (map['amount'] as num?)?.toInt() ?? (map['total'] as num?)?.toInt() ?? 0;
+          final amt =
+              (map['amount'] as num?)?.toInt() ??
+              (map['total'] as num?)?.toInt() ??
+              0;
           final code = map['categoryCode']?.toString() ?? 'Other';
           totalCatAmt += amt;
           cats.add({
@@ -261,19 +317,48 @@ class _CashflowReportScreenState extends State<CashflowReportScreen> {
         final fromStr = '$targetYear-01-01';
         final toStr = '$targetYear-12-31';
 
-        final curRes = await AppQueries.statsByMonth(targetYear, _selectedWalletId).result;
-        final prevRes = await AppQueries.statsByMonth(targetYear - 1, _selectedWalletId).result;
-        final catRes = await AppQueries.statsByCategory('custom', _selectedWalletId, from: fromStr, to: toStr, type: typeParam).result;
+        final curRes = await AppQueries.statsByMonth(
+          targetYear,
+          _selectedWalletId,
+        ).result;
+        final prevRes = await AppQueries.statsByMonth(
+          targetYear - 1,
+          _selectedWalletId,
+        ).result;
+        final catRes = await AppQueries.statsByCategory(
+          'custom',
+          _selectedWalletId,
+          from: fromStr,
+          to: toStr,
+          type: typeParam,
+        ).result;
 
         final curMonths = curRes.data ?? [];
         final prevMonths = prevRes.data ?? [];
         final rawCats = catRes.data ?? [];
 
-        labels = ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10', 'T11', 'T12'];
+        labels = [
+          'T1',
+          'T2',
+          'T3',
+          'T4',
+          'T5',
+          'T6',
+          'T7',
+          'T8',
+          'T9',
+          'T10',
+          'T11',
+          'T12',
+        ];
 
         for (int i = 0; i < 12; i++) {
-          final curM = i < curMonths.length ? (curMonths[i] as Map<String, dynamic>) : null;
-          final prevM = i < prevMonths.length ? (prevMonths[i] as Map<String, dynamic>) : null;
+          final curM = i < curMonths.length
+              ? (curMonths[i] as Map<String, dynamic>)
+              : null;
+          final prevM = i < prevMonths.length
+              ? (prevMonths[i] as Map<String, dynamic>)
+              : null;
 
           final curExp = (curM?['expense'] as num?)?.toDouble() ?? 0.0;
           final curInc = (curM?['income'] as num?)?.toDouble() ?? 0.0;
@@ -300,7 +385,10 @@ class _CashflowReportScreenState extends State<CashflowReportScreen> {
 
         for (final c in rawCats) {
           final map = c as Map<String, dynamic>;
-          final amt = (map['amount'] as num?)?.toInt() ?? (map['total'] as num?)?.toInt() ?? 0;
+          final amt =
+              (map['amount'] as num?)?.toInt() ??
+              (map['total'] as num?)?.toInt() ??
+              0;
           final code = map['categoryCode']?.toString() ?? 'Other';
           totalCatAmt += amt;
           cats.add({
@@ -312,7 +400,10 @@ class _CashflowReportScreenState extends State<CashflowReportScreen> {
         }
       }
 
-      cats.sort((a, b) => ((b['amount'] as num?) ?? 0).compareTo((a['amount'] as num?) ?? 0));
+      cats.sort(
+        (a, b) =>
+            ((b['amount'] as num?) ?? 0).compareTo((a['amount'] as num?) ?? 0),
+      );
 
       if (mounted) {
         setState(() {
@@ -333,30 +424,32 @@ class _CashflowReportScreenState extends State<CashflowReportScreen> {
     }
   }
 
+
   Future<void> _analyzeAI() async {
     setState(() => _isAnalyzingAI = true);
-    try {
-      final totalIncome = _breakdownItems.fold<int>(0, (sum, item) => sum + ((item['income'] as num?)?.toInt() ?? 0));
-      final totalExpense = _breakdownItems.fold<int>(0, (sum, item) => sum + ((item['expense'] as num?)?.toInt() ?? 0));
-      final net = totalIncome - totalExpense;
-
-      final prompt = 'Phân tích biến động dòng tiền: Kỳ $_selectedPeriod (${_getPeriodLabel()}), tổng thu: ${formatVnd(totalIncome)}, tổng chi: ${formatVnd(totalExpense)}, chênh lệch ròng: ${formatVnd(net)}. Hãy đưa ra nhận xét ngắn gọn và giải pháp tài chính thiết thực cho người dùng.';
-      final res = await AIAdvisorService.askFinancialQuestion(prompt);
-      if (mounted) {
-        setState(() {
-          _aiInsight = res;
-          _isAnalyzingAI = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _aiInsight = 'Dòng tiền đang có sự dao động qua các chu kỳ. Hãy theo dõi sát mức chênh lệch Thu - Chi để duy trì tích lũy dương!';
-          _isAnalyzingAI = false;
-        });
-      }
+    final totalIncome = _breakdownItems.fold<int>(
+      0,
+      (sum, item) => sum + ((item['income'] as num?)?.toInt() ?? 0),
+    );
+    final totalExpense = _breakdownItems.fold<int>(
+      0,
+      (sum, item) => sum + ((item['expense'] as num?)?.toInt() ?? 0),
+    );
+    await Future.delayed(const Duration(milliseconds: 400));
+    final insight = AIAdvisorService.analyzeCashflow(
+      totalIncome: totalIncome,
+      totalExpense: totalExpense,
+      periodLabel: _getPeriodLabel(),
+      breakdownValues: _breakdownItems,
+    );
+    if (mounted) {
+      setState(() {
+        _aiInsight = insight;
+        _isAnalyzingAI = false;
+      });
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -367,7 +460,11 @@ class _CashflowReportScreenState extends State<CashflowReportScreen> {
         elevation: 0,
         centerTitle: true,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new_rounded, color: context.palette.textPrimary, size: 20),
+          icon: Icon(
+            Icons.arrow_back_ios_new_rounded,
+            color: context.palette.textPrimary,
+            size: 20,
+          ),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: const Text(
@@ -378,7 +475,9 @@ class _CashflowReportScreenState extends State<CashflowReportScreen> {
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final isLandscapePhone = constraints.maxWidth > constraints.maxHeight && constraints.maxHeight < 500;
+            final isLandscapePhone =
+                constraints.maxWidth > constraints.maxHeight &&
+                constraints.maxHeight < 500;
             return Center(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 600),
@@ -386,13 +485,20 @@ class _CashflowReportScreenState extends State<CashflowReportScreen> {
                   children: [
                     // ── Responsive filter bar ─────────────────────────────
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.md,
+                        vertical: 4,
+                      ),
                       child: ReportFilterBar(
                         isLandscapePhone: isLandscapePhone,
                         children: [
                           // Filter 1: Kỳ (Tuần / Tháng / Năm)
                           FilterSegmentCompact(
-                            labels: const ['Theo tuần', 'Theo tháng', 'Theo năm'],
+                            labels: const [
+                              'Theo tuần',
+                              'Theo tháng',
+                              'Theo năm',
+                            ],
                             selected: _selectedPeriod,
                             onChanged: (val) {
                               if (val != _selectedPeriod) {
@@ -447,14 +553,21 @@ class _CashflowReportScreenState extends State<CashflowReportScreen> {
                       child: _isLoading
                           ? const Center(child: CircularProgressIndicator())
                           : SingleChildScrollView(
-                              padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 8, AppSpacing.lg, AppSpacing.lg),
+                              padding: const EdgeInsets.fromLTRB(
+                                AppSpacing.lg,
+                                8,
+                                AppSpacing.lg,
+                                AppSpacing.lg,
+                              ),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   // Tabs Chi / Thu / Chênh lệch
                                   Center(
                                     child: ConstrainedBox(
-                                      constraints: const BoxConstraints(maxWidth: 400),
+                                      constraints: const BoxConstraints(
+                                        maxWidth: 400,
+                                      ),
                                       child: Row(
                                         children: [
                                           _buildTab('Chi'),
@@ -473,11 +586,18 @@ class _CashflowReportScreenState extends State<CashflowReportScreen> {
                                   const SizedBox(height: 12),
                                   if (_compareYoY)
                                     Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
                                       children: [
-                                        _buildLegendDot(AppColors.teal, 'Kỳ hiện tại'),
+                                        _buildLegendDot(
+                                          AppColors.teal,
+                                          'Kỳ hiện tại',
+                                        ),
                                         const SizedBox(width: 24),
-                                        _buildLegendDot(AppColors.warning, 'Cùng kỳ trước'),
+                                        _buildLegendDot(
+                                          AppColors.warning,
+                                          'Cùng kỳ trước',
+                                        ),
                                       ],
                                     ),
                                   const SizedBox(height: 20),
@@ -512,7 +632,9 @@ class _CashflowReportScreenState extends State<CashflowReportScreen> {
           padding: const EdgeInsets.symmetric(vertical: 8),
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: active ? AppColors.teal.withValues(alpha: 0.15) : context.palette.card,
+            color: active
+                ? AppColors.teal.withValues(alpha: 0.15)
+                : context.palette.card,
             borderRadius: BorderRadius.circular(AppRadii.md),
             border: Border.all(
               color: active ? AppColors.teal : context.palette.border,
@@ -562,7 +684,9 @@ class _CashflowReportScreenState extends State<CashflowReportScreen> {
                   ),
                   child: ClipOval(
                     child: Image.asset(
-                      _isAnalyzingAI ? 'assets/MiMo/emotions/Thinking.png' : 'assets/MiMo/emotions/Working.png',
+                      _isAnalyzingAI
+                          ? 'assets/MiMo/emotions/Thinking.png'
+                          : 'assets/MiMo/emotions/Working.png',
                       fit: BoxFit.cover,
                     ),
                   ),
@@ -574,22 +698,36 @@ class _CashflowReportScreenState extends State<CashflowReportScreen> {
                     children: [
                       const Text(
                         'Phân tích AI từ MiMo Mascot',
-                        style: TextStyle(color: AppColors.teal, fontSize: 15, fontWeight: FontWeight.w700),
+                        style: TextStyle(
+                          color: AppColors.teal,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                       const SizedBox(height: 2),
                       Text(
                         _isAnalyzingAI
                             ? 'MiMo đang phân tích dòng tiền...'
                             : 'Nhấn để MiMo phân tích xu hướng thu chi',
-                        style: const TextStyle(color: AppColors.muted, fontSize: 12),
+                        style: const TextStyle(
+                          color: AppColors.muted,
+                          fontSize: 12,
+                        ),
                       ),
                     ],
                   ),
                 ),
                 if (_isAnalyzingAI)
-                  const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                  const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
                 else
-                  const Icon(Icons.chevron_right_rounded, color: AppColors.teal),
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    color: AppColors.teal,
+                  ),
               ],
             ),
           ),
@@ -615,7 +753,10 @@ class _CashflowReportScreenState extends State<CashflowReportScreen> {
                     shape: BoxShape.circle,
                   ),
                   child: ClipOval(
-                    child: Image.asset('assets/MiMo/emotions/Working.png', fit: BoxFit.cover),
+                    child: Image.asset(
+                      'assets/MiMo/emotions/Working.png',
+                      fit: BoxFit.cover,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -625,12 +766,20 @@ class _CashflowReportScreenState extends State<CashflowReportScreen> {
                     children: [
                       const Text(
                         'MiMo khuyên bạn:',
-                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: AppColors.teal),
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                          color: AppColors.teal,
+                        ),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         _aiInsight!,
-                        style: TextStyle(color: context.palette.textPrimary, fontSize: 13, height: 1.4),
+                        style: TextStyle(
+                          color: context.palette.textPrimary,
+                          fontSize: 13,
+                          height: 1.4,
+                        ),
                       ),
                     ],
                   ),
@@ -644,8 +793,12 @@ class _CashflowReportScreenState extends State<CashflowReportScreen> {
   }
 
   Widget _buildChartCard() {
-    final maxCur = _currentValues.isEmpty ? 0.0 : _currentValues.fold<double>(0, (a, b) => a > b.abs() ? a : b.abs());
-    final maxPrev = _prevValues.isEmpty ? 0.0 : _prevValues.fold<double>(0, (a, b) => a > b.abs() ? a : b.abs());
+    final maxCur = _currentValues.isEmpty
+        ? 0.0
+        : _currentValues.fold<double>(0, (a, b) => a > b.abs() ? a : b.abs());
+    final maxPrev = _prevValues.isEmpty
+        ? 0.0
+        : _prevValues.fold<double>(0, (a, b) => a > b.abs() ? a : b.abs());
     final maxVal = maxCur > maxPrev ? maxCur : maxPrev;
 
     return Container(
@@ -660,11 +813,17 @@ class _CashflowReportScreenState extends State<CashflowReportScreen> {
         children: [
           Text(
             'Biểu đồ $_selectedTab (${_compareYoY ? "So cùng kỳ" : "Kỳ hiện tại"})',
-            style: TextStyle(color: context.palette.textPrimary, fontSize: 15, fontWeight: FontWeight.w700),
+            style: TextStyle(
+              color: context.palette.textPrimary,
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+            ),
           ),
           const SizedBox(height: 20),
           SizedBox(
-            height: MediaQuery.of(context).orientation == Orientation.landscape ? 180 : 230,
+            height: MediaQuery.of(context).orientation == Orientation.landscape
+                ? 180
+                : 230,
             child: BarChart(
               BarChartData(
                 alignment: BarChartAlignment.spaceAround,
@@ -674,18 +833,28 @@ class _CashflowReportScreenState extends State<CashflowReportScreen> {
                   touchTooltipData: BarTouchTooltipData(
                     tooltipRoundedRadius: 8,
                     getTooltipItem: (group, groupIdx, rod, rodIdx) {
-                      final label = groupIdx < _chartLabels.length ? _chartLabels[groupIdx] : '';
+                      final label = groupIdx < _chartLabels.length
+                          ? _chartLabels[groupIdx]
+                          : '';
                       return BarTooltipItem(
                         '$label\n${formatVnd(rod.toY.toInt())}',
-                        const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11),
+                        const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 11,
+                        ),
                       );
                     },
                   ),
                 ),
                 titlesData: FlTitlesData(
                   show: true,
-                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  topTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  rightTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
                   leftTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
@@ -698,7 +867,13 @@ class _CashflowReportScreenState extends State<CashflowReportScreen> {
                             : '${(val / 1000).toStringAsFixed(0)}K';
                         return Padding(
                           padding: const EdgeInsets.only(right: 6),
-                          child: Text(compact, style: const TextStyle(color: AppColors.muted, fontSize: 10)),
+                          child: Text(
+                            compact,
+                            style: const TextStyle(
+                              color: AppColors.muted,
+                              fontSize: 10,
+                            ),
+                          ),
                         );
                       },
                     ),
@@ -708,10 +883,17 @@ class _CashflowReportScreenState extends State<CashflowReportScreen> {
                       showTitles: true,
                       getTitlesWidget: (val, meta) {
                         final idx = val.toInt();
-                        if (idx < 0 || idx >= _chartLabels.length) return const SizedBox();
+                        if (idx < 0 || idx >= _chartLabels.length)
+                          return const SizedBox();
                         return Padding(
                           padding: const EdgeInsets.only(top: 6),
-                          child: Text(_chartLabels[idx], style: const TextStyle(color: AppColors.muted, fontSize: 12)),
+                          child: Text(
+                            _chartLabels[idx],
+                            style: const TextStyle(
+                              color: AppColors.muted,
+                              fontSize: 12,
+                            ),
+                          ),
                         );
                       },
                     ),
@@ -720,13 +902,19 @@ class _CashflowReportScreenState extends State<CashflowReportScreen> {
                 gridData: FlGridData(
                   show: true,
                   drawVerticalLine: false,
-                  getDrawingHorizontalLine: (val) =>
-                      FlLine(color: context.palette.border.withValues(alpha: 0.5), strokeWidth: 1),
+                  getDrawingHorizontalLine: (val) => FlLine(
+                    color: context.palette.border.withValues(alpha: 0.5),
+                    strokeWidth: 1,
+                  ),
                 ),
                 borderData: FlBorderData(show: false),
                 barGroups: List.generate(_chartLabels.length, (idx) {
-                  final cur = idx < _currentValues.length ? _currentValues[idx] : 0.0;
-                  final prev = idx < _prevValues.length ? _prevValues[idx] : 0.0;
+                  final cur = idx < _currentValues.length
+                      ? _currentValues[idx]
+                      : 0.0;
+                  final prev = idx < _prevValues.length
+                      ? _prevValues[idx]
+                      : 0.0;
                   final displayCur = cur > 0 ? cur : 0.0;
                   final displayPrev = prev > 0 ? prev : 0.0;
 
@@ -738,7 +926,9 @@ class _CashflowReportScreenState extends State<CashflowReportScreen> {
                           toY: displayCur,
                           color: _selectedTab == 'Thu'
                               ? AppColors.teal
-                              : (_selectedTab == 'Chi' ? AppColors.danger : AppColors.teal),
+                              : (_selectedTab == 'Chi'
+                                    ? AppColors.danger
+                                    : AppColors.teal),
                           width: _selectedPeriod == 'Theo năm' ? 12 : 18,
                           borderRadius: BorderRadius.circular(6),
                         ),
@@ -746,10 +936,18 @@ class _CashflowReportScreenState extends State<CashflowReportScreen> {
                     );
                   }
 
-                  final higher = displayCur >= displayPrev ? displayCur : displayPrev;
-                  final higherColor = displayCur >= displayPrev ? AppColors.teal : AppColors.warning;
-                  final lower = displayCur >= displayPrev ? displayPrev : displayCur;
-                  final lowerColor = displayCur >= displayPrev ? AppColors.warning : AppColors.teal;
+                  final higher = displayCur >= displayPrev
+                      ? displayCur
+                      : displayPrev;
+                  final higherColor = displayCur >= displayPrev
+                      ? AppColors.teal
+                      : AppColors.warning;
+                  final lower = displayCur >= displayPrev
+                      ? displayPrev
+                      : displayCur;
+                  final lowerColor = displayCur >= displayPrev
+                      ? AppColors.warning
+                      : AppColors.teal;
 
                   return BarChartGroupData(
                     x: idx,
@@ -778,9 +976,16 @@ class _CashflowReportScreenState extends State<CashflowReportScreen> {
   Widget _buildLegendDot(Color color, String label) {
     return Row(
       children: [
-        Container(width: 12, height: 12, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+        Container(
+          width: 12,
+          height: 12,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
         const SizedBox(width: 6),
-        Text(label, style: const TextStyle(color: AppColors.muted, fontSize: 12)),
+        Text(
+          label,
+          style: const TextStyle(color: AppColors.muted, fontSize: 12),
+        ),
       ],
     );
   }
@@ -808,20 +1013,29 @@ class _CashflowReportScreenState extends State<CashflowReportScreen> {
         children: [
           Text(
             title,
-            style: TextStyle(color: context.palette.textPrimary, fontSize: 16, fontWeight: FontWeight.w700),
+            style: TextStyle(
+              color: context.palette.textPrimary,
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+            ),
           ),
           const SizedBox(height: 16),
           if (_categoryItems.isEmpty)
             Center(
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 20),
-                child: Text('Chưa có dữ liệu $_selectedTab trong kỳ này', style: const TextStyle(color: AppColors.muted)),
+                child: Text(
+                  'Chưa có dữ liệu $_selectedTab trong kỳ này',
+                  style: const TextStyle(color: AppColors.muted),
+                ),
               ),
             )
           else
             ..._categoryItems.map((cat) {
               final amt = cat['amount'] as int;
-              final pct = _totalCategoryAmount > 0 ? (amt / _totalCategoryAmount) : 0.0;
+              final pct = _totalCategoryAmount > 0
+                  ? (amt / _totalCategoryAmount)
+                  : 0.0;
               final color = cat['color'] as Color;
               final label = cat['label'] as String;
 
@@ -837,18 +1051,29 @@ class _CashflowReportScreenState extends State<CashflowReportScreen> {
                             color: color.withValues(alpha: 0.15),
                             shape: BoxShape.circle,
                           ),
-                          child: CategoryTheme.iconOf(cat['code'] as String, size: 20),
+                          child: CategoryTheme.iconOf(
+                            cat['code'] as String,
+                            size: 20,
+                          ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
                             label,
-                            style: TextStyle(color: context.palette.textPrimary, fontSize: 14, fontWeight: FontWeight.w600),
+                            style: TextStyle(
+                              color: context.palette.textPrimary,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
                         Text(
                           formatVnd(amt),
-                          style: TextStyle(color: context.palette.textPrimary, fontSize: 14, fontWeight: FontWeight.w700),
+                          style: TextStyle(
+                            color: context.palette.textPrimary,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ],
                     ),
@@ -857,7 +1082,9 @@ class _CashflowReportScreenState extends State<CashflowReportScreen> {
                       borderRadius: BorderRadius.circular(4),
                       child: LinearProgressIndicator(
                         value: pct,
-                        backgroundColor: context.palette.border.withValues(alpha: 0.4),
+                        backgroundColor: context.palette.border.withValues(
+                          alpha: 0.4,
+                        ),
                         valueColor: AlwaysStoppedAnimation<Color>(color),
                         minHeight: 5,
                       ),
@@ -884,14 +1111,21 @@ class _CashflowReportScreenState extends State<CashflowReportScreen> {
         children: [
           Text(
             'Chi tiết độ chênh lệch Thu - Chi ($_selectedPeriod)',
-            style: TextStyle(color: context.palette.textPrimary, fontSize: 16, fontWeight: FontWeight.w700),
+            style: TextStyle(
+              color: context.palette.textPrimary,
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+            ),
           ),
           const SizedBox(height: 16),
           if (_breakdownItems.isEmpty)
             const Center(
               child: Padding(
                 padding: EdgeInsets.symmetric(vertical: 20),
-                child: Text('Chưa có dữ liệu giao dịch trong kỳ này', style: TextStyle(color: AppColors.muted)),
+                child: Text(
+                  'Chưa có dữ liệu giao dịch trong kỳ này',
+                  style: TextStyle(color: AppColors.muted),
+                ),
               ),
             )
           else
@@ -907,7 +1141,9 @@ class _CashflowReportScreenState extends State<CashflowReportScreen> {
                 decoration: BoxDecoration(
                   color: context.palette.bg,
                   borderRadius: BorderRadius.circular(AppRadii.lg),
-                  border: Border.all(color: context.palette.border.withValues(alpha: 0.6)),
+                  border: Border.all(
+                    color: context.palette.border.withValues(alpha: 0.6),
+                  ),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -917,22 +1153,33 @@ class _CashflowReportScreenState extends State<CashflowReportScreen> {
                         Expanded(
                           child: Text(
                             item['title'] as String,
-                            style: TextStyle(color: context.palette.textPrimary, fontSize: 14, fontWeight: FontWeight.w700),
+                            style: TextStyle(
+                              color: context.palette.textPrimary,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                            ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
                         const SizedBox(width: 8),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
                           decoration: BoxDecoration(
-                            color: isPos ? AppColors.success.withValues(alpha: 0.15) : AppColors.danger.withValues(alpha: 0.15),
+                            color: isPos
+                                ? AppColors.success.withValues(alpha: 0.15)
+                                : AppColors.danger.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(AppRadii.md),
                           ),
                           child: Text(
                             '${isPos ? "+" : ""}${formatVnd(diff)}',
                             style: TextStyle(
-                              color: isPos ? AppColors.success : AppColors.danger,
+                              color: isPos
+                                  ? AppColors.success
+                                  : AppColors.danger,
                               fontWeight: FontWeight.w700,
                               fontSize: 13,
                             ),
@@ -946,12 +1193,20 @@ class _CashflowReportScreenState extends State<CashflowReportScreen> {
                         Expanded(
                           child: Row(
                             children: [
-                              const Icon(Icons.arrow_downward_rounded, size: 14, color: AppColors.success),
+                              const Icon(
+                                Icons.arrow_downward_rounded,
+                                size: 14,
+                                color: AppColors.success,
+                              ),
                               const SizedBox(width: 4),
                               Expanded(
                                 child: Text(
                                   'Thu: ${formatVnd(income)}',
-                                  style: const TextStyle(color: AppColors.success, fontSize: 12, fontWeight: FontWeight.w600),
+                                  style: const TextStyle(
+                                    color: AppColors.success,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
@@ -964,12 +1219,20 @@ class _CashflowReportScreenState extends State<CashflowReportScreen> {
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.end,
                             children: [
-                              const Icon(Icons.arrow_upward_rounded, size: 14, color: AppColors.danger),
+                              const Icon(
+                                Icons.arrow_upward_rounded,
+                                size: 14,
+                                color: AppColors.danger,
+                              ),
                               const SizedBox(width: 4),
                               Flexible(
                                 child: Text(
                                   'Chi: ${formatVnd(expense)}',
-                                  style: const TextStyle(color: AppColors.danger, fontSize: 12, fontWeight: FontWeight.w600),
+                                  style: const TextStyle(
+                                    color: AppColors.danger,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),

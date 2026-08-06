@@ -9,6 +9,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../services/api_client.dart';
 import '../../services/ads_service.dart';
 import '../../theme/app_colors.dart';
+import '../../widgets/mimo_snackbar.dart';
 
 /// Màn hình thanh toán Premium qua VietQR / SePay.
 ///
@@ -44,18 +45,22 @@ class _PremiumPaymentScreenState extends State<PremiumPaymentScreen> {
         final file = File('${tempDir.path}/spenddiary_premium_qr.jpg');
         await file.writeAsBytes(response.bodyBytes);
         // ignore: deprecated_member_use
-        await Share.shareXFiles([XFile(file.path)], text: 'Mã QR thanh toán Premium SpendDiary');
+        await Share.shareXFiles([
+          XFile(file.path),
+        ], text: 'Mã QR thanh toán Premium SpendDiary');
       } else {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Không thể tải mã QR, vui lòng thử lại!')),
+          MimoSnackBar.showInfo(
+            context,
+            message: 'Không thể tải mã QR, vui lòng thử lại!',
           );
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Có lỗi xảy ra khi tải/chia sẻ mã QR!')),
+        MimoSnackBar.showInfo(
+          context,
+          message: 'Có lỗi xảy ra khi tải/chia sẻ mã QR!',
         );
       }
     } finally {
@@ -128,13 +133,7 @@ class _PremiumPaymentScreenState extends State<PremiumPaymentScreen> {
   void _copyToClipboard(String text) {
     Clipboard.setData(ClipboardData(text: text));
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Đã copy vào clipboard ✓'),
-        duration: Duration(seconds: 1),
-        backgroundColor: AppColors.teal,
-      ),
-    );
+    MimoSnackBar.showSuccess(context, message: 'Đã copy vào clipboard ✓');
   }
 
   @override
@@ -149,7 +148,10 @@ class _PremiumPaymentScreenState extends State<PremiumPaymentScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.close, color: isDark ? Colors.white : Colors.black87),
+          icon: Icon(
+            Icons.close,
+            color: isDark ? Colors.white : Colors.black87,
+          ),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
@@ -165,21 +167,23 @@ class _PremiumPaymentScreenState extends State<PremiumPaymentScreen> {
       body: _paid
           ? _buildSuccess(isDark)
           : _loading
-              ? const Center(child: CircularProgressIndicator(color: AppColors.teal))
-              : _error != null
-                  ? _buildError(isDark)
-                  : _buildQRScreen(isDark, card),
+          ? const Center(
+              child: CircularProgressIndicator(color: AppColors.teal),
+            )
+          : _error != null
+          ? _buildError(isDark)
+          : _buildQRScreen(isDark, card),
     );
   }
 
   Widget _buildQRScreen(bool isDark, Color card) {
     final order = _orderData!;
     final qrUrl = order['qrUrl'] as String? ?? '';
-    final code  = order['code'] as String? ?? '';
+    final code = order['code'] as String? ?? '';
     final amount = order['amount'] as num? ?? 5000;
     final transferContent = order['transferContent'] as String? ?? code;
-    final bank    = order['bank'] as String? ?? '';
-    final accNum  = order['accountNumber'] as String? ?? '';
+    final bank = order['bank'] as String? ?? '';
+    final accNum = order['accountNumber'] as String? ?? '';
     final accName = order['accountName'] as String? ?? '';
 
     return SingleChildScrollView(
@@ -207,7 +211,11 @@ class _PremiumPaymentScreenState extends State<PremiumPaymentScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.workspace_premium_rounded, color: Color(0xFFFFB347), size: 22),
+                    const Icon(
+                      Icons.workspace_premium_rounded,
+                      color: Color(0xFFFFB347),
+                      size: 22,
+                    ),
                     const SizedBox(width: 8),
                     Text(
                       'SpendDiary Premium',
@@ -224,7 +232,9 @@ class _PremiumPaymentScreenState extends State<PremiumPaymentScreen> {
                   'Thanh toán một lần · Vĩnh viễn',
                   style: TextStyle(
                     fontSize: 12,
-                    color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                    color: isDark
+                        ? const Color(0xFF64748B)
+                        : const Color(0xFF94A3B8),
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -252,12 +262,26 @@ class _PremiumPaymentScreenState extends State<PremiumPaymentScreen> {
                               qrUrl,
                               fit: BoxFit.contain,
                               loadingBuilder: (_, child, progress) =>
-                                  progress == null ? child : const Center(child: CircularProgressIndicator()),
+                                  progress == null
+                                  ? child
+                                  : const Center(
+                                      child: CircularProgressIndicator(),
+                                    ),
                               errorBuilder: (_, _, _) => const Center(
-                                child: Icon(Icons.qr_code_2, size: 80, color: AppColors.teal),
+                                child: Icon(
+                                  Icons.qr_code_2,
+                                  size: 80,
+                                  color: AppColors.teal,
+                                ),
                               ),
                             )
-                          : const Center(child: Icon(Icons.qr_code_2, size: 80, color: AppColors.teal)),
+                          : const Center(
+                              child: Icon(
+                                Icons.qr_code_2,
+                                size: 80,
+                                color: AppColors.teal,
+                              ),
+                            ),
                     ),
                     if (qrUrl.isNotEmpty)
                       Positioned(
@@ -269,17 +293,35 @@ class _PremiumPaymentScreenState extends State<PremiumPaymentScreen> {
                                 child: SizedBox(
                                   width: 20,
                                   height: 20,
-                                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2,
+                                  ),
                                 ),
                               )
                             : ElevatedButton.icon(
                                 onPressed: () => _shareQR(qrUrl),
-                                icon: const Icon(Icons.download_rounded, size: 16, color: Colors.white),
-                                label: const Text('Lưu mã', style: TextStyle(color: Colors.white, fontSize: 13)),
+                                icon: const Icon(
+                                  Icons.download_rounded,
+                                  size: 16,
+                                  color: Colors.white,
+                                ),
+                                label: const Text(
+                                  'Lưu mã',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 13,
+                                  ),
+                                ),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: AppColors.teal,
-                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 8,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
                                   elevation: 4,
                                 ),
                               ),
@@ -325,11 +367,7 @@ class _PremiumPaymentScreenState extends State<PremiumPaymentScreen> {
                   isDark: isDark,
                   onCopy: () => _copyToClipboard(accNum),
                 ),
-                _InfoRow(
-                  label: 'Tên TK',
-                  value: accName,
-                  isDark: isDark,
-                ),
+                _InfoRow(label: 'Tên TK', value: accName, isDark: isDark),
                 _InfoRow(
                   label: 'Số tiền',
                   value: _formatVND(amount.toDouble()),
@@ -417,39 +455,51 @@ class _PremiumPaymentScreenState extends State<PremiumPaymentScreen> {
       'Nhập đúng nội dung chuyển khoản như hiển thị (bắt buộc).',
       'Xác nhận chuyển khoản và chờ hệ thống tự động kích hoạt.',
     ];
-    return steps.asMap().entries.map((e) => Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 22,
-            height: 22,
-            decoration: const BoxDecoration(
-              color: AppColors.teal,
-              shape: BoxShape.circle,
-            ),
-            child: Center(
-              child: Text(
-                '${e.key + 1}',
-                style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700),
-              ),
+    return steps
+        .asMap()
+        .entries
+        .map(
+          (e) => Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 22,
+                  height: 22,
+                  decoration: const BoxDecoration(
+                    color: AppColors.teal,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Center(
+                    child: Text(
+                      '${e.key + 1}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    e.value,
+                    style: TextStyle(
+                      fontSize: 13,
+                      height: 1.5,
+                      color: isDark
+                          ? const Color(0xFF94A3B8)
+                          : const Color(0xFF64748B),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              e.value,
-              style: TextStyle(
-                fontSize: 13,
-                height: 1.5,
-                color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
-              ),
-            ),
-          ),
-        ],
-      ),
-    )).toList();
+        )
+        .toList();
   }
 
   Widget _buildSuccess(bool isDark) {
@@ -474,7 +524,11 @@ class _PremiumPaymentScreenState extends State<PremiumPaymentScreen> {
               child: Image.asset(
                 'assets/MiMo/emotions/Thankful.png',
                 fit: BoxFit.contain,
-                errorBuilder: (_, _, _) => const Icon(Icons.workspace_premium_rounded, color: Color(0xFFFFB347), size: 64),
+                errorBuilder: (_, _, _) => const Icon(
+                  Icons.workspace_premium_rounded,
+                  color: Color(0xFFFFB347),
+                  size: 64,
+                ),
               ),
             ),
             const SizedBox(height: 24),
@@ -493,7 +547,9 @@ class _PremiumPaymentScreenState extends State<PremiumPaymentScreen> {
               style: TextStyle(
                 fontSize: 15,
                 height: 1.6,
-                color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                color: isDark
+                    ? const Color(0xFF94A3B8)
+                    : const Color(0xFF64748B),
               ),
             ),
             const SizedBox(height: 32),
@@ -504,7 +560,9 @@ class _PremiumPaymentScreenState extends State<PremiumPaymentScreen> {
                 style: FilledButton.styleFrom(
                   backgroundColor: AppColors.teal,
                   padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
                 ),
                 child: const Text(
                   'Bắt đầu trải nghiệm Premium ✨',
@@ -525,14 +583,20 @@ class _PremiumPaymentScreenState extends State<PremiumPaymentScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.error_outline, size: 64, color: Colors.redAccent.withValues(alpha: 0.7)),
+            Icon(
+              Icons.error_outline,
+              size: 64,
+              color: Colors.redAccent.withValues(alpha: 0.7),
+            ),
             const SizedBox(height: 16),
             Text(
               _error ?? 'Đã có lỗi xảy ra',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 14,
-                color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                color: isDark
+                    ? const Color(0xFF94A3B8)
+                    : const Color(0xFF64748B),
               ),
             ),
             const SizedBox(height: 24),
@@ -548,10 +612,12 @@ class _PremiumPaymentScreenState extends State<PremiumPaymentScreen> {
   }
 
   String _formatVND(double amount) {
-    final formatted = amount.toStringAsFixed(0).replaceAllMapped(
-      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-      (m) => '${m[1]}.',
-    );
+    final formatted = amount
+        .toStringAsFixed(0)
+        .replaceAllMapped(
+          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+          (m) => '${m[1]}.',
+        );
     return '$formatted đ';
   }
 }
@@ -589,7 +655,9 @@ class _InfoRow extends StatelessWidget {
                   label,
                   style: TextStyle(
                     fontSize: 13,
-                    color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                    color: isDark
+                        ? const Color(0xFF64748B)
+                        : const Color(0xFF94A3B8),
                   ),
                 ),
               ),
@@ -608,13 +676,20 @@ class _InfoRow extends StatelessWidget {
               if (onCopy != null)
                 GestureDetector(
                   onTap: onCopy,
-                  child: const Icon(Icons.copy_outlined, size: 16, color: AppColors.teal),
+                  child: const Icon(
+                    Icons.copy_outlined,
+                    size: 16,
+                    color: AppColors.teal,
+                  ),
                 ),
             ],
           ),
         ),
         if (!isLast)
-          Divider(height: 1, color: isDark ? Colors.white10 : const Color(0xFFF1F5F9)),
+          Divider(
+            height: 1,
+            color: isDark ? Colors.white10 : const Color(0xFFF1F5F9),
+          ),
       ],
     );
   }

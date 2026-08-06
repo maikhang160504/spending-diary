@@ -84,17 +84,36 @@ class StreakCelebration {
                 SizedBox(
                   width: 120,
                   height: 120,
-                  child: Lottie.asset('assets/animations/Fire.json', repeat: false),
+                  child: Lottie.asset(
+                    'assets/animations/Fire.json',
+                    repeat: false,
+                  ),
                 ),
-                Image.asset('assets/MiMo/emotions/Celebrate.png', width: 64, height: 64,
-                  errorBuilder: (_, e, s) => const Text('🎉', style: TextStyle(fontSize: 48))),
+                Image.asset(
+                  'assets/MiMo/emotions/Celebrate.png',
+                  width: 64,
+                  height: 64,
+                  errorBuilder: (_, e, s) =>
+                      const Text('🎉', style: TextStyle(fontSize: 48)),
+                ),
                 const SizedBox(height: 12),
-                Text('Chuỗi $days ngày!', style: Theme.of(ctx).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+                Text(
+                  'Chuỗi $days ngày!',
+                  style: Theme.of(
+                    ctx,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+                ),
                 const SizedBox(height: 6),
-                Text('Tiếp tục chat hoặc ghi chi tiêu mỗi ngày nhé', textAlign: TextAlign.center,
-                  style: Theme.of(ctx).textTheme.bodySmall),
+                Text(
+                  'Tiếp tục chat hoặc ghi chi tiêu mỗi ngày nhé',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(ctx).textTheme.bodySmall,
+                ),
                 const SizedBox(height: 16),
-                FilledButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Tuyệt vời!')),
+                FilledButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  child: const Text('Tuyệt vời!'),
+                ),
               ],
             ),
           ),
@@ -122,15 +141,31 @@ class StreakCelebration {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Image.asset('assets/MiMo/emotions/Sad.png', width: 72, height: 72,
-                  errorBuilder: (_, e, s) => const Text('😢', style: TextStyle(fontSize: 48))),
+                Image.asset(
+                  'assets/MiMo/emotions/Sad.png',
+                  width: 72,
+                  height: 72,
+                  errorBuilder: (_, e, s) =>
+                      const Text('😢', style: TextStyle(fontSize: 48)),
+                ),
                 const SizedBox(height: 12),
-                Text('Chuỗi đã dừng', style: Theme.of(ctx).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+                Text(
+                  'Chuỗi đã dừng',
+                  style: Theme.of(
+                    ctx,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+                ),
                 const SizedBox(height: 6),
-                Text('Bạn đã bỏ lỡ một ngày — bắt đầu lại từ hôm nay nhé!', textAlign: TextAlign.center,
-                  style: Theme.of(ctx).textTheme.bodySmall),
+                Text(
+                  'Bạn đã bỏ lỡ một ngày — bắt đầu lại từ hôm nay nhé!',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(ctx).textTheme.bodySmall,
+                ),
                 const SizedBox(height: 16),
-                FilledButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('OK')),
+                FilledButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  child: const Text('OK'),
+                ),
               ],
             ),
           ),

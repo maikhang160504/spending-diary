@@ -13,7 +13,8 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
+class _SplashScreenState extends State<SplashScreen>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _master;
 
   // Logo 0–50% (xuất hiện nhanh, giữ nguyên)
@@ -32,7 +33,10 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   @override
   void initState() {
     super.initState();
-    _master = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200));
+    _master = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    );
 
     // Logo: scale nhẹ từ 0.85 → 1.0, giữ nguyên không biến mất
     _logoScale = TweenSequence<double>([
@@ -58,11 +62,17 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     );
 
     _wordScale = Tween<double>(begin: 0.92, end: 1).animate(
-      CurvedAnimation(parent: _master, curve: const Interval(0.15, 0.50, curve: Curves.easeOutCubic)),
+      CurvedAnimation(
+        parent: _master,
+        curve: const Interval(0.15, 0.50, curve: Curves.easeOutCubic),
+      ),
     );
 
     _wordBlur = Tween<double>(begin: 6, end: 0).animate(
-      CurvedAnimation(parent: _master, curve: const Interval(0.15, 0.50, curve: Curves.easeOut)),
+      CurvedAnimation(
+        parent: _master,
+        curve: const Interval(0.15, 0.50, curve: Curves.easeOut),
+      ),
     );
 
     _wordTextShimmer = CurvedAnimation(
@@ -106,7 +116,9 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
           return;
         }
       } catch (e) {
-        if (e is ApiException && e.statusCode == 403 && e.message.toLowerCase().contains('banned')) {
+        if (e is ApiException &&
+            e.statusCode == 403 &&
+            e.message.toLowerCase().contains('banned')) {
           return; // api_client has already routed to /banned
         }
       }
@@ -127,11 +139,11 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     final screenWidth = MediaQuery.sizeOf(context).width;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bg = isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FFFE);
-    
+
     // Responsive sizing
     final double iconSize;
     final double baseWordScale;
-    
+
     if (screenWidth < 360) {
       iconSize = 90.0;
       baseWordScale = 0.85;
@@ -172,7 +184,9 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                     decoration: BoxDecoration(
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFF42C9A8).withValues(alpha: 0.18 * glow),
+                          color: const Color(
+                            0xFF42C9A8,
+                          ).withValues(alpha: 0.18 * glow),
                           blurRadius: 40 * glow,
                           spreadRadius: 4 * glow,
                         ),
@@ -202,4 +216,3 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     );
   }
 }
-

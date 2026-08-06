@@ -67,7 +67,10 @@ class _GroupAnalyticsScreenState extends State<GroupAnalyticsScreen> {
     return Scaffold(
       backgroundColor: context.palette.bg,
       appBar: AppBar(
-        title: const Text('Báo cáo Ví Nhóm', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18)),
+        title: const Text(
+          'Báo cáo Ví Nhóm',
+          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
+        ),
         backgroundColor: context.palette.bg,
         elevation: 0,
         centerTitle: true,
@@ -75,33 +78,35 @@ class _GroupAnalyticsScreenState extends State<GroupAnalyticsScreen> {
       body: _loading
           ? const Center(child: LoadingIndicator())
           : _error != null
-              ? Center(child: ErrorBanner(message: _error!, onRetry: _fetchData))
-              : RefreshIndicator(
-                  onRefresh: _fetchData,
-                  child: ListView(
-                    padding: const EdgeInsets.all(16),
-                    children: [
-                      _buildOverviewSection(),
-                      const SizedBox(height: 24),
-                      _buildCategoriesSection(),
-                      const SizedBox(height: 24),
-                      _buildSettlementSection(),
-                      const SizedBox(height: 24),
-                      _buildTimelineSection(),
-                      const SizedBox(height: 40),
-                    ],
-                  ),
-                ),
+          ? Center(
+              child: ErrorBanner(message: _error!, onRetry: _fetchData),
+            )
+          : RefreshIndicator(
+              onRefresh: _fetchData,
+              child: ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  _buildOverviewSection(),
+                  const SizedBox(height: 24),
+                  _buildCategoriesSection(),
+                  const SizedBox(height: 24),
+                  _buildSettlementSection(),
+                  const SizedBox(height: 24),
+                  _buildTimelineSection(),
+                  const SizedBox(height: 40),
+                ],
+              ),
+            ),
     );
   }
 
   Widget _buildOverviewSection() {
     if (_overview == null) return const SizedBox.shrink();
-    
+
     final totalIncome = (_overview!['totalFund'] as num?)?.toInt() ?? 0;
     final totalExpense = (_overview!['totalSpent'] as num?)?.toInt() ?? 0;
     final remaining = (_overview!['remaining'] as num?)?.toInt() ?? 0;
-    
+
     // Calculate progress percentage
     double progress = 0;
     if (totalIncome > 0) {
@@ -121,21 +126,44 @@ class _GroupAnalyticsScreenState extends State<GroupAnalyticsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Tổng quan Ngân sách', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+          Text(
+            'Tổng quan Ngân sách',
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+          ),
           const SizedBox(height: 16),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Quỹ (Thu)', style: TextStyle(color: AppColors.muted, fontSize: 13)),
-              Text(formatVnd(totalIncome), style: const TextStyle(fontWeight: FontWeight.w600, color: AppColors.teal)),
+              Text(
+                'Quỹ (Thu)',
+                style: TextStyle(color: AppColors.muted, fontSize: 13),
+              ),
+              Text(
+                formatVnd(totalIncome),
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.teal,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Đã chi', style: TextStyle(color: AppColors.muted, fontSize: 13)),
-              Text(formatVnd(totalExpense), style: const TextStyle(fontWeight: FontWeight.w600, color: AppColors.danger)),
+              Text(
+                'Đã chi',
+                style: TextStyle(color: AppColors.muted, fontSize: 13),
+              ),
+              Text(
+                formatVnd(totalExpense),
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.danger,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 12),
@@ -152,8 +180,20 @@ class _GroupAnalyticsScreenState extends State<GroupAnalyticsScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Còn lại', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-              Text(formatVnd(remaining), style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: remaining < 0 ? AppColors.danger : context.palette.textPrimary)),
+              Text(
+                'Còn lại',
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+              ),
+              Text(
+                formatVnd(remaining),
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 16,
+                  color: remaining < 0
+                      ? AppColors.danger
+                      : context.palette.textPrimary,
+                ),
+              ),
             ],
           ),
         ],
@@ -163,7 +203,7 @@ class _GroupAnalyticsScreenState extends State<GroupAnalyticsScreen> {
 
   Widget _buildCategoriesSection() {
     if (_categories.isEmpty) return const SizedBox.shrink();
-    
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -174,10 +214,18 @@ class _GroupAnalyticsScreenState extends State<GroupAnalyticsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Chi tiêu theo danh mục', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+          Text(
+            'Chi tiêu theo danh mục',
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+          ),
           const SizedBox(height: 16),
           ..._categories.take(5).map((cat) {
-            final code = cat['categoryCode'] as String? ?? cat['category_code'] as String? ?? 'Others';
+            final code =
+                cat['categoryCode'] as String? ??
+                cat['category_code'] as String? ??
+                'Others';
             final amount = (cat['total'] as num?)?.toInt() ?? 0;
             final percent = (cat['percent'] as num?)?.toDouble() ?? 0.0;
             final theme = CategoryTheme.of(code);
@@ -191,19 +239,43 @@ class _GroupAnalyticsScreenState extends State<GroupAnalyticsScreen> {
                       Row(
                         children: [
                           Container(
-                            width: 32, height: 32,
-                            decoration: BoxDecoration(color: theme.color.withValues(alpha: 0.1), shape: BoxShape.circle),
-                            child: Icon(theme.icon, size: 16, color: theme.color),
+                            width: 32,
+                            height: 32,
+                            decoration: BoxDecoration(
+                              color: theme.color.withValues(alpha: 0.1),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              theme.icon,
+                              size: 16,
+                              color: theme.color,
+                            ),
                           ),
                           const SizedBox(width: 12),
-                          Text(theme.label, style: const TextStyle(fontWeight: FontWeight.w500)),
+                          Text(
+                            theme.label,
+                            style: const TextStyle(fontWeight: FontWeight.w500),
+                          ),
                         ],
                       ),
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
-                          Text(formatVnd(amount), style: const TextStyle(fontWeight: FontWeight.w600, color: AppColors.danger)),
-                          Text('${percent.toInt()}%', style: TextStyle(fontSize: 11, color: AppColors.muted, fontWeight: FontWeight.w600)),
+                          Text(
+                            formatVnd(amount),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.danger,
+                            ),
+                          ),
+                          Text(
+                            '${percent.toInt()}%',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: AppColors.muted,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                         ],
                       ),
                     ],
@@ -230,9 +302,9 @@ class _GroupAnalyticsScreenState extends State<GroupAnalyticsScreen> {
 
   Widget _buildSettlementSection() {
     if (_settlement == null) return const SizedBox.shrink();
-    
+
     final members = _settlement!['memberBalances'] as List<dynamic>? ?? [];
-    
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -243,16 +315,25 @@ class _GroupAnalyticsScreenState extends State<GroupAnalyticsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Chi tiết Nộp/Chi của thành viên', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+          Text(
+            'Chi tiết Nộp/Chi của thành viên',
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+          ),
           const SizedBox(height: 16),
           if (members.isEmpty)
-            const Text('Chưa có dữ liệu thành viên', style: TextStyle(color: AppColors.muted)),
+            const Text(
+              'Chưa có dữ liệu thành viên',
+              style: TextStyle(color: AppColors.muted),
+            ),
           ...members.map((m) {
-            final name = m['username'] as String? ?? m['email'] as String? ?? 'Unknown';
+            final name =
+                m['username'] as String? ?? m['email'] as String? ?? 'Unknown';
             final contributed = (m['contributed'] as num?)?.toInt() ?? 0;
             final spent = (m['spent'] as num?)?.toInt() ?? 0;
             final balance = (m['balance'] as num?)?.toInt() ?? 0;
-            
+
             return Padding(
               padding: const EdgeInsets.only(bottom: 16),
               child: Row(
@@ -262,23 +343,50 @@ class _GroupAnalyticsScreenState extends State<GroupAnalyticsScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+                        Text(
+                          name,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 15,
+                          ),
+                        ),
                         const SizedBox(height: 4),
-                        Text('Đã nộp: ${formatVnd(contributed)}  •  Đã chi: ${formatVnd(spent)}', style: const TextStyle(fontSize: 12, color: AppColors.muted)),
+                        Text(
+                          'Đã nộp: ${formatVnd(contributed)}  •  Đã chi: ${formatVnd(spent)}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.muted,
+                          ),
+                        ),
                       ],
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
-                      color: balance > 0 ? AppColors.teal.withValues(alpha: 0.1) : (balance < 0 ? AppColors.danger.withValues(alpha: 0.1) : context.palette.surfaceAlt),
+                      color: balance > 0
+                          ? AppColors.teal.withValues(alpha: 0.1)
+                          : (balance < 0
+                                ? AppColors.danger.withValues(alpha: 0.1)
+                                : context.palette.surfaceAlt),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
-                      balance > 0 ? 'Dư: +${formatVnd(balance)}' : (balance < 0 ? 'Thiếu: ${formatVnd(balance)}' : 'Đủ'),
+                      balance > 0
+                          ? 'Dư: +${formatVnd(balance)}'
+                          : (balance < 0
+                                ? 'Thiếu: ${formatVnd(balance)}'
+                                : 'Đủ'),
                       style: TextStyle(
                         fontWeight: FontWeight.w700,
-                        color: balance > 0 ? AppColors.teal : (balance < 0 ? AppColors.danger : AppColors.muted),
+                        color: balance > 0
+                            ? AppColors.teal
+                            : (balance < 0
+                                  ? AppColors.danger
+                                  : AppColors.muted),
                         fontSize: 12,
                       ),
                     ),
@@ -294,9 +402,11 @@ class _GroupAnalyticsScreenState extends State<GroupAnalyticsScreen> {
 
   Widget _buildTimelineSection() {
     if (_timeline.isEmpty) return const SizedBox.shrink();
-    
+
     // Get up to last 7 days
-    final recent = _timeline.length > 7 ? _timeline.sublist(_timeline.length - 7) : _timeline;
+    final recent = _timeline.length > 7
+        ? _timeline.sublist(_timeline.length - 7)
+        : _timeline;
     double maxVal = 0;
     for (var t in recent) {
       final exp = (t['expense'] as num?)?.toDouble() ?? 0;
@@ -314,7 +424,12 @@ class _GroupAnalyticsScreenState extends State<GroupAnalyticsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Biểu đồ chi tiêu (7 ngày gần nhất)', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+          Text(
+            'Biểu đồ chi tiêu (7 ngày gần nhất)',
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+          ),
           const SizedBox(height: 24),
           SizedBox(
             height: 200,
@@ -328,7 +443,10 @@ class _GroupAnalyticsScreenState extends State<GroupAnalyticsScreen> {
                     getTooltipItem: (group, groupIndex, rod, rodIndex) {
                       return BarTooltipItem(
                         formatVnd(rod.toY.toInt()),
-                        const TextStyle(color: AppColors.danger, fontWeight: FontWeight.bold),
+                        const TextStyle(
+                          color: AppColors.danger,
+                          fontWeight: FontWeight.bold,
+                        ),
                       );
                     },
                   ),
@@ -340,25 +458,41 @@ class _GroupAnalyticsScreenState extends State<GroupAnalyticsScreen> {
                       showTitles: true,
                       getTitlesWidget: (value, meta) {
                         final index = value.toInt();
-                        if (index < 0 || index >= recent.length) return const SizedBox.shrink();
+                        if (index < 0 || index >= recent.length)
+                          return const SizedBox.shrink();
                         final dayStr = recent[index]['day'] as String? ?? '';
-                        final shortDay = dayStr.length >= 10 ? '${dayStr.substring(8, 10)}/${dayStr.substring(5, 7)}' : dayStr;
+                        final shortDay = dayStr.length >= 10
+                            ? '${dayStr.substring(8, 10)}/${dayStr.substring(5, 7)}'
+                            : dayStr;
                         return Padding(
                           padding: const EdgeInsets.only(top: 8),
-                          child: Text(shortDay, style: const TextStyle(fontSize: 10, color: AppColors.muted)),
+                          child: Text(
+                            shortDay,
+                            style: const TextStyle(
+                              fontSize: 10,
+                              color: AppColors.muted,
+                            ),
+                          ),
                         );
                       },
                       reservedSize: 22,
                     ),
                   ),
-                  leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  leftTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  topTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  rightTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
                 ),
                 borderData: FlBorderData(show: false),
                 gridData: const FlGridData(show: false),
                 barGroups: List.generate(recent.length, (i) {
-                  final amount = (recent[i]['expense'] as num?)?.toDouble() ?? 0;
+                  final amount =
+                      (recent[i]['expense'] as num?)?.toDouble() ?? 0;
                   return BarChartGroupData(
                     x: i,
                     barRods: [

@@ -6,6 +6,7 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_radii.dart';
 import '../../theme/app_spacing.dart';
 import '../../services/api_client.dart';
+import '../../widgets/mimo_snackbar.dart';
 
 class OnboardingStep2 extends StatefulWidget {
   const OnboardingStep2({super.key});
@@ -35,10 +36,7 @@ class _OnboardingStep2State extends State<OnboardingStep2> {
   ];
 
   Future<void> _submit() async {
-    final styleMap = {
-      'Dui Dẻ': 'funny',
-      'Dận Dữ': 'strict',
-    };
+    final styleMap = {'Dui Dẻ': 'funny', 'Dận Dữ': 'strict'};
     final style = styleMap[_selected] ?? 'funny';
     setState(() => _saving = true);
     try {
@@ -47,12 +45,7 @@ class _OnboardingStep2State extends State<OnboardingStep2> {
       if (mounted) context.push(AppRoutes.onboardingStep3);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Lỗi: ${e.toString()}'),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
+        MimoSnackBar.showInfo(context, message: 'Lỗi: ${e.toString()}');
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -173,7 +166,12 @@ class _StyleCard extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Image.asset(style.statusAsset, width: 48, height: 48, fit: BoxFit.contain),
+            Image.asset(
+              style.statusAsset,
+              width: 48,
+              height: 48,
+              fit: BoxFit.contain,
+            ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -319,7 +317,15 @@ class _ProgressHeader extends StatelessWidget {
               if (onSkip != null)
                 GestureDetector(
                   onTap: onSkip,
-                  child: const Text('Bỏ qua', style: TextStyle(color: Colors.white70, fontSize: 13, decoration: TextDecoration.underline, decorationColor: Colors.white70)),
+                  child: const Text(
+                    'Bỏ qua',
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 13,
+                      decoration: TextDecoration.underline,
+                      decorationColor: Colors.white70,
+                    ),
+                  ),
                 )
               else
                 Text(

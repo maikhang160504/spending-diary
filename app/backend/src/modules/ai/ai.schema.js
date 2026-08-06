@@ -30,6 +30,7 @@ const correctionSchema = z.object({
 const confirmActionSchema = z.object({
   actionSignature: z.string().min(1).max(160),
   actionType: z.string().max(40).optional(),
+  messageId: z.string().uuid().optional(),
 });
 
 const executeActionSchema = z.object({

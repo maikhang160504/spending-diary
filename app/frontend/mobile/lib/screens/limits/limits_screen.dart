@@ -38,13 +38,19 @@ class _LimitsScreenState extends State<LimitsScreen> {
   }
 
   Future<void> _loadBudgets() async {
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       final budgets = await _api.getBudgets();
       final seenCategories = <String>{};
       final uniqueBudgets = <dynamic>[];
       for (final b in budgets) {
-        final rawCat = b['categoryCode'] as String? ?? b['category_code'] as String? ?? 'Other';
+        final rawCat =
+            b['categoryCode'] as String? ??
+            b['category_code'] as String? ??
+            'Other';
         final cat = CategoryTheme.canonicalCodeOf(rawCat);
         if (!seenCategories.contains(cat)) {
           seenCategories.add(cat);
@@ -52,7 +58,10 @@ class _LimitsScreenState extends State<LimitsScreen> {
         }
       }
       _limits = uniqueBudgets.map((b) {
-        final rawCat = b['categoryCode'] as String? ?? b['category_code'] as String? ?? 'Other';
+        final rawCat =
+            b['categoryCode'] as String? ??
+            b['category_code'] as String? ??
+            'Other';
         final cat = CategoryTheme.canonicalCodeOf(rawCat);
         final style = CategoryTheme.of(cat);
         return _LimitItem(
@@ -112,32 +121,38 @@ class _LimitsScreenState extends State<LimitsScreen> {
         return StatefulBuilder(
           builder: (ctx, setSheetState) {
             if (loading && resultData == null && err == null) {
-              _api.getBudgetSuggestions().then((data) {
-                if (!ctx.mounted) return;
-                final list = (data['suggestions'] as List<dynamic>? ?? []);
-                for (final item in list) {
-                  final m = item as Map<String, dynamic>;
-                  final code = m['categoryCode'] as String? ?? 'Other';
-                  final amt = ((m['suggestedAmount'] ?? 0) as num).toInt();
-                  amounts[code] = amt;
-                  selected[code] = true;
-                }
-                setSheetState(() {
-                  resultData = data;
-                  loading = false;
-                });
-              }).catchError((e) {
-                if (!ctx.mounted) return;
-                setSheetState(() {
-                  err = e.toString();
-                  loading = false;
-                });
-              });
+              _api
+                  .getBudgetSuggestions()
+                  .then((data) {
+                    if (!ctx.mounted) return;
+                    final list = (data['suggestions'] as List<dynamic>? ?? []);
+                    for (final item in list) {
+                      final m = item as Map<String, dynamic>;
+                      final code = m['categoryCode'] as String? ?? 'Other';
+                      final amt = ((m['suggestedAmount'] ?? 0) as num).toInt();
+                      amounts[code] = amt;
+                      selected[code] = true;
+                    }
+                    setSheetState(() {
+                      resultData = data;
+                      loading = false;
+                    });
+                  })
+                  .catchError((e) {
+                    if (!ctx.mounted) return;
+                    setSheetState(() {
+                      err = e.toString();
+                      loading = false;
+                    });
+                  });
             }
 
-            final suggestions = (resultData?['suggestions'] as List<dynamic>? ?? []);
+            final suggestions =
+                (resultData?['suggestions'] as List<dynamic>? ?? []);
             final targetMonth = resultData?['targetMonth'] as String? ?? '';
-            final story = resultData?['story'] as String? ?? 'Dựa trên chi tiêu trung bình 3 tháng qua và mùa vụ.';
+            final story =
+                resultData?['story'] as String? ??
+                'Dựa trên chi tiêu trung bình 3 tháng qua và mùa vụ.';
 
             return Padding(
               padding: EdgeInsets.only(
@@ -162,7 +177,11 @@ class _LimitsScreenState extends State<LimitsScreen> {
                             color: AppColors.teal.withValues(alpha: 0.12),
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(Icons.auto_awesome, color: AppColors.teal, size: 22),
+                          child: const Icon(
+                            Icons.auto_awesome,
+                            color: AppColors.teal,
+                            size: 22,
+                          ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
@@ -190,7 +209,10 @@ class _LimitsScreenState extends State<LimitsScreen> {
                         ),
                         IconButton(
                           onPressed: () => Navigator.pop(ctx),
-                          icon: Icon(Icons.close, color: context.palette.textSecondary),
+                          icon: Icon(
+                            Icons.close,
+                            color: context.palette.textSecondary,
+                          ),
                         ),
                       ],
                     ),
@@ -198,7 +220,11 @@ class _LimitsScreenState extends State<LimitsScreen> {
                     if (loading) ...[
                       const Padding(
                         padding: EdgeInsets.symmetric(vertical: 48),
-                        child: Center(child: CircularProgressIndicator(color: AppColors.teal)),
+                        child: Center(
+                          child: CircularProgressIndicator(
+                            color: AppColors.teal,
+                          ),
+                        ),
                       ),
                     ] else if (err != null) ...[
                       Padding(
@@ -215,10 +241,12 @@ class _LimitsScreenState extends State<LimitsScreen> {
                         padding: const EdgeInsets.symmetric(vertical: 32),
                         child: Center(
                           child: Text(
-                            (resultData?['isNotLastWeek'] == true) 
-                              ? story 
-                              : 'Chưa có đủ dữ liệu chi tiêu để AI đưa ra gợi ý.',
-                            style: TextStyle(color: context.palette.textSecondary),
+                            (resultData?['isNotLastWeek'] == true)
+                                ? story
+                                : 'Chưa có đủ dữ liệu chi tiêu để AI đưa ra gợi ý.',
+                            style: TextStyle(
+                              color: context.palette.textSecondary,
+                            ),
                             textAlign: TextAlign.center,
                           ),
                         ),
@@ -232,7 +260,11 @@ class _LimitsScreenState extends State<LimitsScreen> {
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.lightbulb_outline, color: AppColors.teal, size: 18),
+                            const Icon(
+                              Icons.lightbulb_outline,
+                              color: AppColors.teal,
+                              size: 18,
+                            ),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
@@ -255,7 +287,8 @@ class _LimitsScreenState extends State<LimitsScreen> {
                           separatorBuilder: (_, _) => const SizedBox(height: 8),
                           itemBuilder: (ctx, i) {
                             final m = suggestions[i] as Map<String, dynamic>;
-                            final code = m['categoryCode'] as String? ?? 'Other';
+                            final code =
+                                m['categoryCode'] as String? ?? 'Other';
                             final style = CategoryTheme.of(code);
                             final amt = amounts[code] ?? 0;
                             final isSel = selected[code] ?? true;
@@ -273,24 +306,32 @@ class _LimitsScreenState extends State<LimitsScreen> {
                                     value: isSel,
                                     activeColor: AppColors.teal,
                                     onChanged: (v) {
-                                      setSheetState(() => selected[code] = v ?? true);
+                                      setSheetState(
+                                        () => selected[code] = v ?? true,
+                                      );
                                     },
                                   ),
                                   Container(
                                     width: 34,
                                     height: 34,
                                     decoration: BoxDecoration(
-                                      color: style.color.withValues(alpha: 0.15),
+                                      color: style.color.withValues(
+                                        alpha: 0.15,
+                                      ),
                                       shape: BoxShape.circle,
                                     ),
                                     child: Center(
-                                      child: CategoryTheme.iconOf(code, size: 18),
+                                      child: CategoryTheme.iconOf(
+                                        code,
+                                        size: 18,
+                                      ),
                                     ),
                                   ),
                                   const SizedBox(width: 10),
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Text(
                                           style.label,
@@ -304,7 +345,8 @@ class _LimitsScreenState extends State<LimitsScreen> {
                                           Text(
                                             reason,
                                             style: TextStyle(
-                                              color: context.palette.textSecondary,
+                                              color:
+                                                  context.palette.textSecondary,
                                               fontSize: 11,
                                             ),
                                           ),
@@ -335,12 +377,17 @@ class _LimitsScreenState extends State<LimitsScreen> {
                                 Navigator.pop(ctx);
                                 context.push('/chat');
                               },
-                              icon: const Icon(Icons.chat_bubble_outline, size: 16),
+                              icon: const Icon(
+                                Icons.chat_bubble_outline,
+                                size: 16,
+                              ),
                               label: const Text('Hỏi Mimo AI'),
                               style: OutlinedButton.styleFrom(
                                 foregroundColor: AppColors.teal,
                                 side: const BorderSide(color: AppColors.teal),
-                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                ),
                               ),
                             ),
                           ),
@@ -363,7 +410,8 @@ class _LimitsScreenState extends State<LimitsScreen> {
                                   if (!mounted) return;
                                   MimoSnackBar.showSuccess(
                                     context,
-                                    message: 'Đã áp dụng gợi ý hạn mức AI thành công!',
+                                    message:
+                                        'Đã áp dụng gợi ý hạn mức AI thành công!',
                                     emotion: 'Proud',
                                   );
                                   _loadBudgets();
@@ -380,7 +428,9 @@ class _LimitsScreenState extends State<LimitsScreen> {
                               label: const Text('Áp dụng ngay'),
                               style: FilledButton.styleFrom(
                                 backgroundColor: AppColors.teal,
-                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                ),
                               ),
                             ),
                           ),
@@ -407,89 +457,143 @@ class _LimitsScreenState extends State<LimitsScreen> {
       isScrollControlled: true,
       useSafeArea: true,
       constraints: const BoxConstraints(maxWidth: 600),
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadii.xl))),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadii.xl)),
+      ),
       builder: (ctx) {
         bool isSubmitting = false;
-        return StatefulBuilder(builder: (ctx, setModalState) {
-          // Available categories (not already budgeted)
-          final existing = _limits.map((l) => l.categoryCode).toSet();
-          final available = CategoryTheme.styles.entries
-              .where((e) => CategoryTheme.primaryCodes.contains(e.key) && !existing.contains(e.key))
-              .toList();
+        return StatefulBuilder(
+          builder: (ctx, setModalState) {
+            // Available categories (not already budgeted)
+            final existing = _limits.map((l) => l.categoryCode).toSet();
+            final available = CategoryTheme.styles.entries
+                .where(
+                  (e) =>
+                      CategoryTheme.primaryCodes.contains(e.key) &&
+                      !existing.contains(e.key),
+                )
+                .toList();
 
-          return Padding(
-            padding: EdgeInsets.only(left: 20, right: 20, top: 20, bottom: MediaQuery.of(ctx).viewInsets.bottom + 20),
-            child: SingleChildScrollView(
-              child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('Thêm giới hạn mới', style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
-                const SizedBox(height: 16),
-                DropdownButtonFormField<String>(
-                  initialValue: selectedCategory,
-                  hint: const Text('Chọn danh mục'),
-                  items: available.map((e) => DropdownMenuItem(
-                    value: e.key,
-                    child: Row(children: [
-                      CategoryTheme.iconOf(e.key, size: 22),
-                      const SizedBox(width: 8),
-                      Text(e.value.label),
-                    ]),
-                  )).toList(),
-                  onChanged: (v) => setModalState(() => selectedCategory = v),
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 20,
+                right: 20,
+                top: 20,
+                bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Thêm giới hạn mới',
+                      style: Theme.of(ctx).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<String>(
+                      initialValue: selectedCategory,
+                      hint: const Text('Chọn danh mục'),
+                      items: available
+                          .map(
+                            (e) => DropdownMenuItem(
+                              value: e.key,
+                              child: Row(
+                                children: [
+                                  CategoryTheme.iconOf(e.key, size: 22),
+                                  const SizedBox(width: 8),
+                                  Text(e.value.label),
+                                ],
+                              ),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (v) =>
+                          setModalState(() => selectedCategory = v),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: amountCtrl,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [MoneyTextInputFormatter()],
+                      decoration: const InputDecoration(
+                        labelText: 'Số tiền giới hạn',
+                        hintText: 'VD: 2,000,000',
+                        suffixText: 'đ',
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton(
+                        onPressed: isSubmitting
+                            ? null
+                            : () async {
+                                if (selectedCategory == null) {
+                                  MimoSnackBar.showWarning(
+                                    ctx,
+                                    message:
+                                        'Vui lòng chọn danh mục cho hạn mức nhé!',
+                                    emotion: 'Alert',
+                                  );
+                                  return;
+                                }
+                                final rawText = amountCtrl.text
+                                    .replaceAll(',', '')
+                                    .trim();
+                                final amount = int.tryParse(rawText);
+                                if (amount == null || amount <= 0) {
+                                  MimoSnackBar.showWarning(
+                                    ctx,
+                                    message:
+                                        'Số tiền giới hạn phải lớn hơn 0 nhé!',
+                                    emotion: 'Alert',
+                                  );
+                                  return;
+                                }
+                                if (amount > 100000000000) {
+                                  MimoSnackBar.showWarning(
+                                    ctx,
+                                    message: 'Số tiền tối đa là 100 tỷ đồng!',
+                                    emotion: 'Alert',
+                                  );
+                                  return;
+                                }
+                                setModalState(() {
+                                  isSubmitting = true;
+                                });
+                                ctx.pop();
+                                try {
+                                  // Get first wallet
+                                  final wallets = await _api.getWallets();
+                                  if (wallets.isEmpty) return;
+                                  await _api.createBudget({
+                                    'walletId': wallets[0]['id'],
+                                    'categoryCode': selectedCategory,
+                                    'amountLimit': amount,
+                                    'period': 'month',
+                                    'startDate': DateTime.now()
+                                        .toIso8601String()
+                                        .split('T')[0],
+                                  });
+                                  _loadBudgets();
+                                } catch (_) {}
+                              },
+                        style: FilledButton.styleFrom(
+                          backgroundColor: AppColors.teal,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                        child: const Text('Tạo giới hạn'),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: amountCtrl,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [MoneyTextInputFormatter()],
-                  decoration: const InputDecoration(labelText: 'Số tiền giới hạn', hintText: 'VD: 2,000,000', suffixText: 'đ'),
-                ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                    onPressed: isSubmitting
-                        ? null
-                        : () async {
-                            if (selectedCategory == null) {
-                              MimoSnackBar.showWarning(ctx, message: 'Vui lòng chọn danh mục cho hạn mức nhé!', emotion: 'Alert');
-                              return;
-                            }
-                            final rawText = amountCtrl.text.replaceAll(',', '').trim();
-                            final amount = int.tryParse(rawText);
-                            if (amount == null || amount <= 0) {
-                              MimoSnackBar.showWarning(ctx, message: 'Số tiền giới hạn phải lớn hơn 0 nhé!', emotion: 'Alert');
-                              return;
-                            }
-                            if (amount > 100000000000) {
-                              MimoSnackBar.showWarning(ctx, message: 'Số tiền tối đa là 100 tỷ đồng!', emotion: 'Alert');
-                              return;
-                            }
-                            setModalState(() {
-                              isSubmitting = true;
-                            });
-                            ctx.pop();
-                            try {
-                              // Get first wallet
-                              final wallets = await _api.getWallets();
-                              if (wallets.isEmpty) return;
-                              await _api.createBudget({
-                                'walletId': wallets[0]['id'],
-                                'categoryCode': selectedCategory,
-                                'amountLimit': amount,
-                                'period': 'month',
-                                'startDate': DateTime.now().toIso8601String().split('T')[0],
-                              });
-                              _loadBudgets();
-                            } catch (_) {}
-                          },
-                    style: FilledButton.styleFrom(backgroundColor: AppColors.teal, padding: const EdgeInsets.symmetric(vertical: 14)),
-                    child: const Text('Tạo giới hạn'),
-                  ),
-                ),
-              ]),
-            ),
-          );
-        });
+              ),
+            );
+          },
+        );
       },
     );
   }
@@ -501,13 +605,16 @@ class _LimitsScreenState extends State<LimitsScreen> {
       useSafeArea: true,
       constraints: const BoxConstraints(maxWidth: 600),
       backgroundColor: Colors.transparent,
-      builder: (_) => _EditLimitSheet(item: item, onSave: (newLimit) async {
-        setState(() => item.limit = newLimit);
-        try {
-          await _api.updateBudget(item.id, {'amountLimit': newLimit});
-          _loadBudgets();
-        } catch (_) {}
-      }),
+      builder: (_) => _EditLimitSheet(
+        item: item,
+        onSave: (newLimit) async {
+          setState(() => item.limit = newLimit);
+          try {
+            await _api.updateBudget(item.id, {'amountLimit': newLimit});
+            _loadBudgets();
+          } catch (_) {}
+        },
+      ),
     );
   }
 
@@ -545,18 +652,44 @@ class _LimitsScreenState extends State<LimitsScreen> {
                           GestureDetector(
                             onTap: () => context.pop(),
                             child: Container(
-                              width: 36, height: 36,
-                              decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), shape: BoxShape.circle),
-                              child: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 16),
+                              width: 36,
+                              height: 36,
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.2),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.arrow_back_ios_new,
+                                color: Colors.white,
+                                size: 16,
+                              ),
                             ),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
-                            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                              Text('Giới hạn chi tiêu', maxLines: 1, overflow: TextOverflow.ellipsis, style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.white, fontWeight: FontWeight.w700)),
-                              const SizedBox(height: 4),
-                              Text('Kiểm soát ngân sách theo danh mục', maxLines: 1, overflow: TextOverflow.ellipsis, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white70)),
-                            ]),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Giới hạn chi tiêu',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context).textTheme.titleLarge
+                                      ?.copyWith(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Kiểm soát ngân sách theo danh mục',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context).textTheme.bodySmall
+                                      ?.copyWith(color: Colors.white70),
+                                ),
+                              ],
+                            ),
                           ),
                           const SizedBox(width: 12),
                           Row(
@@ -571,7 +704,11 @@ class _LimitsScreenState extends State<LimitsScreen> {
                                     color: Colors.white.withValues(alpha: 0.2),
                                     shape: BoxShape.circle,
                                   ),
-                                  child: const Icon(Icons.auto_awesome, color: Colors.white, size: 20),
+                                  child: const Icon(
+                                    Icons.auto_awesome,
+                                    color: Colors.white,
+                                    size: 20,
+                                  ),
                                 ),
                               ),
                               const SizedBox(width: 8),
@@ -584,7 +721,10 @@ class _LimitsScreenState extends State<LimitsScreen> {
                                     color: Colors.white.withValues(alpha: 0.2),
                                     shape: BoxShape.circle,
                                   ),
-                                  child: const Icon(Icons.add, color: Colors.white),
+                                  child: const Icon(
+                                    Icons.add,
+                                    color: Colors.white,
+                                  ),
                                 ),
                               ),
                             ],
@@ -593,20 +733,39 @@ class _LimitsScreenState extends State<LimitsScreen> {
                       ),
                       const SizedBox(height: 16),
                       // Summary chips — dynamic
-                      Row(children: [
-                        _SummaryChip(label: 'Tổng ngân sách', value: _loading ? '...' : formatVnd(_limits.fold(0, (s, l) => s + l.limit))),
-                        const SizedBox(width: 10),
-                        _SummaryChip(label: 'Đã chi', value: _loading ? '...' : formatVnd(_limits.fold(0, (s, l) => s + l.spent))),
-                      ]),
+                      Row(
+                        children: [
+                          _SummaryChip(
+                            label: 'Tổng ngân sách',
+                            value: _loading
+                                ? '...'
+                                : formatVnd(
+                                    _limits.fold(0, (s, l) => s + l.limit),
+                                  ),
+                          ),
+                          const SizedBox(width: 10),
+                          _SummaryChip(
+                            label: 'Đã chi',
+                            value: _loading
+                                ? '...'
+                                : formatVnd(
+                                    _limits.fold(0, (s, l) => s + l.spent),
+                                  ),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
-                if (_error != null) ErrorBanner(message: _error!, onRetry: _loadBudgets),
+                if (_error != null)
+                  ErrorBanner(message: _error!, onRetry: _loadBudgets),
                 const SizedBox(height: 16),
                 // Dynamic warning banner
                 if (warning != null)
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.xxl,
+                    ),
                     child: Container(
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
@@ -614,49 +773,87 @@ class _LimitsScreenState extends State<LimitsScreen> {
                         borderRadius: BorderRadius.circular(AppRadii.lg),
                         boxShadow: context.palette.softShadow,
                       ),
-                      child: Row(children: [
-                        Container(
-                          width: 44, height: 44,
-                          decoration: BoxDecoration(color: const Color(0xFFFEF3C7), borderRadius: BorderRadius.circular(AppRadii.md)),
-                          child: const Center(child: Text('⚠️', style: TextStyle(fontSize: 22))),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Text('${warning.label} gần đạt giới hạn', style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
-                          const SizedBox(height: 2),
-                          Text(
-                            'Còn lại ${formatVnd(warning.limit - warning.spent)} (${((1 - warning.spent / warning.limit) * 100).toStringAsFixed(0)}%)',
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(color: const Color(0xFFD97706)),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFEF3C7),
+                              borderRadius: BorderRadius.circular(AppRadii.md),
+                            ),
+                            child: const Center(
+                              child: Text('⚠️', style: TextStyle(fontSize: 22)),
+                            ),
                           ),
-                        ])),
-                      ]),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '${warning.label} gần đạt giới hạn',
+                                  style: Theme.of(context).textTheme.bodyMedium
+                                      ?.copyWith(fontWeight: FontWeight.w600),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Còn lại ${formatVnd(warning.limit - warning.spent)} (${((1 - warning.spent / warning.limit) * 100).toStringAsFixed(0)}%)',
+                                  style: Theme.of(context).textTheme.bodySmall
+                                      ?.copyWith(
+                                        color: const Color(0xFFD97706),
+                                      ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 const SizedBox(height: 16),
                 // Limit list
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.xxl,
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                        Text('Giới hạn theo danh mục', style: Theme.of(context).textTheme.titleSmall),
-                        Text(_currentMonth, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.muted)),
-                      ]),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Giới hạn theo danh mục',
+                            style: Theme.of(context).textTheme.titleSmall,
+                          ),
+                          Text(
+                            _currentMonth,
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(color: AppColors.muted),
+                          ),
+                        ],
+                      ),
                       const SizedBox(height: 12),
                       if (_loading)
-                        ...List.generate(4, (_) => const Padding(
-                          padding: EdgeInsets.only(bottom: 12),
-                          child: SkeletonCard(height: 100),
-                        ))
+                        ...List.generate(
+                          4,
+                          (_) => const Padding(
+                            padding: EdgeInsets.only(bottom: 12),
+                            child: SkeletonCard(height: 100),
+                          ),
+                        )
                       else if (_limits.isEmpty)
                         EmptyState(
                           emoji: '📊',
                           title: 'Chưa có giới hạn nào',
-                          subtitle: 'Tạo giới hạn chi tiêu để kiểm soát ngân sách',
+                          subtitle:
+                              'Tạo giới hạn chi tiêu để kiểm soát ngân sách',
                           action: FilledButton(
                             onPressed: _showAddBudget,
-                            style: FilledButton.styleFrom(backgroundColor: AppColors.teal),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: AppColors.teal,
+                            ),
                             child: const Text('Tạo giới hạn'),
                           ),
                         )
@@ -669,12 +866,20 @@ class _LimitsScreenState extends State<LimitsScreen> {
                             return Wrap(
                               spacing: 12,
                               runSpacing: 12,
-                              children: _limits.map((item) => SizedBox(
-                                width: cardWidth,
-                                child: _LimitCard(item: item, onEdit: () => _showEditDialog(context, item)),
-                              )).toList(),
+                              children: _limits
+                                  .map(
+                                    (item) => SizedBox(
+                                      width: cardWidth,
+                                      child: _LimitCard(
+                                        item: item,
+                                        onEdit: () =>
+                                            _showEditDialog(context, item),
+                                      ),
+                                    ),
+                                  )
+                                  .toList(),
                             );
-                          }
+                          },
                         ),
                       const SizedBox(height: 12),
                       GestureDetector(
@@ -688,11 +893,25 @@ class _LimitsScreenState extends State<LimitsScreen> {
                             border: Border.all(color: AppColors.teal),
                             boxShadow: context.palette.softShadow,
                           ),
-                          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                            const Icon(Icons.add_circle_outline, color: AppColors.teal, size: 20),
-                            const SizedBox(width: 8),
-                            Text('Thêm giới hạn mới', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.teal, fontWeight: FontWeight.w600)),
-                          ]),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(
+                                Icons.add_circle_outline,
+                                color: AppColors.teal,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Thêm giới hạn mới',
+                                style: Theme.of(context).textTheme.bodyMedium
+                                    ?.copyWith(
+                                      color: AppColors.teal,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ],
@@ -717,12 +936,31 @@ class _SummaryChip extends StatelessWidget {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(AppRadii.md)),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(label, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white70)),
-          const SizedBox(height: 2),
-          Text(value, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.white, fontWeight: FontWeight.w700), maxLines: 1, overflow: TextOverflow.ellipsis),
-        ]),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.2),
+          borderRadius: BorderRadius.circular(AppRadii.md),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: Colors.white70),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              value,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -737,7 +975,15 @@ class _LimitItem {
   int limit;
   final int spent;
 
-  _LimitItem({required this.id, required this.emoji, required this.label, required this.color, required this.categoryCode, required this.limit, required this.spent});
+  _LimitItem({
+    required this.id,
+    required this.emoji,
+    required this.label,
+    required this.color,
+    required this.categoryCode,
+    required this.limit,
+    required this.spent,
+  });
 }
 
 class _LimitCard extends StatelessWidget {
@@ -747,11 +993,15 @@ class _LimitCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final percent = item.limit > 0 ? (item.spent / item.limit).clamp(0.0, 1.0) : 0.0;
+    final percent = item.limit > 0
+        ? (item.spent / item.limit).clamp(0.0, 1.0)
+        : 0.0;
     final remaining = item.limit - item.spent;
     final isOverBudget = item.spent > item.limit;
     final isWarning = percent > 0.85 && !isOverBudget;
-    final barColor = isOverBudget ? AppColors.danger : (isWarning ? const Color(0xFFF59E0B) : item.color);
+    final barColor = isOverBudget
+        ? AppColors.danger
+        : (isWarning ? const Color(0xFFF59E0B) : item.color);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -761,49 +1011,96 @@ class _LimitCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadii.lg),
         boxShadow: context.palette.softShadow,
       ),
-      child: Column(children: [
-        Row(children: [
-          Container(
-            width: 44, height: 44,
-            decoration: BoxDecoration(color: item.color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(AppRadii.md)),
-            child: Center(child: CategoryTheme.iconOf(item.categoryCode, size: 26)),
-          ),
-          const SizedBox(width: 12),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(item.label, style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
-            Text(
-              isOverBudget ? 'Vượt ngân sách!' : 'Còn lại: ${formatVnd(remaining)}',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: isOverBudget ? AppColors.danger : AppColors.muted,
-                fontWeight: isOverBudget ? FontWeight.w600 : FontWeight.normal,
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: item.color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(AppRadii.md),
+                ),
+                child: Center(
+                  child: CategoryTheme.iconOf(item.categoryCode, size: 26),
+                ),
               ),
-            ),
-          ])),
-          GestureDetector(
-            onTap: onEdit,
-            child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-              Text(formatVnd(item.spent), style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700)),
-              Text('/ ${formatVnd(item.limit)}', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.muted)),
-            ]),
-          ),
-        ]),
-        const SizedBox(height: 12),
-        Row(children: [
-          Expanded(
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(999),
-              child: LinearProgressIndicator(
-                value: percent,
-                minHeight: 8,
-                backgroundColor: const Color(0xFFE2E8F0),
-                valueColor: AlwaysStoppedAnimation<Color>(barColor),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item.label,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    Text(
+                      isOverBudget
+                          ? 'Vượt ngân sách!'
+                          : 'Còn lại: ${formatVnd(remaining)}',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: isOverBudget
+                            ? AppColors.danger
+                            : AppColors.muted,
+                        fontWeight: isOverBudget
+                            ? FontWeight.w600
+                            : FontWeight.normal,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
+              GestureDetector(
+                onTap: onEdit,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      formatVnd(item.spent),
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    Text(
+                      '/ ${formatVnd(item.limit)}',
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodySmall?.copyWith(color: AppColors.muted),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 8),
-          Text('${(percent * 100).toStringAsFixed(0)}%', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: barColor, fontWeight: FontWeight.w600)),
-        ]),
-      ]),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(999),
+                  child: LinearProgressIndicator(
+                    value: percent,
+                    minHeight: 8,
+                    backgroundColor: const Color(0xFFE2E8F0),
+                    valueColor: AlwaysStoppedAnimation<Color>(barColor),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                '${(percent * 100).toStringAsFixed(0)}%',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: barColor,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }
@@ -830,25 +1127,52 @@ class _EditLimitSheetState extends State<_EditLimitSheet> {
   @override
   Widget build(BuildContext context) {
     return SafeArea(
-      minimum: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      minimum: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
       child: Container(
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
           color: context.palette.card,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadii.xl)),
+          borderRadius: const BorderRadius.vertical(
+            top: Radius.circular(AppRadii.xl),
+          ),
         ),
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(children: [
-                SizedBox(width: 28, height: 28, child: CategoryTheme.iconOf(widget.item.categoryCode, size: 28)),
-                const SizedBox(width: 10),
-                Expanded(child: Text('Sửa giới hạn ${widget.item.label}', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700), maxLines: 1, overflow: TextOverflow.ellipsis)),
-              ]),
+              Row(
+                children: [
+                  SizedBox(
+                    width: 28,
+                    height: 28,
+                    child: CategoryTheme.iconOf(
+                      widget.item.categoryCode,
+                      size: 28,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Sửa giới hạn ${widget.item.label}',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
               const SizedBox(height: 16),
-              Text('Số tiền giới hạn (đ)', style: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
+              Text(
+                'Số tiền giới hạn (đ)',
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
+              ),
               const SizedBox(height: 8),
               TextField(
                 controller: _controller,
@@ -858,31 +1182,52 @@ class _EditLimitSheetState extends State<_EditLimitSheet> {
                 decoration: const InputDecoration(hintText: '0'),
               ),
               const SizedBox(height: 20),
-              Row(children: [
-                Expanded(child: OutlinedButton(onPressed: _isSubmitting ? null : () => context.pop(), child: const Text('Hủy'))),
-                const SizedBox(width: 12),
-                Expanded(child: FilledButton(
-                  onPressed: _isSubmitting
-                      ? null
-                      : () {
-                          final rawText = _controller.text.replaceAll(',', '').trim();
-                          final newAmount = int.tryParse(rawText);
-                          if (newAmount == null || newAmount <= 0) {
-                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Số tiền giới hạn phải lớn hơn 0')));
-                            setState(() { _isSubmitting = false; });
-                            return;
-                          }
-                          if (newAmount > 100000000000) {
-                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Số tiền tối đa 100 tỷ đồng')));
-                            setState(() { _isSubmitting = false; });
-                            return;
-                          }
-                          widget.onSave(newAmount);
-                          context.pop();
-                        },
-                  child: const Text('Lưu'),
-                )),
-              ]),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: _isSubmitting ? null : () => context.pop(),
+                      child: const Text('Hủy'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: _isSubmitting
+                          ? null
+                          : () {
+                              final rawText = _controller.text
+                                  .replaceAll(',', '')
+                                  .trim();
+                              final newAmount = int.tryParse(rawText);
+                              if (newAmount == null || newAmount <= 0) {
+                                MimoSnackBar.showInfo(
+                                  context,
+                                  message: 'Số tiền giới hạn phải lớn hơn 0',
+                                );
+                                setState(() {
+                                  _isSubmitting = false;
+                                });
+                                return;
+                              }
+                              if (newAmount > 100000000000) {
+                                MimoSnackBar.showInfo(
+                                  context,
+                                  message: 'Số tiền tối đa 100 tỷ đồng',
+                                );
+                                setState(() {
+                                  _isSubmitting = false;
+                                });
+                                return;
+                              }
+                              widget.onSave(newAmount);
+                              context.pop();
+                            },
+                      child: const Text('Lưu'),
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
         ),

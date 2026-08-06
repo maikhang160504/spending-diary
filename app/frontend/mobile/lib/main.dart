@@ -10,7 +10,9 @@ Future<void> main() async {
   // và giữ trong bộ nhớ lâu hơn để không bị mất.
   CachedQuery.instance.config(
     config: QueryConfig(
-      refetchDuration: const Duration(days: 1), // Chỉ tự động tải lại nếu cache quá 1 ngày (hoặc có trigger)
+      refetchDuration: const Duration(
+        days: 1,
+      ), // Chỉ tự động tải lại nếu cache quá 1 ngày (hoặc có trigger)
       cacheDuration: const Duration(days: 7),
     ),
   );

@@ -38,10 +38,10 @@ class ReportFilterBar extends StatelessWidget {
       return Column(
         mainAxisSize: MainAxisSize.min,
         children: children
-            .map((c) => Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: c,
-                ))
+            .map(
+              (c) =>
+                  Padding(padding: const EdgeInsets.only(bottom: 4), child: c),
+            )
             .toList(),
       );
     }
@@ -146,7 +146,11 @@ class FilterPeriodNavCompact extends StatelessWidget {
           borderRadius: BorderRadius.circular(20),
           child: const Padding(
             padding: EdgeInsets.all(4),
-            child: Icon(Icons.chevron_left_rounded, size: 20, color: AppColors.teal),
+            child: Icon(
+              Icons.chevron_left_rounded,
+              size: 20,
+              color: AppColors.teal,
+            ),
           ),
         ),
         const SizedBox(width: 4),
@@ -237,7 +241,9 @@ class FilterWalletSelector extends StatelessWidget {
             color: isSelected ? AppColors.teal : Theme.of(context).cardColor,
             borderRadius: BorderRadius.circular(AppRadii.lg),
             border: Border.all(
-              color: isSelected ? AppColors.teal : Colors.grey.withValues(alpha: 0.25),
+              color: isSelected
+                  ? AppColors.teal
+                  : Colors.grey.withValues(alpha: 0.25),
             ),
           ),
           child: Row(
@@ -301,7 +307,9 @@ class FilterToggleCompact extends StatelessWidget {
         height: 34,
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         decoration: BoxDecoration(
-          color: value ? AppColors.teal.withValues(alpha: 0.12) : Theme.of(context).cardColor,
+          color: value
+              ? AppColors.teal.withValues(alpha: 0.12)
+              : Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(AppRadii.lg),
           border: Border.all(
             color: value ? AppColors.teal : Colors.grey.withValues(alpha: 0.25),
@@ -311,7 +319,9 @@ class FilterToggleCompact extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              value ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+              value
+                  ? Icons.check_circle_rounded
+                  : Icons.radio_button_unchecked_rounded,
               size: 15,
               color: value ? AppColors.teal : Colors.grey,
             ),

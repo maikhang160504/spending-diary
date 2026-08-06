@@ -54,10 +54,12 @@ class AppPalette extends ThemeExtension<AppPalette> {
   );
 
   /// Bóng đổ thẻ theo palette hiện tại.
-  List<BoxShadow> get cardShadow =>
-      [BoxShadow(color: shadow, blurRadius: 16, offset: const Offset(0, 6))];
-  List<BoxShadow> get softShadow =>
-      [BoxShadow(color: shadow, blurRadius: 10, offset: const Offset(0, 3))];
+  List<BoxShadow> get cardShadow => [
+    BoxShadow(color: shadow, blurRadius: 16, offset: const Offset(0, 6)),
+  ];
+  List<BoxShadow> get softShadow => [
+    BoxShadow(color: shadow, blurRadius: 10, offset: const Offset(0, 3)),
+  ];
 
   static AppPalette of(BuildContext context) =>
       Theme.of(context).extension<AppPalette>() ?? light;

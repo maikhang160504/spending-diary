@@ -7,10 +7,7 @@ import 'package:flutter/material.dart';
 /// Sau khi countdown kết thúc, nút X xuất hiện cho phép user đóng.
 /// Khi đóng → callback [onDismissed] được gọi (thường để show Premium upsell).
 class InterstitialAdDialog extends StatefulWidget {
-  const InterstitialAdDialog({
-    super.key,
-    required this.onDismissed,
-  });
+  const InterstitialAdDialog({super.key, required this.onDismissed});
 
   /// Callback sau khi user bấm nút X để đóng quảng cáo.
   final VoidCallback onDismissed;
@@ -73,93 +70,112 @@ class _InterstitialAdDialogState extends State<InterstitialAdDialog>
                 child: SingleChildScrollView(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // Mock Ad Banner
-                    Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 24),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(20),
-                        gradient: const LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [Color(0xFF1a1a2e), Color(0xFF16213e), Color(0xFF0f3460)],
+                    children: [
+                      // Mock Ad Banner
+                      Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 24),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(20),
+                          gradient: const LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              Color(0xFF1a1a2e),
+                              Color(0xFF16213e),
+                              Color(0xFF0f3460),
+                            ],
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(
+                                0xFF6C63FF,
+                              ).withValues(alpha: 0.3),
+                              blurRadius: 30,
+                              offset: const Offset(0, 8),
+                            ),
+                          ],
                         ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFF6C63FF).withValues(alpha: 0.3),
-                            blurRadius: 30,
-                            offset: const Offset(0, 8),
-                          ),
-                        ],
-                      ),
-                      padding: const EdgeInsets.all(32),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          // App logo mock
-                          Container(
-                            width: 80,
-                            height: 80,
-                            decoration: BoxDecoration(
-                              gradient: const LinearGradient(
-                                colors: [Color(0xFF6C63FF), Color(0xFFFF6B6B)],
+                        padding: const EdgeInsets.all(32),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // App logo mock
+                            Container(
+                              width: 80,
+                              height: 80,
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  colors: [
+                                    Color(0xFF6C63FF),
+                                    Color(0xFFFF6B6B),
+                                  ],
+                                ),
+                                borderRadius: BorderRadius.circular(20),
                               ),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: const Icon(Icons.gamepad_rounded, color: Colors.white, size: 40),
-                          ),
-                          const SizedBox(height: 20),
-                          const Text(
-                            'GameZone Pro',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 24,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: -0.5,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          const Text(
-                            'Hàng nghìn game miễn phí!\nTải ngay hôm nay.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: Color(0xFFB0B8C8),
-                              fontSize: 14,
-                              height: 1.5,
-                            ),
-                          ),
-                          const SizedBox(height: 24),
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            decoration: BoxDecoration(
-                              gradient: const LinearGradient(
-                                colors: [Color(0xFF6C63FF), Color(0xFFFF6B6B)],
+                              child: const Icon(
+                                Icons.gamepad_rounded,
+                                color: Colors.white,
+                                size: 40,
                               ),
-                              borderRadius: BorderRadius.circular(12),
                             ),
-                            child: const Text(
-                              'Tải miễn phí',
-                              textAlign: TextAlign.center,
+                            const SizedBox(height: 20),
+                            const Text(
+                              'GameZone Pro',
                               style: TextStyle(
                                 color: Colors.white,
-                                fontSize: 15,
-                                fontWeight: FontWeight.w700,
+                                fontSize: 24,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: -0.5,
                               ),
                             ),
-                          ),
-                          const SizedBox(height: 12),
-                          const Text(
-                            'Quảng cáo • SpendDiary Ads Network',
-                            style: TextStyle(color: Color(0xFF5C6480), fontSize: 11),
-                          ),
-                        ],
+                            const SizedBox(height: 8),
+                            const Text(
+                              'Hàng nghìn game miễn phí!\nTải ngay hôm nay.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: Color(0xFFB0B8C8),
+                                fontSize: 14,
+                                height: 1.5,
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  colors: [
+                                    Color(0xFF6C63FF),
+                                    Color(0xFFFF6B6B),
+                                  ],
+                                ),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Text(
+                                'Tải miễn phí',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            const Text(
+                              'Quảng cáo • SpendDiary Ads Network',
+                              style: TextStyle(
+                                color: Color(0xFF5C6480),
+                                fontSize: 11,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-            ),
 
               // ── Close button / Countdown ─────────────────────────────
               Positioned(
@@ -199,7 +215,11 @@ class _InterstitialAdDialogState extends State<InterstitialAdDialog>
                               borderRadius: BorderRadius.circular(20),
                               border: Border.all(color: Colors.white38),
                             ),
-                            child: const Icon(Icons.close, color: Colors.white, size: 20),
+                            child: const Icon(
+                              Icons.close,
+                              color: Colors.white,
+                              size: 20,
+                            ),
                           ),
                         ),
                 ),

@@ -30,10 +30,7 @@ class AppButton extends StatelessWidget {
             ),
             child: Text(label),
           )
-        : FilledButton(
-            onPressed: onPressed,
-            child: Text(label),
-          );
+        : FilledButton(onPressed: onPressed, child: Text(label));
 
     if (!isFullWidth) {
       return button;

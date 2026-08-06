@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../widgets/mimo_snackbar.dart';
 import '../../services/api_client.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_radii.dart';
@@ -24,8 +25,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   Future<void> _submit() async {
     final email = _emailController.text.trim();
     if (email.isEmpty || !email.contains('@')) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vui lòng nhập một email hợp lệ.')),
+      MimoSnackBar.showWarning(
+        context,
+        message: 'Vui lÃ²ng nháº­p má»™t email há»£p lá»‡.',
       );
       return;
     }
@@ -37,8 +39,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       context.push('/verify-otp', extra: email);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
+      MimoSnackBar.showError(
+        context,
+        message: e.toString().replaceAll('Exception: ', ''),
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -64,7 +67,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'Quên mật khẩu?',
+                'QuÃªn máº­t kháº©u?',
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
@@ -73,7 +76,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               ),
               const SizedBox(height: 12),
               const Text(
-                'Đừng lo lắng! Vui lòng nhập địa chỉ email đã đăng ký tài khoản của bạn để nhận mã khôi phục.',
+                'Äá»«ng lo láº¯ng! Vui lÃ²ng nháº­p Ä‘á»‹a chá»‰ email Ä‘Ã£ Ä‘Äƒng kÃ½ tÃ i khoáº£n cá»§a báº¡n Ä‘á»ƒ nháº­n mÃ£ khÃ´i phá»¥c.',
                 style: TextStyle(
                   fontSize: 16,
                   color: AppColors.textSecondary,
@@ -86,13 +89,19 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 keyboardType: TextInputType.emailAddress,
                 decoration: InputDecoration(
                   labelText: 'Email',
-                  prefixIcon: const Icon(Icons.email_outlined, color: AppColors.textSecondary),
+                  prefixIcon: const Icon(
+                    Icons.email_outlined,
+                    color: AppColors.textSecondary,
+                  ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(AppRadii.md),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(AppRadii.md),
-                    borderSide: const BorderSide(color: AppColors.teal, width: 2),
+                    borderSide: const BorderSide(
+                      color: AppColors.teal,
+                      width: 2,
+                    ),
                   ),
                 ),
                 onSubmitted: (_) => _submit(),
@@ -113,11 +122,17 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       ? const SizedBox(
                           height: 24,
                           width: 24,
-                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
                         )
                       : const Text(
-                          'Gửi mã xác nhận',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          'Gá»­i mÃ£ xÃ¡c nháº­n',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                 ),
               ),

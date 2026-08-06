@@ -120,24 +120,27 @@ class AppTheme {
         ),
       ),
       filledButtonTheme: FilledButtonThemeData(
-        style: FilledButton.styleFrom(
-          backgroundColor: AppColors.teal,
-          foregroundColor: Colors.white,
-          textStyle: GoogleFonts.manrope(
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-            letterSpacing: -0.2,
-          ),
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.xxxl,
-            vertical: AppSpacing.md,
-          ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadii.lg),
-          ),
-        ).copyWith(
-          overlayColor: WidgetStateProperty.all(Colors.white.withValues(alpha: 0.12)),
-        ),
+        style:
+            FilledButton.styleFrom(
+              backgroundColor: AppColors.teal,
+              foregroundColor: Colors.white,
+              textStyle: GoogleFonts.manrope(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.2,
+              ),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.xxxl,
+                vertical: AppSpacing.md,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppRadii.lg),
+              ),
+            ).copyWith(
+              overlayColor: WidgetStateProperty.all(
+                Colors.white.withValues(alpha: 0.12),
+              ),
+            ),
       ),
       cardTheme: CardThemeData(
         color: palette.card,

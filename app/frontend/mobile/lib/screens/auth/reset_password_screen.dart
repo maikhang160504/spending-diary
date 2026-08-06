@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../widgets/mimo_snackbar.dart';
 import '../../services/api_client.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_radii.dart';
@@ -34,14 +35,18 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
 
     if (pass.length < 8) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Mật khẩu phải có ít nhất 8 ký tự.')),
+        const SnackBar(
+          content: Text('Máº­t kháº©u pháº£i cÃ³ Ã­t nháº¥t 8 kÃ½ tá»±.'),
+        ),
       );
       return;
     }
 
     if (pass != confirm) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Mật khẩu xác nhận không khớp.')),
+        const SnackBar(
+          content: Text('Máº­t kháº©u xÃ¡c nháº­n khÃ´ng khá»›p.'),
+        ),
       );
       return;
     }
@@ -50,21 +55,28 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     try {
       await ApiClient().resetPassword(widget.resetToken, pass);
       if (!mounted) return;
-      
+
       showDialog(
         context: context,
         barrierDismissible: false,
         builder: (ctx) => AlertDialog(
           backgroundColor: Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
           title: const Row(
             children: [
               Icon(Icons.check_circle, color: AppColors.teal),
               SizedBox(width: 8),
-              Text('Thành công', style: TextStyle(fontWeight: FontWeight.bold)),
+              Text(
+                'ThÃ nh cÃ´ng',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
             ],
           ),
-          content: const Text('Mật khẩu của bạn đã được thay đổi thành công. Vui lòng đăng nhập lại.'),
+          content: const Text(
+            'Máº­t kháº©u cá»§a báº¡n Ä‘Ã£ Ä‘Æ°á»£c thay Ä‘á»•i thÃ nh cÃ´ng. Vui lÃ²ng Ä‘Äƒng nháº­p láº¡i.',
+          ),
           actions: [
             FilledButton(
               style: FilledButton.styleFrom(backgroundColor: AppColors.teal),
@@ -72,15 +84,16 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                 ctx.pop(); // close dialog
                 context.go(AppRoutes.login);
               },
-              child: const Text('Đăng nhập'),
+              child: const Text('ÄÄƒng nháº­p'),
             ),
           ],
         ),
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
+      MimoSnackBar.showError(
+        context,
+        message: e.toString().replaceAll('Exception: ', ''),
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -106,7 +119,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'Tạo mật khẩu mới',
+                'Táº¡o máº­t kháº©u má»›i',
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
@@ -115,7 +128,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
               ),
               const SizedBox(height: 12),
               const Text(
-                'Vui lòng nhập mật khẩu mới của bạn. Mật khẩu phải có ít nhất 8 ký tự.',
+                'Vui lÃ²ng nháº­p máº­t kháº©u má»›i cá»§a báº¡n. Máº­t kháº©u pháº£i cÃ³ Ã­t nháº¥t 8 kÃ½ tá»±.',
                 style: TextStyle(
                   fontSize: 16,
                   color: AppColors.textSecondary,
@@ -127,21 +140,28 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                 controller: _passwordController,
                 obscureText: _obscureText,
                 decoration: InputDecoration(
-                  labelText: 'Mật khẩu mới',
-                  prefixIcon: const Icon(Icons.lock_outline, color: AppColors.textSecondary),
+                  labelText: 'Máº­t kháº©u má»›i',
+                  prefixIcon: const Icon(
+                    Icons.lock_outline,
+                    color: AppColors.textSecondary,
+                  ),
                   suffixIcon: IconButton(
                     icon: Icon(
                       _obscureText ? Icons.visibility_off : Icons.visibility,
                       color: AppColors.textSecondary,
                     ),
-                    onPressed: () => setState(() => _obscureText = !_obscureText),
+                    onPressed: () =>
+                        setState(() => _obscureText = !_obscureText),
                   ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(AppRadii.md),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(AppRadii.md),
-                    borderSide: const BorderSide(color: AppColors.teal, width: 2),
+                    borderSide: const BorderSide(
+                      color: AppColors.teal,
+                      width: 2,
+                    ),
                   ),
                 ),
               ),
@@ -150,21 +170,31 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                 controller: _confirmController,
                 obscureText: _obscureConfirmText,
                 decoration: InputDecoration(
-                  labelText: 'Xác nhận mật khẩu',
-                  prefixIcon: const Icon(Icons.lock_outline, color: AppColors.textSecondary),
+                  labelText: 'XÃ¡c nháº­n máº­t kháº©u',
+                  prefixIcon: const Icon(
+                    Icons.lock_outline,
+                    color: AppColors.textSecondary,
+                  ),
                   suffixIcon: IconButton(
                     icon: Icon(
-                      _obscureConfirmText ? Icons.visibility_off : Icons.visibility,
+                      _obscureConfirmText
+                          ? Icons.visibility_off
+                          : Icons.visibility,
                       color: AppColors.textSecondary,
                     ),
-                    onPressed: () => setState(() => _obscureConfirmText = !_obscureConfirmText),
+                    onPressed: () => setState(
+                      () => _obscureConfirmText = !_obscureConfirmText,
+                    ),
                   ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(AppRadii.md),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(AppRadii.md),
-                    borderSide: const BorderSide(color: AppColors.teal, width: 2),
+                    borderSide: const BorderSide(
+                      color: AppColors.teal,
+                      width: 2,
+                    ),
                   ),
                 ),
                 onSubmitted: (_) => _submit(),
@@ -185,11 +215,17 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                       ? const SizedBox(
                           height: 24,
                           width: 24,
-                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
                         )
                       : const Text(
-                          'Đổi mật khẩu',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          'Äá»•i máº­t kháº©u',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                 ),
               ),

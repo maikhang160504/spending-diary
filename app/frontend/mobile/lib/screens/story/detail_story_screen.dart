@@ -76,22 +76,25 @@ class _DetailStoryScreenState extends State<DetailStoryScreen> {
                 builder: (context, child) {
                   double value = 0.0;
                   if (_pageController.position.haveDimensions) {
-                    value = (_pageController.page ?? _pageController.initialPage.toDouble()) - i;
+                    value =
+                        (_pageController.page ??
+                            _pageController.initialPage.toDouble()) -
+                        i;
                   }
-                  final double opacity = (1 - (value.abs() * 0.4)).clamp(0.0, 1.0);
-                  final double scale = (1 - (value.abs() * 0.08)).clamp(0.85, 1.0);
+                  final double opacity = (1 - (value.abs() * 0.4)).clamp(
+                    0.0,
+                    1.0,
+                  );
+                  final double scale = (1 - (value.abs() * 0.08)).clamp(
+                    0.85,
+                    1.0,
+                  );
                   return Transform.scale(
                     scale: scale,
-                    child: Opacity(
-                      opacity: opacity,
-                      child: child,
-                    ),
+                    child: Opacity(opacity: opacity, child: child),
                   );
                 },
-                child: _StoryPage(
-                  key: ValueKey(_ids[i]),
-                  storyId: _ids[i],
-                ),
+                child: _StoryPage(key: ValueKey(_ids[i]), storyId: _ids[i]),
               );
             },
           ),
@@ -126,10 +129,16 @@ class _StoryPageState extends State<_StoryPage> {
 
   Future<void> _loadStory() async {
     if (widget.storyId.isEmpty) {
-      setState(() { _loading = false; _error = 'Không tìm thấy giao dịch'; });
+      setState(() {
+        _loading = false;
+        _error = 'Không tìm thấy giao dịch';
+      });
       return;
     }
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       final data = await _api.getStory(widget.storyId);
       if (!mounted) return;
@@ -169,12 +178,19 @@ class _StoryPageState extends State<_StoryPage> {
       'title': tx['note'],
       'amount': tx['amount'],
       'imageUrl': tx['image_url'] ?? tx['imageUrl'],
-      'categoryCode': tx['category_code'] ?? tx['categoryCode'] ?? tx['category_name'],
-      'occurred_on': tx['occurred_at'] ?? tx['occurredAt'] ?? tx['created_at'] ?? tx['createdAt'],
+      'categoryCode':
+          tx['category_code'] ?? tx['categoryCode'] ?? tx['category_name'],
+      'occurred_on':
+          tx['occurred_at'] ??
+          tx['occurredAt'] ??
+          tx['created_at'] ??
+          tx['createdAt'],
       'aiComment': tx['ai_message'] ?? tx['aiComment'],
       'mascotMood': tx['mascot_mood'] ?? tx['mascotMood'],
       'items': [
-        {'transactions': [tx]}
+        {
+          'transactions': [tx],
+        },
       ],
     };
   }
@@ -207,7 +223,9 @@ class _StoryPageState extends State<_StoryPage> {
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
               child: Text(
                 'Sửa danh mục',
-                style: Theme.of(ctx).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                style: Theme.of(
+                  ctx,
+                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
               ),
             ),
             Flexible(
@@ -232,15 +250,14 @@ class _StoryPageState extends State<_StoryPage> {
     setState(() => _correcting = true);
     if (!mounted) return;
     try {
-      await _api.updateTransaction(_primaryTxId!, {
-        'categoryCode': picked,
-      });
+      await _api.updateTransaction(_primaryTxId!, {'categoryCode': picked});
       notifyTransactionChanged();
       await _loadStory();
       if (mounted) {
         MimoSnackBar.showSuccess(
           context,
-          message: 'Đã cập nhật giao dịch và ghi nhận góp ý! Mimo sẽ học thêm từ bạn 🙏',
+          message:
+              'Đã cập nhật giao dịch và ghi nhận góp ý! Mimo sẽ học thêm từ bạn 🙏',
           emotion: 'Love',
         );
       }
@@ -263,14 +280,15 @@ class _StoryPageState extends State<_StoryPage> {
       builder: (ctx) => AlertDialog(
         title: const Text('Xóa giao dịch này?'),
         content: const Text(
-            'Giao dịch và ảnh hóa đơn sẽ bị xóa vĩnh viễn khỏi câu chuyện chi tiêu của bạn.'),
+          'Giao dịch và ảnh hóa đơn sẽ bị xóa vĩnh viễn khỏi câu chuyện chi tiêu của bạn.',
+        ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Hủy')),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Hủy'),
+          ),
           FilledButton(
-            style:
-                FilledButton.styleFrom(backgroundColor: AppColors.danger),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Xóa'),
           ),
@@ -331,8 +349,10 @@ class _StoryPageState extends State<_StoryPage> {
     if (_story == null) return;
     final txId = _primaryTxId;
     if (txId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Không tìm thấy giao dịch để sửa')));
+      MimoSnackBar.showInfo(
+        context,
+        message: 'Không tìm thấy giao dịch để sửa',
+      );
       return;
     }
 
@@ -344,24 +364,32 @@ class _StoryPageState extends State<_StoryPage> {
         final txs = item['transactions'] as List<dynamic>?;
         if (txs != null) {
           for (final tx in txs) {
-            if ((tx['id'] as String?) == txId) { primaryTx = tx as Map<String, dynamic>; break; }
+            if ((tx['id'] as String?) == txId) {
+              primaryTx = tx as Map<String, dynamic>;
+              break;
+            }
           }
         }
         if (primaryTx != null) break;
       }
     }
 
-    final curAmount = parseToInt(primaryTx?['amount'] ?? _story?['amount'] ?? 0);
-    final curNote = (primaryTx?['note'] as String?) ?? (_story?['note'] as String?) ?? '';
-    final curCat = (primaryTx?['category_code'] as String?)
-        ?? (primaryTx?['categoryCode'] as String?)
-        ?? (_story?['categoryCode'] as String?)
-        ?? 'Other';
+    final curAmount = parseToInt(
+      primaryTx?['amount'] ?? _story?['amount'] ?? 0,
+    );
+    final curNote =
+        (primaryTx?['note'] as String?) ?? (_story?['note'] as String?) ?? '';
+    final curCat =
+        (primaryTx?['category_code'] as String?) ??
+        (primaryTx?['categoryCode'] as String?) ??
+        (_story?['categoryCode'] as String?) ??
+        'Other';
 
     final amountCtrl = TextEditingController(text: curAmount.toString());
     final noteCtrl = TextEditingController(text: curNote);
     String editCategory = CategoryTheme.canonicalCodeOf(
-        CategoryTheme.styles.containsKey(curCat) ? curCat : 'Other');
+      CategoryTheme.styles.containsKey(curCat) ? curCat : 'Other',
+    );
     if (!CategoryTheme.primaryCodes.contains(editCategory)) {
       editCategory = 'Other';
     }
@@ -375,116 +403,182 @@ class _StoryPageState extends State<_StoryPage> {
       backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSheetState) => Padding(
-          padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(ctx).viewInsets.bottom,
+          ),
           child: Container(
             padding: const EdgeInsets.all(AppSpacing.xl),
             decoration: const BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadii.xl)),
+              borderRadius: BorderRadius.vertical(
+                top: Radius.circular(AppRadii.xl),
+              ),
             ),
             child: SingleChildScrollView(
-              child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(2)))),
-              const SizedBox(height: 16),
-              Text('Chỉnh sửa giao dịch', style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
-              const SizedBox(height: 16),
-              Text('Số tiền', style: Theme.of(ctx).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
-              const SizedBox(height: 8),
-              TextField(
-                controller: amountCtrl,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(hintText: 'Nhập số tiền', suffixText: 'đ'),
-              ),
-              const SizedBox(height: 12),
-              Text('Danh mục', style: Theme.of(ctx).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
-              const SizedBox(height: 8),
-              DropdownButtonFormField<String>(
-                initialValue: editCategory,
-                decoration: InputDecoration(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadii.md)),
-                ),
-                items: CategoryTheme.styles.entries
-                    .where((e) => CategoryTheme.primaryCodes.contains(e.key))
-                    .map((e) => DropdownMenuItem<String>(
-                          value: e.key,
-                          child: Row(children: [
-                            CategoryTheme.iconOf(e.key, size: 22),
-                            const SizedBox(width: 8),
-                            Text(e.value.label),
-                          ]),
-                        ))
-                    .toList(),
-                onChanged: (val) { if (val != null) setSheetState(() => editCategory = val); },
-              ),
-              const SizedBox(height: 12),
-              Text('Ghi chú', style: Theme.of(ctx).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
-              const SizedBox(height: 8),
-              TextField(controller: noteCtrl, decoration: const InputDecoration(hintText: 'Ghi chú cho giao dịch')),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: saving
-                      ? null
-                      : () async {
-                          setSheetState(() => saving = true);
-                          try {
-                            final newAmt = int.tryParse(amountCtrl.text) ?? curAmount;
-                            final newNote = noteCtrl.text;
-                            await _api.updateTransaction(txId, {
-                              'amount': newAmt,
-                              'categoryCode': editCategory,
-                              'note': newNote,
-                            });
-                            if (mounted) {
-                              setState(() {
-                                if (primaryTx != null) {
-                                  primaryTx['amount'] = newAmt;
-                                  primaryTx['category_code'] = editCategory;
-                                  primaryTx['categoryCode'] = editCategory;
-                                  primaryTx['note'] = newNote;
-                                }
-                                if (_story != null) {
-                                  _story!['amount'] = newAmt;
-                                  _story!['categoryCode'] = editCategory;
-                                  _story!['note'] = newNote;
-                                  _story!['title'] = newNote;
-                                }
-                              });
-                            }
-                            notifyTransactionChanged();
-                            if (ctx.mounted) ctx.pop();
-                            if (mounted) {
-                              MimoSnackBar.showSuccess(
-                                context,
-                                message: 'Đã cập nhật giao dịch ✓',
-                                emotion: 'Celebrate',
-                              );
-                            }
-                            await _loadStory();
-                          } catch (_) {
-                            setSheetState(() => saving = false);
-                            if (mounted) {
-                              MimoSnackBar.showError(
-                                context,
-                                message: 'Không thể cập nhật giao dịch',
-                                emotion: 'Sad',
-                              );
-                            }
-                          }
-                        },
-                  style: FilledButton.styleFrom(
-                    backgroundColor: CategoryTheme.colorOf(editCategory),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: AppColors.border,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
                   ),
-                  child: saving
-                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                      : const Text('Lưu chỉnh sửa'),
-                ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Chỉnh sửa giao dịch',
+                    style: Theme.of(ctx).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Số tiền',
+                    style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: amountCtrl,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      hintText: 'Nhập số tiền',
+                      suffixText: 'đ',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Danh mục',
+                    style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<String>(
+                    initialValue: editCategory,
+                    decoration: InputDecoration(
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(AppRadii.md),
+                      ),
+                    ),
+                    items: CategoryTheme.styles.entries
+                        .where(
+                          (e) => CategoryTheme.primaryCodes.contains(e.key),
+                        )
+                        .map(
+                          (e) => DropdownMenuItem<String>(
+                            value: e.key,
+                            child: Row(
+                              children: [
+                                CategoryTheme.iconOf(e.key, size: 22),
+                                const SizedBox(width: 8),
+                                Text(e.value.label),
+                              ],
+                            ),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (val) {
+                      if (val != null) setSheetState(() => editCategory = val);
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Ghi chú',
+                    style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: noteCtrl,
+                    decoration: const InputDecoration(
+                      hintText: 'Ghi chú cho giao dịch',
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      onPressed: saving
+                          ? null
+                          : () async {
+                              setSheetState(() => saving = true);
+                              try {
+                                final newAmt =
+                                    int.tryParse(amountCtrl.text) ?? curAmount;
+                                final newNote = noteCtrl.text;
+                                await _api.updateTransaction(txId, {
+                                  'amount': newAmt,
+                                  'categoryCode': editCategory,
+                                  'note': newNote,
+                                });
+                                if (mounted) {
+                                  setState(() {
+                                    if (primaryTx != null) {
+                                      primaryTx['amount'] = newAmt;
+                                      primaryTx['category_code'] = editCategory;
+                                      primaryTx['categoryCode'] = editCategory;
+                                      primaryTx['note'] = newNote;
+                                    }
+                                    if (_story != null) {
+                                      _story!['amount'] = newAmt;
+                                      _story!['categoryCode'] = editCategory;
+                                      _story!['note'] = newNote;
+                                      _story!['title'] = newNote;
+                                    }
+                                  });
+                                }
+                                notifyTransactionChanged();
+                                if (ctx.mounted) ctx.pop();
+                                if (mounted) {
+                                  MimoSnackBar.showSuccess(
+                                    context,
+                                    message: 'Đã cập nhật giao dịch ✓',
+                                    emotion: 'Celebrate',
+                                  );
+                                }
+                                await _loadStory();
+                              } catch (_) {
+                                setSheetState(() => saving = false);
+                                if (mounted) {
+                                  MimoSnackBar.showError(
+                                    context,
+                                    message: 'Không thể cập nhật giao dịch',
+                                    emotion: 'Sad',
+                                  );
+                                }
+                              }
+                            },
+                      style: FilledButton.styleFrom(
+                        backgroundColor: CategoryTheme.colorOf(editCategory),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                      child: saving
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Text('Lưu chỉnh sửa'),
+                    ),
+                  ),
+                ],
               ),
-            ]),
-           ),
+            ),
           ),
         ),
       ),
@@ -496,8 +590,6 @@ class _StoryPageState extends State<_StoryPage> {
     if (dt == null) return '';
     return formatDateTimeFull(dt);
   }
-
-
 
   Widget _glassActionButton({
     required IconData icon,
@@ -525,16 +617,19 @@ class _StoryPageState extends State<_StoryPage> {
   Widget build(BuildContext context) {
     final items = _story?['items'] as List<dynamic>?;
     final categoryCode = _resolveStoryCategoryCode(items);
-    
-    String title = _story?['title'] as String? ?? _story?['note'] as String? ?? '';
-    final isGeneric = title.isEmpty || 
-        title.toLowerCase() == 'giao dịch' || 
-        title.toLowerCase() == 'khoản chi' || 
+
+    String title =
+        _story?['title'] as String? ?? _story?['note'] as String? ?? '';
+    final isGeneric =
+        title.isEmpty ||
+        title.toLowerCase() == 'giao dịch' ||
+        title.toLowerCase() == 'khoản chi' ||
         title.toLowerCase() == 'khoản thu' ||
         title.toLowerCase() == 'chi tiêu';
     if (isGeneric && items != null && items.isNotEmpty) {
       final firstItem = items.first;
-      final rawText = firstItem['raw_text'] as String? ?? firstItem['rawText'] as String?;
+      final rawText =
+          firstItem['raw_text'] as String? ?? firstItem['rawText'] as String?;
       if (rawText != null && rawText.trim().isNotEmpty) {
         title = rawText.trim();
       }
@@ -543,10 +638,23 @@ class _StoryPageState extends State<_StoryPage> {
       title = 'Giao dịch';
     }
 
-    final aiMessage = _story?['aiMessage'] as String? ?? _story?['ai_message'] as String? ?? _story?['aiComment'] as String? ?? _story?['ai_comment'] as String? ?? _story?['story'] as String? ?? 'Mimo đã ghi nhận giao dịch này!';
+    final aiMessage =
+        _story?['aiMessage'] as String? ??
+        _story?['ai_message'] as String? ??
+        _story?['aiComment'] as String? ??
+        _story?['ai_comment'] as String? ??
+        _story?['story'] as String? ??
+        'Mimo đã ghi nhận giao dịch này!';
     final occurredAt = _story != null ? resolveStoryDisplayIso(_story!) : null;
-    final aiEmotionRaw = _story?['mascotMood'] as String? ?? _story?['mascot_mood'] as String? ?? _story?['aiEmotion'] as String? ?? _story?['ai_emotion'] as String?;
-    final mascotMood = normalizeMimoAssetName(aiEmotionRaw, fallback: 'Success');
+    final aiEmotionRaw =
+        _story?['mascotMood'] as String? ??
+        _story?['mascot_mood'] as String? ??
+        _story?['aiEmotion'] as String? ??
+        _story?['ai_emotion'] as String?;
+    final mascotMood = normalizeMimoAssetName(
+      aiEmotionRaw,
+      fallback: 'Success',
+    );
 
     int amount = 0;
     if (items != null) {
@@ -564,17 +672,26 @@ class _StoryPageState extends State<_StoryPage> {
       amount = parseToInt(_story?['amount'] ?? _story?['total_amount'] ?? 0);
     }
 
-    String? imageUrl = _story?['imageUrl'] as String? ?? _story?['cover_image_url'] as String?;
+    String? imageUrl =
+        _story?['imageUrl'] as String? ?? _story?['cover_image_url'] as String?;
     if (imageUrl == null || imageUrl.isEmpty) {
       if (items != null) {
         for (final item in items) {
-          final mUrl = item['media_url'] as String? ?? item['mediaUrl'] as String?;
-          if (mUrl != null && mUrl.isNotEmpty) { imageUrl = mUrl; break; }
+          final mUrl =
+              item['media_url'] as String? ?? item['mediaUrl'] as String?;
+          if (mUrl != null && mUrl.isNotEmpty) {
+            imageUrl = mUrl;
+            break;
+          }
           final txs = item['transactions'] as List<dynamic>?;
           if (txs != null) {
             for (final tx in txs) {
-              final tUrl = tx['image_url'] as String? ?? tx['imageUrl'] as String?;
-              if (tUrl != null && tUrl.isNotEmpty) { imageUrl = tUrl; break; }
+              final tUrl =
+                  tx['image_url'] as String? ?? tx['imageUrl'] as String?;
+              if (tUrl != null && tUrl.isNotEmpty) {
+                imageUrl = tUrl;
+                break;
+              }
             }
           }
           if (imageUrl != null && imageUrl.isNotEmpty) break;
@@ -591,7 +708,8 @@ class _StoryPageState extends State<_StoryPage> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => FullScreenImagePreview(imageUrl: imageUrl!),
+                        builder: (_) =>
+                            FullScreenImagePreview(imageUrl: imageUrl!),
                       ),
                     );
                   },
@@ -599,7 +717,8 @@ class _StoryPageState extends State<_StoryPage> {
                     imageUrl: imageUrl,
                     fit: BoxFit.cover,
                     memCacheWidth: 1080,
-                    errorWidget: (ctx, url, err) => Container(color: const Color(0xFF0D1117)),
+                    errorWidget: (ctx, url, err) =>
+                        Container(color: const Color(0xFF0D1117)),
                   ),
                 )
               : Container(color: const Color(0xFF0D1117)),
@@ -631,11 +750,20 @@ class _StoryPageState extends State<_StoryPage> {
                       child: _buildLoading(),
                     )
                   : _error != null
-                      ? Padding(
-                          padding: const EdgeInsets.all(AppSpacing.lg),
-                          child: _buildError(),
-                        )
-                      : _buildContent(title, amount, aiMessage, occurredAt, categoryCode, mascotMood, items, imageUrl),
+                  ? Padding(
+                      padding: const EdgeInsets.all(AppSpacing.lg),
+                      child: _buildError(),
+                    )
+                  : _buildContent(
+                      title,
+                      amount,
+                      aiMessage,
+                      occurredAt,
+                      categoryCode,
+                      mascotMood,
+                      items,
+                      imageUrl,
+                    ),
             ),
           ),
         ),
@@ -644,35 +772,59 @@ class _StoryPageState extends State<_StoryPage> {
   }
 
   Widget _buildLoading() {
-    return Column(children: [
-      Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-        CircleAvatar(backgroundColor: Colors.black54,
-          child: IconButton(icon: const Icon(Icons.close, color: Colors.white), onPressed: () => context.pop())),
-      ]),
-      const Spacer(),
-      const SkeletonLine(width: 200, height: 40),
-      const SizedBox(height: 12),
-      const SkeletonLine(width: 160, height: 20),
-      const Spacer(),
-    ]);
+    return Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            CircleAvatar(
+              backgroundColor: Colors.black54,
+              child: IconButton(
+                icon: const Icon(Icons.close, color: Colors.white),
+                onPressed: () => context.pop(),
+              ),
+            ),
+          ],
+        ),
+        const Spacer(),
+        const SkeletonLine(width: 200, height: 40),
+        const SizedBox(height: 12),
+        const SkeletonLine(width: 160, height: 20),
+        const Spacer(),
+      ],
+    );
   }
 
   Widget _buildError() {
-    return Column(children: [
-      Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-        CircleAvatar(backgroundColor: Colors.black54,
-          child: IconButton(icon: const Icon(Icons.close, color: Colors.white), onPressed: () => context.pop())),
-      ]),
-      const Spacer(),
-      Text(_error!, style: const TextStyle(color: Colors.white70)),
-      const SizedBox(height: 12),
-      TextButton(onPressed: _loadStory, child: const Text('Thử lại', style: TextStyle(color: AppColors.teal))),
-      const Spacer(),
-    ]);
+    return Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            CircleAvatar(
+              backgroundColor: Colors.black54,
+              child: IconButton(
+                icon: const Icon(Icons.close, color: Colors.white),
+                onPressed: () => context.pop(),
+              ),
+            ),
+          ],
+        ),
+        const Spacer(),
+        Text(_error!, style: const TextStyle(color: Colors.white70)),
+        const SizedBox(height: 12),
+        TextButton(
+          onPressed: _loadStory,
+          child: const Text('Thử lại', style: TextStyle(color: AppColors.teal)),
+        ),
+        const Spacer(),
+      ],
+    );
   }
 
   String? _resolveStoryCategoryCode(List<dynamic>? items) {
-    final fromStory = _story?['categoryCode'] as String? ??
+    final fromStory =
+        _story?['categoryCode'] as String? ??
         _story?['category_code'] as String? ??
         _story?['category'] as String?;
     if (fromStory != null && fromStory.isNotEmpty) {
@@ -686,7 +838,8 @@ class _StoryPageState extends State<_StoryPage> {
         final txs = item['transactions'] as List<dynamic>?;
         if (txs == null) continue;
         for (final tx in txs) {
-          final raw = tx['category_code'] as String? ??
+          final raw =
+              tx['category_code'] as String? ??
               tx['categoryCode'] as String? ??
               tx['category_name'] as String? ??
               tx['category'] as String?;
@@ -701,7 +854,16 @@ class _StoryPageState extends State<_StoryPage> {
         : 'Other';
   }
 
-  Widget _buildContent(String title, int amount, String aiMessage, String? occurredAt, String? categoryCode, String mascotMood, List<dynamic>? items, String? imageUrl) {
+  Widget _buildContent(
+    String title,
+    int amount,
+    String aiMessage,
+    String? occurredAt,
+    String? categoryCode,
+    String mascotMood,
+    List<dynamic>? items,
+    String? imageUrl,
+  ) {
     final category = CategoryTheme.canonicalCodeOf(categoryCode ?? 'Other');
     final txList = <dynamic>[];
     if (items != null) {
@@ -735,12 +897,25 @@ class _StoryPageState extends State<_StoryPage> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, 0),
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.lg,
+            AppSpacing.sm,
+            AppSpacing.lg,
+            0,
+          ),
           child: Row(
             children: [
-              _glassActionButton(icon: Icons.close, tooltip: 'Đóng', onPressed: () => context.pop()),
+              _glassActionButton(
+                icon: Icons.close,
+                tooltip: 'Đóng',
+                onPressed: () => context.pop(),
+              ),
               const Spacer(),
-              _glassActionButton(icon: Icons.delete_outline, tooltip: 'Xóa', onPressed: _confirmDelete),
+              _glassActionButton(
+                icon: Icons.delete_outline,
+                tooltip: 'Xóa',
+                onPressed: _confirmDelete,
+              ),
             ],
           ),
         ),
@@ -748,416 +923,554 @@ class _StoryPageState extends State<_StoryPage> {
         Flexible(
           flex: 3,
           child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            Positioned(
-              top: -48,
-              left: 24,
-              child: Container(
-                width: 120,
-                height: 120,
+            clipBehavior: Clip.none,
+            children: [
+              Positioned(
+                top: -48,
+                left: 24,
+                child: Container(
+                  width: 120,
+                  height: 120,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        catColor.withValues(alpha: 0.28),
+                        catColor.withValues(alpha: 0.0),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              Container(
                 decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: RadialGradient(
-                    colors: [
-                      catColor.withValues(alpha: 0.28),
-                      catColor.withValues(alpha: 0.0),
-                    ],
+                  borderRadius: BorderRadius.circular(28),
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: hasImage
+                        ? [
+                            Color.lerp(
+                              const Color(0xCC121218),
+                              catColor,
+                              0.14,
+                            )!,
+                            const Color(0xF0121218),
+                          ]
+                        : [const Color(0xFF1E293B), const Color(0xFF0F172A)],
                   ),
+                  border: Border(
+                    top: BorderSide(color: catColor.withValues(alpha: 0.35)),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: catColor.withValues(alpha: 0.12),
+                      blurRadius: 32,
+                      offset: const Offset(0, -12),
+                    ),
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.35),
+                      blurRadius: 28,
+                      offset: const Offset(0, -10),
+                    ),
+                  ],
                 ),
-              ),
-            ),
-            Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(28),
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: hasImage
-                      ? [
-                          Color.lerp(const Color(0xCC121218), catColor, 0.14)!,
-                          const Color(0xF0121218),
-                        ]
-                      : [
-                          const Color(0xFF1E293B),
-                          const Color(0xFF0F172A),
-                        ],
-                ),
-                border: Border(top: BorderSide(color: catColor.withValues(alpha: 0.35))),
-                boxShadow: [
-                  BoxShadow(
-                    color: catColor.withValues(alpha: 0.12),
-                    blurRadius: 32,
-                    offset: const Offset(0, -12),
-                  ),
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.35),
-                    blurRadius: 28,
-                    offset: const Offset(0, -10),
-                  ),
-                ],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(28),
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      CategoryChip(category: category, size: CategoryChipSize.regular, onDark: true),
-                      const SizedBox(height: 16),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            width: 4,
-                            height: 56,
-                            margin: const EdgeInsets.only(top: 4),
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                                colors: [
-                                  catColor,
-                                  catColor.withValues(alpha: 0.35),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(28),
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        CategoryChip(
+                          category: category,
+                          size: CategoryChipSize.regular,
+                          onDark: true,
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              width: 4,
+                              height: 56,
+                              margin: const EdgeInsets.only(top: 4),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: [
+                                    catColor,
+                                    catColor.withValues(alpha: 0.35),
+                                  ],
+                                ),
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '${isExpense ? '-' : '+'}${formatVnd(amount)}',
+                                    style: TextStyle(
+                                      color: amountColor,
+                                      fontSize: 36,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: -0.8,
+                                      height: 1.05,
+                                      shadows: [
+                                        Shadow(
+                                          color: catColor.withValues(
+                                            alpha: isExpense ? 0.35 : 0.5,
+                                          ),
+                                          blurRadius: 18,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    title,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 17,
+                                      fontWeight: FontWeight.w600,
+                                      height: 1.35,
+                                    ),
+                                  ),
                                 ],
                               ),
-                              borderRadius: BorderRadius.circular(999),
                             ),
-                          ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  '${isExpense ? '-' : '+'}${formatVnd(amount)}',
-                                  style: TextStyle(
-                                    color: amountColor,
-                                    fontSize: 36,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: -0.8,
-                                    height: 1.05,
-                                    shadows: [
-                                      Shadow(
-                                        color: catColor.withValues(alpha: isExpense ? 0.35 : 0.5),
-                                        blurRadius: 18,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  title,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 17,
-                                    fontWeight: FontWeight.w600,
-                                    height: 1.35,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      if (occurredAt != null && occurredAt.isNotEmpty) ...[
-                        const SizedBox(height: 12),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: catColor.withValues(alpha: 0.14),
-                            borderRadius: BorderRadius.circular(999),
-                            border: Border.all(color: catColor.withValues(alpha: 0.28)),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.schedule_rounded, size: 14, color: catColor.withValues(alpha: 0.85)),
-                              const SizedBox(width: 6),
-                              Text(
-                                _formatDate(occurredAt),
-                                style: TextStyle(color: Colors.white.withValues(alpha: 0.88), fontSize: 12),
-                              ),
-                            ],
-                          ),
+                          ],
                         ),
-                      ],
-                      if (imageUrl != null && imageUrl.isNotEmpty) ...[
-                        const SizedBox(height: 12),
-                        InkWell(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => FullScreenImagePreview(imageUrl: imageUrl),
-                              ),
-                            );
-                          },
-                          borderRadius: BorderRadius.circular(12),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        if (occurredAt != null && occurredAt.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 6,
+                            ),
                             decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.05),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                              color: catColor.withValues(alpha: 0.14),
+                              borderRadius: BorderRadius.circular(999),
+                              border: Border.all(
+                                color: catColor.withValues(alpha: 0.28),
+                              ),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.receipt_long_outlined, size: 16, color: catColor),
-                                const SizedBox(width: 8),
-                                const Text(
-                                  'Xem ảnh hóa đơn đính kèm',
+                                Icon(
+                                  Icons.schedule_rounded,
+                                  size: 14,
+                                  color: catColor.withValues(alpha: 0.85),
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  _formatDate(occurredAt),
                                   style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white.withValues(alpha: 0.88),
+                                    fontSize: 12,
                                   ),
                                 ),
-                                const SizedBox(width: 4),
-                                Icon(Icons.open_in_new_rounded, size: 12, color: Colors.white.withValues(alpha: 0.5)),
                               ],
                             ),
                           ),
-                        ),
-                      ],
-                  const SizedBox(height: 18),
-                  Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.07),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          width: 3,
-                          height: 52,
-                          margin: const EdgeInsets.only(right: 12, top: 2),
-                          decoration: BoxDecoration(
-                            color: AppColors.teal,
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                        ),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
+                        ],
+                        if (imageUrl != null && imageUrl.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          InkWell(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => FullScreenImagePreview(
+                                    imageUrl: imageUrl,
+                                  ),
+                                ),
+                              );
+                            },
+                            borderRadius: BorderRadius.circular(12),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 10,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.05),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.1),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Container(
-                                    width: 34,
-                                    height: 34,
-                                    decoration: BoxDecoration(
-                                      color: AppColors.teal,
-                                      shape: BoxShape.circle,
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: AppColors.teal.withValues(alpha: 0.35),
-                                          blurRadius: 10,
-                                          offset: const Offset(0, 3),
-                                        ),
-                                      ],
-                                    ),
-                                    child: ClipOval(
-                                      child: Image.asset(
-                                        'assets/MiMo/emotions/$mascotMood.png',
-                                        fit: BoxFit.cover,
-                                        errorBuilder: (_, _, _) => const Center(
-                                          child: Text('😎', style: TextStyle(fontSize: 16)),
-                                        ),
-                                      ),
+                                  Icon(
+                                    Icons.receipt_long_outlined,
+                                    size: 16,
+                                    color: catColor,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  const Text(
+                                    'Xem ảnh hóa đơn đính kèm',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
                                     ),
                                   ),
-                                  const SizedBox(width: 10),
-                                  const Text(
-                                    'Mimo AI',
-                                    style: TextStyle(
-                                      color: AppColors.teal,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w800,
-                                      letterSpacing: 0.2,
-                                    ),
+                                  const SizedBox(width: 4),
+                                  Icon(
+                                    Icons.open_in_new_rounded,
+                                    size: 12,
+                                    color: Colors.white.withValues(alpha: 0.5),
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 10),
-                              Text(
-                                aiMessage,
-                                style: TextStyle(
-                                  color: Colors.white.withValues(alpha: 0.92),
-                                  fontSize: 13,
-                                  height: 1.45,
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              GestureDetector(
-                                onTap: _correcting ? null : _reportCorrection,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withValues(alpha: 0.1),
-                                    borderRadius: BorderRadius.circular(AppRadii.md),
-                                    border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      _correcting
-                                          ? const SizedBox(
-                                              width: 12,
-                                              height: 12,
-                                              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                                            )
-                                          : Icon(Icons.thumb_down_alt_outlined, color: Colors.white.withValues(alpha: 0.75), size: 13),
-                                      const SizedBox(width: 6),
-                                      Text('AI nhận nhầm?', style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 11)),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  // Show transaction list only when there are multiple sub-transactions (bill with many items)
-                  if (txList.length > 1) ...[
-                    const SizedBox(height: 22),
-                    Row(
-                      children: [
-                        Container(
-                          width: 3,
-                          height: 14,
-                          margin: const EdgeInsets.only(right: 8),
-                          decoration: BoxDecoration(
-                            color: catColor,
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                        ),
-                        Text(
-                          'DANH SÁCH CHI TIÊU',
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.55),
-                            fontWeight: FontWeight.w700,
-                            fontSize: 11,
-                            letterSpacing: 1.3,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    ...txList.map((tx) {
-                      final txAmount = parseToInt(tx['amount']);
-                      final txNote = tx['note'] as String? ?? '';
-                      final txCat = tx['category_name'] as String? ?? tx['category_code'] as String? ?? 'Other';
-                      final txTime = txTimestampIso(Map<String, dynamic>.from(tx as Map)) ?? '';
-                      final txImg = tx['image_url'] as String? ?? tx['imageUrl'] as String?;
-                      final txIsExpense = (tx['type'] as String? ?? 'expense').toLowerCase() == 'expense';
-
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 10),
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.05),
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                // Left: icon circle
-                                Container(
-                                  width: 36,
-                                  height: 36,
-                                  decoration: BoxDecoration(
-                                    color: CategoryTheme.colorOf(txCat).withValues(alpha: 0.18),
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: Center(child: CategoryTheme.iconOf(txCat, size: 18)),
-                                ),
-                                const SizedBox(width: 12),
-                                // Middle: note + time
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        txNote.isNotEmpty ? txNote : CategoryTheme.of(txCat).label,
-                                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                      if (txTime.isNotEmpty)
-                                        Text(_formatTxTime(txTime), style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 11)),
-                                    ],
-                                  ),
-                                ),
-                                // Right: amount
-                                Text(
-                                  txIsExpense ? '-${formatVnd(txAmount)}' : '+${formatVnd(txAmount)}',
-                                  style: TextStyle(
-                                    color: txIsExpense ? const Color(0xFFFF9B9B) : const Color(0xFF5EEAD4),
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                              ],
                             ),
-                            if (txImg != null && txImg.isNotEmpty && txImg != imageUrl) ...[
-                              const SizedBox(height: 10),
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(10),
-                                child: AspectRatio(
-                                  aspectRatio: 16 / 9,
-                                  child: CachedNetworkImage(
-                                    imageUrl: txImg,
-                                    width: double.infinity,
-                                    fit: BoxFit.cover,
-                                    memCacheWidth: 1080,
-                                    errorWidget: (_, _, _) => const SizedBox.shrink(),
-                                  ),
+                          ),
+                        ],
+                        const SizedBox(height: 18),
+                        Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.07),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.12),
+                            ),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                width: 3,
+                                height: 52,
+                                margin: const EdgeInsets.only(
+                                  right: 12,
+                                  top: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppColors.teal,
+                                  borderRadius: BorderRadius.circular(999),
+                                ),
+                              ),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Container(
+                                          width: 34,
+                                          height: 34,
+                                          decoration: BoxDecoration(
+                                            color: AppColors.teal,
+                                            shape: BoxShape.circle,
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: AppColors.teal
+                                                    .withValues(alpha: 0.35),
+                                                blurRadius: 10,
+                                                offset: const Offset(0, 3),
+                                              ),
+                                            ],
+                                          ),
+                                          child: ClipOval(
+                                            child: Image.asset(
+                                              'assets/MiMo/emotions/$mascotMood.png',
+                                              fit: BoxFit.cover,
+                                              errorBuilder: (_, _, _) =>
+                                                  const Center(
+                                                    child: Text(
+                                                      '😎',
+                                                      style: TextStyle(
+                                                        fontSize: 16,
+                                                      ),
+                                                    ),
+                                                  ),
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 10),
+                                        const Text(
+                                          'Mimo AI',
+                                          style: TextStyle(
+                                            color: AppColors.teal,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w800,
+                                            letterSpacing: 0.2,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 10),
+                                    Text(
+                                      aiMessage,
+                                      style: TextStyle(
+                                        color: Colors.white.withValues(
+                                          alpha: 0.92,
+                                        ),
+                                        fontSize: 13,
+                                        height: 1.45,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    GestureDetector(
+                                      onTap: _correcting
+                                          ? null
+                                          : _reportCorrection,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 10,
+                                          vertical: 7,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white.withValues(
+                                            alpha: 0.1,
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            AppRadii.md,
+                                          ),
+                                          border: Border.all(
+                                            color: Colors.white.withValues(
+                                              alpha: 0.1,
+                                            ),
+                                          ),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            _correcting
+                                                ? const SizedBox(
+                                                    width: 12,
+                                                    height: 12,
+                                                    child:
+                                                        CircularProgressIndicator(
+                                                          color: Colors.white,
+                                                          strokeWidth: 2,
+                                                        ),
+                                                  )
+                                                : Icon(
+                                                    Icons
+                                                        .thumb_down_alt_outlined,
+                                                    color: Colors.white
+                                                        .withValues(
+                                                          alpha: 0.75,
+                                                        ),
+                                                    size: 13,
+                                                  ),
+                                            const SizedBox(width: 6),
+                                            Text(
+                                              'AI nhận nhầm?',
+                                              style: TextStyle(
+                                                color: Colors.white.withValues(
+                                                  alpha: 0.75,
+                                                ),
+                                                fontSize: 11,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ],
-                          ],
+                          ),
                         ),
-                      );
-                    }),
-                  ],
-                  const SizedBox(height: 20),
-                  // Edit button — color follows category
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton.icon(
-                      onPressed: _showEditSheet,
-                      icon: const Icon(Icons.edit_outlined, size: 18),
-                      label: const Text('Chỉnh sửa giao dịch', style: TextStyle(fontWeight: FontWeight.w700)),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: catColor,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadii.lg)),
-                        elevation: 0,
-                        shadowColor: catColor.withValues(alpha: 0.4),
-                      ),
+                        // Show transaction list only when there are multiple sub-transactions (bill with many items)
+                        if (txList.length > 1) ...[
+                          const SizedBox(height: 22),
+                          Row(
+                            children: [
+                              Container(
+                                width: 3,
+                                height: 14,
+                                margin: const EdgeInsets.only(right: 8),
+                                decoration: BoxDecoration(
+                                  color: catColor,
+                                  borderRadius: BorderRadius.circular(999),
+                                ),
+                              ),
+                              Text(
+                                'DANH SÁCH CHI TIÊU',
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.55),
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 11,
+                                  letterSpacing: 1.3,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          ...txList.map((tx) {
+                            final txAmount = parseToInt(tx['amount']);
+                            final txNote = tx['note'] as String? ?? '';
+                            final txCat =
+                                tx['category_name'] as String? ??
+                                tx['category_code'] as String? ??
+                                'Other';
+                            final txTime =
+                                txTimestampIso(
+                                  Map<String, dynamic>.from(tx as Map),
+                                ) ??
+                                '';
+                            final txImg =
+                                tx['image_url'] as String? ??
+                                tx['imageUrl'] as String?;
+                            final txIsExpense =
+                                (tx['type'] as String? ?? 'expense')
+                                    .toLowerCase() ==
+                                'expense';
+
+                            return Container(
+                              margin: const EdgeInsets.only(bottom: 10),
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.05),
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.1),
+                                ),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      // Left: icon circle
+                                      Container(
+                                        width: 36,
+                                        height: 36,
+                                        decoration: BoxDecoration(
+                                          color: CategoryTheme.colorOf(
+                                            txCat,
+                                          ).withValues(alpha: 0.18),
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                        ),
+                                        child: Center(
+                                          child: CategoryTheme.iconOf(
+                                            txCat,
+                                            size: 18,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      // Middle: note + time
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              txNote.isNotEmpty
+                                                  ? txNote
+                                                  : CategoryTheme.of(
+                                                      txCat,
+                                                    ).label,
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.w600,
+                                                fontSize: 13,
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                            if (txTime.isNotEmpty)
+                                              Text(
+                                                _formatTxTime(txTime),
+                                                style: TextStyle(
+                                                  color: Colors.white
+                                                      .withValues(alpha: 0.4),
+                                                  fontSize: 11,
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                      ),
+                                      // Right: amount
+                                      Text(
+                                        txIsExpense
+                                            ? '-${formatVnd(txAmount)}'
+                                            : '+${formatVnd(txAmount)}',
+                                        style: TextStyle(
+                                          color: txIsExpense
+                                              ? const Color(0xFFFF9B9B)
+                                              : const Color(0xFF5EEAD4),
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  if (txImg != null &&
+                                      txImg.isNotEmpty &&
+                                      txImg != imageUrl) ...[
+                                    const SizedBox(height: 10),
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(10),
+                                      child: AspectRatio(
+                                        aspectRatio: 16 / 9,
+                                        child: CachedNetworkImage(
+                                          imageUrl: txImg,
+                                          width: double.infinity,
+                                          fit: BoxFit.cover,
+                                          memCacheWidth: 1080,
+                                          errorWidget: (_, _, _) =>
+                                              const SizedBox.shrink(),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            );
+                          }),
+                        ],
+                        const SizedBox(height: 20),
+                        // Edit button — color follows category
+                        SizedBox(
+                          width: double.infinity,
+                          child: FilledButton.icon(
+                            onPressed: _showEditSheet,
+                            icon: const Icon(Icons.edit_outlined, size: 18),
+                            label: const Text(
+                              'Chỉnh sửa giao dịch',
+                              style: TextStyle(fontWeight: FontWeight.w700),
+                            ),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: catColor,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(
+                                  AppRadii.lg,
+                                ),
+                              ),
+                              elevation: 0,
+                              shadowColor: catColor.withValues(alpha: 0.4),
+                            ),
+                          ),
+                        ),
+                        SizedBox(
+                          height: MediaQuery.paddingOf(context).bottom + 16,
+                        ),
+                      ],
                     ),
                   ),
-                  SizedBox(height: MediaQuery.paddingOf(context).bottom + 16),
-                ],
+                ),
               ),
-            ),
+            ],
           ),
         ),
-          ],
-        ),
-      ),
       ],
     );
   }
@@ -1187,21 +1500,27 @@ class _FullScreenImagePreviewState extends State<FullScreenImagePreview> {
       final response = await http.get(Uri.parse(widget.imageUrl));
       if (response.statusCode == 200) {
         final tempDir = await getTemporaryDirectory();
-        final file = File('${tempDir.path}/mimo_shared_image_${DateTime.now().millisecondsSinceEpoch}.jpg');
+        final file = File(
+          '${tempDir.path}/mimo_shared_image_${DateTime.now().millisecondsSinceEpoch}.jpg',
+        );
         await file.writeAsBytes(response.bodyBytes);
         // ignore: deprecated_member_use
-        await Share.shareXFiles([XFile(file.path)], text: 'Mimo Finance - Giao dịch của tôi');
+        await Share.shareXFiles([
+          XFile(file.path),
+        ], text: 'Mimo Finance - Giao dịch của tôi');
       } else {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Không thể tải ảnh, vui lòng thử lại sau!')),
+          MimoSnackBar.showInfo(
+            context,
+            message: 'Không thể tải ảnh, vui lòng thử lại sau!',
           );
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Có lỗi xảy ra khi lưu/chia sẻ ảnh!')),
+        MimoSnackBar.showInfo(
+          context,
+          message: 'Có lỗi xảy ra khi lưu/chia sẻ ảnh!',
         );
       }
     } finally {
@@ -1243,10 +1562,16 @@ class _FullScreenImagePreviewState extends State<FullScreenImagePreview> {
                   child: _isSharing
                       ? const Padding(
                           padding: EdgeInsets.all(12.0),
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
                         )
                       : IconButton(
-                          icon: const Icon(Icons.download_rounded, color: Colors.white),
+                          icon: const Icon(
+                            Icons.download_rounded,
+                            color: Colors.white,
+                          ),
                           onPressed: _shareImage,
                           tooltip: 'Lưu / Chia sẻ',
                         ),

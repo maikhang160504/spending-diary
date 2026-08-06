@@ -29,7 +29,10 @@ class LoadingIndicator extends StatelessWidget {
             'assets/animations/Loading.json',
             repeat: true,
             errorBuilder: (_, _, _) => const Center(
-              child: CircularProgressIndicator(color: AppColors.teal, strokeWidth: 3),
+              child: CircularProgressIndicator(
+                color: AppColors.teal,
+                strokeWidth: 3,
+              ),
             ),
           ),
         ),
@@ -39,9 +42,9 @@ class LoadingIndicator extends StatelessWidget {
             message!,
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: messageColor,
-                  fontWeight: FontWeight.w600,
-                ),
+              color: messageColor,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ],
       ],

@@ -111,7 +111,9 @@ class FcmService {
     final type = (message.data['type'] as String?)?.toLowerCase();
     if (type == 'chat_reply') {
       if (ChatScreen.isActive) {
-        debugPrint('[FCM] Suppressing CHAT_REPLY because user is on chat screen');
+        debugPrint(
+          '[FCM] Suppressing CHAT_REPLY because user is on chat screen',
+        );
         return;
       }
     }

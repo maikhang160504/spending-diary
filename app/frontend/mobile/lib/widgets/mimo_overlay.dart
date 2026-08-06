@@ -21,13 +21,18 @@ class MiMoOverlay extends StatefulWidget {
   final MiMoResponse response;
   final VoidCallback onDismiss;
 
-  const MiMoOverlay({super.key, required this.response, required this.onDismiss});
+  const MiMoOverlay({
+    super.key,
+    required this.response,
+    required this.onDismiss,
+  });
 
   @override
   State<MiMoOverlay> createState() => _MiMoOverlayState();
 }
 
-class _MiMoOverlayState extends State<MiMoOverlay> with SingleTickerProviderStateMixin {
+class _MiMoOverlayState extends State<MiMoOverlay>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _ctrl;
   late final Animation<double> _scale;
   late final Animation<Offset> _slide;
@@ -36,10 +41,15 @@ class _MiMoOverlayState extends State<MiMoOverlay> with SingleTickerProviderStat
   @override
   void initState() {
     super.initState();
-    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 400));
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    );
     _scale = CurvedAnimation(parent: _ctrl, curve: Curves.elasticOut);
-    _slide = Tween<Offset>(begin: const Offset(0.5, 0.3), end: Offset.zero)
-        .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutBack));
+    _slide = Tween<Offset>(
+      begin: const Offset(0.5, 0.3),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutBack));
 
     _ctrl.forward();
     // Auto-hide after 60 seconds
@@ -74,7 +84,10 @@ class _MiMoOverlayState extends State<MiMoOverlay> with SingleTickerProviderStat
               Flexible(
                 child: Container(
                   constraints: const BoxConstraints(maxWidth: 210),
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
                   margin: const EdgeInsets.only(right: 8, bottom: 16),
                   decoration: BoxDecoration(
                     color: Colors.white,
@@ -84,26 +97,58 @@ class _MiMoOverlayState extends State<MiMoOverlay> with SingleTickerProviderStat
                       bottomLeft: Radius.circular(AppRadii.lg),
                       bottomRight: Radius.circular(4),
                     ),
-                    boxShadow: const [BoxShadow(color: Color(0x22000000), blurRadius: 12, offset: Offset(0, 4))],
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x22000000),
+                        blurRadius: 12,
+                        offset: Offset(0, 4),
+                      ),
+                    ],
                   ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(color: AppColors.teal.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(999)),
-                          child: Text('Mimo AI', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.teal)),
-                        ),
-                        const SizedBox(width: 4),
-                        Container(
-                          width: 6, height: 6,
-                          decoration: const BoxDecoration(color: Color(0xFF22C55E), shape: BoxShape.circle),
-                        ),
-                      ]),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.teal.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: Text(
+                              'Mimo AI',
+                              style: const TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.teal,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Container(
+                            width: 6,
+                            height: 6,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFF22C55E),
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ],
+                      ),
                       const SizedBox(height: 6),
-                      Text(widget.response.message, style: const TextStyle(fontSize: 12, color: Color(0xFF1E293B), height: 1.4)),
+                      Text(
+                        widget.response.message,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF1E293B),
+                          height: 1.4,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -127,8 +172,11 @@ class _MiMoOverlayState extends State<MiMoOverlay> with SingleTickerProviderStat
                           height: 90,
                           fit: BoxFit.contain,
                           errorBuilder: (ctx2, e2, st2) => const SizedBox(
-                            width: 84, height: 90,
-                            child: Center(child: Text('😊', style: TextStyle(fontSize: 40))),
+                            width: 84,
+                            height: 90,
+                            child: Center(
+                              child: Text('😊', style: TextStyle(fontSize: 40)),
+                            ),
                           ),
                         ),
                       ),

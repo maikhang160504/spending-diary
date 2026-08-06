@@ -54,7 +54,9 @@ String formatVndCompact(int value) {
     result = '${(abs / 1000000000).toStringAsFixed(1)}Tỷ';
   } else if (abs >= 1000000) {
     final tr = abs / 1000000;
-    result = tr >= 10 ? '${tr.toStringAsFixed(0)}Tr' : '${tr.toStringAsFixed(1)}Tr';
+    result = tr >= 10
+        ? '${tr.toStringAsFixed(0)}Tr'
+        : '${tr.toStringAsFixed(1)}Tr';
   } else if (abs >= 1000) {
     result = '${(abs / 1000).toStringAsFixed(0)}K';
   } else {
@@ -62,7 +64,6 @@ String formatVndCompact(int value) {
   }
   return '${isNegative ? '-' : ''}$result đ';
 }
-
 
 /// ISO timestamp for sort/display: prefer occurred_at over created_at.
 String? txTimestampIso(Map<String, dynamic> tx) {
@@ -93,7 +94,14 @@ DateTime? parseStoryDisplayDateTime(dynamic iso, {dynamic timeSourceIso}) {
       final date = DateTime.parse(s).toLocal();
       final src = parseToLocalDateTime(timeSourceIso);
       if (src != null) {
-        return DateTime(date.year, date.month, date.day, src.hour, src.minute, src.second);
+        return DateTime(
+          date.year,
+          date.month,
+          date.day,
+          src.hour,
+          src.minute,
+          src.second,
+        );
       }
       return DateTime(date.year, date.month, date.day, 12, 0);
     }
@@ -133,7 +141,10 @@ String? storyTimestampIso(Map<String, dynamic> story) {
   return null;
 }
 
-int compareStoryByTimestampDesc(Map<String, dynamic> a, Map<String, dynamic> b) {
+int compareStoryByTimestampDesc(
+  Map<String, dynamic> a,
+  Map<String, dynamic> b,
+) {
   final da = parseToLocalDateTime(storyTimestampIso(a));
   final db = parseToLocalDateTime(storyTimestampIso(b));
   if (da == null && db == null) return 0;
@@ -183,7 +194,11 @@ String? resolveStoryDisplayIso(Map<String, dynamic> story) {
 /// Parses a user-entered money string (may contain commas or dots as separators)
 /// back to a double. E.g. "2,000,000" → 2000000.0
 double? parseMoneyInput(String raw) {
-  final cleaned = raw.replaceAll(',', '').replaceAll(' ', '').replaceAll('đ', '').trim();
+  final cleaned = raw
+      .replaceAll(',', '')
+      .replaceAll(' ', '')
+      .replaceAll('đ', '')
+      .trim();
   return double.tryParse(cleaned);
 }
 
@@ -191,7 +206,10 @@ double? parseMoneyInput(String raw) {
 /// E.g. user types 2000000 → shows "2,000,000"
 class MoneyTextInputFormatter extends TextInputFormatter {
   @override
-  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
     // Strip all non-digit characters
     final digits = newValue.text.replaceAll(RegExp(r'[^\d]'), '');
     if (digits.isEmpty) return newValue.copyWith(text: '');

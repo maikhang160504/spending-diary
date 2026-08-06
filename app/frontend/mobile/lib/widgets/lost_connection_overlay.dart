@@ -6,6 +6,7 @@ import '../services/api_client.dart';
 import '../services/connection_manager.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_radii.dart';
+import 'mimo_snackbar.dart';
 
 /// An overlay screen displayed when network connection or server access is lost.
 /// It shows a rotating Lottie spinner and lets the user retry the connection.
@@ -33,12 +34,9 @@ class _LostConnectionOverlayState extends State<LostConnectionOverlay> {
     } catch (_) {
       // Still failed to connect (SocketException, timeout, etc.)
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Vẫn không thể kết nối. Vui lòng thử lại.'),
-            duration: Duration(seconds: 2),
-            backgroundColor: AppColors.danger,
-          ),
+        MimoSnackBar.showError(
+          context,
+          message: 'Vẫn không thể kết nối. Vui lòng thử lại.',
         );
       }
     } finally {
@@ -75,13 +73,21 @@ class _LostConnectionOverlayState extends State<LostConnectionOverlay> {
                   SizedBox(
                     width: 160,
                     height: 160,
-                    child: kIsWeb 
-                      ? const Icon(Icons.wifi_off_rounded, size: 80, color: AppColors.textSecondary)
-                      : Lottie.asset(
-                          'assets/animations/LostConnection.json',
-                          repeat: true,
-                          errorBuilder: (context, error, stack) => const Icon(Icons.wifi_off_rounded, size: 80, color: AppColors.textSecondary),
-                        ),
+                    child: kIsWeb
+                        ? const Icon(
+                            Icons.wifi_off_rounded,
+                            size: 80,
+                            color: AppColors.textSecondary,
+                          )
+                        : Lottie.asset(
+                            'assets/animations/LostConnection.json',
+                            repeat: true,
+                            errorBuilder: (context, error, stack) => const Icon(
+                              Icons.wifi_off_rounded,
+                              size: 80,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
                   ),
                   const SizedBox(height: 16),
                   const Text(

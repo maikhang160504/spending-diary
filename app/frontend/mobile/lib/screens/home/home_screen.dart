@@ -395,13 +395,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
                           if (mounted && ctx.mounted) {
                             Navigator.pop(ctx);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  'Đã tham gia ví "${newWallet['name']}" thành công!',
-                                ),
-                                backgroundColor: AppColors.teal,
-                              ),
+                            MimoSnackBar.showSuccess(
+                              context,
+                              message: 'Đã tham gia ví "${newWallet['name']}" thành công!',
                             );
                             if (newWallet['type'] == 'group') {
                               _onWalletTap(newWallet);

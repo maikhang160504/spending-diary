@@ -13,16 +13,16 @@ class LottieTransitionPage<T> extends CustomTransitionPage<T> {
     Duration duration = const Duration(milliseconds: 900),
     Duration reverseDuration = const Duration(milliseconds: 300),
   }) : super(
-          transitionDuration: duration,
-          reverseTransitionDuration: reverseDuration,
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            return _LottieTransitionBuilder(
-              animation: animation,
-              lottiePath: lottiePath,
-              child: child,
-            );
-          },
-        );
+         transitionDuration: duration,
+         reverseTransitionDuration: reverseDuration,
+         transitionsBuilder: (context, animation, secondaryAnimation, child) {
+           return _LottieTransitionBuilder(
+             animation: animation,
+             lottiePath: lottiePath,
+             child: child,
+           );
+         },
+       );
 }
 
 class _LottieTransitionBuilder extends StatelessWidget {
@@ -47,10 +47,7 @@ class _LottieTransitionBuilder extends StatelessWidget {
 
         if (isReversing) {
           // snappy fade-out when popping
-          return Opacity(
-            opacity: value,
-            child: child,
-          );
+          return Opacity(opacity: value, child: child);
         }
 
         // Forward transition color matching theme
@@ -76,18 +73,13 @@ class _LottieTransitionBuilder extends StatelessWidget {
             // Theme background overlay
             Opacity(
               opacity: bgOpacity,
-              child: Container(
-                color: bgColor,
-              ),
+              child: Container(color: bgColor),
             ),
 
             // The target page fading & scaling in
             Opacity(
               opacity: childOpacity,
-              child: Transform.scale(
-                scale: childScale,
-                child: child,
-              ),
+              child: Transform.scale(scale: childScale, child: child),
             ),
 
             // The thematic Lottie animation in the center
@@ -102,7 +94,8 @@ class _LottieTransitionBuilder extends StatelessWidget {
                       child: Lottie.asset(
                         lottiePath,
                         controller: animation,
-                        animate: false, // Drive animation using the transition value
+                        animate:
+                            false, // Drive animation using the transition value
                         fit: BoxFit.contain,
                       ),
                     ),

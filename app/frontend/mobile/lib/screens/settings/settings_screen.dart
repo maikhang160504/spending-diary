@@ -408,23 +408,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         final name = nameCtrl.text.trim();
                         if (name.isEmpty) {
                           setDialogState(
-                            () => dialogError = 'Tên người dùng không được để trống',
+                            () => dialogError =
+                                'Tên người dùng không được để trống',
                           );
                           return;
                         }
                         if (name.length > 80) {
-                          setDialogState(() => dialogError = 'Tên tối đa 80 ký tự');
+                          setDialogState(
+                            () => dialogError = 'Tên tối đa 80 ký tự',
+                          );
                           return;
                         }
                         final incomeText = incomeCtrl.text.trim();
                         if (incomeText.isNotEmpty) {
                           final income = int.tryParse(incomeText);
                           if (income == null || income < 0) {
-                            setDialogState(() => dialogError = 'Thu nhập không hợp lệ (phải là số đương)');
+                            setDialogState(
+                              () => dialogError =
+                                  'Thu nhập không hợp lệ (phải là số đương)',
+                            );
                             return;
                           }
                           if (income > 10000000000) {
-                            setDialogState(() => dialogError = 'Thu nhập tối đa 10 tỷ đồng/tháng');
+                            setDialogState(
+                              () => dialogError =
+                                  'Thu nhập tối đa 10 tỷ đồng/tháng',
+                            );
                             return;
                           }
                         }
@@ -1524,6 +1533,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       },
     );
   }
+
   Color _avatarColor(String name) {
     if (name.isEmpty) return AppColors.teal;
     final hash = name.codeUnits.fold<int>(0, (prev, c) => prev + c);

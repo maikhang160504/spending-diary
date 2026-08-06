@@ -4,6 +4,7 @@ import '../../services/api_client.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_palette.dart';
 import 'package:intl/intl.dart';
+import '../../widgets/mimo_snackbar.dart';
 
 class LoanFormScreen extends StatefulWidget {
   final String? walletId;
@@ -26,9 +27,9 @@ class _LoanFormScreenState extends State<LoanFormScreen> {
   void _submit() async {
     if (!_formKey.currentState!.validate()) return;
     _formKey.currentState!.save();
-    
+
     if (_dueDate == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Vui lòng chọn ngày đến hạn')));
+      MimoSnackBar.showInfo(context, message: 'Vui lòng chọn ngày đến hạn');
       return;
     }
 
@@ -48,7 +49,7 @@ class _LoanFormScreenState extends State<LoanFormScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
+        MimoSnackBar.showInfo(context, message: 'Lỗi: $e');
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -65,118 +66,158 @@ class _LoanFormScreenState extends State<LoanFormScreen> {
         foregroundColor: context.palette.textPrimary,
         elevation: 0,
       ),
-      body: _isLoading ? const Center(child: CircularProgressIndicator()) : SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Loại giao dịch', style: TextStyle(color: context.palette.textSecondary, fontSize: 14)),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: RadioListTile<String>(
-                      title: const Text('Cho vay'),
-                      value: 'lend',
-                      groupValue: _type,
-                      onChanged: (v) => setState(() => _type = v!),
-                      contentPadding: EdgeInsets.zero,
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Loại giao dịch',
+                      style: TextStyle(
+                        color: context.palette.textSecondary,
+                        fontSize: 14,
+                      ),
                     ),
-                  ),
-                  Expanded(
-                    child: RadioListTile<String>(
-                      title: const Text('Đi vay'),
-                      value: 'borrow',
-                      groupValue: _type,
-                      onChanged: (v) => setState(() => _type = v!),
-                      contentPadding: EdgeInsets.zero,
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: RadioListTile<String>(
+                            title: const Text('Cho vay'),
+                            value: 'lend',
+                            groupValue: _type,
+                            onChanged: (v) => setState(() => _type = v!),
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                        ),
+                        Expanded(
+                          child: RadioListTile<String>(
+                            title: const Text('Đi vay'),
+                            value: 'borrow',
+                            groupValue: _type,
+                            onChanged: (v) => setState(() => _type = v!),
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                decoration: InputDecoration(
-                  labelText: _type == 'lend' ? 'Người vay' : 'Người cho vay',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      decoration: InputDecoration(
+                        labelText: _type == 'lend'
+                            ? 'Người vay'
+                            : 'Người cho vay',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      validator: (v) => v!.isEmpty ? 'Vui lòng nhập tên' : null,
+                      onSaved: (v) => _contactName = v!,
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      decoration: InputDecoration(
+                        labelText: 'Số tiền',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        suffixText: 'đ',
+                      ),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: false,
+                      ),
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      validator: (v) {
+                        if (v == null || v.trim().isEmpty)
+                          return 'Vui lòng nhập số tiền';
+                        final num = double.tryParse(v.replaceAll(',', ''));
+                        if (num == null || num <= 0)
+                          return 'Số tiền phải lớn hơn 0';
+                        if (num > 100000000000)
+                          return 'Số tiền tối đa 100 tỷ đồng';
+                        return null;
+                      },
+                      onSaved: (v) => _amount = v!,
+                    ),
+                    const SizedBox(height: 16),
+                    InkWell(
+                      onTap: () async {
+                        final date = await showDatePicker(
+                          context: context,
+                          initialDate: DateTime.now(),
+                          firstDate: DateTime.now(),
+                          lastDate: DateTime.now().add(
+                            const Duration(days: 3650),
+                          ),
+                        );
+                        if (date != null) setState(() => _dueDate = date);
+                      },
+                      child: InputDecorator(
+                        decoration: InputDecoration(
+                          labelText: 'Hạn trả',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: Text(
+                          _dueDate == null
+                              ? 'Chọn ngày'
+                              : DateFormat('dd/MM/yyyy').format(_dueDate!),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      decoration: InputDecoration(
+                        labelText: 'Ghi chú',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      maxLines: 2,
+                      onSaved: (v) => _note = v ?? '',
+                    ),
+                    const SizedBox(height: 24),
+                    SwitchListTile(
+                      title: const Text('Tạo giao dịch thu/chi trong ví'),
+                      subtitle: const Text(
+                        'Tự động trừ hoặc cộng số dư vào ví thực tế của bạn',
+                      ),
+                      value: _createTransaction,
+                      onChanged: (v) => setState(() => _createTransaction = v),
+                      contentPadding: EdgeInsets.zero,
+                      activeThumbColor: AppColors.teal,
+                    ),
+                    const SizedBox(height: 32),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: ElevatedButton(
+                        onPressed: _submit,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.teal,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(25),
+                          ),
+                        ),
+                        child: const Text(
+                          'Lưu khoản vay',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                validator: (v) => v!.isEmpty ? 'Vui lòng nhập tên' : null,
-                onSaved: (v) => _contactName = v!,
               ),
-              const SizedBox(height: 16),
-              TextFormField(
-                decoration: InputDecoration(
-                  labelText: 'Số tiền',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  suffixText: 'đ',
-                ),
-                keyboardType: const TextInputType.numberWithOptions(decimal: false),
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                validator: (v) {
-                  if (v == null || v.trim().isEmpty) return 'Vui lòng nhập số tiền';
-                  final num = double.tryParse(v.replaceAll(',', ''));
-                  if (num == null || num <= 0) return 'Số tiền phải lớn hơn 0';
-                  if (num > 100000000000) return 'Số tiền tối đa 100 tỷ đồng';
-                  return null;
-                },
-                onSaved: (v) => _amount = v!,
-              ),
-              const SizedBox(height: 16),
-              InkWell(
-                onTap: () async {
-                  final date = await showDatePicker(
-                    context: context,
-                    initialDate: DateTime.now(),
-                    firstDate: DateTime.now(),
-                    lastDate: DateTime.now().add(const Duration(days: 3650)),
-                  );
-                  if (date != null) setState(() => _dueDate = date);
-                },
-                child: InputDecorator(
-                  decoration: InputDecoration(
-                    labelText: 'Hạn trả',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  child: Text(_dueDate == null ? 'Chọn ngày' : DateFormat('dd/MM/yyyy').format(_dueDate!)),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                decoration: InputDecoration(
-                  labelText: 'Ghi chú',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                maxLines: 2,
-                onSaved: (v) => _note = v ?? '',
-              ),
-              const SizedBox(height: 24),
-              SwitchListTile(
-                title: const Text('Tạo giao dịch thu/chi trong ví'),
-                subtitle: const Text('Tự động trừ hoặc cộng số dư vào ví thực tế của bạn'),
-                value: _createTransaction,
-                onChanged: (v) => setState(() => _createTransaction = v),
-                contentPadding: EdgeInsets.zero,
-                activeThumbColor: AppColors.teal,
-              ),
-              const SizedBox(height: 32),
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: _submit,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.teal,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
-                  ),
-                  child: const Text('Lưu khoản vay', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+            ),
     );
   }
 }

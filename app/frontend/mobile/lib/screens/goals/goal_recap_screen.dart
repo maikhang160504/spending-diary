@@ -14,7 +14,8 @@ class GoalRecapScreen extends StatefulWidget {
   State<GoalRecapScreen> createState() => _GoalRecapScreenState();
 }
 
-class _GoalRecapScreenState extends State<GoalRecapScreen> with SingleTickerProviderStateMixin {
+class _GoalRecapScreenState extends State<GoalRecapScreen>
+    with SingleTickerProviderStateMixin {
   final PageController _pageController = PageController();
   final ApiClient _api = ApiClient();
 
@@ -49,7 +50,9 @@ class _GoalRecapScreenState extends State<GoalRecapScreen> with SingleTickerProv
       setState(() {
         _loadingAi = false;
         _title = res['title']?.toString() ?? 'CHỨNG NHẬN HOÀN THÀNH';
-        _commentary = res['commentary']?.toString() ?? 'Chúc mừng bạn đã xuất sắc chinh phục mục tiêu!';
+        _commentary =
+            res['commentary']?.toString() ??
+            'Chúc mừng bạn đã xuất sắc chinh phục mục tiêu!';
         _mascotMood = res['mascotMood']?.toString() ?? 'Celebrate';
         _mvpMember = res['mvpMember'] as Map<String, dynamic>?;
       });
@@ -62,7 +65,8 @@ class _GoalRecapScreenState extends State<GoalRecapScreen> with SingleTickerProv
       setState(() {
         _loadingAi = false;
         _title = 'CHỨNG NHẬN HOÀN THÀNH';
-        _commentary = 'Xuất sắc! Bạn đã chinh phục thành công "$name". Hãy tiếp tục phát huy kỷ luật tài chính tuyệt vời này nhé!';
+        _commentary =
+            'Xuất sắc! Bạn đã chinh phục thành công "$name". Hãy tiếp tục phát huy kỷ luật tài chính tuyệt vời này nhé!';
         _mascotMood = 'Celebrate';
       });
       if (_currentPage == 2) {
@@ -75,7 +79,9 @@ class _GoalRecapScreenState extends State<GoalRecapScreen> with SingleTickerProv
     _typewriterTimer?.cancel();
     _displayedCommentary = '';
     int idx = 0;
-    _typewriterTimer = Timer.periodic(const Duration(milliseconds: 25), (timer) {
+    _typewriterTimer = Timer.periodic(const Duration(milliseconds: 25), (
+      timer,
+    ) {
       if (idx < text.length) {
         if (mounted) {
           setState(() {
@@ -108,10 +114,12 @@ class _GoalRecapScreenState extends State<GoalRecapScreen> with SingleTickerProv
   @override
   Widget build(BuildContext context) {
     final name = widget.goal['name'] ?? 'Mục tiêu';
-    final targetAmt = double.tryParse(widget.goal['targetAmount']?.toString() ?? '0') ?? 0;
+    final targetAmt =
+        double.tryParse(widget.goal['targetAmount']?.toString() ?? '0') ?? 0;
     final emoji = widget.goal['emoji']?.toString() ?? '🎯';
     final isGroup = widget.goal['isGroup'] == true;
-    final isChallenge = widget.goal['type']?.toString().contains('challenge') == true;
+    final isChallenge =
+        widget.goal['type']?.toString().contains('challenge') == true;
 
     return Scaffold(
       backgroundColor: const Color(0xFF0F172A),
@@ -141,95 +149,115 @@ class _GoalRecapScreenState extends State<GoalRecapScreen> with SingleTickerProv
               constraints: const BoxConstraints(maxWidth: 500),
               child: SafeArea(
                 child: Column(
-              children: [
-                // Top header & progress dots
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  child: Row(
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.close, color: Colors.white70),
-                        onPressed: () => Navigator.of(context).pop(),
+                  children: [
+                    // Top header & progress dots
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 12,
                       ),
-                      Expanded(
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: List.generate(3, (index) {
-                            return AnimatedContainer(
-                              duration: const Duration(milliseconds: 300),
-                              margin: const EdgeInsets.symmetric(horizontal: 4),
-                              width: _currentPage == index ? 24 : 8,
-                              height: 6,
-                              decoration: BoxDecoration(
-                                color: _currentPage == index
-                                    ? const Color(0xFFF59E0B)
-                                    : Colors.white24,
-                                borderRadius: BorderRadius.circular(999),
+                      child: Row(
+                        children: [
+                          IconButton(
+                            icon: const Icon(
+                              Icons.close,
+                              color: Colors.white70,
+                            ),
+                            onPressed: () => Navigator.of(context).pop(),
+                          ),
+                          Expanded(
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: List.generate(3, (index) {
+                                return AnimatedContainer(
+                                  duration: const Duration(milliseconds: 300),
+                                  margin: const EdgeInsets.symmetric(
+                                    horizontal: 4,
+                                  ),
+                                  width: _currentPage == index ? 24 : 8,
+                                  height: 6,
+                                  decoration: BoxDecoration(
+                                    color: _currentPage == index
+                                        ? const Color(0xFFF59E0B)
+                                        : Colors.white24,
+                                    borderRadius: BorderRadius.circular(999),
+                                  ),
+                                );
+                              }),
+                            ),
+                          ),
+                          const SizedBox(width: 48), // balance space
+                        ],
+                      ),
+                    ),
+                    Expanded(
+                      child: PageView(
+                        controller: _pageController,
+                        onPageChanged: _onPageChanged,
+                        children: [
+                          _buildSlide1(name, emoji, targetAmt, isChallenge),
+                          _buildSlide2(name, targetAmt, isGroup, isChallenge),
+                          _buildSlide3(name, emoji, targetAmt),
+                        ],
+                      ),
+                    ),
+                    // Bottom navigation controls
+                    Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          if (_currentPage > 0)
+                            TextButton(
+                              onPressed: () => _pageController.previousPage(
+                                duration: const Duration(milliseconds: 300),
+                                curve: Curves.easeInOut,
                               ),
-                            );
-                          }),
-                        ),
+                              child: const Text(
+                                'Quay lại',
+                                style: TextStyle(color: Colors.white60),
+                              ),
+                            )
+                          else
+                            const SizedBox(),
+                          if (_currentPage < 2)
+                            FilledButton(
+                              onPressed: () => _pageController.nextPage(
+                                duration: const Duration(milliseconds: 300),
+                                curve: Curves.easeInOut,
+                              ),
+                              style: FilledButton.styleFrom(
+                                backgroundColor: const Color(0xFFF59E0B),
+                                foregroundColor: const Color(0xFF0F172A),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 28,
+                                  vertical: 14,
+                                ),
+                              ),
+                              child: const Text(
+                                'Tiếp theo',
+                                style: TextStyle(fontWeight: FontWeight.w700),
+                              ),
+                            )
+                          else
+                            FilledButton.icon(
+                              onPressed: () => Navigator.of(context).pop(),
+                              icon: const Icon(Icons.auto_awesome),
+                              label: const Text('Hoàn tất hành trình'),
+                              style: FilledButton.styleFrom(
+                                backgroundColor: AppColors.teal,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 24,
+                                  vertical: 14,
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
-                      const SizedBox(width: 48), // balance space
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-                Expanded(
-                  child: PageView(
-                    controller: _pageController,
-                    onPageChanged: _onPageChanged,
-                    children: [
-                      _buildSlide1(name, emoji, targetAmt, isChallenge),
-                      _buildSlide2(name, targetAmt, isGroup, isChallenge),
-                      _buildSlide3(name, emoji, targetAmt),
-                    ],
-                  ),
-                ),
-                // Bottom navigation controls
-                Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      if (_currentPage > 0)
-                        TextButton(
-                          onPressed: () => _pageController.previousPage(
-                            duration: const Duration(milliseconds: 300),
-                            curve: Curves.easeInOut,
-                          ),
-                          child: const Text('Quay lại', style: TextStyle(color: Colors.white60)),
-                        )
-                      else
-                        const SizedBox(),
-                      if (_currentPage < 2)
-                        FilledButton(
-                          onPressed: () => _pageController.nextPage(
-                            duration: const Duration(milliseconds: 300),
-                            curve: Curves.easeInOut,
-                          ),
-                          style: FilledButton.styleFrom(
-                            backgroundColor: const Color(0xFFF59E0B),
-                            foregroundColor: const Color(0xFF0F172A),
-                            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
-                          ),
-                          child: const Text('Tiếp theo', style: TextStyle(fontWeight: FontWeight.w700)),
-                        )
-                      else
-                        FilledButton.icon(
-                          onPressed: () => Navigator.of(context).pop(),
-                          icon: const Icon(Icons.auto_awesome),
-                          label: const Text('Hoàn tất hành trình'),
-                          style: FilledButton.styleFrom(
-                            backgroundColor: AppColors.teal,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
               ),
             ),
           ),
@@ -238,7 +266,12 @@ class _GoalRecapScreenState extends State<GoalRecapScreen> with SingleTickerProv
     );
   }
 
-  Widget _buildSlide1(String name, String emoji, double targetAmt, bool isChallenge) {
+  Widget _buildSlide1(
+    String name,
+    String emoji,
+    double targetAmt,
+    bool isChallenge,
+  ) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
       child: Column(
@@ -263,7 +296,9 @@ class _GoalRecapScreenState extends State<GoalRecapScreen> with SingleTickerProv
               borderRadius: BorderRadius.circular(999),
             ),
             child: Text(
-              isChallenge ? 'THỬ THÁCH ĐÃ HOÀN THÀNH 🏆' : 'MỤC TIÊU ĐÃ HOÀN THÀNH ✨',
+              isChallenge
+                  ? 'THỬ THÁCH ĐÃ HOÀN THÀNH 🏆'
+                  : 'MỤC TIÊU ĐÃ HOÀN THÀNH ✨',
               style: const TextStyle(
                 color: Color(0xFFFBBF24),
                 fontWeight: FontWeight.w800,
@@ -298,7 +333,12 @@ class _GoalRecapScreenState extends State<GoalRecapScreen> with SingleTickerProv
     );
   }
 
-  Widget _buildSlide2(String name, double targetAmt, bool isGroup, bool isChallenge) {
+  Widget _buildSlide2(
+    String name,
+    double targetAmt,
+    bool isGroup,
+    bool isChallenge,
+  ) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
       child: Column(
@@ -314,9 +354,17 @@ class _GoalRecapScreenState extends State<GoalRecapScreen> with SingleTickerProv
             ),
           ),
           const SizedBox(height: 24),
-          _buildStatCard('Thành quả đạt được', formatVnd(targetAmt.round()), Icons.verified),
+          _buildStatCard(
+            'Thành quả đạt được',
+            formatVnd(targetAmt.round()),
+            Icons.verified,
+          ),
           const SizedBox(height: 12),
-          _buildStatCard('Trạng thái hành trình', '100% Hoàn thành', Icons.insights),
+          _buildStatCard(
+            'Trạng thái hành trình',
+            '100% Hoàn thành',
+            Icons.insights,
+          ),
           if (isGroup) ...[
             const SizedBox(height: 24),
             Container(
@@ -331,7 +379,9 @@ class _GoalRecapScreenState extends State<GoalRecapScreen> with SingleTickerProv
                   end: Alignment.bottomRight,
                 ),
                 borderRadius: BorderRadius.circular(AppRadii.lg),
-                border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.4)),
+                border: Border.all(
+                  color: const Color(0xFFF59E0B).withValues(alpha: 0.4),
+                ),
               ),
               child: Row(
                 children: [
@@ -343,16 +393,27 @@ class _GoalRecapScreenState extends State<GoalRecapScreen> with SingleTickerProv
                       children: [
                         const Text(
                           'VINH DANH ĐỒNG ĐỘI MVP',
-                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFFFBBF24)),
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFFFBBF24),
+                          ),
                         ),
                         const SizedBox(height: 4),
                         Text(
                           _mvpMember?['name']?.toString() ?? 'Đoàn kết tập thể',
-                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white),
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
                         ),
                         Text(
                           'Đã góp sức tích cực cho quỹ chung',
-                          style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.7)),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.white.withValues(alpha: 0.7),
+                          ),
                         ),
                       ],
                     ),
@@ -382,9 +443,19 @@ class _GoalRecapScreenState extends State<GoalRecapScreen> with SingleTickerProv
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: const TextStyle(fontSize: 13, color: Colors.white60)),
+                Text(
+                  label,
+                  style: const TextStyle(fontSize: 13, color: Colors.white60),
+                ),
                 const SizedBox(height: 2),
-                Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Colors.white)),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                  ),
+                ),
               ],
             ),
           ),
@@ -403,12 +474,18 @@ class _GoalRecapScreenState extends State<GoalRecapScreen> with SingleTickerProv
           Image.asset(
             'assets/MiMo/emotions/$_mascotMood.png',
             height: 84,
-            errorBuilder: (context, error, stackTrace) => const Text('🎉', style: TextStyle(fontSize: 56)),
+            errorBuilder: (context, error, stackTrace) =>
+                const Text('🎉', style: TextStyle(fontSize: 56)),
           ),
           const SizedBox(height: 12),
           Text(
             _title ?? 'CHỨNG NHẬN HOÀN THÀNH',
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Color(0xFFFBBF24), letterSpacing: 0.5),
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFFFBBF24),
+              letterSpacing: 0.5,
+            ),
           ),
           const SizedBox(height: 16),
           // Certificate Card containing commentary
@@ -424,7 +501,9 @@ class _GoalRecapScreenState extends State<GoalRecapScreen> with SingleTickerProv
                 end: Alignment.bottomRight,
               ),
               borderRadius: BorderRadius.circular(AppRadii.xl),
-              border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.4)),
+              border: Border.all(
+                color: const Color(0xFFF59E0B).withValues(alpha: 0.4),
+              ),
             ),
             child: Column(
               children: [
@@ -436,7 +515,11 @@ class _GoalRecapScreenState extends State<GoalRecapScreen> with SingleTickerProv
                     Flexible(
                       child: Text(
                         name,
-                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Colors.white),
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                        ),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
@@ -452,18 +535,26 @@ class _GoalRecapScreenState extends State<GoalRecapScreen> with SingleTickerProv
                       const SizedBox(
                         width: 16,
                         height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFFBBF24)),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Color(0xFFFBBF24),
+                        ),
                       ),
                       const SizedBox(width: 12),
                       Text(
                         'MiMo đang viết lời nhận xét riêng cho bạn...',
-                        style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 13),
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.7),
+                          fontSize: 13,
+                        ),
                       ),
                     ],
                   )
                 else
                   Text(
-                    _displayedCommentary.isNotEmpty ? _displayedCommentary : (_commentary ?? ''),
+                    _displayedCommentary.isNotEmpty
+                        ? _displayedCommentary
+                        : (_commentary ?? ''),
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                       fontSize: 14,
@@ -477,7 +568,11 @@ class _GoalRecapScreenState extends State<GoalRecapScreen> with SingleTickerProv
                   children: [
                     Text(
                       '— MiMo AI Assistant',
-                      style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic, color: Colors.white.withValues(alpha: 0.6)),
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontStyle: FontStyle.italic,
+                        color: Colors.white.withValues(alpha: 0.6),
+                      ),
                     ),
                   ],
                 ),

@@ -47,7 +47,8 @@ class InAppNotificationBanner extends StatefulWidget {
   });
 
   @override
-  State<InAppNotificationBanner> createState() => _InAppNotificationBannerState();
+  State<InAppNotificationBanner> createState() =>
+      _InAppNotificationBannerState();
 }
 
 class _InAppNotificationBannerState extends State<InAppNotificationBanner>
@@ -64,9 +65,10 @@ class _InAppNotificationBannerState extends State<InAppNotificationBanner>
       vsync: this,
       duration: const Duration(milliseconds: 350),
     );
-    _slide = Tween<double>(begin: -100.0, end: 0.0).animate(
-      CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic),
-    );
+    _slide = Tween<double>(
+      begin: -100.0,
+      end: 0.0,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic));
     _fade = CurvedAnimation(parent: _ctrl, curve: Curves.easeIn);
 
     _ctrl.forward();
@@ -98,10 +100,7 @@ class _InAppNotificationBannerState extends State<InAppNotificationBanner>
       builder: (context, child) {
         return Transform.translate(
           offset: Offset(0, _slide.value),
-          child: Opacity(
-            opacity: _fade.value,
-            child: child,
-          ),
+          child: Opacity(opacity: _fade.value, child: child),
         );
       },
       child: GestureDetector(
@@ -119,8 +118,9 @@ class _InAppNotificationBannerState extends State<InAppNotificationBanner>
               color: isDark ? const Color(0xFF1E293B) : Colors.white,
               borderRadius: BorderRadius.circular(AppRadii.lg),
               border: Border.all(
-                color: widget.notification.title.contains('🚨') || 
-                       widget.notification.title.contains('Cảnh báo')
+                color:
+                    widget.notification.title.contains('🚨') ||
+                        widget.notification.title.contains('Cảnh báo')
                     ? Colors.amber.withValues(alpha: 0.5)
                     : AppColors.teal.withValues(alpha: 0.5),
                 width: 1.5,
@@ -140,19 +140,21 @@ class _InAppNotificationBannerState extends State<InAppNotificationBanner>
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: widget.notification.title.contains('🚨') || 
-                           widget.notification.title.contains('Cảnh báo')
+                    color:
+                        widget.notification.title.contains('🚨') ||
+                            widget.notification.title.contains('Cảnh báo')
                         ? Colors.amber.withValues(alpha: 0.12)
                         : AppColors.teal.withValues(alpha: 0.12),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
-                    widget.notification.title.contains('🚨') || 
-                    widget.notification.title.contains('Cảnh báo')
+                    widget.notification.title.contains('🚨') ||
+                            widget.notification.title.contains('Cảnh báo')
                         ? Icons.warning_amber_rounded
                         : Icons.notifications_active_outlined,
-                    color: widget.notification.title.contains('🚨') || 
-                           widget.notification.title.contains('Cảnh báo')
+                    color:
+                        widget.notification.title.contains('🚨') ||
+                            widget.notification.title.contains('Cảnh báo')
                         ? Colors.amber
                         : AppColors.teal,
                     size: 20,

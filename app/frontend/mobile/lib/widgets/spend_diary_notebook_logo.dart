@@ -58,12 +58,16 @@ class SpendDiaryNotebookLogo extends StatelessWidget {
               Positioned(
                 left: size * 0.06,
                 top: size * 0.38,
-                child: _SpineRing(opacity: ringOpacity.length > 1 ? ringOpacity[1] : 0),
+                child: _SpineRing(
+                  opacity: ringOpacity.length > 1 ? ringOpacity[1] : 0,
+                ),
               ),
               Positioned(
                 left: size * 0.06,
                 top: size * 0.54,
-                child: _SpineRing(opacity: ringOpacity.length > 2 ? ringOpacity[2] : 0),
+                child: _SpineRing(
+                  opacity: ringOpacity.length > 2 ? ringOpacity[2] : 0,
+                ),
               ),
               // Tờ hóa đơn trên bìa — trượt từ dưới lên ~15px
               Positioned(
@@ -128,7 +132,11 @@ class SpendDiaryNotebookLogo extends StatelessWidget {
                         ),
                       ],
                     ),
-                    child: const Icon(Icons.lock_rounded, color: Colors.white, size: 14),
+                    child: const Icon(
+                      Icons.lock_rounded,
+                      color: Colors.white,
+                      size: 14,
+                    ),
                   ),
                 ),
               ),
@@ -202,5 +210,6 @@ class _ShimmerSweepPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _ShimmerSweepPainter old) => old.progress != progress;
+  bool shouldRepaint(covariant _ShimmerSweepPainter old) =>
+      old.progress != progress;
 }

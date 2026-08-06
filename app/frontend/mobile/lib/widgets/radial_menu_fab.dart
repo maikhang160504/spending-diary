@@ -22,7 +22,8 @@ class RadialMenuFab extends StatefulWidget {
   State<RadialMenuFab> createState() => _RadialMenuFabState();
 }
 
-class _RadialMenuFabState extends State<RadialMenuFab> with SingleTickerProviderStateMixin {
+class _RadialMenuFabState extends State<RadialMenuFab>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   bool _isOpen = false;
   final double _radius = 90.0;
@@ -53,7 +54,12 @@ class _RadialMenuFabState extends State<RadialMenuFab> with SingleTickerProvider
     });
   }
 
-  Widget _buildItem(double angle, IconData icon, String tooltip, VoidCallback onTap) {
+  Widget _buildItem(
+    double angle,
+    IconData icon,
+    String tooltip,
+    VoidCallback onTap,
+  ) {
     // angle in radians
     final double rad = angle * math.pi / 180.0;
     // Tọa độ gốc dưới phải, bay lên và sang trái
@@ -116,10 +122,20 @@ class _RadialMenuFabState extends State<RadialMenuFab> with SingleTickerProvider
           // Ảnh (30°)
           _buildItem(30, Icons.image_outlined, 'Tải ảnh', widget.onSelectPhoto),
           // Quét Bill (60°)
-          _buildItem(60, Icons.document_scanner_outlined, 'Quét Bill', widget.onSelectBill),
+          _buildItem(
+            60,
+            Icons.document_scanner_outlined,
+            'Quét Bill',
+            widget.onSelectBill,
+          ),
           // Chat (90°)
-          _buildItem(90, Icons.chat_bubble_outline, 'Chat với AI', widget.onSelectChat),
-          
+          _buildItem(
+            90,
+            Icons.chat_bubble_outline,
+            'Chat với AI',
+            widget.onSelectChat,
+          ),
+
           // Main Trigger Button
           FloatingActionButton(
             heroTag: 'main_radial_fab',
@@ -129,10 +145,11 @@ class _RadialMenuFabState extends State<RadialMenuFab> with SingleTickerProvider
               animation: _controller,
               builder: (context, child) {
                 return Transform.rotate(
-                  angle: _controller.value * math.pi / 4, // Xoay 45 độ thành dấu X
+                  angle:
+                      _controller.value * math.pi / 4, // Xoay 45 độ thành dấu X
                   child: Icon(
-                    _isOpen ? Icons.close : Icons.auto_awesome, 
-                    color: Colors.white
+                    _isOpen ? Icons.close : Icons.auto_awesome,
+                    color: Colors.white,
                   ),
                 );
               },

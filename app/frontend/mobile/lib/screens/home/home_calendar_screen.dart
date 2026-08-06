@@ -98,13 +98,18 @@ class _HomeCalendarScreenState extends State<HomeCalendarScreen> {
 
   Future<void> _loadWalletData({bool forceRefetch = false}) async {
     try {
-      final dashF = forceRefetch
-          ? AppQueries.dashboard(_selectedWalletId).refetch()
-          : AppQueries.dashboard(_selectedWalletId).result;
-      final txF = forceRefetch
-          ? AppQueries.transactions(_selectedWalletId, pageSize: 100).refetch()
-          : AppQueries.transactions(_selectedWalletId, pageSize: 100).result;
-      final dash = await dashF;
+        final start = DateTime(_focus.year, _focus.month, 1).toIso8601String();
+        final end = DateTime(_focus.year, _focus.month + 1, 0, 23, 59, 59).toIso8601String();
+
+        final dashF = forceRefetch
+            ? AppQueries.dashboard(_selectedWalletId, from: start, to: end).refetch()
+            : AppQueries.dashboard(_selectedWalletId, from: start, to: end).result;
+        
+        final txF = forceRefetch
+          ? AppQueries.transactions(_selectedWalletId, pageSize: 100, from: start, to: end).refetch()
+          : AppQueries.transactions(_selectedWalletId, pageSize: 100, from: start, to: end).result;
+        
+        final dash = await dashF;
       final tx = await txF;
       if (!mounted) return;
       setState(() {
@@ -243,7 +248,7 @@ class _HomeCalendarScreenState extends State<HomeCalendarScreen> {
                                       _focus.month - 1,
                                     );
                                     _selectedDay = null;
-                                    _loadWalletData();
+                                    _loadWalletData(forceRefetch: true);
                                   }),
                                 ),
                                 Text(
@@ -262,7 +267,7 @@ class _HomeCalendarScreenState extends State<HomeCalendarScreen> {
                                       _focus.month + 1,
                                     );
                                     _selectedDay = null;
-                                    _loadWalletData();
+                                    _loadWalletData(forceRefetch: true);
                                   }),
                                 ),
                               ],

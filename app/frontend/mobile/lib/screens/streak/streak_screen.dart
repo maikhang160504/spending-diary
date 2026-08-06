@@ -40,7 +40,9 @@ class _StreakScreenState extends State<StreakScreen> {
         _longestStreak = (data['longestStreak'] as num?)?.toInt() ?? 0;
         _totalDays = (data['totalDays'] as num?)?.toInt() ?? 0;
         if (data['activeDates'] is List) {
-          _activeDates = (data['activeDates'] as List).map((e) => e.toString()).toSet();
+          _activeDates = (data['activeDates'] as List)
+              .map((e) => e.toString())
+              .toSet();
         }
       });
     } catch (_) {}
@@ -63,7 +65,9 @@ class _StreakScreenState extends State<StreakScreen> {
       title: 'Streak đầu tiên',
       subtitle: 'Ghi chép 3 ngày liên tục',
       achieved: _longestStreak >= 3 || _currentStreak >= 3,
-      current: _longestStreak >= _currentStreak ? _longestStreak : _currentStreak,
+      current: _longestStreak >= _currentStreak
+          ? _longestStreak
+          : _currentStreak,
       target: 3,
       unit: 'ngày liên tục',
     ),
@@ -72,7 +76,9 @@ class _StreakScreenState extends State<StreakScreen> {
       title: 'Tuần hoàn hảo',
       subtitle: 'Ghi chép 7 ngày liên tục',
       achieved: _longestStreak >= 7 || _currentStreak >= 7,
-      current: _longestStreak >= _currentStreak ? _longestStreak : _currentStreak,
+      current: _longestStreak >= _currentStreak
+          ? _longestStreak
+          : _currentStreak,
       target: 7,
       unit: 'ngày liên tục',
     ),
@@ -81,7 +87,9 @@ class _StreakScreenState extends State<StreakScreen> {
       title: 'Thói quen bền bỉ',
       subtitle: 'Ghi chép 14 ngày liên tục',
       achieved: _longestStreak >= 14 || _currentStreak >= 14,
-      current: _longestStreak >= _currentStreak ? _longestStreak : _currentStreak,
+      current: _longestStreak >= _currentStreak
+          ? _longestStreak
+          : _currentStreak,
       target: 14,
       unit: 'ngày liên tục',
     ),
@@ -90,7 +98,9 @@ class _StreakScreenState extends State<StreakScreen> {
       title: 'Tháng vàng',
       subtitle: 'Ghi chép 30 ngày liên tục',
       achieved: _longestStreak >= 30 || _currentStreak >= 30,
-      current: _longestStreak >= _currentStreak ? _longestStreak : _currentStreak,
+      current: _longestStreak >= _currentStreak
+          ? _longestStreak
+          : _currentStreak,
       target: 30,
       unit: 'ngày liên tục',
     ),
@@ -125,125 +135,229 @@ class _StreakScreenState extends State<StreakScreen> {
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.only(bottom: 24),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              // Header
-              Container(
-                decoration: const BoxDecoration(
-                  gradient: AppGradients.teal,
-                  borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(AppRadii.xl),
-                    bottomRight: Radius.circular(AppRadii.xl),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header
+                Container(
+                  decoration: const BoxDecoration(
+                    gradient: AppGradients.teal,
+                    borderRadius: BorderRadius.only(
+                      bottomLeft: Radius.circular(AppRadii.xl),
+                      bottomRight: Radius.circular(AppRadii.xl),
+                    ),
+                  ),
+                  padding: const EdgeInsets.fromLTRB(8, 16, 24, 24),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        onPressed: () => context.pop(),
+                        icon: const Icon(
+                          Icons.arrow_back_ios_new,
+                          color: Colors.white,
+                          size: 18,
+                        ),
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Chuỗi ghi chép',
+                            style: Theme.of(context).textTheme.titleLarge
+                                ?.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                          ),
+                          Text(
+                            'Duy trì thói quen tốt mỗi ngày',
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(color: Colors.white70),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
-                padding: const EdgeInsets.fromLTRB(8, 16, 24, 24),
-                child: Row(children: [
-                  IconButton(
-                    onPressed: () => context.pop(),
-                    icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 18),
+                const SizedBox(height: 16),
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.xxl,
                   ),
-                  Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text('Chuỗi ghi chép', style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.white, fontWeight: FontWeight.w700)),
-                    Text('Duy trì thói quen tốt mỗi ngày', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white70)),
-                  ]),
-                ]),
-              ),
-              const SizedBox(height: 16),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  // Streak summary card — ST-01 real data
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: context.palette.card,
-                      borderRadius: BorderRadius.circular(AppRadii.lg),
-                      boxShadow: context.palette.softShadow,
-                    ),
-                    child: Column(children: [
-                      // Fire animation chạy khi đang giữ chuỗi thành công
-                      SizedBox(
-                        height: 96,
-                        child: _currentStreak > 0
-                            ? Lottie.asset(
-                                'assets/animations/Fire.json',
-                                height: 96,
-                                repeat: true,
-                                errorBuilder: (_, _, _) => const Text('🔥', style: TextStyle(fontSize: 48)),
-                              )
-                            : const Center(child: Text('🔥', style: TextStyle(fontSize: 48))),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Streak summary card — ST-01 real data
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: context.palette.card,
+                          borderRadius: BorderRadius.circular(AppRadii.lg),
+                          boxShadow: context.palette.softShadow,
+                        ),
+                        child: Column(
+                          children: [
+                            // Fire animation chạy khi đang giữ chuỗi thành công
+                            SizedBox(
+                              height: 96,
+                              child: _currentStreak > 0
+                                  ? Lottie.asset(
+                                      'assets/animations/Fire.json',
+                                      height: 96,
+                                      repeat: true,
+                                      errorBuilder: (_, _, _) => const Text(
+                                        '🔥',
+                                        style: TextStyle(fontSize: 48),
+                                      ),
+                                    )
+                                  : const Center(
+                                      child: Text(
+                                        '🔥',
+                                        style: TextStyle(fontSize: 48),
+                                      ),
+                                    ),
+                            ),
+                            const SizedBox(height: 8),
+                            _loading
+                                ? const SkeletonLine(width: 80, height: 52)
+                                : Text(
+                                    '$_currentStreak',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .headlineMedium
+                                        ?.copyWith(
+                                          fontWeight: FontWeight.w900,
+                                          fontSize: 52,
+                                        ),
+                                  ),
+                            Text(
+                              'Ngày liên tục',
+                              style: Theme.of(context).textTheme.bodyMedium
+                                  ?.copyWith(color: AppColors.textSecondary),
+                            ),
+                            const SizedBox(height: 20),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _StatBox(
+                                    icon: Icons.emoji_events_outlined,
+                                    label: 'Kỷ lục',
+                                    value: _loading ? '...' : '$_longestStreak',
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: _StatBox(
+                                    icon: Icons.calendar_today_outlined,
+                                    label: 'Tổng số ngày',
+                                    value: _loading ? '...' : '$_totalDays',
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
-                      const SizedBox(height: 8),
-                      _loading
-                          ? const SkeletonLine(width: 80, height: 52)
-                          : Text('$_currentStreak', style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w900, fontSize: 52)),
-                      Text('Ngày liên tục', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary)),
                       const SizedBox(height: 20),
-                      Row(children: [
-                        Expanded(child: _StatBox(
-                          icon: Icons.emoji_events_outlined,
-                          label: 'Kỷ lục',
-                          value: _loading ? '...' : '$_longestStreak',
-                        )),
-                        const SizedBox(width: 12),
-                        Expanded(child: _StatBox(
-                          icon: Icons.calendar_today_outlined,
-                          label: 'Tổng số ngày',
-                          value: _loading ? '...' : '$_totalDays',
-                        )),
-                      ]),
-                    ]),
+                      // 30-day heatmap — ST-02 from streak data
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: context.palette.card,
+                          borderRadius: BorderRadius.circular(AppRadii.lg),
+                          boxShadow: context.palette.softShadow,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  '30 ngày gần nhất',
+                                  style: Theme.of(context).textTheme.titleSmall,
+                                ),
+                                const Icon(
+                                  Icons.trending_up,
+                                  color: AppColors.teal,
+                                  size: 18,
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 14),
+                            _StreakGrid(
+                              currentStreak: _currentStreak,
+                              activeDates: _activeDates,
+                            ),
+                            const SizedBox(height: 10),
+                            Text(
+                              'Mỗi ô màu xanh = 1 ngày có giao dịch hoặc chat ✓',
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(color: AppColors.muted),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      // Achievements — ST-04 computed
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.emoji_events,
+                            color: AppColors.teal,
+                            size: 18,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Thành tích',
+                            style: Theme.of(context).textTheme.titleSmall,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      ..._achievements.map((a) => _AchievementCard(item: a)),
+                      const SizedBox(height: 20),
+                      // Tips
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF0FDF4),
+                          borderRadius: BorderRadius.circular(AppRadii.lg),
+                          border: Border.all(color: const Color(0xFF86EFAC)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Mẹo duy trì streak',
+                              style: Theme.of(context).textTheme.titleSmall
+                                  ?.copyWith(color: const Color(0xFF16A34A)),
+                            ),
+                            const SizedBox(height: 10),
+                            const _TipRow(
+                              emoji: '💡',
+                              text:
+                                  'Ghi chép mỗi ngày giúp bạn kiểm soát chi tiêu tốt hơn',
+                            ),
+                            const _TipRow(
+                              emoji: '🎯',
+                              text:
+                                  'Streak càng dài, bạn càng hiểu rõ thói quen chi tiêu của mình',
+                            ),
+                            const _TipRow(
+                              emoji: '🔥',
+                              text:
+                                  'Đừng phá chuỗi! Mỗi ngày chỉ cần 1 giao dịch là được',
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 20),
-                  // 30-day heatmap — ST-02 from streak data
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: context.palette.card,
-                      borderRadius: BorderRadius.circular(AppRadii.lg),
-                      boxShadow: context.palette.softShadow,
-                    ),
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                        Text('30 ngày gần nhất', style: Theme.of(context).textTheme.titleSmall),
-                        const Icon(Icons.trending_up, color: AppColors.teal, size: 18),
-                      ]),
-                      const SizedBox(height: 14),
-                      _StreakGrid(currentStreak: _currentStreak, activeDates: _activeDates),
-                      const SizedBox(height: 10),
-                      Text('Mỗi ô màu xanh = 1 ngày có giao dịch hoặc chat ✓',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.muted)),
-                    ]),
-                  ),
-                  const SizedBox(height: 20),
-                  // Achievements — ST-04 computed
-                  Row(children: [
-                    const Icon(Icons.emoji_events, color: AppColors.teal, size: 18),
-                    const SizedBox(width: 6),
-                    Text('Thành tích', style: Theme.of(context).textTheme.titleSmall),
-                  ]),
-                  const SizedBox(height: 12),
-                  ..._achievements.map((a) => _AchievementCard(item: a)),
-                  const SizedBox(height: 20),
-                  // Tips
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF0FDF4),
-                      borderRadius: BorderRadius.circular(AppRadii.lg),
-                      border: Border.all(color: const Color(0xFF86EFAC)),
-                    ),
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text('Mẹo duy trì streak', style: Theme.of(context).textTheme.titleSmall?.copyWith(color: const Color(0xFF16A34A))),
-                      const SizedBox(height: 10),
-                      const _TipRow(emoji: '💡', text: 'Ghi chép mỗi ngày giúp bạn kiểm soát chi tiêu tốt hơn'),
-                      const _TipRow(emoji: '🎯', text: 'Streak càng dài, bạn càng hiểu rõ thói quen chi tiêu của mình'),
-                      const _TipRow(emoji: '🔥', text: 'Đừng phá chuỗi! Mỗi ngày chỉ cần 1 giao dịch là được'),
-                    ]),
-                  ),
-                ]),
-              ),
-            ]),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -275,28 +389,47 @@ class _StreakGrid extends StatelessWidget {
         // index 0 = 29 days ago, index 29 = today
         final dayOffset = 29 - index;
         final date = today.subtract(Duration(days: dayOffset));
-        final dateStr = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-        final isActive = activeDates.contains(dateStr) || (activeDates.isEmpty && dayOffset < currentStreak);
+        final dateStr =
+            '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+        final isActive =
+            activeDates.contains(dateStr) ||
+            (activeDates.isEmpty && dayOffset < currentStreak);
         final isToday = dayOffset == 0;
 
         return Tooltip(
           message: '${date.day}/${date.month}',
-          child: Column(children: [
-            Expanded(
-              child: Container(
-                decoration: BoxDecoration(
-                  color: isActive ? AppColors.teal : context.palette.surfaceAlt,
-                  shape: BoxShape.circle,
+          child: Column(
+            children: [
+              Expanded(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: isActive
+                        ? AppColors.teal
+                        : context.palette.surfaceAlt,
+                    shape: BoxShape.circle,
+                  ),
+                  child: isActive
+                      ? Center(
+                          child: Text(
+                            '🔥',
+                            style: TextStyle(fontSize: isToday ? 10 : 9),
+                          ),
+                        )
+                      : null,
                 ),
-                child: isActive
-                    ? Center(child: Text('🔥', style: TextStyle(fontSize: isToday ? 10 : 9)))
-                    : null,
               ),
-            ),
-            if (isToday)
-              const Text('Hôm\nnay', textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 7, color: AppColors.teal, fontWeight: FontWeight.w600)),
-          ]),
+              if (isToday)
+                const Text(
+                  'Hôm\nnay',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 7,
+                    color: AppColors.teal,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+            ],
+          ),
         );
       },
     );
@@ -308,19 +441,38 @@ class _StreakGrid extends StatelessWidget {
 class _StatBox extends StatelessWidget {
   final IconData icon;
   final String label, value;
-  const _StatBox({required this.icon, required this.label, required this.value});
+  const _StatBox({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 14),
-      decoration: BoxDecoration(color: context.palette.surfaceAlt, borderRadius: BorderRadius.circular(AppRadii.md)),
-      child: Column(children: [
-        Icon(icon, color: AppColors.teal, size: 22),
-        const SizedBox(height: 4),
-        Text(label, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.muted)),
-        Text(value, style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
-      ]),
+      decoration: BoxDecoration(
+        color: context.palette.surfaceAlt,
+        borderRadius: BorderRadius.circular(AppRadii.md),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: AppColors.teal, size: 22),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AppColors.muted),
+          ),
+          Text(
+            value,
+            style: Theme.of(
+              context,
+            ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -346,7 +498,9 @@ class _AchievementCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final progress = item.target > 0 ? (item.current / item.target).clamp(0.0, 1.0) : 0.0;
+    final progress = item.target > 0
+        ? (item.current / item.target).clamp(0.0, 1.0)
+        : 0.0;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -359,54 +513,100 @@ class _AchievementCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(children: [
-            Container(
-              width: 52, height: 52,
-              decoration: BoxDecoration(
-                color: item.achieved ? AppColors.teal.withValues(alpha: 0.12) : context.palette.surfaceAlt,
-                borderRadius: BorderRadius.circular(AppRadii.md),
+          Row(
+            children: [
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  color: item.achieved
+                      ? AppColors.teal.withValues(alpha: 0.12)
+                      : context.palette.surfaceAlt,
+                  borderRadius: BorderRadius.circular(AppRadii.md),
+                ),
+                child: Center(
+                  child: Text(item.emoji, style: const TextStyle(fontSize: 24)),
+                ),
               ),
-              child: Center(child: Text(item.emoji, style: const TextStyle(fontSize: 24))),
-            ),
-            const SizedBox(width: 12),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(item.title, style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700)),
-              const SizedBox(height: 3),
-              Text(item.subtitle, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary)),
-            ])),
-            if (item.achieved)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: AppColors.teal.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(AppRadii.full),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.check_circle, color: AppColors.teal, size: 16),
-                    SizedBox(width: 4),
-                    Text('Đã đạt', style: TextStyle(color: AppColors.teal, fontSize: 12, fontWeight: FontWeight.w600)),
-                  ],
-                ),
-              )
-            else
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: context.palette.surfaceAlt,
-                  borderRadius: BorderRadius.circular(AppRadii.full),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.lock_outline, color: AppColors.muted, size: 14),
-                    const SizedBox(width: 4),
-                    Text('${item.current}/${item.target}', style: const TextStyle(color: AppColors.muted, fontSize: 12, fontWeight: FontWeight.w600)),
+                    Text(
+                      item.title,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      item.subtitle,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
                   ],
                 ),
               ),
-          ]),
+              if (item.achieved)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.teal.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(AppRadii.full),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.check_circle, color: AppColors.teal, size: 16),
+                      SizedBox(width: 4),
+                      Text(
+                        'Đã đạt',
+                        style: TextStyle(
+                          color: AppColors.teal,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: context.palette.surfaceAlt,
+                    borderRadius: BorderRadius.circular(AppRadii.full),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.lock_outline,
+                        color: AppColors.muted,
+                        size: 14,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${item.current}/${item.target}',
+                        style: const TextStyle(
+                          color: AppColors.muted,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
           if (!item.achieved && item.target > 1) ...[
             const SizedBox(height: 10),
             ClipRRect(
@@ -433,11 +633,16 @@ class _TipRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
-      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(emoji, style: const TextStyle(fontSize: 14)),
-        const SizedBox(width: 8),
-        Expanded(child: Text(text, style: Theme.of(context).textTheme.bodySmall)),
-      ]),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(emoji, style: const TextStyle(fontSize: 14)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(text, style: Theme.of(context).textTheme.bodySmall),
+          ),
+        ],
+      ),
     );
   }
 }

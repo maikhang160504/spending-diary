@@ -16,10 +16,12 @@ class CumulativeBudgetReportScreen extends StatefulWidget {
   const CumulativeBudgetReportScreen({super.key, this.initialWalletId});
 
   @override
-  State<CumulativeBudgetReportScreen> createState() => _CumulativeBudgetReportScreenState();
+  State<CumulativeBudgetReportScreen> createState() =>
+      _CumulativeBudgetReportScreenState();
 }
 
-class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScreen> {
+class _CumulativeBudgetReportScreenState
+    extends State<CumulativeBudgetReportScreen> {
   String _selectedPeriod = 'Theo tháng';
   bool _isAnalyzingAI = false;
   int _periodOffset = 0;
@@ -92,7 +94,9 @@ class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScr
     final now = DateTime.now();
     if (_selectedPeriod == 'Theo tuần') {
       if (_periodOffset == 0) return 'Tuần hiện tại';
-      final startOfWeek = now.subtract(Duration(days: now.weekday - 1)).subtract(Duration(days: 7 * _periodOffset));
+      final startOfWeek = now
+          .subtract(Duration(days: now.weekday - 1))
+          .subtract(Duration(days: 7 * _periodOffset));
       final endOfWeek = startOfWeek.add(const Duration(days: 6));
       return '${DateFormat('dd/MM').format(startOfWeek)} - ${DateFormat('dd/MM').format(endOfWeek)}';
     } else {
@@ -104,38 +108,56 @@ class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScr
 
   Future<void> _analyzeAI() async {
     setState(() => _isAnalyzingAI = true);
-    try {
-      double currentSpent = 0;
-      if (_dailyCumulative.isNotEmpty) {
-        currentSpent = (_dailyCumulative.last['cumulative'] as num?)?.toDouble() ?? 0;
-      }
-      final double pct = _limit > 0 ? (currentSpent / _limit * 100) : 0;
-      final prompt = 'Phân tích tốc độ tiêu hao hạn mức ngân sách: Kỳ $_selectedPeriod (${_getPeriodLabel()}), hạn mức: ${formatVnd(_limit.toInt())}, đã chi lũy kế: ${formatVnd(currentSpent.toInt())} (${pct.toStringAsFixed(1)}%). Hãy đưa ra cảnh báo và đề xuất chi tiêu an toàn cho những ngày tiếp theo.';
-      final res = await AIAdvisorService.askFinancialQuestion(prompt);
-      if (mounted) {
-        setState(() {
-          _aiInsight = res;
-          _isAnalyzingAI = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _aiInsight = 'Tốc độ chi tiêu lũy kế đang bám sát hạn mức an toàn. Hãy duy trì nhịp độ chi tiêu hợp lý để hoàn thành mục tiêu!';
-          _isAnalyzingAI = false;
-        });
-      }
+    double currentSpent = 0;
+    if (_dailyCumulative.isNotEmpty) {
+      currentSpent =
+          (_dailyCumulative.last['cumulative'] as num?)?.toDouble() ?? 0;
+    }
+
+    // Tính số ngày đã trôi qua và tổng số ngày trong kỳ
+    final now = DateTime.now();
+    int daysElapsed = 0;
+    int totalDays = 0;
+    if (_selectedPeriod == 'Theo tuần') {
+      totalDays = 7;
+      daysElapsed = now.weekday - (_periodOffset == 0 ? 0 : 7 * _periodOffset);
+      daysElapsed = daysElapsed.clamp(1, 7);
+    } else {
+      final targetMonth = DateTime(now.year, now.month - _periodOffset, 1);
+      totalDays = DateUtils.getDaysInMonth(targetMonth.year, targetMonth.month);
+      daysElapsed = _periodOffset == 0 ? now.day : totalDays;
+    }
+
+    await Future.delayed(const Duration(milliseconds: 400));
+    final insight = AIAdvisorService.analyzeCumulativeBudget(
+      limit: _limit,
+      currentSpent: currentSpent,
+      periodLabel: _getPeriodLabel(),
+      daysElapsed: daysElapsed,
+      totalDays: totalDays,
+    );
+    if (mounted) {
+      setState(() {
+        _aiInsight = insight;
+        _isAnalyzingAI = false;
+      });
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
     double currentSpent = 0;
     if (_dailyCumulative.isNotEmpty) {
-      currentSpent = (_dailyCumulative.last['cumulative'] as num?)?.toDouble() ?? 0;
+      currentSpent =
+          (_dailyCumulative.last['cumulative'] as num?)?.toDouble() ?? 0;
     }
-    final double remaining = (_limit - currentSpent) > 0 ? (_limit - currentSpent) : 0;
-    final double pct = _limit > 0 ? (currentSpent / _limit * 100).clamp(0, 100) : 0;
+    final double remaining = (_limit - currentSpent) > 0
+        ? (_limit - currentSpent)
+        : 0;
+    final double pct = _limit > 0
+        ? (currentSpent / _limit * 100).clamp(0, 100)
+        : 0;
 
     return Scaffold(
       backgroundColor: context.palette.bg,
@@ -144,7 +166,11 @@ class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScr
         elevation: 0,
         centerTitle: true,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new_rounded, color: context.palette.textPrimary, size: 20),
+          icon: Icon(
+            Icons.arrow_back_ios_new_rounded,
+            color: context.palette.textPrimary,
+            size: 20,
+          ),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: const Text(
@@ -155,7 +181,9 @@ class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScr
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final isLandscapePhone = constraints.maxWidth > constraints.maxHeight && constraints.maxHeight < 500;
+            final isLandscapePhone =
+                constraints.maxWidth > constraints.maxHeight &&
+                constraints.maxHeight < 500;
             return Center(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 600),
@@ -163,7 +191,10 @@ class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScr
                   children: [
                     // ── Responsive filter bar ─────────────────────────────
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.md,
+                        vertical: 4,
+                      ),
                       child: ReportFilterBar(
                         isLandscapePhone: isLandscapePhone,
                         children: [
@@ -215,7 +246,12 @@ class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScr
                       child: _isLoading
                           ? const Center(child: CircularProgressIndicator())
                           : SingleChildScrollView(
-                              padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 8, AppSpacing.lg, AppSpacing.lg),
+                              padding: const EdgeInsets.fromLTRB(
+                                AppSpacing.lg,
+                                8,
+                                AppSpacing.lg,
+                                AppSpacing.lg,
+                              ),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
@@ -223,47 +259,91 @@ class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScr
                                   const SizedBox(height: 16),
                                   // Thẻ tổng quan Hạn mức
                                   Container(
-                                    padding: const EdgeInsets.all(AppSpacing.lg),
+                                    padding: const EdgeInsets.all(
+                                      AppSpacing.lg,
+                                    ),
                                     decoration: BoxDecoration(
                                       color: context.palette.card,
-                                      borderRadius: BorderRadius.circular(AppRadii.xl),
+                                      borderRadius: BorderRadius.circular(
+                                        AppRadii.xl,
+                                      ),
                                       boxShadow: context.palette.softShadow,
-                                      border: Border.all(color: AppColors.teal.withValues(alpha: 0.2)),
+                                      border: Border.all(
+                                        color: AppColors.teal.withValues(
+                                          alpha: 0.2,
+                                        ),
+                                      ),
                                     ),
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Row(
-                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
                                           children: [
-                                            const Text('Hạn mức ngân sách kỳ', style: TextStyle(color: AppColors.muted, fontSize: 13)),
+                                            const Text(
+                                              'Hạn mức ngân sách kỳ',
+                                              style: TextStyle(
+                                                color: AppColors.muted,
+                                                fontSize: 13,
+                                              ),
+                                            ),
                                             Text(
                                               'Đã dùng ${pct.toStringAsFixed(1)}%',
-                                              style: const TextStyle(color: AppColors.teal, fontWeight: FontWeight.w700, fontSize: 13),
+                                              style: const TextStyle(
+                                                color: AppColors.teal,
+                                                fontWeight: FontWeight.w700,
+                                                fontSize: 13,
+                                              ),
                                             ),
                                           ],
                                         ),
                                         const SizedBox(height: 8),
                                         Text(
                                           formatVnd(_limit.toInt()),
-                                          style: TextStyle(color: context.palette.textPrimary, fontSize: 24, fontWeight: FontWeight.w800),
+                                          style: TextStyle(
+                                            color: context.palette.textPrimary,
+                                            fontSize: 24,
+                                            fontWeight: FontWeight.w800,
+                                          ),
                                         ),
                                         const SizedBox(height: 14),
                                         ClipRRect(
-                                          borderRadius: BorderRadius.circular(8),
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
                                           child: LinearProgressIndicator(
                                             value: pct / 100,
                                             minHeight: 10,
-                                            backgroundColor: AppColors.teal.withValues(alpha: 0.15),
-                                            valueColor: const AlwaysStoppedAnimation(AppColors.teal),
+                                            backgroundColor: AppColors.teal
+                                                .withValues(alpha: 0.15),
+                                            valueColor:
+                                                const AlwaysStoppedAnimation(
+                                                  AppColors.teal,
+                                                ),
                                           ),
                                         ),
                                         const SizedBox(height: 14),
                                         Row(
                                           children: [
-                                            Expanded(child: _buildStatCol('Đã chi lũy kế', formatVnd(currentSpent.toInt()), AppColors.danger, isRight: false)),
+                                            Expanded(
+                                              child: _buildStatCol(
+                                                'Đã chi lũy kế',
+                                                formatVnd(currentSpent.toInt()),
+                                                AppColors.danger,
+                                                isRight: false,
+                                              ),
+                                            ),
                                             const SizedBox(width: 12),
-                                            Expanded(child: _buildStatCol('Còn lại an toàn', formatVnd(remaining.toInt()), AppColors.teal, isRight: true)),
+                                            Expanded(
+                                              child: _buildStatCol(
+                                                'Còn lại an toàn',
+                                                formatVnd(remaining.toInt()),
+                                                AppColors.teal,
+                                                isRight: true,
+                                              ),
+                                            ),
                                           ],
                                         ),
                                       ],
@@ -285,16 +365,35 @@ class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScr
     );
   }
 
-  Widget _buildStatCol(String label, String value, Color color, {bool isRight = false}) {
+  Widget _buildStatCol(
+    String label,
+    String value,
+    Color color, {
+    bool isRight = false,
+  }) {
     return Column(
-      crossAxisAlignment: isRight ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      crossAxisAlignment: isRight
+          ? CrossAxisAlignment.end
+          : CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(color: AppColors.muted, fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
+        Text(
+          label,
+          style: const TextStyle(color: AppColors.muted, fontSize: 12),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
         const SizedBox(height: 4),
         FittedBox(
           fit: BoxFit.scaleDown,
           alignment: isRight ? Alignment.centerRight : Alignment.centerLeft,
-          child: Text(value, style: TextStyle(color: color, fontSize: 16, fontWeight: FontWeight.w700)),
+          child: Text(
+            value,
+            style: TextStyle(
+              color: color,
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
         ),
       ],
     );
@@ -330,7 +429,9 @@ class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScr
                   ),
                   child: ClipOval(
                     child: Image.asset(
-                      _isAnalyzingAI ? 'assets/MiMo/emotions/Thinking.png' : 'assets/MiMo/emotions/Working.png',
+                      _isAnalyzingAI
+                          ? 'assets/MiMo/emotions/Thinking.png'
+                          : 'assets/MiMo/emotions/Working.png',
                       fit: BoxFit.cover,
                     ),
                   ),
@@ -342,22 +443,36 @@ class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScr
                     children: [
                       const Text(
                         'Phân tích AI từ MiMo Mascot',
-                        style: TextStyle(color: AppColors.teal, fontSize: 15, fontWeight: FontWeight.w700),
+                        style: TextStyle(
+                          color: AppColors.teal,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                       const SizedBox(height: 2),
                       Text(
                         _isAnalyzingAI
                             ? 'MiMo đang tính toán tốc độ đốt hạn mức...'
                             : 'Nhấn để MiMo phân tích rủi ro vượt ngân sách',
-                        style: const TextStyle(color: AppColors.muted, fontSize: 12),
+                        style: const TextStyle(
+                          color: AppColors.muted,
+                          fontSize: 12,
+                        ),
                       ),
                     ],
                   ),
                 ),
                 if (_isAnalyzingAI)
-                  const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                  const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
                 else
-                  const Icon(Icons.chevron_right_rounded, color: AppColors.teal),
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    color: AppColors.teal,
+                  ),
               ],
             ),
           ),
@@ -383,7 +498,10 @@ class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScr
                     shape: BoxShape.circle,
                   ),
                   child: ClipOval(
-                    child: Image.asset('assets/MiMo/emotions/Working.png', fit: BoxFit.cover),
+                    child: Image.asset(
+                      'assets/MiMo/emotions/Working.png',
+                      fit: BoxFit.cover,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -393,12 +511,20 @@ class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScr
                     children: [
                       const Text(
                         'MiMo khuyên bạn:',
-                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: AppColors.teal),
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                          color: AppColors.teal,
+                        ),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         _aiInsight!,
-                        style: TextStyle(color: context.palette.textPrimary, fontSize: 13, height: 1.4),
+                        style: TextStyle(
+                          color: context.palette.textPrimary,
+                          fontSize: 13,
+                          height: 1.4,
+                        ),
                       ),
                     ],
                   ),
@@ -412,7 +538,9 @@ class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScr
   }
 
   Widget _buildCumulativeChartCard() {
-    final int totalDays = _dailyCumulative.isNotEmpty ? _dailyCumulative.length : 1;
+    final int totalDays = _dailyCumulative.isNotEmpty
+        ? _dailyCumulative.length
+        : 1;
     final double dailyIdeal = _limit / totalDays;
 
     final idealSpots = <FlSpot>[];
@@ -422,11 +550,11 @@ class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScr
     for (int i = 0; i < totalDays; i++) {
       final double dayNum = (i + 1).toDouble();
       idealSpots.add(FlSpot(dayNum, dailyIdeal * dayNum));
-      
+
       final dayData = _dailyCumulative[i];
       final cumulative = (dayData['cumulative'] as num?)?.toDouble() ?? 0;
       if (cumulative > maxCumulative) maxCumulative = cumulative;
-      
+
       if (dayData['day'] != null) {
         try {
           final date = DateTime.parse(dayData['day'].toString());
@@ -437,7 +565,7 @@ class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScr
       }
       actualSpots.add(FlSpot(dayNum, cumulative));
     }
-    
+
     if (actualSpots.isEmpty) {
       actualSpots.add(const FlSpot(1, 0));
     }
@@ -459,13 +587,19 @@ class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScr
             children: [
               Text(
                 'Biểu đồ lũy kế vs Hạn mức lý tưởng',
-                style: TextStyle(color: context.palette.textPrimary, fontSize: 15, fontWeight: FontWeight.w700),
+                style: TextStyle(
+                  color: context.palette.textPrimary,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ],
           ),
           const SizedBox(height: 18),
           SizedBox(
-            height: MediaQuery.of(context).orientation == Orientation.landscape ? 180 : 240,
+            height: MediaQuery.of(context).orientation == Orientation.landscape
+                ? 180
+                : 240,
             child: LineChart(
               LineChartData(
                 minY: 0,
@@ -479,7 +613,9 @@ class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScr
                         return LineTooltipItem(
                           formatVnd(touchedSpot.y.toInt()),
                           TextStyle(
-                            color: touchedSpot.bar.color ?? context.palette.textPrimary,
+                            color:
+                                touchedSpot.bar.color ??
+                                context.palette.textPrimary,
                             fontWeight: FontWeight.bold,
                             fontSize: 12,
                           ),
@@ -491,19 +627,39 @@ class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScr
                 gridData: FlGridData(
                   show: true,
                   drawVerticalLine: false,
-                  getDrawingHorizontalLine: (_) => FlLine(color: context.palette.border.withValues(alpha: 0.5), strokeWidth: 1),
+                  getDrawingHorizontalLine: (_) => FlLine(
+                    color: context.palette.border.withValues(alpha: 0.5),
+                    strokeWidth: 1,
+                  ),
                 ),
                 titlesData: FlTitlesData(
                   show: true,
-                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  topTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  rightTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
                   leftTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
                       reservedSize: 44,
                       getTitlesWidget: (val, meta) {
-                        if (val == 0) return const Text('0', style: TextStyle(color: AppColors.muted, fontSize: 10));
-                        return Text('${(val / 1000000).toStringAsFixed(0)}M', style: const TextStyle(color: AppColors.muted, fontSize: 10));
+                        if (val == 0)
+                          return const Text(
+                            '0',
+                            style: TextStyle(
+                              color: AppColors.muted,
+                              fontSize: 10,
+                            ),
+                          );
+                        return Text(
+                          '${(val / 1000000).toStringAsFixed(0)}M',
+                          style: const TextStyle(
+                            color: AppColors.muted,
+                            fontSize: 10,
+                          ),
+                        );
                       },
                     ),
                   ),
@@ -512,14 +668,23 @@ class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScr
                       showTitles: true,
                       interval: 1,
                       getTitlesWidget: (val, meta) {
-                        if (val > totalDays || val < 1) return const SizedBox.shrink();
+                        if (val > totalDays || val < 1)
+                          return const SizedBox.shrink();
                         if (totalDays > 7) {
-                          if (val != 1 && val != totalDays && val % 5 != 0) return const SizedBox.shrink();
-                          if (val == totalDays && totalDays % 5 <= 2) return const SizedBox.shrink();
+                          if (val != 1 && val != totalDays && val % 5 != 0)
+                            return const SizedBox.shrink();
+                          if (val == totalDays && totalDays % 5 <= 2)
+                            return const SizedBox.shrink();
                         }
                         return Padding(
                           padding: const EdgeInsets.only(top: 6),
-                          child: Text('N${val.toInt()}', style: const TextStyle(color: AppColors.muted, fontSize: 11)),
+                          child: Text(
+                            'N${val.toInt()}',
+                            style: const TextStyle(
+                              color: AppColors.muted,
+                              fontSize: 11,
+                            ),
+                          ),
                         );
                       },
                     ),
@@ -552,8 +717,16 @@ class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScr
             spacing: 20,
             runSpacing: 8,
             children: [
-              _buildLegendLine(AppColors.danger, 'Chi tiêu lũy kế thực tế', isDash: false),
-              _buildLegendLine(AppColors.muted, 'Đường lý tưởng (I_k)', isDash: true),
+              _buildLegendLine(
+                AppColors.danger,
+                'Chi tiêu lũy kế thực tế',
+                isDash: false,
+              ),
+              _buildLegendLine(
+                AppColors.muted,
+                'Đường lý tưởng (I_k)',
+                isDash: true,
+              ),
             ],
           ),
         ],
@@ -568,10 +741,16 @@ class _CumulativeBudgetReportScreenState extends State<CumulativeBudgetReportScr
         Container(
           width: 18,
           height: 3,
-          decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2)),
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(2),
+          ),
         ),
         const SizedBox(width: 6),
-        Text(label, style: const TextStyle(color: AppColors.muted, fontSize: 12)),
+        Text(
+          label,
+          style: const TextStyle(color: AppColors.muted, fontSize: 12),
+        ),
       ],
     );
   }

@@ -40,7 +40,8 @@ class _AppShellState extends State<AppShell> {
   final _api = ApiClient();
   bool _showAiPopup = false;
   bool _hasUnreadChat = false;
-  final GlobalKey<AiAssistantPopupMenuState> _aiPopupKey = GlobalKey<AiAssistantPopupMenuState>();
+  final GlobalKey<AiAssistantPopupMenuState> _aiPopupKey =
+      GlobalKey<AiAssistantPopupMenuState>();
 
   @override
   void initState() {
@@ -224,13 +225,19 @@ class _AppShellState extends State<AppShell> {
               final txId = json['transactionId'] as String?;
               final data = json['data'] as Map<String, dynamic>? ?? {};
               if (txId != null) {
-                BillProcessingService.instance.handleWsTransactionDone(txId, data);
+                BillProcessingService.instance.handleWsTransactionDone(
+                  txId,
+                  data,
+                );
               }
             } else if (json['type'] == 'transaction_failed') {
               final txId = json['transactionId'] as String?;
               final error = json['error']?.toString();
               if (txId != null) {
-                BillProcessingService.instance.handleWsTransactionFailed(txId, error);
+                BillProcessingService.instance.handleWsTransactionFailed(
+                  txId,
+                  error,
+                );
               }
             } else if (json['type'] == 'chat_llm_update') {
               final sessionId = json['sessionId'] as String?;
@@ -255,7 +262,9 @@ class _AppShellState extends State<AppShell> {
                   ChatLlmUpdate(
                     sessionId: sessionId,
                     messageId: messageId,
-                    content: json['ragContent'] as String? ?? json['content'] as String?,
+                    content:
+                        json['ragContent'] as String? ??
+                        json['content'] as String?,
                     mood: json['mood'] as String?,
                     failed: false,
                     intentAction: json['intentAction'] as Map<String, dynamic>?,
@@ -268,10 +277,10 @@ class _AppShellState extends State<AppShell> {
               final title = payload['title'] as String? ?? 'Giao dịch định kỳ';
               final message = payload['message'] as String? ?? '';
               final deepLink = payload['deepLink'] as String? ?? AppRoutes.home;
-              
+
               // Cập nhật UI ngay lập tức
               notifyTransactionChanged();
-              
+
               inAppNotificationController.show(
                 InAppNotification(
                   title: title,
@@ -313,25 +322,35 @@ class _AppShellState extends State<AppShell> {
     _reconnectTimer?.cancel();
     if (!mounted) return;
     // Exponential backoff: 2^attempt * 1000ms + random jitter (0..1000ms), capped at 60s
-    final baseDelay = math.min(math.pow(2, _reconnectAttempt).toInt() * 1000, 60000);
+    final baseDelay = math.min(
+      math.pow(2, _reconnectAttempt).toInt() * 1000,
+      60000,
+    );
     final jitter = math.Random().nextInt(1000);
     final delay = Duration(milliseconds: baseDelay + jitter);
-    debugPrint('[WebSocket] Reconnect attempt ${_reconnectAttempt + 1} in ${delay.inMilliseconds}ms');
+    debugPrint(
+      '[WebSocket] Reconnect attempt ${_reconnectAttempt + 1} in ${delay.inMilliseconds}ms',
+    );
     _reconnectAttempt++;
     _reconnectTimer = Timer(delay, _connectWebSocket);
   }
 
   static int _tabIndex(BuildContext context) {
     final loc = GoRouterState.of(context).uri.toString();
-    if (loc.startsWith(AppRoutes.report))   return 1;
-    if (loc.startsWith(AppRoutes.goals))    return 2;
+    if (loc.startsWith(AppRoutes.report)) return 1;
+    if (loc.startsWith(AppRoutes.goals)) return 2;
     if (loc.startsWith(AppRoutes.settings)) return 3;
     return 0;
   }
 
   void _onTabTap(BuildContext context, int index) {
     shellNavigatorKey.currentState?.popUntil((route) => route.isFirst);
-    const routes = [AppRoutes.home, AppRoutes.report, AppRoutes.goals, AppRoutes.settings];
+    const routes = [
+      AppRoutes.home,
+      AppRoutes.report,
+      AppRoutes.goals,
+      AppRoutes.settings,
+    ];
     context.go(routes[index]);
   }
 
@@ -352,174 +371,213 @@ class _AppShellState extends State<AppShell> {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(builder: (context, constraints) {
-      final isWide = constraints.maxWidth >= 600 || (constraints.maxWidth > constraints.maxHeight && constraints.maxHeight < 600);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide =
+            constraints.maxWidth >= 600 ||
+            (constraints.maxWidth > constraints.maxHeight &&
+                constraints.maxHeight < 600);
 
-      final currentIndex = _tabIndex(context);
-      final billJobs = BillProcessingService.instance.activeJobs;
-      final topInset = MediaQuery.of(context).padding.top;
-      final hasInAppNotification = inAppNotificationController.current != null;
-      final billBannerTop = topInset + 12 + (hasInAppNotification ? 92 : 0);
+        final currentIndex = _tabIndex(context);
+        final billJobs = BillProcessingService.instance.activeJobs;
+        final topInset = MediaQuery.of(context).padding.top;
+        final hasInAppNotification =
+            inAppNotificationController.current != null;
+        final billBannerTop = topInset + 12 + (hasInAppNotification ? 92 : 0);
 
-      final mainContent = Stack(
-        children: [
-          widget.child,
-          if (billJobs.isNotEmpty)
-            Positioned(
-              left: 0,
-              right: 0,
-              top: billBannerTop,
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 600),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: billJobs.map((job) {
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: BillProcessingBanner(
-                            job: job,
-                            onDismiss: job.phase == BillJobPhase.failed
-                                ? () => BillProcessingService.instance.dismissJob(job.transactionId)
-                                : null,
-                          ),
-                        );
-                      }).toList(),
+        final mainContent = Stack(
+          children: [
+            widget.child,
+            if (billJobs.isNotEmpty)
+              Positioned(
+                left: 0,
+                right: 0,
+                top: billBannerTop,
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 600),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: billJobs.map((job) {
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: BillProcessingBanner(
+                              job: job,
+                              onDismiss: job.phase == BillJobPhase.failed
+                                  ? () => BillProcessingService.instance
+                                        .dismissJob(job.transactionId)
+                                  : null,
+                            ),
+                          );
+                        }).toList(),
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-          // MiMo overlay — góc phải dưới, ngay trên nav bar
-          if (mimoController.current != null)
-            Positioned(
-              right: 12,
-              bottom: 88,
-              child: MiMoOverlay(
-                response: mimoController.current!,
-                onDismiss: mimoController.dismiss,
+            // MiMo overlay — góc phải dưới, ngay trên nav bar
+            if (mimoController.current != null)
+              Positioned(
+                right: 12,
+                bottom: 88,
+                child: MiMoOverlay(
+                  response: mimoController.current!,
+                  onDismiss: mimoController.dismiss,
+                ),
               ),
-            ),
-          // In-App Floating Notification Banner — Top center of the screen
-          if (inAppNotificationController.current != null)
-            Positioned(
-              top: topInset + 12,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 600),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: InAppNotificationBanner(
-                      notification: inAppNotificationController.current!,
-                      onDismiss: inAppNotificationController.dismiss,
+            // In-App Floating Notification Banner — Top center of the screen
+            if (inAppNotificationController.current != null)
+              Positioned(
+                top: topInset + 12,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 600),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: InAppNotificationBanner(
+                        notification: inAppNotificationController.current!,
+                        onDismiss: inAppNotificationController.dismiss,
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-          // AI Assistant Speed Dial Popup overlay
-          if (_showAiPopup)
-            Positioned.fill(
-              child: AiAssistantPopupMenu(
-                key: _aiPopupKey,
-                bottomInset: isWide ? 96.0 : 0.0,
-                onClose: () {
-                  setState(() {
-                    _showAiPopup = false;
-                  });
-                },
-                onSelectBill: () {
-                  context.push(
-                    AppRoutes.camera,
-                    extra: {
-                      'walletId': ApiClient.lastSelectedWalletId,
-                      'initialMode': 'Bill',
-                    },
-                  );
-                },
-                onSelectPhotoText: () {
-                  context.push(
-                    AppRoutes.camera,
-                    extra: {
-                      'walletId': ApiClient.lastSelectedWalletId,
-                      'initialMode': 'Ảnh',
-                    },
-                  );
-                },
-                onSelectChat: () {
-                  final loc = GoRouterState.of(context).uri.toString();
-                  if (loc.startsWith(AppRoutes.chat)) {
-                    context.go(
-                      AppRoutes.chat,
-                      extra: {'walletId': ApiClient.lastSelectedWalletId},
-                    );
-                  } else {
+            // AI Assistant Speed Dial Popup overlay
+            if (_showAiPopup)
+              Positioned.fill(
+                child: AiAssistantPopupMenu(
+                  key: _aiPopupKey,
+                  bottomInset: isWide ? 96.0 : 0.0,
+                  onClose: () {
+                    setState(() {
+                      _showAiPopup = false;
+                    });
+                  },
+                  onSelectBill: () {
                     context.push(
-                      AppRoutes.chat,
-                      extra: {'walletId': ApiClient.lastSelectedWalletId},
-                    );
-                  }
-                },
-                onQuickSubmit: (text) {
-                  final loc = GoRouterState.of(context).uri.toString();
-                  if (loc.startsWith(AppRoutes.chat)) {
-                    context.go(
-                      AppRoutes.chat,
+                      AppRoutes.camera,
                       extra: {
                         'walletId': ApiClient.lastSelectedWalletId,
-                        'initialMessage': text,
+                        'initialMode': 'Bill',
                       },
                     );
-                  } else {
+                  },
+                  onSelectPhotoText: () {
                     context.push(
-                      AppRoutes.chat,
+                      AppRoutes.camera,
                       extra: {
                         'walletId': ApiClient.lastSelectedWalletId,
-                        'initialMessage': text,
+                        'initialMode': 'Ảnh',
                       },
                     );
-                  }
-                },
+                  },
+                  onSelectChat: () {
+                    final loc = GoRouterState.of(context).uri.toString();
+                    if (loc.startsWith(AppRoutes.chat)) {
+                      context.go(
+                        AppRoutes.chat,
+                        extra: {'walletId': ApiClient.lastSelectedWalletId},
+                      );
+                    } else {
+                      context.push(
+                        AppRoutes.chat,
+                        extra: {'walletId': ApiClient.lastSelectedWalletId},
+                      );
+                    }
+                  },
+                  onQuickSubmit: (text) {
+                    final loc = GoRouterState.of(context).uri.toString();
+                    if (loc.startsWith(AppRoutes.chat)) {
+                      context.go(
+                        AppRoutes.chat,
+                        extra: {
+                          'walletId': ApiClient.lastSelectedWalletId,
+                          'initialMessage': text,
+                        },
+                      );
+                    } else {
+                      context.push(
+                        AppRoutes.chat,
+                        extra: {
+                          'walletId': ApiClient.lastSelectedWalletId,
+                          'initialMessage': text,
+                        },
+                      );
+                    }
+                  },
+                ),
               ),
-            ),
-        ],
-      );
-
-      final bottomNav = Container(
-        margin: isWide 
-            ? const EdgeInsets.only(left: 32, right: 32, bottom: 24)
-            : EdgeInsets.zero,
-        decoration: BoxDecoration(
-          color: context.palette.card,
-          borderRadius: isWide ? BorderRadius.circular(36) : BorderRadius.zero,
-          border: isWide ? null : Border(top: BorderSide(color: context.palette.border, width: 1)),
-          boxShadow: [
-            BoxShadow(
-              color: context.palette.shadow.withValues(alpha: isWide ? 0.08 : 0.04), 
-              blurRadius: isWide ? 24 : 16, 
-              offset: Offset(0, isWide ? 8 : -4)
-            )
           ],
-        ),
-        child: SafeArea(
-          top: false,
-          bottom: !isWide, // If floating, don't add safe area padding inside the pill
-          child: SizedBox(
-            height: 72,
+        );
+
+        final bottomNav = Container(
+          margin: isWide
+              ? const EdgeInsets.only(left: 32, right: 32, bottom: 24)
+              : EdgeInsets.zero,
+          decoration: BoxDecoration(
+            color: context.palette.card,
+            borderRadius: isWide
+                ? BorderRadius.circular(36)
+                : BorderRadius.zero,
+            border: isWide
+                ? null
+                : Border(
+                    top: BorderSide(color: context.palette.border, width: 1),
+                  ),
+            boxShadow: [
+              BoxShadow(
+                color: context.palette.shadow.withValues(
+                  alpha: isWide ? 0.08 : 0.04,
+                ),
+                blurRadius: isWide ? 24 : 16,
+                offset: Offset(0, isWide ? 8 : -4),
+              ),
+            ],
+          ),
+          child: SafeArea(
+            top: false,
+            bottom:
+                !isWide, // If floating, don't add safe area padding inside the pill
+            child: SizedBox(
+              height: 72,
               child: Stack(
                 clipBehavior: Clip.none,
                 children: [
                   Row(
                     children: [
-                      _NavItem(icon: Icons.home_outlined, activeIcon: Icons.home_rounded, label: 'Trang chủ', isActive: currentIndex == 0, onTap: () => _onTabTap(context, 0)),
-                      _NavItem(icon: Icons.insights_outlined, activeIcon: Icons.insights_rounded, label: 'Báo cáo', isActive: currentIndex == 1, onTap: () => _onTabTap(context, 1)),
+                      _NavItem(
+                        icon: Icons.home_outlined,
+                        activeIcon: Icons.home_rounded,
+                        label: 'Trang chủ',
+                        isActive: currentIndex == 0,
+                        onTap: () => _onTabTap(context, 0),
+                      ),
+                      _NavItem(
+                        icon: Icons.insights_outlined,
+                        activeIcon: Icons.insights_rounded,
+                        label: 'Báo cáo',
+                        isActive: currentIndex == 1,
+                        onTap: () => _onTabTap(context, 1),
+                      ),
                       const Expanded(child: SizedBox()), // gap for FAB
-                      _NavItem(icon: Icons.savings_outlined, activeIcon: Icons.savings_rounded, label: 'Công cụ', isActive: currentIndex == 2, onTap: () => _onTabTap(context, 2)),
-                      _NavItem(icon: Icons.settings_outlined, activeIcon: Icons.settings_rounded, label: 'Cài đặt', isActive: currentIndex == 3, onTap: () => _onTabTap(context, 3)),
+                      _NavItem(
+                        icon: Icons.savings_outlined,
+                        activeIcon: Icons.savings_rounded,
+                        label: 'Công cụ',
+                        isActive: currentIndex == 2,
+                        onTap: () => _onTabTap(context, 2),
+                      ),
+                      _NavItem(
+                        icon: Icons.settings_outlined,
+                        activeIcon: Icons.settings_rounded,
+                        label: 'Cài đặt',
+                        isActive: currentIndex == 3,
+                        onTap: () => _onTabTap(context, 3),
+                      ),
                     ],
                   ),
                   Positioned(
@@ -539,13 +597,14 @@ class _AppShellState extends State<AppShell> {
           ),
         );
 
-      return Scaffold(
-        backgroundColor: context.palette.bg,
-        body: mainContent,
-        extendBody: isWide, // Extend body behind the floating nav bar
-        bottomNavigationBar: bottomNav,
-      );
-    });
+        return Scaffold(
+          backgroundColor: context.palette.bg,
+          body: mainContent,
+          extendBody: isWide, // Extend body behind the floating nav bar
+          bottomNavigationBar: bottomNav,
+        );
+      },
+    );
   }
 }
 
@@ -557,7 +616,13 @@ class _NavItem extends StatelessWidget {
   final bool isActive;
   final VoidCallback onTap;
 
-  const _NavItem({required this.icon, required this.activeIcon, required this.label, required this.isActive, required this.onTap});
+  const _NavItem({
+    required this.icon,
+    required this.activeIcon,
+    required this.label,
+    required this.isActive,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -567,18 +632,30 @@ class _NavItem extends StatelessWidget {
         onTap: onTap,
         splashColor: Colors.transparent,
         highlightColor: Colors.transparent,
-        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 200),
-            child: Icon(isActive ? activeIcon : icon, color: color, size: 26, key: ValueKey(isActive)),
-          ),
-          const SizedBox(height: 4),
-          AnimatedDefaultTextStyle(
-            duration: const Duration(milliseconds: 200),
-            style: TextStyle(fontSize: 11, fontWeight: isActive ? FontWeight.w700 : FontWeight.w500, color: color),
-            child: Text(label),
-          ),
-        ]),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 200),
+              child: Icon(
+                isActive ? activeIcon : icon,
+                color: color,
+                size: 26,
+                key: ValueKey(isActive),
+              ),
+            ),
+            const SizedBox(height: 4),
+            AnimatedDefaultTextStyle(
+              duration: const Duration(milliseconds: 200),
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                color: color,
+              ),
+              child: Text(label),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -595,17 +672,22 @@ class _AnimatedFab extends StatefulWidget {
   State<_AnimatedFab> createState() => _AnimatedFabState();
 }
 
-class _AnimatedFabState extends State<_AnimatedFab> with SingleTickerProviderStateMixin {
+class _AnimatedFabState extends State<_AnimatedFab>
+    with SingleTickerProviderStateMixin {
   late AnimationController _ctrl;
   late Animation<double> _rotation;
 
   @override
   void initState() {
     super.initState();
-    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 300));
-    _rotation = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut),
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
     );
+    _rotation = Tween<double>(
+      begin: 0,
+      end: 1,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
   }
 
   @override
@@ -624,7 +706,8 @@ class _AnimatedFabState extends State<_AnimatedFab> with SingleTickerProviderSta
     return GestureDetector(
       onTap: _handleTap,
       child: Container(
-        width: 64, height: 64,
+        width: 64,
+        height: 64,
         decoration: BoxDecoration(
           color: context.palette.card,
           shape: BoxShape.circle,
@@ -633,7 +716,7 @@ class _AnimatedFabState extends State<_AnimatedFab> with SingleTickerProviderSta
               color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 10,
               offset: const Offset(0, -3),
-            )
+            ),
           ],
         ),
         child: Center(
@@ -646,10 +729,14 @@ class _AnimatedFabState extends State<_AnimatedFab> with SingleTickerProviderSta
                   final endColor = walletColor == AppColors.teal
                       ? const Color(0xFF06B6D4)
                       : HSLColor.fromColor(walletColor)
-                          .withLightness((HSLColor.fromColor(walletColor).lightness + 0.15).clamp(0.0, 0.92))
-                          .toColor();
+                            .withLightness(
+                              (HSLColor.fromColor(walletColor).lightness + 0.15)
+                                  .clamp(0.0, 0.92),
+                            )
+                            .toColor();
                   return Container(
-                    width: 50, height: 50,
+                    width: 50,
+                    height: 50,
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: [walletColor, endColor],
@@ -663,7 +750,7 @@ class _AnimatedFabState extends State<_AnimatedFab> with SingleTickerProviderSta
                           blurRadius: 16,
                           spreadRadius: 1,
                           offset: const Offset(0, 4),
-                        )
+                        ),
                       ],
                     ),
                     child: AnimatedBuilder(
@@ -672,7 +759,11 @@ class _AnimatedFabState extends State<_AnimatedFab> with SingleTickerProviderSta
                         angle: _rotation.value * 0.785398, // 45 degrees
                         child: child,
                       ),
-                      child: const Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 26),
+                      child: const Icon(
+                        Icons.auto_awesome_rounded,
+                        color: Colors.white,
+                        size: 26,
+                      ),
                     ),
                   );
                 },
@@ -698,4 +789,3 @@ class _AnimatedFabState extends State<_AnimatedFab> with SingleTickerProviderSta
     );
   }
 }
-

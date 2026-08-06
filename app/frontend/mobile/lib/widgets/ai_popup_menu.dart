@@ -148,7 +148,9 @@ class AiAssistantPopupMenuState extends State<AiAssistantPopupMenu>
               child: GestureDetector(
                 onTap: _close,
                 child: Container(
-                  color: Colors.black.withValues(alpha: _backdropOpacity.value * 0.65),
+                  color: Colors.black.withValues(
+                    alpha: _backdropOpacity.value * 0.65,
+                  ),
                   child: _backdropOpacity.value > 0.1
                       ? BackdropFilter(
                           filter: ImageFilter.blur(
@@ -170,7 +172,8 @@ class AiAssistantPopupMenuState extends State<AiAssistantPopupMenu>
           builder: (context, child) {
             // Apply drag offset for swipe down close gesture
             final double currentSlideY = _cardSlideY.value + _dragOffset;
-            final double currentScale = (_cardScale.value - (_dragOffset / 1000)).clamp(0.7, 1.0);
+            final double currentScale =
+                (_cardScale.value - (_dragOffset / 1000)).clamp(0.7, 1.0);
 
             return Positioned(
               bottom: 0,
@@ -205,7 +208,7 @@ class AiAssistantPopupMenuState extends State<AiAssistantPopupMenu>
                       : Colors.black.withValues(alpha: 0.15),
                   blurRadius: 24,
                   offset: const Offset(0, -8),
-                )
+                ),
               ],
             ),
             child: Column(
@@ -309,7 +312,11 @@ class AiAssistantPopupMenuState extends State<AiAssistantPopupMenu>
                   ),
                 ),
                 // Avoid keyboard obscuring popup
-                SizedBox(height: MediaQuery.of(context).viewInsets.bottom > 0 ? 12 : (40 + widget.bottomInset)),
+                SizedBox(
+                  height: MediaQuery.of(context).viewInsets.bottom > 0
+                      ? 12
+                      : (40 + widget.bottomInset),
+                ),
               ],
             ),
           ),
@@ -333,10 +340,14 @@ class AiAssistantPopupMenuState extends State<AiAssistantPopupMenu>
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         decoration: BoxDecoration(
-          color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF8FAFC),
+          color: isDark
+              ? Colors.white.withValues(alpha: 0.05)
+              : const Color(0xFFF8FAFC),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: isDark ? Colors.white12 : Colors.black.withValues(alpha: 0.05),
+            color: isDark
+                ? Colors.white12
+                : Colors.black.withValues(alpha: 0.05),
           ),
           boxShadow: [
             BoxShadow(
@@ -418,10 +429,14 @@ class AiAssistantPopupMenuState extends State<AiAssistantPopupMenu>
           child: Ink(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF8FAFC),
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.05)
+                  : const Color(0xFFF8FAFC),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: isDark ? Colors.white.withValues(alpha: 0.08) : const Color(0xFFE2E8F0),
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.08)
+                    : const Color(0xFFE2E8F0),
                 width: 1,
               ),
             ),

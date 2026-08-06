@@ -39,61 +39,66 @@ import '../screens/premium/premium_payment_screen.dart';
 /// Tất cả tên route tập trung tại đây
 class AppRoutes {
   // Auth / Onboarding
-  static const splash          = '/splash';
-  static const onboarding      = '/';
+  static const splash = '/splash';
+  static const onboarding = '/';
   static const onboardingStep2 = '/onboarding/step-2';
   static const onboardingStep3 = '/onboarding/step-3';
   static const onboardingStep4 = '/onboarding/step-4';
-  static const login           = '/login';
-  static const register        = '/register';
-  static const forgotPassword  = '/forgot-password';
-  static const banned          = '/banned';
-  static const verifyOtp       = '/verify-otp';
-  static const resetPassword   = '/reset-password';
+  static const login = '/login';
+  static const register = '/register';
+  static const forgotPassword = '/forgot-password';
+  static const banned = '/banned';
+  static const verifyOtp = '/verify-otp';
+  static const resetPassword = '/reset-password';
 
   // Shell tabs
-  static const home     = '/app/home';
-  static const report   = '/app/report';
-  static const goals    = '/app/goals';
+  static const home = '/app/home';
+  static const report = '/app/report';
+  static const goals = '/app/goals';
   static const settings = '/app/settings';
 
   // Home sub-views
-  static const homeGallery  = '/app/home/gallery';
+  static const homeGallery = '/app/home/gallery';
   static const homeCalendar = '/app/home/calendar';
 
   // Camera
-  static const camera        = '/camera';
-  static const cameraInput   = '/camera/input';
+  static const camera = '/camera';
+  static const cameraInput = '/camera/input';
   static const cameraConfirm = '/camera/confirm';
 
   // Chat
-  static const chat        = '/chat';
+  static const chat = '/chat';
   static const chatHistory = '/chat/history';
 
   // Full-screen overlays
-  static const limits         = '/limits';
-  static const shareWallet    = '/wallet/share';
-  static const streak         = '/streak';
-  static const storyDetail    = '/story/:storyId';
-  static const goalDetail     = '/app/goals/:goalId';
-  static const recurring      = '/recurring';
+  static const limits = '/limits';
+  static const shareWallet = '/wallet/share';
+  static const streak = '/streak';
+  static const storyDetail = '/story/:storyId';
+  static const goalDetail = '/app/goals/:goalId';
+  static const recurring = '/recurring';
   static const groupAnalytics = '/group-analytics/:walletId';
 
   // Premium
-  static const premiumPayment  = '/premium/payment';
+  static const premiumPayment = '/premium/payment';
 
   /// Build the story detail path with a real [storyId]
   static String storyDetailOf(String storyId) => '/story/$storyId';
 
   /// Build the goal detail path with a real [goalId]
   static String goalDetailOf(String goalId) => '/app/goals/$goalId';
-  
+
   /// Build the group analytics path with a real [walletId]
-  static String groupAnalyticsOf(String walletId) => '/group-analytics/$walletId';
+  static String groupAnalyticsOf(String walletId) =>
+      '/group-analytics/$walletId';
 }
 
 /// Helper function to build a page with a Lottie transition
-Page<dynamic> _lottiePage(GoRouterState state, String lottiePath, Widget child) {
+Page<dynamic> _lottiePage(
+  GoRouterState state,
+  String lottiePath,
+  Widget child,
+) {
   return LottieTransitionPage(
     key: state.pageKey,
     lottiePath: lottiePath,
@@ -109,13 +114,10 @@ Page<dynamic> _slidePage(GoRouterState state, Widget child) {
     transitionDuration: const Duration(milliseconds: 300),
     transitionsBuilder: (context, animation, secondaryAnimation, child) {
       return SlideTransition(
-        position: Tween<Offset>(
-          begin: const Offset(1, 0),
-          end: Offset.zero,
-        ).animate(CurvedAnimation(
-          parent: animation,
-          curve: Curves.easeOutCubic,
-        )),
+        position: Tween<Offset>(begin: const Offset(1, 0), end: Offset.zero)
+            .animate(
+              CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
+            ),
         child: child,
       );
     },
@@ -128,12 +130,23 @@ final GlobalKey<NavigatorState> shellNavigatorKey = GlobalKey<NavigatorState>();
 final GoRouter appRouter = GoRouter(
   initialLocation: AppRoutes.splash,
   redirect: (context, state) async {
-    final protectedPrefixes = ['/app/', '/camera', '/chat', '/limits', '/wallet', '/streak', '/story', '/recurring', '/premium'];
-    
-    final isOnboarding = state.matchedLocation == AppRoutes.onboarding ||
-                         state.matchedLocation == AppRoutes.onboardingStep2 ||
-                         state.matchedLocation == AppRoutes.onboardingStep3 ||
-                         state.matchedLocation == AppRoutes.onboardingStep4;
+    final protectedPrefixes = [
+      '/app/',
+      '/camera',
+      '/chat',
+      '/limits',
+      '/wallet',
+      '/streak',
+      '/story',
+      '/recurring',
+      '/premium',
+    ];
+
+    final isOnboarding =
+        state.matchedLocation == AppRoutes.onboarding ||
+        state.matchedLocation == AppRoutes.onboardingStep2 ||
+        state.matchedLocation == AppRoutes.onboardingStep3 ||
+        state.matchedLocation == AppRoutes.onboardingStep4;
 
     final api = ApiClient();
     bool loggedIn = await api.isLoggedIn;
@@ -147,7 +160,9 @@ final GoRouter appRouter = GoRouter(
       loggedIn = await api.isLoggedIn;
     }
 
-    final isProtected = isOnboarding || protectedPrefixes.any((p) => state.matchedLocation.startsWith(p));
+    final isProtected =
+        isOnboarding ||
+        protectedPrefixes.any((p) => state.matchedLocation.startsWith(p));
 
     if (!isProtected) return null;
     if (!loggedIn) return AppRoutes.login;
@@ -157,33 +172,52 @@ final GoRouter appRouter = GoRouter(
     // ── Splash ──────────────────────────────────────────────
     GoRoute(
       path: AppRoutes.splash,
-      pageBuilder: (context, state) => _lottiePage(state, 'assets/animations/Loading.json', const SplashScreen()),
+      pageBuilder: (context, state) => _lottiePage(
+        state,
+        'assets/animations/Loading.json',
+        const SplashScreen(),
+      ),
     ),
 
     // ── Auth / Onboarding ────────────────────────────────────
     GoRoute(
       path: AppRoutes.onboarding,
-      pageBuilder: (context, state) => _lottiePage(state, 'assets/animations/Loading.json', const OnboardingStep1()),
+      pageBuilder: (context, state) => _lottiePage(
+        state,
+        'assets/animations/Loading.json',
+        const OnboardingStep1(),
+      ),
     ),
     GoRoute(
       path: AppRoutes.onboardingStep2,
-      pageBuilder: (context, state) => _slidePage(state, const OnboardingStep2()),
+      pageBuilder: (context, state) =>
+          _slidePage(state, const OnboardingStep2()),
     ),
     GoRoute(
       path: AppRoutes.onboardingStep3,
-      pageBuilder: (context, state) => _slidePage(state, const OnboardingStep3()),
+      pageBuilder: (context, state) =>
+          _slidePage(state, const OnboardingStep3()),
     ),
     GoRoute(
       path: AppRoutes.onboardingStep4,
-      pageBuilder: (context, state) => _slidePage(state, const OnboardingStep4()),
+      pageBuilder: (context, state) =>
+          _slidePage(state, const OnboardingStep4()),
     ),
     GoRoute(
       path: AppRoutes.login,
-      pageBuilder: (context, state) => _lottiePage(state, 'assets/animations/Loading.json', const LoginScreen()),
+      pageBuilder: (context, state) => _lottiePage(
+        state,
+        'assets/animations/Loading.json',
+        const LoginScreen(),
+      ),
     ),
     GoRoute(
       path: AppRoutes.register,
-      pageBuilder: (context, state) => _lottiePage(state, 'assets/animations/Loading.json', const RegisterScreen()),
+      pageBuilder: (context, state) => _lottiePage(
+        state,
+        'assets/animations/Loading.json',
+        const RegisterScreen(),
+      ),
     ),
     GoRoute(
       path: AppRoutes.forgotPassword,
@@ -214,7 +248,10 @@ final GoRouter appRouter = GoRouter(
         return LottieTransitionPage(
           key: state.pageKey,
           lottiePath: 'assets/animations/Loading.json',
-          child: BannedScreen(banReason: banReason, initialAppeal: initialAppeal),
+          child: BannedScreen(
+            banReason: banReason,
+            initialAppeal: initialAppeal,
+          ),
         );
       },
     ),
@@ -233,20 +270,26 @@ final GoRouter appRouter = GoRouter(
       routes: [
         GoRoute(
           path: AppRoutes.home,
-          pageBuilder: (context, state) => const NoTransitionPage(child: HomeScreen()),
+          pageBuilder: (context, state) =>
+              const NoTransitionPage(child: HomeScreen()),
         ),
         GoRoute(
           path: AppRoutes.report,
-          pageBuilder: (context, state) => const NoTransitionPage(child: ReportScreen()),
+          pageBuilder: (context, state) =>
+              const NoTransitionPage(child: ReportScreen()),
         ),
         GoRoute(
           path: AppRoutes.goals,
           pageBuilder: (context, state) {
             final tabParam = state.uri.queryParameters['tab'];
             int initialTab = 0;
-            if (tabParam == 'challenge' || tabParam == '1' || tabParam == 'thuthach') {
+            if (tabParam == 'challenge' ||
+                tabParam == '1' ||
+                tabParam == 'thuthach') {
               initialTab = 1;
-            } else if (tabParam == 'loans' || tabParam == '2' || tabParam == 'vaymuon') {
+            } else if (tabParam == 'loans' ||
+                tabParam == '2' ||
+                tabParam == 'vaymuon') {
               initialTab = 2;
             }
             final joinCode = state.uri.queryParameters['code'];
@@ -260,7 +303,8 @@ final GoRouter appRouter = GoRouter(
         ),
         GoRoute(
           path: AppRoutes.settings,
-          pageBuilder: (context, state) => const NoTransitionPage(child: SettingsScreen()),
+          pageBuilder: (context, state) =>
+              const NoTransitionPage(child: SettingsScreen()),
         ),
       ],
     ),
@@ -279,8 +323,14 @@ final GoRouter appRouter = GoRouter(
     ),
 
     // ── Home sub-views ───────────────────────────────────────
-    GoRoute(path: AppRoutes.homeGallery,  builder: (context, state) => const HomeGalleryScreen()),
-    GoRoute(path: AppRoutes.homeCalendar, builder: (context, state) => const HomeCalendarScreen()),
+    GoRoute(
+      path: AppRoutes.homeGallery,
+      builder: (context, state) => const HomeGalleryScreen(),
+    ),
+    GoRoute(
+      path: AppRoutes.homeCalendar,
+      builder: (context, state) => const HomeCalendarScreen(),
+    ),
 
     // ── Camera ──────────────────────────────────────────────
     GoRoute(
@@ -308,8 +358,9 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: AppRoutes.cameraConfirm,
       builder: (context, state) {
-        final extra = state.extra as Map<String, dynamic>?
-            ?? BillProcessingService.instance.takePendingReviewExtra();
+        final extra =
+            state.extra as Map<String, dynamic>? ??
+            BillProcessingService.instance.takePendingReviewExtra();
         return CameraConfirmScreen(extractedData: extra);
       },
     ),
@@ -349,7 +400,10 @@ final GoRouter appRouter = GoRouter(
         return LimitsScreen(initialCategoryCode: catCode);
       },
     ),
-    GoRoute(path: AppRoutes.recurring,      builder: (context, state) => const RecurringRulesScreen()),
+    GoRoute(
+      path: AppRoutes.recurring,
+      builder: (context, state) => const RecurringRulesScreen(),
+    ),
     GoRoute(
       path: AppRoutes.shareWallet,
       builder: (context, state) {
@@ -389,9 +443,7 @@ final GoRouter appRouter = GoRouter(
       pageBuilder: (context, state) => _lottiePage(
         state,
         'assets/animations/Success_goal.json',
-        GoalDetailScreen(
-          goalId: state.pathParameters['goalId'] ?? '',
-        ),
+        GoalDetailScreen(goalId: state.pathParameters['goalId'] ?? ''),
       ),
     ),
     GoRoute(

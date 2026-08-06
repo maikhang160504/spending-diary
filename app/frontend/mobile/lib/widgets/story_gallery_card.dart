@@ -13,7 +13,8 @@ class StoryGalleryCard extends StatelessWidget {
 
   /// Vị trí của story hiện tại trong [allStoryIds].
   final int initialIndex;
-  const StoryGalleryCard({super.key, 
+  const StoryGalleryCard({
+    super.key,
     required this.story,
     this.allStoryIds,
     this.initialIndex = 0,
@@ -120,7 +121,11 @@ class StoryGalleryCard extends StatelessWidget {
                   ),
                   child: Text(
                     dateStr,
-                    style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.w600),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 8,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ),
@@ -138,8 +143,8 @@ class StoryGalleryCard extends StatelessWidget {
                   data: const IconThemeData(color: Colors.white),
                   child: CategoryTheme.iconOf(
                     story['category_code'] as String? ??
-                    story['categoryCode'] as String? ??
-                    'Other',
+                        story['categoryCode'] as String? ??
+                        'Other',
                     size: 12,
                   ),
                 ),
@@ -169,4 +174,3 @@ class StoryGalleryCard extends StatelessWidget {
 }
 
 // ─── Inline Calendar View ─────────────────────────────────────────────────────
-

@@ -35,10 +35,7 @@ class _FinancialToolsScreenState extends State<FinancialToolsScreen> {
   }
 
   void _openFeatureCard(Widget screen) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => screen),
-    );
+    Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
   }
 
   @override
@@ -55,7 +52,10 @@ class _FinancialToolsScreenState extends State<FinancialToolsScreen> {
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 600),
                   child: SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 16,
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -86,7 +86,9 @@ class _FinancialToolsScreenState extends State<FinancialToolsScreen> {
                                     iconBgColor: const Color(0xFFCCFBF1),
                                     title: 'Tiết kiệm',
                                     subtitle: 'Tích lũy cho mục tiêu tương lai',
-                                    onTap: () => _openFeatureCard(const GoalScreen(isChallenge: false)),
+                                    onTap: () => _openFeatureCard(
+                                      const GoalScreen(isChallenge: false),
+                                    ),
                                   ),
                                 ),
                                 SizedBox(
@@ -115,7 +117,8 @@ class _FinancialToolsScreenState extends State<FinancialToolsScreen> {
                                     iconBgColor: const Color(0xFFEDE9FE),
                                     title: 'Vay mượn',
                                     subtitle: 'Quản lý khoản vay và cho mượn',
-                                    onTap: () => _openFeatureCard(const LoansScreen()),
+                                    onTap: () =>
+                                        _openFeatureCard(const LoansScreen()),
                                   ),
                                 ),
                               ],
@@ -181,7 +184,9 @@ class _FinancialToolsScreenState extends State<FinancialToolsScreen> {
                       Text(
                         title,
                         style: TextStyle(
-                          color: Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black87,
+                          color:
+                              Theme.of(context).textTheme.bodyLarge?.color ??
+                              Colors.black87,
                           fontWeight: FontWeight.w800,
                           fontSize: 16,
                         ),
@@ -221,7 +226,9 @@ class _ToolsHeader extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         gradient: AppGradients.teal,
-        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(AppRadii.xl)),
+        borderRadius: const BorderRadius.vertical(
+          bottom: Radius.circular(AppRadii.xl),
+        ),
         boxShadow: [
           BoxShadow(
             color: AppColors.teal.withValues(alpha: 0.3),
@@ -244,7 +251,11 @@ class _ToolsHeader extends StatelessWidget {
                   color: Colors.white.withValues(alpha: 0.22),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 18),
+                child: const Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  color: Colors.white,
+                  size: 18,
+                ),
               ),
             ),
           ] else ...[
@@ -256,7 +267,11 @@ class _ToolsHeader extends StatelessWidget {
                 color: Colors.white.withValues(alpha: 0.22),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.calculate_rounded, color: Colors.white, size: 24),
+              child: const Icon(
+                Icons.calculate_rounded,
+                color: Colors.white,
+                size: 24,
+              ),
             ),
           ],
           Expanded(
@@ -267,10 +282,10 @@ class _ToolsHeader extends StatelessWidget {
                 Text(
                   'Công cụ tiền tệ',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 21,
-                      ),
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 21,
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -278,9 +293,9 @@ class _ToolsHeader extends StatelessWidget {
                 Text(
                   'Quản lý và lập kế hoạch tài chính hiệu quả',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Colors.white.withValues(alpha: 0.88),
-                        fontSize: 12,
-                      ),
+                    color: Colors.white.withValues(alpha: 0.88),
+                    fontSize: 12,
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),

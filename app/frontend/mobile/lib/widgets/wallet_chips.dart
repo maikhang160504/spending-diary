@@ -15,7 +15,11 @@ class WalletChips extends StatelessWidget {
     _Wallet('Nhóm bạn', Icons.groups_outlined),
   ];
 
-  const WalletChips({super.key, required this.selected, required this.onChanged});
+  const WalletChips({
+    super.key,
+    required this.selected,
+    required this.onChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -30,15 +34,24 @@ class WalletChips extends StatelessWidget {
               onTap: () => onChanged(w.label),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 150),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
-                  color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.22),
+                  color: isSelected
+                      ? Colors.white
+                      : Colors.white.withValues(alpha: 0.22),
                   borderRadius: BorderRadius.circular(AppRadii.md),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(w.icon, size: 15, color: isSelected ? AppColors.teal : Colors.white),
+                    Icon(
+                      w.icon,
+                      size: 15,
+                      color: isSelected ? AppColors.teal : Colors.white,
+                    ),
                     const SizedBox(width: 6),
                     Text(
                       w.label,

@@ -67,10 +67,7 @@ class SpendDiaryWordmark extends StatelessWidget {
 class _SpendDiaryTitleText extends StatelessWidget {
   final TextStyle style;
   final double textShimmer;
-  const _SpendDiaryTitleText({
-    required this.style,
-    this.textShimmer = 1,
-  });
+  const _SpendDiaryTitleText({required this.style, this.textShimmer = 1});
 
   /// SpendD|ı|ary — ı = i không chấm (U+0131); lá thay dấu chấm, không dùng WidgetSpan.
   static const _iIndex = 6;
@@ -164,7 +161,11 @@ class _SpendDiaryTitleText extends StatelessWidget {
 
     text = ShaderMask(
       shaderCallback: (bounds) => const LinearGradient(
-        colors: [SpendDiaryWordmark._mint, SpendDiaryWordmark._teal, Color(0xFF14B8A6)],
+        colors: [
+          SpendDiaryWordmark._mint,
+          SpendDiaryWordmark._teal,
+          Color(0xFF14B8A6),
+        ],
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
       ).createShader(bounds),
@@ -199,9 +200,7 @@ class _SpendDiaryTitleText extends StatelessWidget {
       Icons.eco_rounded,
       size: leafSize,
       color: const Color(0xFF0D9488),
-      shadows: const [
-        Shadow(color: Color(0xFF42C9A8), blurRadius: 6),
-      ],
+      shadows: const [Shadow(color: Color(0xFF42C9A8), blurRadius: 6)],
     );
 
     return SizedBox(
@@ -224,7 +223,8 @@ class _TaglineRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final wiggle = math.sin(leafWiggle * math.pi * 4) * 3 * leafWiggle.clamp(0, 1);
+    final wiggle =
+        math.sin(leafWiggle * math.pi * 4) * 3 * leafWiggle.clamp(0, 1);
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
@@ -232,7 +232,11 @@ class _TaglineRow extends StatelessWidget {
         const SizedBox(width: 8),
         Transform.rotate(
           angle: wiggle * math.pi / 180,
-          child: Icon(Icons.favorite_rounded, size: 12, color: const Color(0xFF42C9A9).withValues(alpha: 0.75)),
+          child: Icon(
+            Icons.favorite_rounded,
+            size: 12,
+            color: const Color(0xFF42C9A9).withValues(alpha: 0.75),
+          ),
         ),
         const SizedBox(width: 6),
         Text(
@@ -240,13 +244,17 @@ class _TaglineRow extends StatelessWidget {
           style: GoogleFonts.nunito(
             fontSize: 13,
             fontWeight: FontWeight.w500,
-            color: Theme.of(context).brightness == Brightness.dark 
-                ? const Color(0xFF94A3B8) 
+            color: Theme.of(context).brightness == Brightness.dark
+                ? const Color(0xFF94A3B8)
                 : const Color(0xFF64748B),
           ),
         ),
         const SizedBox(width: 6),
-        Icon(Icons.favorite_rounded, size: 12, color: const Color(0xFF42C9A9).withValues(alpha: 0.75)),
+        Icon(
+          Icons.favorite_rounded,
+          size: 12,
+          color: const Color(0xFF42C9A9).withValues(alpha: 0.75),
+        ),
         const SizedBox(width: 8),
         _DecorLine(width: 36, mirror: true),
       ],
@@ -282,7 +290,11 @@ class _DecorLine extends StatelessWidget {
 class NotebookIconShimmer extends StatelessWidget {
   final double size;
   final double progress;
-  const NotebookIconShimmer({super.key, required this.size, required this.progress});
+  const NotebookIconShimmer({
+    super.key,
+    required this.size,
+    required this.progress,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -297,13 +309,19 @@ class NotebookIconShimmer extends StatelessWidget {
             width: size,
             height: size,
             fit: BoxFit.contain,
-            errorBuilder: (_, e, s) => Icon(Icons.menu_book_rounded, size: size * 0.7, color: const Color(0xFF42C9A8)),
+            errorBuilder: (_, e, s) => Icon(
+              Icons.menu_book_rounded,
+              size: size * 0.7,
+              color: const Color(0xFF42C9A8),
+            ),
           ),
           if (progress < 1)
             Positioned.fill(
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: CustomPaint(painter: _IconShimmerPainter(progress: progress)),
+                child: CustomPaint(
+                  painter: _IconShimmerPainter(progress: progress),
+                ),
               ),
             ),
         ],
@@ -333,5 +351,6 @@ class _IconShimmerPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _IconShimmerPainter old) => old.progress != progress;
+  bool shouldRepaint(covariant _IconShimmerPainter old) =>
+      old.progress != progress;
 }

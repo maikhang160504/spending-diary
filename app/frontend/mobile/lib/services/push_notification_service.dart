@@ -29,15 +29,16 @@ class PushNotificationService {
 
     const DarwinInitializationSettings initializationSettingsDarwin =
         DarwinInitializationSettings(
-      requestAlertPermission: true,
-      requestBadgePermission: true,
-      requestSoundPermission: true,
-    );
+          requestAlertPermission: true,
+          requestBadgePermission: true,
+          requestSoundPermission: true,
+        );
 
-    const InitializationSettings initializationSettings = InitializationSettings(
-      android: initializationSettingsAndroid,
-      iOS: initializationSettingsDarwin,
-    );
+    const InitializationSettings initializationSettings =
+        InitializationSettings(
+          android: initializationSettingsAndroid,
+          iOS: initializationSettingsDarwin,
+        );
 
     await _localNotifications.initialize(
       initializationSettings,
@@ -58,17 +59,20 @@ class PushNotificationService {
 
     await _localNotifications
         .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
+          AndroidFlutterLocalNotificationsPlugin
+        >()
         ?.createNotificationChannel(channel);
 
     await _localNotifications
         .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
+          AndroidFlutterLocalNotificationsPlugin
+        >()
         ?.requestNotificationsPermission();
 
     await _localNotifications
         .resolvePlatformSpecificImplementation<
-            IOSFlutterLocalNotificationsPlugin>()
+          IOSFlutterLocalNotificationsPlugin
+        >()
         ?.requestPermissions(alert: true, badge: true, sound: true);
 
     _isInitialized = true;
@@ -86,26 +90,26 @@ class PushNotificationService {
 
     const AndroidNotificationDetails androidPlatformChannelSpecifics =
         AndroidNotificationDetails(
-      _channelId,
-      _channelName,
-      channelDescription: _channelDescription,
-      importance: Importance.max,
-      priority: Priority.high,
-      icon: '@mipmap/launcher_icon',
-      showWhen: true,
-      enableVibration: true,
-      playSound: true,
-      visibility: NotificationVisibility.public,
-      category: AndroidNotificationCategory.reminder,
-    );
+          _channelId,
+          _channelName,
+          channelDescription: _channelDescription,
+          importance: Importance.max,
+          priority: Priority.high,
+          icon: '@mipmap/launcher_icon',
+          showWhen: true,
+          enableVibration: true,
+          playSound: true,
+          visibility: NotificationVisibility.public,
+          category: AndroidNotificationCategory.reminder,
+        );
 
     const DarwinNotificationDetails darwinPlatformChannelSpecifics =
         DarwinNotificationDetails(
-      presentAlert: true,
-      presentBadge: true,
-      presentSound: true,
-      interruptionLevel: InterruptionLevel.timeSensitive,
-    );
+          presentAlert: true,
+          presentBadge: true,
+          presentSound: true,
+          interruptionLevel: InterruptionLevel.timeSensitive,
+        );
 
     const NotificationDetails platformChannelSpecifics = NotificationDetails(
       android: androidPlatformChannelSpecifics,
@@ -125,19 +129,18 @@ class PushNotificationService {
   Future<void> showFromRemoteMessage(RemoteMessage message) async {
     final notification = message.notification;
     final data = message.data;
-    final title = notification?.title ?? data['title'] as String? ?? 'SpendDiary';
+    final title =
+        notification?.title ?? data['title'] as String? ?? 'SpendDiary';
     final body =
-        notification?.body ?? data['message'] as String? ?? data['body'] as String? ?? '';
+        notification?.body ??
+        data['message'] as String? ??
+        data['body'] as String? ??
+        '';
     final deepLink = data['deepLink'] as String? ?? '/';
     final type = data['type'] as String? ?? 'GENERAL';
     final id = type.hashCode.abs() % 100000;
 
-    await showNotification(
-      id: id,
-      title: title,
-      body: body,
-      payload: deepLink,
-    );
+    await showNotification(id: id, title: title, body: body, payload: deepLink);
   }
 
   Future<void> cancelAll() async {

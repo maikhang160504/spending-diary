@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../widgets/mimo_snackbar.dart';
 import '../../services/api_client.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_radii.dart';
@@ -27,7 +28,7 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
     final otp = _otpController.text.trim();
     if (otp.length != 6) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vui lòng nhập đủ 6 số OTP.')),
+        const SnackBar(content: Text('Vui lÃ²ng nháº­p Ä‘á»§ 6 sá»‘ OTP.')),
       );
       return;
     }
@@ -40,8 +41,9 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
       context.push('/reset-password', extra: resetToken);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
+      MimoSnackBar.showError(
+        context,
+        message: e.toString().replaceAll('Exception: ', ''),
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -67,7 +69,7 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'Nhập mã xác nhận',
+                'Nháº­p mÃ£ xÃ¡c nháº­n',
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
@@ -77,12 +79,22 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
               const SizedBox(height: 12),
               RichText(
                 text: TextSpan(
-                  style: const TextStyle(fontSize: 16, color: AppColors.textSecondary, height: 1.5),
+                  style: const TextStyle(
+                    fontSize: 16,
+                    color: AppColors.textSecondary,
+                    height: 1.5,
+                  ),
                   children: [
-                    const TextSpan(text: 'Mã xác nhận 6 số đã được gửi tới email\n'),
+                    const TextSpan(
+                      text:
+                          'MÃ£ xÃ¡c nháº­n 6 sá»‘ Ä‘Ã£ Ä‘Æ°á»£c gá»­i tá»›i email\n',
+                    ),
                     TextSpan(
                       text: widget.email,
-                      style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textPrimary,
+                      ),
                     ),
                   ],
                 ),
@@ -93,7 +105,11 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
                 keyboardType: TextInputType.number,
                 maxLength: 6,
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 32, letterSpacing: 8, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontSize: 32,
+                  letterSpacing: 8,
+                  fontWeight: FontWeight.bold,
+                ),
                 decoration: InputDecoration(
                   counterText: '',
                   hintText: '000000',
@@ -102,7 +118,10 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(AppRadii.md),
-                    borderSide: const BorderSide(color: AppColors.teal, width: 2),
+                    borderSide: const BorderSide(
+                      color: AppColors.teal,
+                      width: 2,
+                    ),
                   ),
                 ),
                 onChanged: (val) {
@@ -125,11 +144,17 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
                       ? const SizedBox(
                           height: 24,
                           width: 24,
-                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
                         )
                       : const Text(
-                          'Xác nhận',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          'XÃ¡c nháº­n',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                 ),
               ),

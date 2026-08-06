@@ -40,7 +40,11 @@ class SkeletonLine extends StatelessWidget {
   final double width;
   final double height;
 
-  const SkeletonLine({super.key, this.width = double.infinity, this.height = 14});
+  const SkeletonLine({
+    super.key,
+    this.width = double.infinity,
+    this.height = 14,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -67,28 +71,34 @@ class SkeletonListTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-      child: Row(children: [
-        Shimmer.fromColors(
-          baseColor: context.palette.surfaceAlt,
-          highlightColor: context.palette.border,
-          child: Container(
-            width: 44, height: 44,
-            decoration: BoxDecoration(
-              color: context.palette.card,
-              borderRadius: BorderRadius.circular(AppRadii.md),
+      child: Row(
+        children: [
+          Shimmer.fromColors(
+            baseColor: context.palette.surfaceAlt,
+            highlightColor: context.palette.border,
+            child: Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: context.palette.card,
+                borderRadius: BorderRadius.circular(AppRadii.md),
+              ),
             ),
           ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: const [
-            SkeletonLine(width: 140),
-            SizedBox(height: 6),
-            SkeletonLine(width: 80, height: 10),
-          ]),
-        ),
-        const SkeletonLine(width: 60),
-      ]),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: const [
+                SkeletonLine(width: 140),
+                SizedBox(height: 6),
+                SkeletonLine(width: 80, height: 10),
+              ],
+            ),
+          ),
+          const SkeletonLine(width: 60),
+        ],
+      ),
     );
   }
 }

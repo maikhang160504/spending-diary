@@ -17,7 +17,6 @@ class ReportScreen extends StatefulWidget {
 }
 
 class _ReportScreenState extends State<ReportScreen> {
-
   @override
   void initState() {
     super.initState();
@@ -55,7 +54,10 @@ class _ReportScreenState extends State<ReportScreen> {
                               end: Alignment.bottomRight,
                             ),
                             borderRadius: BorderRadius.circular(AppRadii.xl),
-                            border: Border.all(color: AppColors.teal.withValues(alpha: 0.25), width: 1.2),
+                            border: Border.all(
+                              color: AppColors.teal.withValues(alpha: 0.25),
+                              width: 1.2,
+                            ),
                           ),
                           child: Row(
                             children: [
@@ -67,7 +69,10 @@ class _ReportScreenState extends State<ReportScreen> {
                                   shape: BoxShape.circle,
                                 ),
                                 child: ClipOval(
-                                  child: Image.asset('assets/MiMo/emotions/Working.png', fit: BoxFit.cover),
+                                  child: Image.asset(
+                                    'assets/MiMo/emotions/Working.png',
+                                    fit: BoxFit.cover,
+                                  ),
                                 ),
                               ),
                               const SizedBox(width: 16),
@@ -111,101 +116,128 @@ class _ReportScreenState extends State<ReportScreen> {
                         ),
                         const SizedBox(height: 14),
 
-                        LayoutBuilder(builder: (context, constraints) {
-                          final w = constraints.maxWidth;
-                          final cardWidth = w >= 600 ? (w - 14) / 2 : w;
-                          return Wrap(
-                            spacing: 14,
-                            runSpacing: 14,
-                            children: [
-                              SizedBox(
-                                width: cardWidth,
-                                child: _buildReportMenuCard(
-                                  icon: Icons.pie_chart_rounded,
-                                  iconColor: const Color(0xFFE91E63),
-                                  iconBgColor: const Color(0xFFFCE4EC),
-                                  title: 'Chi tiêu theo danh mục',
-                                  subtitle: 'Phân tích tỷ trọng chi tiêu & cơ cấu dòng tiền từng nhóm',
-                                  onTap: () {
-                                    Navigator.of(context, rootNavigator: false).push(
-                                      MaterialPageRoute(
-                                        builder: (_) => CategorySpendingReportScreen(),
-                                      ),
-                                    );
-                                  },
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            final w = constraints.maxWidth;
+                            final cardWidth = w >= 600 ? (w - 14) / 2 : w;
+                            return Wrap(
+                              spacing: 14,
+                              runSpacing: 14,
+                              children: [
+                                SizedBox(
+                                  width: cardWidth,
+                                  child: _buildReportMenuCard(
+                                    icon: Icons.pie_chart_rounded,
+                                    iconColor: const Color(0xFFE91E63),
+                                    iconBgColor: const Color(0xFFFCE4EC),
+                                    title: 'Chi tiêu theo danh mục',
+                                    subtitle:
+                                        'Phân tích tỷ trọng chi tiêu & cơ cấu dòng tiền từng nhóm',
+                                    onTap: () {
+                                      Navigator.of(
+                                        context,
+                                        rootNavigator: false,
+                                      ).push(
+                                        MaterialPageRoute(
+                                          builder: (_) =>
+                                              CategorySpendingReportScreen(),
+                                        ),
+                                      );
+                                    },
+                                  ),
                                 ),
-                              ),
-                              SizedBox(
-                                width: cardWidth,
-                                child: _buildReportMenuCard(
-                                  icon: Icons.bar_chart_rounded,
-                                  iconColor: const Color(0xFF2196F3),
-                                  iconBgColor: const Color(0xFFE3F2FD),
-                                  title: 'Biến động thu chi',
-                                  subtitle: 'So sánh dòng tiền Thu - Chi & chế độ cột chồng so với cùng kỳ',
-                                  onTap: () {
-                                    Navigator.of(context, rootNavigator: false).push(
-                                      MaterialPageRoute(
-                                        builder: (_) => CashflowReportScreen(),
-                                      ),
-                                    );
-                                  },
+                                SizedBox(
+                                  width: cardWidth,
+                                  child: _buildReportMenuCard(
+                                    icon: Icons.bar_chart_rounded,
+                                    iconColor: const Color(0xFF2196F3),
+                                    iconBgColor: const Color(0xFFE3F2FD),
+                                    title: 'Biến động thu chi',
+                                    subtitle:
+                                        'So sánh dòng tiền Thu - Chi & chế độ cột chồng so với cùng kỳ',
+                                    onTap: () {
+                                      Navigator.of(
+                                        context,
+                                        rootNavigator: false,
+                                      ).push(
+                                        MaterialPageRoute(
+                                          builder: (_) =>
+                                              CashflowReportScreen(),
+                                        ),
+                                      );
+                                    },
+                                  ),
                                 ),
-                              ),
-                              SizedBox(
-                                width: cardWidth,
-                                child: _buildReportMenuCard(
-                                  icon: Icons.trending_up_rounded,
-                                  iconColor: const Color(0xFF4CAF50),
-                                  iconBgColor: const Color(0xFFE8F5E9),
-                                  title: 'Xu hướng tiết kiệm',
-                                  subtitle: 'Theo dõi tích lũy ròng qua các kỳ & tối ưu gia tăng tài sản',
-                                  onTap: () {
-                                    Navigator.of(context, rootNavigator: false).push(
-                                      MaterialPageRoute(
-                                        builder: (_) => SavingTrendReportScreen(),
-                                      ),
-                                    );
-                                  },
+                                SizedBox(
+                                  width: cardWidth,
+                                  child: _buildReportMenuCard(
+                                    icon: Icons.trending_up_rounded,
+                                    iconColor: const Color(0xFF4CAF50),
+                                    iconBgColor: const Color(0xFFE8F5E9),
+                                    title: 'Xu hướng tiết kiệm',
+                                    subtitle:
+                                        'Theo dõi tích lũy ròng qua các kỳ & tối ưu gia tăng tài sản',
+                                    onTap: () {
+                                      Navigator.of(
+                                        context,
+                                        rootNavigator: false,
+                                      ).push(
+                                        MaterialPageRoute(
+                                          builder: (_) =>
+                                              SavingTrendReportScreen(),
+                                        ),
+                                      );
+                                    },
+                                  ),
                                 ),
-                              ),
-                              SizedBox(
-                                width: cardWidth,
-                                child: _buildReportMenuCard(
-                                  icon: Icons.speed_rounded,
-                                  iconColor: const Color(0xFFFF9800),
-                                  iconBgColor: const Color(0xFFFFF3E0),
-                                  title: 'Chi tiêu lũy kế so với hạn mức',
-                                  subtitle: 'Kiểm soát tốc độ đốt hạn mức & cảnh báo vượt ngân sách',
-                                  onTap: () {
-                                    Navigator.of(context, rootNavigator: false).push(
-                                      MaterialPageRoute(
-                                        builder: (_) => CumulativeBudgetReportScreen(),
-                                      ),
-                                    );
-                                  },
+                                SizedBox(
+                                  width: cardWidth,
+                                  child: _buildReportMenuCard(
+                                    icon: Icons.speed_rounded,
+                                    iconColor: const Color(0xFFFF9800),
+                                    iconBgColor: const Color(0xFFFFF3E0),
+                                    title: 'Chi tiêu lũy kế so với hạn mức',
+                                    subtitle:
+                                        'Kiểm soát tốc độ đốt hạn mức & cảnh báo vượt ngân sách',
+                                    onTap: () {
+                                      Navigator.of(
+                                        context,
+                                        rootNavigator: false,
+                                      ).push(
+                                        MaterialPageRoute(
+                                          builder: (_) =>
+                                              CumulativeBudgetReportScreen(),
+                                        ),
+                                      );
+                                    },
+                                  ),
                                 ),
-                              ),
-                              SizedBox(
-                                width: w, // Thẻ cuối cùng cho nó dài hết cỡ
-                                child: _buildReportMenuCard(
-                                  icon: Icons.groups_rounded,
-                                  iconColor: const Color(0xFF673AB7),
-                                  iconBgColor: const Color(0xFFEDE7F6),
-                                  title: 'So sánh cộng đồng',
-                                  subtitle: 'Đối chiếu chi tiêu của bạn với nhóm người có cùng độ tuổi và công việc',
-                                  onTap: () {
-                                    Navigator.of(context, rootNavigator: false).push(
-                                      MaterialPageRoute(
-                                        builder: (_) => PeerCompareReportScreen(),
-                                      ),
-                                    );
-                                  },
+                                SizedBox(
+                                  width: w, // Thẻ cuối cùng cho nó dài hết cỡ
+                                  child: _buildReportMenuCard(
+                                    icon: Icons.groups_rounded,
+                                    iconColor: const Color(0xFF673AB7),
+                                    iconBgColor: const Color(0xFFEDE7F6),
+                                    title: 'So sánh cộng đồng',
+                                    subtitle:
+                                        'Đối chiếu chi tiêu của bạn với nhóm người có cùng độ tuổi và công việc',
+                                    onTap: () {
+                                      Navigator.of(
+                                        context,
+                                        rootNavigator: false,
+                                      ).push(
+                                        MaterialPageRoute(
+                                          builder: (_) =>
+                                              PeerCompareReportScreen(),
+                                        ),
+                                      );
+                                    },
+                                  ),
                                 ),
-                              ),
-                            ],
-                          );
-                        }),
+                              ],
+                            );
+                          },
+                        ),
                         const SizedBox(height: 32),
                       ],
                     ),
@@ -232,7 +264,9 @@ class _ReportScreenState extends State<ReportScreen> {
         color: context.palette.card,
         borderRadius: BorderRadius.circular(20),
         boxShadow: context.palette.softShadow,
-        border: Border.all(color: context.palette.border.withValues(alpha: 0.6)),
+        border: Border.all(
+          color: context.palette.border.withValues(alpha: 0.6),
+        ),
       ),
       child: Material(
         color: Colors.transparent,
@@ -303,8 +337,6 @@ class _ReportScreenState extends State<ReportScreen> {
       ),
     );
   }
-
-
 }
 
 class _ReportHeader extends StatelessWidget {
@@ -315,7 +347,9 @@ class _ReportHeader extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         gradient: AppGradients.teal,
-        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(AppRadii.xl)),
+        borderRadius: const BorderRadius.vertical(
+          bottom: Radius.circular(AppRadii.xl),
+        ),
         boxShadow: [
           BoxShadow(
             color: AppColors.teal.withValues(alpha: 0.3),
@@ -335,7 +369,11 @@ class _ReportHeader extends StatelessWidget {
               color: Colors.white.withValues(alpha: 0.22),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.analytics_rounded, color: Colors.white, size: 24),
+            child: const Icon(
+              Icons.analytics_rounded,
+              color: Colors.white,
+              size: 24,
+            ),
           ),
           Expanded(
             child: Column(
@@ -345,10 +383,10 @@ class _ReportHeader extends StatelessWidget {
                 Text(
                   'Báo cáo & Thống kê',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 21,
-                      ),
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 21,
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -356,9 +394,9 @@ class _ReportHeader extends StatelessWidget {
                 Text(
                   'Phân tích chi tiêu & xu hướng tài chính cùng AI',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Colors.white.withValues(alpha: 0.88),
-                        fontSize: 12,
-                      ),
+                    color: Colors.white.withValues(alpha: 0.88),
+                    fontSize: 12,
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),

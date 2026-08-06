@@ -4,25 +4,55 @@ import 'nlu_parse.dart';
 
 /// Đồng bộ với expense-ocr-nlu/src/nlg/mimo_assets.py
 const kMimoAssetNames = {
-  'Alert', 'Angry', 'Approved', 'Celebrate', 'Chill', 'Cooking', 'Cool',
-  'Determined', 'Error', 'Excited', 'Giggle', 'Happy', 'Hello', 'Loading',
-  'Love', 'Proud', 'Relax', 'Sad', 'Sleepy', 'Sassy', 'Shopping', 'Travel',
-  'Sorry', 'Success', 'Taunting', 'Thankful', 'Thinking', 'Working', 'Worried',
+  'Alert',
+  'Angry',
+  'Approved',
+  'Celebrate',
+  'Chill',
+  'Cooking',
+  'Cool',
+  'Determined',
+  'Error',
+  'Excited',
+  'Giggle',
+  'Happy',
+  'Hello',
+  'Loading',
+  'Love',
+  'Proud',
+  'Relax',
+  'Sad',
+  'Sleepy',
+  'Sassy',
+  'Shopping',
+  'Travel',
+  'Sorry',
+  'Success',
+  'Taunting',
+  'Thankful',
+  'Thinking',
+  'Working',
+  'Worried',
 };
 
 const _nlgPersonaKeys = {
-  'hai_huoc', 'dan_doi', 'dong_cam', 'cham_choc', 'nghiem_tuc', 'vui',
+  'hai_huoc',
+  'dan_doi',
+  'dong_cam',
+  'cham_choc',
+  'nghiem_tuc',
+  'vui',
 };
 
-String normalizeVerbalStyle(String? raw) => raw == 'strict' ? 'strict' : 'funny';
+String normalizeVerbalStyle(String? raw) =>
+    raw == 'strict' ? 'strict' : 'funny';
 
 String personalityLabelFromStyle(String verbalStyle) =>
     verbalStyle == 'strict' ? 'Dận Dữ' : 'Dui Dẻ';
 
-String personalityMascotAsset(String verbalStyle) =>
-    verbalStyle == 'strict'
-        ? 'assets/MiMo/emotions/Angry.png'
-        : 'assets/MiMo/emotions/Cool.png';
+String personalityMascotAsset(String verbalStyle) => verbalStyle == 'strict'
+    ? 'assets/MiMo/emotions/Angry.png'
+    : 'assets/MiMo/emotions/Cool.png';
 
 String personalityNlgPersona(String verbalStyle) =>
     verbalStyle == 'strict' ? 'dan_doi' : 'hai_huoc';
@@ -65,13 +95,14 @@ class LlmMimoReply {
     );
   }
 
-  static String intentEmotionFallback(String intent) =>
-      intent == 'Record' ? 'Success' : (intent == 'Action' ? 'Approved' : 'Hello');
+  static String intentEmotionFallback(String intent) => intent == 'Record'
+      ? 'Success'
+      : (intent == 'Action' ? 'Approved' : 'Hello');
 
   Map<String, dynamic> toStoryPersistFields() => {
-        'mascotMood': emotionAsset,
-        if (text.isNotEmpty) 'aiComment': text,
-      };
+    'mascotMood': emotionAsset,
+    if (text.isNotEmpty) 'aiComment': text,
+  };
 
   String get emotionAssetPath => 'assets/MiMo/emotions/$emotionAsset.png';
 }
@@ -116,7 +147,9 @@ void _debugLogMimoEmotion(
     debugPrint('[mimo-emotion]   nguồn: $pickedField = $pickedRaw');
   } else {
     debugPrint('[mimo-emotion]   raw từ API: $fields');
-    if (gemini != null && gemini.containsKey('status') && !gemini.containsKey('mimo_emotion')) {
+    if (gemini != null &&
+        gemini.containsKey('status') &&
+        !gemini.containsKey('mimo_emotion')) {
       debugPrint(
         '[mimo-emotion]   ⚠ gemini_json cũ (story/status) — restart AI service sau khi cập nhật schema',
       );
@@ -151,12 +184,12 @@ String resolveMimoEmotionAsset(Map<String, dynamic> nlu, {String? intent}) {
 String? resolveLlmReplyText(Map<String, dynamic> nlu) {
   final gemini = nluMap(nlu['gemini_json']);
   final llama = nluMap(nlu['llama_json']);
-  return nluString(gemini?['response'])
-      ?? nluString(gemini?['story'])
-      ?? nluString(llama?['response'])
-      ?? nluString(llama?['story'])
-      ?? nluString(nlu['nlg_response'])
-      ?? nluString(nlu['response']);
+  return nluString(gemini?['response']) ??
+      nluString(gemini?['story']) ??
+      nluString(llama?['response']) ??
+      nluString(llama?['story']) ??
+      nluString(nlu['nlg_response']) ??
+      nluString(nlu['response']);
 }
 
 /// Một nguồn text cho bubble chat, lưu session và ai_comment story.
@@ -166,7 +199,10 @@ String canonicalAiReplyText(LlmMimoReply llm, {String? displayFallback}) {
   return (displayFallback ?? '').trim();
 }
 
-LlmMimoReply? llmReplyFromChatMetadata(Map<String, dynamic>? metadata, {String? fallbackText}) {
+LlmMimoReply? llmReplyFromChatMetadata(
+  Map<String, dynamic>? metadata, {
+  String? fallbackText,
+}) {
   if (metadata == null) return null;
   final nlu = nluMap(metadata['nlu']);
   if (nlu != null) {
@@ -175,7 +211,8 @@ LlmMimoReply? llmReplyFromChatMetadata(Map<String, dynamic>? metadata, {String? 
       intent: nluString(metadata['intent']),
       logEmotion: false,
     );
-    final stored = nluString(metadata['aiComment']) ?? nluString(metadata['story']);
+    final stored =
+        nluString(metadata['aiComment']) ?? nluString(metadata['story']);
     if (stored != null && stored.isNotEmpty) {
       return LlmMimoReply(text: stored, emotionAsset: fromNlu.emotionAsset);
     }
@@ -187,6 +224,7 @@ LlmMimoReply? llmReplyFromChatMetadata(Map<String, dynamic>? metadata, {String? 
   final intent = nluString(metadata['intent']) ?? 'Chitchat';
   return LlmMimoReply(
     text: text,
-    emotionAsset: coerceMimoAssetName(mood) ?? LlmMimoReply.intentEmotionFallback(intent),
+    emotionAsset:
+        coerceMimoAssetName(mood) ?? LlmMimoReply.intentEmotionFallback(intent),
   );
 }

@@ -7,11 +7,7 @@ class BannedScreen extends StatefulWidget {
   final String? banReason;
   final Map<String, dynamic>? initialAppeal;
 
-  const BannedScreen({
-    super.key,
-    this.banReason,
-    this.initialAppeal,
-  });
+  const BannedScreen({super.key, this.banReason, this.initialAppeal});
 
   @override
   State<BannedScreen> createState() => _BannedScreenState();
@@ -120,7 +116,10 @@ class _BannedScreenState extends State<BannedScreen> {
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 480),
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 32.0),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 24.0,
+                vertical: 32.0,
+              ),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -180,7 +179,8 @@ class _BannedScreenState extends State<BannedScreen> {
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
-                            widget.banReason != null && widget.banReason!.isNotEmpty
+                            widget.banReason != null &&
+                                    widget.banReason!.isNotEmpty
                                 ? widget.banReason!
                                 : 'Tài khoản của bạn tạm thời bị khóa do có hành vi bất thường hoặc vi phạm quy định sử dụng.',
                             style: const TextStyle(
@@ -236,7 +236,9 @@ class _BannedScreenState extends State<BannedScreen> {
                         border: Border.all(color: const Color(0xFF99F6E4)),
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFF0D9488).withValues(alpha: 0.06),
+                            color: const Color(
+                              0xFF0D9488,
+                            ).withValues(alpha: 0.06),
                             blurRadius: 16,
                             offset: const Offset(0, 4),
                           ),
@@ -281,14 +283,17 @@ class _BannedScreenState extends State<BannedScreen> {
                               height: 1.45,
                             ),
                           ),
-                          if (_submittedReason != null && _submittedReason!.isNotEmpty) ...[
+                          if (_submittedReason != null &&
+                              _submittedReason!.isNotEmpty) ...[
                             const SizedBox(height: 14),
                             Container(
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
                                 color: const Color(0xFFF1F5F9),
                                 borderRadius: BorderRadius.circular(10),
-                                border: Border.all(color: const Color(0xFFE2E8F0)),
+                                border: Border.all(
+                                  color: const Color(0xFFE2E8F0),
+                                ),
                               ),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -316,7 +321,10 @@ class _BannedScreenState extends State<BannedScreen> {
                           ],
                           const SizedBox(height: 16),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
                             decoration: BoxDecoration(
                               color: const Color(0xFFF0FDF4),
                               borderRadius: BorderRadius.circular(8),
@@ -402,7 +410,8 @@ class _BannedScreenState extends State<BannedScreen> {
                             maxLines: 4,
                             maxLength: 500,
                             decoration: InputDecoration(
-                              hintText: 'Nhập lý do khiếu nại của bạn tại đây...',
+                              hintText:
+                                  'Nhập lý do khiếu nại của bạn tại đây...',
                               hintStyle: const TextStyle(
                                 color: Color(0xFF94A3B8),
                                 fontSize: 14,
@@ -411,11 +420,15 @@ class _BannedScreenState extends State<BannedScreen> {
                               fillColor: const Color(0xFFF8FAFC),
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+                                borderSide: const BorderSide(
+                                  color: Color(0xFFCBD5E1),
+                                ),
                               ),
                               enabledBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                                borderSide: const BorderSide(
+                                  color: Color(0xFFE2E8F0),
+                                ),
                               ),
                               focusedBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),

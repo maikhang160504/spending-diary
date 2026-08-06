@@ -52,17 +52,17 @@ class GradientHeader extends StatelessWidget {
                     Text(
                       title,
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w700,
-                          ),
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                     if (subtitle != null) ...[
                       const SizedBox(height: 4),
                       Text(
                         subtitle!,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: Colors.white70,
-                            ),
+                        style: Theme.of(
+                          context,
+                        ).textTheme.bodySmall?.copyWith(color: Colors.white70),
                       ),
                     ],
                   ],
@@ -87,7 +87,11 @@ class HeaderBackButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return IconButton(
-      onPressed: onTap ?? () { if (context.canPop()) context.pop(); },
+      onPressed:
+          onTap ??
+          () {
+            if (context.canPop()) context.pop();
+          },
       icon: Container(
         width: 36,
         height: 36,
@@ -95,7 +99,11 @@ class HeaderBackButton extends StatelessWidget {
           color: Colors.white.withValues(alpha: 0.2),
           shape: BoxShape.circle,
         ),
-        child: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 16),
+        child: const Icon(
+          Icons.arrow_back_ios_new,
+          color: Colors.white,
+          size: 16,
+        ),
       ),
     );
   }

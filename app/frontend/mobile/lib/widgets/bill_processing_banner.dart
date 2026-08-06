@@ -8,11 +8,7 @@ class BillProcessingBanner extends StatelessWidget {
   final BillJob job;
   final VoidCallback? onDismiss;
 
-  const BillProcessingBanner({
-    super.key,
-    required this.job,
-    this.onDismiss,
-  });
+  const BillProcessingBanner({super.key, required this.job, this.onDismiss});
 
   String get _statusLabel {
     switch (job.phase) {
@@ -57,7 +53,9 @@ class BillProcessingBanner extends StatelessWidget {
             Row(
               children: [
                 Icon(
-                  isFailed ? Icons.error_outline_rounded : Icons.receipt_long_outlined,
+                  isFailed
+                      ? Icons.error_outline_rounded
+                      : Icons.receipt_long_outlined,
                   color: accent,
                   size: 18,
                 ),
@@ -95,7 +93,9 @@ class BillProcessingBanner extends StatelessWidget {
               Text(
                 job.phase == BillJobPhase.uploading
                     ? 'Bạn có thể tiếp tục dùng app'
-                    : (job.isText ? 'Đang phân tích thông minh · ${job.elapsedSeconds}s' : 'Đang phân tích OCR · ${job.elapsedSeconds}s'),
+                    : (job.isText
+                          ? 'Đang phân tích thông minh · ${job.elapsedSeconds}s'
+                          : 'Đang phân tích OCR · ${job.elapsedSeconds}s'),
                 style: theme.textTheme.bodySmall?.copyWith(
                   fontSize: 11,
                   color: isDark ? Colors.white60 : Colors.black54,

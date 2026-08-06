@@ -229,14 +229,14 @@ async function getStreak(userId) {
   const lastActiveStr = dates[0];
   const daysSinceLast = getDaysDiff(todayStr, lastActiveStr);
 
-  // Tính current streak — Khoan hồng 1 ngày:
-  // Nếu hôm nay (0 ngày) hoặc hôm qua (1 ngày) hoặc cách 2 ngày (vừa bỏ lỡ 1 ngày) thì chuỗi vẫn còn hiệu lực.
+  // Tính current streak — Bắt buộc liên tục (không có khoan hồng 1 ngày)
+  // Nếu hôm nay (0 ngày) hoặc hôm qua (1 ngày) thì chuỗi vẫn còn hiệu lực.
   let currentStreak = 0;
-  if (daysSinceLast <= 2) {
+  if (daysSinceLast <= 1) {
     currentStreak = 1;
     for (let i = 1; i < dates.length; i++) {
       const diff = getDaysDiff(dates[i - 1], dates[i]);
-      if (diff <= 2) {
+      if (diff <= 1) {
         currentStreak++;
       } else {
         break;
@@ -249,7 +249,7 @@ async function getStreak(userId) {
   let runningStreak = 1;
   for (let i = 1; i < dates.length; i++) {
     const diff = getDaysDiff(dates[i - 1], dates[i]);
-    if (diff <= 2) {
+    if (diff <= 1) {
       runningStreak++;
     } else {
       longestStreak = Math.max(longestStreak, runningStreak);
@@ -266,6 +266,8 @@ async function getStreak(userId) {
       userId,
     ]);
   } catch (_) {}
+
+  console.log(`[getStreak] User: ${userId}, today: ${todayStr}, lastActive: ${lastActiveStr}, daysSinceLast: ${daysSinceLast}, currentStreak: ${currentStreak}`);
 
   return {
     currentStreak,

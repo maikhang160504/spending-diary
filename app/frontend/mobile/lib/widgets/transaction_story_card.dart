@@ -12,6 +12,7 @@ import 'category_chip.dart';
 import '../utils/mimo_emotion.dart';
 import '../routes/app_routes.dart';
 import '../services/api_client.dart';
+import 'mimo_snackbar.dart';
 
 class TransactionStoryCard extends StatelessWidget {
   final dynamic tx;
@@ -70,13 +71,10 @@ class TransactionStoryCard extends StatelessWidget {
       await api.updateTransaction(tx['id'] ?? '', {'categoryCode': picked});
       notifyTransactionChanged();
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
+        MimoSnackBar.showSuccess(
+          context,
+          message:
               'Đã cập nhật giao dịch và ghi nhận góp ý! Mimo sẽ học thêm từ bạn 🙏',
-            ),
-            backgroundColor: AppColors.teal,
-          ),
         );
       }
     } catch (_) {}
@@ -190,10 +188,9 @@ class TransactionStoryCard extends StatelessWidget {
                         : () async {
                             final parsed = int.tryParse(amountCtrl.text);
                             if (parsed == null || parsed <= 0) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Vui lòng nhập số tiền hợp lệ'),
-                                ),
+                              MimoSnackBar.showInfo(
+                                context,
+                                message: 'Vui lòng nhập số tiền hợp lệ',
                               );
                               return;
                             }
@@ -209,12 +206,9 @@ class TransactionStoryCard extends StatelessWidget {
                             } catch (_) {
                               setSheetState(() => saving = false);
                               if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      'Không thể cập nhật giao dịch',
-                                    ),
-                                  ),
+                                MimoSnackBar.showInfo(
+                                  context,
+                                  message: 'Không thể cập nhật giao dịch',
                                 );
                               }
                             }
@@ -368,7 +362,8 @@ class TransactionStoryCard extends StatelessWidget {
         tx['category_code'] as String? ??
         'Other';
     final note = tx['note'] as String? ?? '';
-    final originalText = tx['originalText'] as String? ?? tx['original_text'] as String? ?? '';
+    final originalText =
+        tx['originalText'] as String? ?? tx['original_text'] as String? ?? '';
     final caption = originalText.isNotEmpty ? originalText : note;
     final displayTime = txTimestampIso(tx) ?? '';
     final isExpense = type.toLowerCase() == 'expense';
@@ -466,8 +461,8 @@ class TransactionStoryCard extends StatelessWidget {
                                   : 'B',
                               style: TextStyle(
                                 color: catStyle.color,
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 16,
                               ),
                             ),
                           ),
@@ -512,7 +507,10 @@ class TransactionStoryCard extends StatelessWidget {
             // ── Caption: user's note (text they typed) ──
             if (caption.isNotEmpty)
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 2,
+                ),
                 child: Text(
                   caption,
                   style: Theme.of(
@@ -590,7 +588,10 @@ class TransactionStoryCard extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: context.palette.surfaceAlt,
                   borderRadius: BorderRadius.circular(AppRadii.md),
@@ -646,4 +647,3 @@ class TransactionStoryCard extends StatelessWidget {
 }
 
 // ─── Shared widgets ───────────────────────────────────────────────────────────
-

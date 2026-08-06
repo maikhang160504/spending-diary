@@ -15,11 +15,13 @@ class SavingTrendReportScreen extends StatefulWidget {
   const SavingTrendReportScreen({super.key, this.initialWalletId});
 
   @override
-  State<SavingTrendReportScreen> createState() => _SavingTrendReportScreenState();
+  State<SavingTrendReportScreen> createState() =>
+      _SavingTrendReportScreenState();
 }
 
 class _SavingTrendReportScreenState extends State<SavingTrendReportScreen> {
-  String _selectedPeriod = 'Theo tháng'; // 'Theo tuần', 'Theo tháng', 'Theo năm'
+  String _selectedPeriod =
+      'Theo tháng'; // 'Theo tuần', 'Theo tháng', 'Theo năm'
   bool _isAnalyzingAI = false;
   int _periodOffset = 0;
   String? _aiInsight;
@@ -47,7 +49,9 @@ class _SavingTrendReportScreenState extends State<SavingTrendReportScreen> {
     final now = DateTime.now();
     if (_selectedPeriod == 'Theo tuần') {
       if (_periodOffset == 0) return 'Tuần hiện tại';
-      final startOfWeek = now.subtract(Duration(days: now.weekday - 1)).subtract(Duration(days: 7 * _periodOffset));
+      final startOfWeek = now
+          .subtract(Duration(days: now.weekday - 1))
+          .subtract(Duration(days: 7 * _periodOffset));
       final endOfWeek = startOfWeek.add(const Duration(days: 6));
       return '${DateFormat('dd/MM').format(startOfWeek)} - ${DateFormat('dd/MM').format(endOfWeek)}';
     } else if (_selectedPeriod == 'Theo tháng') {
@@ -62,6 +66,7 @@ class _SavingTrendReportScreenState extends State<SavingTrendReportScreen> {
   }
 
   Future<void> _loadReportData() async {
+    _aiInsight = null;
     setState(() => _isLoading = true);
     try {
       final now = DateTime.now();
@@ -81,19 +86,27 @@ class _SavingTrendReportScreenState extends State<SavingTrendReportScreen> {
       int totalExp = 0;
 
       if (_selectedPeriod == 'Theo tuần') {
-        final startOfWeek = now.subtract(Duration(days: now.weekday - 1)).subtract(Duration(days: 7 * _periodOffset));
+        final startOfWeek = now
+            .subtract(Duration(days: now.weekday - 1))
+            .subtract(Duration(days: 7 * _periodOffset));
         final endOfWeek = startOfWeek.add(const Duration(days: 6));
         final fromStr = DateFormat('yyyy-MM-dd').format(startOfWeek);
         final toStr = DateFormat('yyyy-MM-dd').format(endOfWeek);
 
-        final dashRes = await AppQueries.dashboard(_selectedWalletId, from: fromStr, to: toStr).result;
+        final dashRes = await AppQueries.dashboard(
+          _selectedWalletId,
+          from: fromStr,
+          to: toStr,
+        ).result;
         final dashData = dashRes.data ?? {};
         final byDay = (dashData['byDay'] as List<dynamic>?) ?? [];
 
         labels = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
 
         for (int i = 0; i < 7; i++) {
-          final dayData = i < byDay.length ? (byDay[i] as Map<String, dynamic>) : null;
+          final dayData = i < byDay.length
+              ? (byDay[i] as Map<String, dynamic>)
+              : null;
           final inc = (dayData?['income'] as num?)?.toInt() ?? 0;
           final exp = (dayData?['expense'] as num?)?.toInt() ?? 0;
           final net = inc - exp;
@@ -112,11 +125,19 @@ class _SavingTrendReportScreenState extends State<SavingTrendReportScreen> {
         }
       } else if (_selectedPeriod == 'Theo tháng') {
         final targetMonth = DateTime(now.year, now.month - _periodOffset, 1);
-        final targetMonthEnd = DateTime(now.year, now.month - _periodOffset + 1, 0);
+        final targetMonthEnd = DateTime(
+          now.year,
+          now.month - _periodOffset + 1,
+          0,
+        );
         final fromStr = DateFormat('yyyy-MM-dd').format(targetMonth);
         final toStr = DateFormat('yyyy-MM-dd').format(targetMonthEnd);
 
-        final dashRes = await AppQueries.dashboard(_selectedWalletId, from: fromStr, to: toStr).result;
+        final dashRes = await AppQueries.dashboard(
+          _selectedWalletId,
+          from: fromStr,
+          to: toStr,
+        ).result;
         final dashData = dashRes.data ?? {};
         final byDay = (dashData['byDay'] as List<dynamic>?) ?? [];
 
@@ -136,8 +157,12 @@ class _SavingTrendReportScreenState extends State<SavingTrendReportScreen> {
             final dayNum = int.tryParse(dayStr.substring(8, 10)) ?? 1;
             int weekIdx = (dayNum - 1) ~/ 7;
             if (weekIdx >= weeks.length) weekIdx = weeks.length - 1;
-            weeks[weekIdx]['income'] = (weeks[weekIdx]['income'] ?? 0) + ((map['income'] as num?)?.toInt() ?? 0);
-            weeks[weekIdx]['expense'] = (weeks[weekIdx]['expense'] ?? 0) + ((map['expense'] as num?)?.toInt() ?? 0);
+            weeks[weekIdx]['income'] =
+                (weeks[weekIdx]['income'] ?? 0) +
+                ((map['income'] as num?)?.toInt() ?? 0);
+            weeks[weekIdx]['expense'] =
+                (weeks[weekIdx]['expense'] ?? 0) +
+                ((map['expense'] as num?)?.toInt() ?? 0);
           }
         }
 
@@ -165,13 +190,31 @@ class _SavingTrendReportScreenState extends State<SavingTrendReportScreen> {
       } else {
         // Theo năm
         final targetYear = now.year - _periodOffset;
-        final monthsRes = await AppQueries.statsByMonth(targetYear, _selectedWalletId).result;
+        final monthsRes = await AppQueries.statsByMonth(
+          targetYear,
+          _selectedWalletId,
+        ).result;
         final monthsData = monthsRes.data ?? [];
 
-        labels = ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10', 'T11', 'T12'];
+        labels = [
+          'T1',
+          'T2',
+          'T3',
+          'T4',
+          'T5',
+          'T6',
+          'T7',
+          'T8',
+          'T9',
+          'T10',
+          'T11',
+          'T12',
+        ];
 
         for (int i = 0; i < 12; i++) {
-          final m = i < monthsData.length ? (monthsData[i] as Map<String, dynamic>) : null;
+          final m = i < monthsData.length
+              ? (monthsData[i] as Map<String, dynamic>)
+              : null;
           final inc = (m?['income'] as num?)?.toInt() ?? 0;
           final exp = (m?['expense'] as num?)?.toInt() ?? 0;
           final net = inc - exp;
@@ -190,7 +233,9 @@ class _SavingTrendReportScreenState extends State<SavingTrendReportScreen> {
       }
 
       final netSav = totalInc - totalExp;
-      final savRate = totalInc > 0 ? (netSav > 0 ? (netSav * 100 / totalInc) : 0.0) : 0.0;
+      final savRate = totalInc > 0
+          ? (netSav > 0 ? (netSav * 100 / totalInc) : 0.0)
+          : 0.0;
 
       if (mounted) {
         setState(() {
@@ -214,24 +259,23 @@ class _SavingTrendReportScreenState extends State<SavingTrendReportScreen> {
 
   Future<void> _analyzeAI() async {
     setState(() => _isAnalyzingAI = true);
-    try {
-      final prompt = 'Phân tích xu hướng tiết kiệm và tích lũy ròng: Kỳ $_selectedPeriod (${_getPeriodLabel()}), tổng thu: ${formatVnd(_totalIncome)}, tổng chi: ${formatVnd(_totalExpense)}, tích lũy ròng: ${formatVnd(_netSaving)}, tỷ lệ tiết kiệm: ${_savingRate.toStringAsFixed(1)}%. Hãy đưa ra nhận xét ngắn gọn và giải pháp gia tăng tiền tiết kiệm cho người dùng.';
-      final res = await AIAdvisorService.askFinancialQuestion(prompt);
-      if (mounted) {
-        setState(() {
-          _aiInsight = res;
-          _isAnalyzingAI = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _aiInsight = 'Xu hướng tiết kiệm đang duy trì nhịp độ đều đặn. Việc thiết lập trích lập tự động 15-20% thu nhập sẽ giúp tích lũy vững chắc hơn!';
-          _isAnalyzingAI = false;
-        });
-      }
+    await Future.delayed(const Duration(milliseconds: 400));
+    final insight = AIAdvisorService.analyzeSavingTrend(
+      totalIncome: _totalIncome,
+      totalExpense: _totalExpense,
+      netSaving: _netSaving,
+      savingRate: _savingRate,
+      periodLabel: _getPeriodLabel(),
+      chartValues: _chartValues,
+    );
+    if (mounted) {
+      setState(() {
+        _aiInsight = insight;
+        _isAnalyzingAI = false;
+      });
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -242,7 +286,11 @@ class _SavingTrendReportScreenState extends State<SavingTrendReportScreen> {
         elevation: 0,
         centerTitle: true,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new_rounded, color: context.palette.textPrimary, size: 20),
+          icon: Icon(
+            Icons.arrow_back_ios_new_rounded,
+            color: context.palette.textPrimary,
+            size: 20,
+          ),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: const Text(
@@ -253,7 +301,9 @@ class _SavingTrendReportScreenState extends State<SavingTrendReportScreen> {
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final isLandscapePhone = constraints.maxWidth > constraints.maxHeight && constraints.maxHeight < 500;
+            final isLandscapePhone =
+                constraints.maxWidth > constraints.maxHeight &&
+                constraints.maxHeight < 500;
             return Center(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 600),
@@ -261,12 +311,19 @@ class _SavingTrendReportScreenState extends State<SavingTrendReportScreen> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.md,
+                        vertical: 4,
+                      ),
                       child: ReportFilterBar(
                         isLandscapePhone: isLandscapePhone,
                         children: [
                           FilterSegmentCompact(
-                            labels: const ['Theo tuần', 'Theo tháng', 'Theo năm'],
+                            labels: const [
+                              'Theo tuần',
+                              'Theo tháng',
+                              'Theo năm',
+                            ],
                             selected: _selectedPeriod,
                             onChanged: (val) {
                               if (val != _selectedPeriod) {
@@ -309,7 +366,12 @@ class _SavingTrendReportScreenState extends State<SavingTrendReportScreen> {
                       child: _isLoading
                           ? const Center(child: CircularProgressIndicator())
                           : SingleChildScrollView(
-                              padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 8, AppSpacing.lg, AppSpacing.lg),
+                              padding: const EdgeInsets.fromLTRB(
+                                AppSpacing.lg,
+                                8,
+                                AppSpacing.lg,
+                                AppSpacing.lg,
+                              ),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
@@ -351,12 +413,18 @@ class _SavingTrendReportScreenState extends State<SavingTrendReportScreen> {
             children: [
               Text(
                 'Tích lũy ròng trong kỳ',
-                style: TextStyle(color: context.palette.textSecondary, fontSize: 13, fontWeight: FontWeight.w600),
+                style: TextStyle(
+                  color: context.palette.textSecondary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: isPos ? AppColors.success.withValues(alpha: 0.12) : AppColors.danger.withValues(alpha: 0.12),
+                  color: isPos
+                      ? AppColors.success.withValues(alpha: 0.12)
+                      : AppColors.danger.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
@@ -386,11 +454,18 @@ class _SavingTrendReportScreenState extends State<SavingTrendReportScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Tổng thu', style: TextStyle(color: AppColors.muted, fontSize: 11)),
+                    const Text(
+                      'Tổng thu',
+                      style: TextStyle(color: AppColors.muted, fontSize: 11),
+                    ),
                     const SizedBox(height: 2),
                     Text(
                       formatVnd(_totalIncome),
-                      style: const TextStyle(color: AppColors.success, fontSize: 13, fontWeight: FontWeight.w700),
+                      style: const TextStyle(
+                        color: AppColors.success,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ],
                 ),
@@ -399,11 +474,18 @@ class _SavingTrendReportScreenState extends State<SavingTrendReportScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    const Text('Tổng chi', style: TextStyle(color: AppColors.muted, fontSize: 11)),
+                    const Text(
+                      'Tổng chi',
+                      style: TextStyle(color: AppColors.muted, fontSize: 11),
+                    ),
                     const SizedBox(height: 2),
                     Text(
                       formatVnd(_totalExpense),
-                      style: const TextStyle(color: AppColors.danger, fontSize: 13, fontWeight: FontWeight.w700),
+                      style: const TextStyle(
+                        color: AppColors.danger,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ],
                 ),
@@ -445,7 +527,9 @@ class _SavingTrendReportScreenState extends State<SavingTrendReportScreen> {
                   ),
                   child: ClipOval(
                     child: Image.asset(
-                      _isAnalyzingAI ? 'assets/MiMo/emotions/Thinking.png' : 'assets/MiMo/emotions/Working.png',
+                      _isAnalyzingAI
+                          ? 'assets/MiMo/emotions/Thinking.png'
+                          : 'assets/MiMo/emotions/Working.png',
                       fit: BoxFit.cover,
                     ),
                   ),
@@ -457,22 +541,36 @@ class _SavingTrendReportScreenState extends State<SavingTrendReportScreen> {
                     children: [
                       const Text(
                         'Phân tích AI từ MiMo Mascot',
-                        style: TextStyle(color: AppColors.teal, fontSize: 15, fontWeight: FontWeight.w700),
+                        style: TextStyle(
+                          color: AppColors.teal,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                       const SizedBox(height: 2),
                       Text(
                         _isAnalyzingAI
                             ? 'MiMo đang phân tích tích lũy tiết kiệm...'
                             : 'Nhấn để MiMo phân tích xu hướng tích lũy ròng',
-                        style: const TextStyle(color: AppColors.muted, fontSize: 12),
+                        style: const TextStyle(
+                          color: AppColors.muted,
+                          fontSize: 12,
+                        ),
                       ),
                     ],
                   ),
                 ),
                 if (_isAnalyzingAI)
-                  const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                  const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
                 else
-                  const Icon(Icons.chevron_right_rounded, color: AppColors.teal),
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    color: AppColors.teal,
+                  ),
               ],
             ),
           ),
@@ -498,7 +596,10 @@ class _SavingTrendReportScreenState extends State<SavingTrendReportScreen> {
                     shape: BoxShape.circle,
                   ),
                   child: ClipOval(
-                    child: Image.asset('assets/MiMo/emotions/Working.png', fit: BoxFit.cover),
+                    child: Image.asset(
+                      'assets/MiMo/emotions/Working.png',
+                      fit: BoxFit.cover,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -508,12 +609,20 @@ class _SavingTrendReportScreenState extends State<SavingTrendReportScreen> {
                     children: [
                       const Text(
                         'MiMo khuyên bạn:',
-                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: AppColors.teal),
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                          color: AppColors.teal,
+                        ),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         _aiInsight!,
-                        style: TextStyle(color: context.palette.textPrimary, fontSize: 13, height: 1.4),
+                        style: TextStyle(
+                          color: context.palette.textPrimary,
+                          fontSize: 13,
+                          height: 1.4,
+                        ),
                       ),
                     ],
                   ),
@@ -554,11 +663,17 @@ class _SavingTrendReportScreenState extends State<SavingTrendReportScreen> {
         children: [
           Text(
             'Biểu đồ biến động tích lũy (Thu - Chi)',
-            style: TextStyle(color: context.palette.textPrimary, fontSize: 15, fontWeight: FontWeight.w700),
+            style: TextStyle(
+              color: context.palette.textPrimary,
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+            ),
           ),
           const SizedBox(height: 20),
           SizedBox(
-            height: MediaQuery.of(context).orientation == Orientation.landscape ? 180 : 240,
+            height: MediaQuery.of(context).orientation == Orientation.landscape
+                ? 180
+                : 240,
             child: LineChart(
               LineChartData(
                 minY: minVal,
@@ -570,10 +685,16 @@ class _SavingTrendReportScreenState extends State<SavingTrendReportScreen> {
                     getTooltipItems: (spots) {
                       return spots.map((spot) {
                         final idx = spot.x.toInt();
-                        final lbl = idx >= 0 && idx < labels.length ? labels[idx] : '';
+                        final lbl = idx >= 0 && idx < labels.length
+                            ? labels[idx]
+                            : '';
                         return LineTooltipItem(
                           '$lbl\n${formatVnd(spot.y.toInt())}',
-                          const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11),
+                          const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 11,
+                          ),
                         );
                       }).toList();
                     },
@@ -582,28 +703,42 @@ class _SavingTrendReportScreenState extends State<SavingTrendReportScreen> {
                 gridData: FlGridData(
                   show: true,
                   drawVerticalLine: false,
-                  getDrawingHorizontalLine: (_) =>
-                      FlLine(color: context.palette.border.withValues(alpha: 0.5), strokeWidth: 1),
+                  getDrawingHorizontalLine: (_) => FlLine(
+                    color: context.palette.border.withValues(alpha: 0.5),
+                    strokeWidth: 1,
+                  ),
                 ),
                 titlesData: FlTitlesData(
                   show: true,
-                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  topTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  rightTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
                   leftTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
                       reservedSize: 52,
                       getTitlesWidget: (val, meta) {
                         if (val == 0) {
-                          return const Text('0', style: TextStyle(color: AppColors.muted, fontSize: 10));
+                          return const Text(
+                            '0',
+                            style: TextStyle(
+                              color: AppColors.muted,
+                              fontSize: 10,
+                            ),
+                          );
                         }
                         final absVal = val.abs();
                         final prefix = val < 0 ? '-' : '';
                         String formatted;
                         if (absVal >= 1000000) {
-                          formatted = '$prefix${(absVal / 1000000).toStringAsFixed(1)}Tr';
+                          formatted =
+                              '$prefix${(absVal / 1000000).toStringAsFixed(1)}Tr';
                         } else if (absVal >= 1000) {
-                          formatted = '$prefix${(absVal / 1000).toStringAsFixed(0)}K';
+                          formatted =
+                              '$prefix${(absVal / 1000).toStringAsFixed(0)}K';
                         } else {
                           formatted = '$prefix${absVal.toInt()}';
                         }
@@ -611,7 +746,10 @@ class _SavingTrendReportScreenState extends State<SavingTrendReportScreen> {
                           padding: const EdgeInsets.only(right: 6),
                           child: Text(
                             formatted,
-                            style: const TextStyle(color: AppColors.muted, fontSize: 10),
+                            style: const TextStyle(
+                              color: AppColors.muted,
+                              fontSize: 10,
+                            ),
                             textAlign: TextAlign.right,
                           ),
                         );
@@ -623,10 +761,17 @@ class _SavingTrendReportScreenState extends State<SavingTrendReportScreen> {
                       showTitles: true,
                       getTitlesWidget: (val, meta) {
                         final idx = val.toInt();
-                        if (idx < 0 || idx >= labels.length) return const SizedBox();
+                        if (idx < 0 || idx >= labels.length)
+                          return const SizedBox();
                         return Padding(
                           padding: const EdgeInsets.only(top: 6),
-                          child: Text(labels[idx], style: const TextStyle(color: AppColors.muted, fontSize: 12)),
+                          child: Text(
+                            labels[idx],
+                            style: const TextStyle(
+                              color: AppColors.muted,
+                              fontSize: 12,
+                            ),
+                          ),
                         );
                       },
                     ),
@@ -649,7 +794,9 @@ class _SavingTrendReportScreenState extends State<SavingTrendReportScreen> {
                           radius: 4.5,
                           color: Colors.white,
                           strokeWidth: 2.5,
-                          strokeColor: spot.y >= 0 ? AppColors.teal : AppColors.danger,
+                          strokeColor: spot.y >= 0
+                              ? AppColors.teal
+                              : AppColors.danger,
                         );
                       },
                     ),
@@ -687,14 +834,21 @@ class _SavingTrendReportScreenState extends State<SavingTrendReportScreen> {
         children: [
           Text(
             'Chi tiết tích lũy ($_selectedPeriod)',
-            style: TextStyle(color: context.palette.textPrimary, fontSize: 16, fontWeight: FontWeight.w700),
+            style: TextStyle(
+              color: context.palette.textPrimary,
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+            ),
           ),
           const SizedBox(height: 16),
           if (_detailList.isEmpty)
             const Center(
               child: Padding(
                 padding: EdgeInsets.symmetric(vertical: 20),
-                child: Text('Chưa có dữ liệu trong kỳ này', style: TextStyle(color: AppColors.muted)),
+                child: Text(
+                  'Chưa có dữ liệu trong kỳ này',
+                  style: TextStyle(color: AppColors.muted),
+                ),
               ),
             )
           else
@@ -710,7 +864,9 @@ class _SavingTrendReportScreenState extends State<SavingTrendReportScreen> {
                 decoration: BoxDecoration(
                   color: context.palette.bg,
                   borderRadius: BorderRadius.circular(AppRadii.lg),
-                  border: Border.all(color: context.palette.border.withValues(alpha: 0.6)),
+                  border: Border.all(
+                    color: context.palette.border.withValues(alpha: 0.6),
+                  ),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -720,22 +876,33 @@ class _SavingTrendReportScreenState extends State<SavingTrendReportScreen> {
                         Expanded(
                           child: Text(
                             item['title'] as String,
-                            style: TextStyle(color: context.palette.textPrimary, fontSize: 14, fontWeight: FontWeight.w700),
+                            style: TextStyle(
+                              color: context.palette.textPrimary,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                            ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
                         const SizedBox(width: 8),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
                           decoration: BoxDecoration(
-                            color: isPos ? AppColors.success.withValues(alpha: 0.15) : AppColors.danger.withValues(alpha: 0.15),
+                            color: isPos
+                                ? AppColors.success.withValues(alpha: 0.15)
+                                : AppColors.danger.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(AppRadii.md),
                           ),
                           child: Text(
                             '${isPos ? "+" : ""}${formatVnd(net)}',
                             style: TextStyle(
-                              color: isPos ? AppColors.success : AppColors.danger,
+                              color: isPos
+                                  ? AppColors.success
+                                  : AppColors.danger,
                               fontWeight: FontWeight.w700,
                               fontSize: 13,
                             ),
@@ -749,12 +916,20 @@ class _SavingTrendReportScreenState extends State<SavingTrendReportScreen> {
                         Expanded(
                           child: Row(
                             children: [
-                              const Icon(Icons.arrow_downward_rounded, size: 14, color: AppColors.success),
+                              const Icon(
+                                Icons.arrow_downward_rounded,
+                                size: 14,
+                                color: AppColors.success,
+                              ),
                               const SizedBox(width: 4),
                               Expanded(
                                 child: Text(
                                   'Thu: ${formatVnd(inc)}',
-                                  style: const TextStyle(color: AppColors.success, fontSize: 12, fontWeight: FontWeight.w600),
+                                  style: const TextStyle(
+                                    color: AppColors.success,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
@@ -767,12 +942,20 @@ class _SavingTrendReportScreenState extends State<SavingTrendReportScreen> {
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.end,
                             children: [
-                              const Icon(Icons.arrow_upward_rounded, size: 14, color: AppColors.danger),
+                              const Icon(
+                                Icons.arrow_upward_rounded,
+                                size: 14,
+                                color: AppColors.danger,
+                              ),
                               const SizedBox(width: 4),
                               Flexible(
                                 child: Text(
                                   'Chi: ${formatVnd(exp)}',
-                                  style: const TextStyle(color: AppColors.danger, fontSize: 12, fontWeight: FontWeight.w600),
+                                  style: const TextStyle(
+                                    color: AppColors.danger,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),

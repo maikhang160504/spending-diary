@@ -14,6 +14,8 @@ import '../../theme/categories.dart';
 import '../../utils/formatters.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:open_filex/open_filex.dart';
+import '../../widgets/mimo_snackbar.dart';
+
 class ExportDataScreen extends StatefulWidget {
   const ExportDataScreen({super.key});
 
@@ -36,7 +38,6 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
   int _totalExpense = 0;
   int _totalIncome = 0;
 
-
   @override
   void initState() {
     super.initState();
@@ -57,22 +58,47 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
       if (_timeFilter == 'month') {
         final from = DateTime(now.year, now.month, 1);
         fromStr = from.toUtc().toIso8601String();
-        toStr = DateTime(now.year, now.month + 1, 0, 23, 59, 59).toUtc().toIso8601String();
+        toStr = DateTime(
+          now.year,
+          now.month + 1,
+          0,
+          23,
+          59,
+          59,
+        ).toUtc().toIso8601String();
       } else if (_timeFilter == '3m') {
-        fromStr = DateTime(now.year, now.month - 3, now.day).toUtc().toIso8601String();
+        fromStr = DateTime(
+          now.year,
+          now.month - 3,
+          now.day,
+        ).toUtc().toIso8601String();
         toStr = now.toUtc().toIso8601String();
       } else if (_timeFilter == '6m') {
-        fromStr = DateTime(now.year, now.month - 6, now.day).toUtc().toIso8601String();
+        fromStr = DateTime(
+          now.year,
+          now.month - 6,
+          now.day,
+        ).toUtc().toIso8601String();
         toStr = now.toUtc().toIso8601String();
       } else if (_timeFilter == 'year') {
         fromStr = DateTime(now.year, 1, 1).toUtc().toIso8601String();
-        toStr = DateTime(now.year, 12, 31, 23, 59, 59).toUtc().toIso8601String();
+        toStr = DateTime(
+          now.year,
+          12,
+          31,
+          23,
+          59,
+          59,
+        ).toUtc().toIso8601String();
       } else if (_timeFilter == 'custom') {
         if (_customFrom != null) {
           fromStr = _customFrom!.toUtc().toIso8601String();
         }
         if (_customTo != null) {
-          toStr = _customTo!.add(const Duration(hours: 23, minutes: 59, seconds: 59)).toUtc().toIso8601String();
+          toStr = _customTo!
+              .add(const Duration(hours: 23, minutes: 59, seconds: 59))
+              .toUtc()
+              .toIso8601String();
         }
       }
       // 'all' → no from/to filter
@@ -158,11 +184,9 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
 
   Future<void> _exportToCsv() async {
     if (_transactions.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Không có giao dịch nào khớp bộ lọc để xuất!'),
-          backgroundColor: AppColors.danger,
-        ),
+      MimoSnackBar.showError(
+        context,
+        message: 'Không có giao dịch nào khớp bộ lọc để xuất!',
       );
       return;
     }
@@ -171,13 +195,17 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
       final buffer = StringBuffer();
       // BOM cho UTF-8 Excel tiếng Việt
       buffer.write('\uFEFF');
-      buffer.writeln('Mã giao dịch,Ngày giờ,Loại,Danh mục,Số tiền (VNĐ),Ghi chú');
+      buffer.writeln(
+        'Mã giao dịch,Ngày giờ,Loại,Danh mục,Số tiền (VNĐ),Ghi chú',
+      );
 
       for (final tx in _transactions) {
         final id = tx['id']?.toString() ?? '';
         final occurred = tx['occurredAt']?.toString() ?? '';
         final formattedDate = occurred.isNotEmpty
-            ? DateFormat('dd/MM/yyyy HH:mm').format(DateTime.tryParse(occurred) ?? DateTime.now())
+            ? DateFormat(
+                'dd/MM/yyyy HH:mm',
+              ).format(DateTime.tryParse(occurred) ?? DateTime.now())
             : '';
         final typeRaw = (tx['type'] ?? '').toString().toLowerCase();
         final typeStr = typeRaw == 'income' ? 'Thu nhập' : 'Chi tiêu';
@@ -187,7 +215,9 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
         final amount = (tx['amount'] as num? ?? 0).toInt();
         final note = (tx['note'] ?? '').toString().replaceAll('"', '""');
 
-        buffer.writeln('"$id","$formattedDate","$typeStr","$catLabel",$amount,"$note"');
+        buffer.writeln(
+          '"$id","$formattedDate","$typeStr","$catLabel",$amount,"$note"',
+        );
       }
 
       final dir = await getApplicationDocumentsDirectory();
@@ -201,7 +231,11 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
           builder: (ctx) => AlertDialog(
             title: const Row(
               children: [
-                Icon(Icons.check_circle_outline, color: AppColors.teal, size: 28),
+                Icon(
+                  Icons.check_circle_outline,
+                  color: AppColors.teal,
+                  size: 28,
+                ),
                 SizedBox(width: 10),
                 Expanded(child: Text('Xuất dữ liệu thành công')),
               ],
@@ -210,7 +244,9 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Đã xuất thành công ${_transactions.length} giao dịch sang tệp CSV.'),
+                Text(
+                  'Đã xuất thành công ${_transactions.length} giao dịch sang tệp CSV.',
+                ),
                 const SizedBox(height: 12),
                 Container(
                   padding: const EdgeInsets.all(12),
@@ -231,15 +267,23 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
                   Navigator.pop(ctx);
                   OpenFilex.open(file.path);
                 },
-                child: const Text('Mở tệp', style: TextStyle(color: AppColors.teal)),
+                child: const Text(
+                  'Mở tệp',
+                  style: TextStyle(color: AppColors.teal),
+                ),
               ),
               TextButton(
                 onPressed: () {
                   Navigator.pop(ctx);
                   // ignore: deprecated_member_use
-                  Share.shareXFiles([XFile(file.path)], text: 'Dữ liệu Sổ thu chi');
+                  Share.shareXFiles([
+                    XFile(file.path),
+                  ], text: 'Dữ liệu Sổ thu chi');
                 },
-                child: const Text('Chia sẻ', style: TextStyle(color: AppColors.teal)),
+                child: const Text(
+                  'Chia sẻ',
+                  style: TextStyle(color: AppColors.teal),
+                ),
               ),
               FilledButton(
                 onPressed: () => Navigator.pop(ctx),
@@ -252,12 +296,7 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Lỗi khi xuất tệp: $e'),
-            backgroundColor: AppColors.danger,
-          ),
-        );
+        MimoSnackBar.showError(context, message: 'Lỗi khi xuất tệp: $e');
       }
     }
   }
@@ -367,7 +406,9 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
                           _fetchTransactions();
                         }),
                         _buildChip(
-                          _timeFilter == 'custom' && _customFrom != null && _customTo != null
+                          _timeFilter == 'custom' &&
+                                  _customFrom != null &&
+                                  _customTo != null
                               ? '${DateFormat('dd/MM').format(_customFrom!)} - ${DateFormat('dd/MM').format(_customTo!)}'
                               : 'Tùy chọn ngày',
                           'custom',
@@ -460,20 +501,24 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
                           ? const Center(
                               child: Padding(
                                 padding: EdgeInsets.all(20),
-                                child: CircularProgressIndicator(color: AppColors.teal),
+                                child: CircularProgressIndicator(
+                                  color: AppColors.teal,
+                                ),
                               ),
                             )
                           : Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
                                     Text(
                                       'Kết quả lọc:',
-                                      style: theme.textTheme.titleSmall?.copyWith(
-                                        fontWeight: FontWeight.w700,
-                                      ),
+                                      style: theme.textTheme.titleSmall
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.w700,
+                                          ),
                                     ),
                                     Text(
                                       '${_transactions.length} giao dịch',
@@ -522,7 +567,9 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
                 width: double.infinity,
                 height: 50,
                 child: FilledButton.icon(
-                  onPressed: _loading || _transactions.isEmpty ? null : _exportToCsv,
+                  onPressed: _loading || _transactions.isEmpty
+                      ? null
+                      : _exportToCsv,
                   style: FilledButton.styleFrom(
                     backgroundColor: AppColors.teal,
                     shape: RoundedRectangleBorder(
@@ -543,7 +590,12 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
     );
   }
 
-  Widget _buildChip(String label, String val, String selectedVal, Function(String) onTap) {
+  Widget _buildChip(
+    String label,
+    String val,
+    String selectedVal,
+    Function(String) onTap,
+  ) {
     final isSelected = val == selectedVal;
     return InkWell(
       onTap: () => onTap(val),
@@ -579,7 +631,10 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(fontSize: 12, color: AppColors.muted)),
+          Text(
+            label,
+            style: const TextStyle(fontSize: 12, color: AppColors.muted),
+          ),
           const SizedBox(height: 4),
           Text(
             valStr,

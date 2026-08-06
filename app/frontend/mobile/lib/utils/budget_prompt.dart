@@ -3,7 +3,7 @@ import '../services/api_client.dart';
 import '../theme/app_colors.dart';
 import '../theme/categories.dart';
 import '../utils/formatters.dart';
-
+import '../widgets/mimo_snackbar.dart';
 
 /// Kiểm tra xem danh mục chi tiêu có hạn mức chưa.
 /// Nếu chưa, hiển thị modal AI gợi ý hạn mức thông minh và cho phép tạo ngay.
@@ -24,10 +24,11 @@ Future<void> checkCategoryLimitAndSuggest(
   try {
     final api = ApiClient();
     final budgets = await api.getBudgets();
-    
+
     final canonicalTarget = CategoryTheme.canonicalCodeOf(categoryCode);
     final hasLimit = budgets.any((b) {
-      final rawCat = b['categoryCode'] as String? ?? b['category_code'] as String? ?? '';
+      final rawCat =
+          b['categoryCode'] as String? ?? b['category_code'] as String? ?? '';
       return CategoryTheme.canonicalCodeOf(rawCat) == canonicalTarget;
     });
 
@@ -35,10 +36,8 @@ Future<void> checkCategoryLimitAndSuggest(
       await showDialog(
         context: context,
         useRootNavigator: true,
-        builder: (ctx) => _SmartLimitDialog(
-          categoryCode: categoryCode,
-          walletId: walletId,
-        ),
+        builder: (ctx) =>
+            _SmartLimitDialog(categoryCode: categoryCode, walletId: walletId),
       );
     }
   } catch (_) {
@@ -49,10 +48,7 @@ Future<void> checkCategoryLimitAndSuggest(
 class _SmartLimitDialog extends StatefulWidget {
   final String categoryCode;
   final String? walletId;
-  const _SmartLimitDialog({
-    required this.categoryCode,
-    this.walletId,
-  });
+  const _SmartLimitDialog({required this.categoryCode, this.walletId});
 
   @override
   State<_SmartLimitDialog> createState() => _SmartLimitDialogState();
@@ -73,7 +69,6 @@ class _SmartLimitDialogState extends State<_SmartLimitDialog> {
 
   static const List<int> _fallbackSuggestions = [1000000, 2000000, 5000000];
 
-
   @override
   void initState() {
     super.initState();
@@ -89,13 +84,10 @@ class _SmartLimitDialogState extends State<_SmartLimitDialog> {
 
       // Tìm mục tương ứng danh mục hiện tại
       final canonical = widget.categoryCode.toLowerCase();
-      final match = categories.firstWhere(
-        (c) {
-          final code = (c['categoryCode'] as String? ?? '').toLowerCase();
-          return code == canonical;
-        },
-        orElse: () => null,
-      );
+      final match = categories.firstWhere((c) {
+        final code = (c['categoryCode'] as String? ?? '').toLowerCase();
+        return code == canonical;
+      }, orElse: () => null);
 
       final peerAvg = match != null
           ? (match['avgAmount'] as num?)?.toInt() ?? 0
@@ -103,11 +95,12 @@ class _SmartLimitDialogState extends State<_SmartLimitDialog> {
 
       if (peerAvg > 50000) {
         // Làm tròn đến 50.000đ cho đẹp
-        int round(int v) => ((v / 50000).round() * 50000).clamp(50000, 99999999).toInt();
+        int round(int v) =>
+            ((v / 50000).round() * 50000).clamp(50000, 99999999).toInt();
         final suggestions = [
-          round((peerAvg * 0.8).round()),   // Tiết kiệm hơn nhóm
-          round(peerAvg),                    // Chuẩn nhóm
-          round((peerAvg * 1.2).round()),   // Thoải mái hơn nhóm
+          round((peerAvg * 0.8).round()), // Tiết kiệm hơn nhóm
+          round(peerAvg), // Chuẩn nhóm
+          round((peerAvg * 1.2).round()), // Thoải mái hơn nhóm
         ];
         if (mounted) {
           setState(() {
@@ -148,7 +141,9 @@ class _SmartLimitDialogState extends State<_SmartLimitDialog> {
   Future<void> _saveQuickLimit() async {
     // Nếu đang nhập tùy chỉnh, đọc giá trị từ _customCtrl
     if (_showCustomInput) {
-      final parsed = int.tryParse(_customCtrl.text.replaceAll(RegExp(r'[^\d]'), ''));
+      final parsed = int.tryParse(
+        _customCtrl.text.replaceAll(RegExp(r'[^\d]'), ''),
+      );
       if (parsed == null || parsed <= 0) return;
       _selectedAmount = parsed;
     }
@@ -173,14 +168,9 @@ class _SmartLimitDialogState extends State<_SmartLimitDialog> {
       }
       if (mounted) {
         Navigator.of(context, rootNavigator: true).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '🎉 Đã thiết lập hạn mức ${formatVnd(_selectedAmount)} cho danh mục!',
-              style: const TextStyle(fontWeight: FontWeight.w600),
-            ),
-            backgroundColor: AppColors.teal,
-          ),
+        MimoSnackBar.showSuccess(
+          context,
+          message: '🎉 Đã thiết lập hạn mức ${formatVnd(_selectedAmount)}',
         );
       }
     } catch (_) {
@@ -268,7 +258,8 @@ class _SmartLimitDialogState extends State<_SmartLimitDialog> {
                     runSpacing: 8,
                     children: List.generate(_suggestions.length, (i) {
                       final amt = _suggestions[i];
-                      final selected = !_showCustomInput && _selectedAmount == amt;
+                      final selected =
+                          !_showCustomInput && _selectedAmount == amt;
                       // Nhãn mô tả tầng khi có dữ liệu peer
                       final tierLabels = _peerAvgAmount != null
                           ? ['Tiết kiệm', 'Chuẩn nhóm', 'Thoải mái']
@@ -280,8 +271,12 @@ class _SmartLimitDialogState extends State<_SmartLimitDialog> {
                             label: Text(
                               formatVnd(amt),
                               style: TextStyle(
-                                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                                color: selected ? Colors.white : AppColors.textPrimary,
+                                fontWeight: selected
+                                    ? FontWeight.w700
+                                    : FontWeight.w500,
+                                color: selected
+                                    ? Colors.white
+                                    : AppColors.textPrimary,
                               ),
                             ),
                             selected: selected,
@@ -305,8 +300,12 @@ class _SmartLimitDialogState extends State<_SmartLimitDialog> {
                                   fontSize: 9,
                                   color: selected
                                       ? AppColors.teal
-                                      : AppColors.textPrimary.withValues(alpha: 0.45),
-                                  fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
+                                      : AppColors.textPrimary.withValues(
+                                          alpha: 0.45,
+                                        ),
+                                  fontWeight: selected
+                                      ? FontWeight.w700
+                                      : FontWeight.w400,
                                 ),
                               ),
                             ),
@@ -333,7 +332,10 @@ class _SmartLimitDialogState extends State<_SmartLimitDialog> {
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide(color: AppColors.teal, width: 2),
                   ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
                 ),
               ),
             ],
@@ -351,12 +353,17 @@ class _SmartLimitDialogState extends State<_SmartLimitDialog> {
                     });
                   },
                   style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 14,
+                      horizontal: 16,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14),
                     ),
                     side: BorderSide(
-                      color: _showCustomInput ? AppColors.teal : Colors.grey.shade400,
+                      color: _showCustomInput
+                          ? AppColors.teal
+                          : Colors.grey.shade400,
                     ),
                   ),
                   child: Text(
@@ -402,4 +409,3 @@ class _SmartLimitDialogState extends State<_SmartLimitDialog> {
     );
   }
 }
-

@@ -63,7 +63,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (idToken == null) {
         await googleSignIn.signOut();
         setState(() {
-          _generalError = 'Đăng nhập Google thất bại. Vui lòng chọn lại tài khoản Google khác.';
+          _generalError =
+              'Đăng nhập Google thất bại. Vui lòng chọn lại tài khoản Google khác.';
           _googleLoading = false;
         });
         return;
@@ -74,7 +75,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
         await GoogleSignIn().signOut();
       } catch (_) {}
       setState(() {
-        _generalError = 'Đăng nhập Google thất bại. Vui lòng chọn lại tài khoản Google khác.';
+        _generalError =
+            'Đăng nhập Google thất bại. Vui lòng chọn lại tài khoản Google khác.';
         _googleLoading = false;
       });
       return;
@@ -104,7 +106,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
     } on ApiException catch (e) {
       setState(() => _generalError = e.localizedMessage);
     } catch (e) {
-      setState(() => _generalError = 'Đăng nhập Google thất bại. Vui lòng thử lại.');
+      setState(
+        () => _generalError = 'Đăng nhập Google thất bại. Vui lòng thử lại.',
+      );
     } finally {
       if (mounted) setState(() => _googleLoading = false);
     }
@@ -137,10 +141,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   Future<void> _register() async {
     if (!_validate()) return;
-    setState(() { _loading = true; _generalError = null; });
+    setState(() {
+      _loading = true;
+      _generalError = null;
+    });
     try {
       final api = ApiClient();
-      await api.register(_emailCtrl.text.trim(), _passCtrl.text, _emailCtrl.text.split('@')[0]);
+      await api.register(
+        _emailCtrl.text.trim(),
+        _passCtrl.text,
+        _emailCtrl.text.split('@')[0],
+      );
       if (!mounted) return;
       context.go(AppRoutes.onboarding);
     } on ApiException catch (e) {
@@ -154,7 +165,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(gradient: AppGradients.teal),
@@ -170,7 +182,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     // Logo + Title card — ẩn khi landscape
                     if (!isLandscape)
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 20),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 28,
+                          vertical: 20,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.white.withValues(alpha: 0.95),
                           borderRadius: BorderRadius.circular(28),
@@ -190,25 +205,27 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               width: 72,
                               height: 72,
                               fit: BoxFit.contain,
-                              errorBuilder: (context, error, stack) => const Icon(
-                                Icons.savings_outlined,
-                                color: AppColors.teal,
-                                size: 56,
-                              ),
+                              errorBuilder: (context, error, stack) =>
+                                  const Icon(
+                                    Icons.savings_outlined,
+                                    color: AppColors.teal,
+                                    size: 56,
+                                  ),
                             ),
                             const SizedBox(height: 10),
                             Image.asset(
                               'assets/logo/Title.png',
                               height: 36,
                               fit: BoxFit.contain,
-                              errorBuilder: (context, error, stack) => const Text(
-                                'Spending Diary',
-                                style: TextStyle(
-                                  color: AppColors.teal,
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
+                              errorBuilder: (context, error, stack) =>
+                                  const Text(
+                                    'Spending Diary',
+                                    style: TextStyle(
+                                      color: AppColors.teal,
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
                             ),
                           ],
                         ),
@@ -218,8 +235,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       Text(
                         'Bắt đầu quản lý chi tiêu thôi! 🚀',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: Colors.white.withValues(alpha: 0.85),
-                            ),
+                          color: Colors.white.withValues(alpha: 0.85),
+                        ),
                       ),
                     ],
                     SizedBox(height: isLandscape ? 12 : 20),
@@ -241,9 +258,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         children: [
                           Text(
                             'Email',
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                ),
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(fontWeight: FontWeight.w600),
                           ),
                           const SizedBox(height: 8),
                           TextField(
@@ -261,9 +277,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           const SizedBox(height: 16),
                           Text(
                             'Mật khẩu',
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                ),
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(fontWeight: FontWeight.w600),
                           ),
                           const SizedBox(height: 8),
                           TextField(
@@ -290,9 +305,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           const SizedBox(height: 16),
                           Text(
                             'Xác nhận mật khẩu',
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                ),
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(fontWeight: FontWeight.w600),
                           ),
                           const SizedBox(height: 8),
                           TextField(
@@ -320,9 +334,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           const SizedBox(height: 6),
                           Text(
                             'Mật khẩu phải có ít nhất 8 ký tự',
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: Colors.black54,
-                                ),
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(color: Colors.black54),
                           ),
                           // General error
                           if (_generalError != null) ...[
@@ -334,7 +347,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               ),
                               decoration: BoxDecoration(
                                 color: const Color(0xFFFEF2F2),
-                                borderRadius: BorderRadius.circular(AppRadii.md),
+                                borderRadius: BorderRadius.circular(
+                                  AppRadii.md,
+                                ),
                               ),
                               child: Row(
                                 children: [
@@ -363,7 +378,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             child: FilledButton(
                               onPressed: _loading ? null : _register,
                               style: FilledButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 14,
+                                ),
                               ),
                               child: _loading
                                   ? const SizedBox(
@@ -386,49 +403,63 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           const SizedBox(height: 16),
                           Row(
                             children: [
-                              const Expanded(child: Divider(color: AppColors.border)),
+                              const Expanded(
+                                child: Divider(color: AppColors.border),
+                              ),
                               Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 12),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                ),
                                 child: Text(
                                   'hoặc',
-                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                        color: AppColors.muted,
-                                      ),
+                                  style: Theme.of(context).textTheme.bodySmall
+                                      ?.copyWith(color: AppColors.muted),
                                 ),
                               ),
-                              const Expanded(child: Divider(color: AppColors.border)),
+                              const Expanded(
+                                child: Divider(color: AppColors.border),
+                              ),
                             ],
                           ),
                           const SizedBox(height: 16),
                           SizedBox(
                             width: double.infinity,
                             child: OutlinedButton(
-                              onPressed: _googleLoading ? null : _loginWithGoogle,
+                              onPressed: _googleLoading
+                                  ? null
+                                  : _loginWithGoogle,
                               style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 13),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 13,
+                                ),
                               ),
                               child: _googleLoading
                                   ? const SizedBox(
                                       width: 18,
                                       height: 18,
-                                      child: CircularProgressIndicator(strokeWidth: 2),
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
                                     )
                                   : Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
                                       children: [
                                         Image.network(
                                           'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/120px-Google_%22G%22_logo.svg.png',
                                           width: 20,
                                           height: 20,
-                                          errorBuilder: (context, error, stack) =>
-                                              const Text(
-                                            'G',
-                                            style: TextStyle(
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.w700,
-                                              color: Color(0xFF4285F4),
-                                            ),
-                                          ),
+                                          errorBuilder:
+                                              (context, error, stack) =>
+                                                  const Text(
+                                                    'G',
+                                                    style: TextStyle(
+                                                      fontSize: 18,
+                                                      fontWeight:
+                                                          FontWeight.w700,
+                                                      color: Color(0xFF4285F4),
+                                                    ),
+                                                  ),
                                         ),
                                         const SizedBox(width: 10),
                                         Text(
@@ -436,7 +467,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                           style: Theme.of(context)
                                               .textTheme
                                               .bodyMedium
-                                              ?.copyWith(fontWeight: FontWeight.w600),
+                                              ?.copyWith(
+                                                fontWeight: FontWeight.w600,
+                                              ),
                                         ),
                                       ],
                                     ),

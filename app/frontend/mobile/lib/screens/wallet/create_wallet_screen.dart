@@ -38,7 +38,20 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
   bool _loading = false;
   String? _error;
 
-  final List<String> _icons = ['💼', '🏠', '🛒', '🚗', '🍔', '🎮', '✈️', '❤️', '💡', '🎓', '🏥', '🌟'];
+  final List<String> _icons = [
+    '💼',
+    '🏠',
+    '🛒',
+    '🚗',
+    '🍔',
+    '🎮',
+    '✈️',
+    '❤️',
+    '💡',
+    '🎓',
+    '🏥',
+    '🌟',
+  ];
   final List<String> _colors = [
     '#14B8A6', // Teal
     '#0F766E', // Teal Dark
@@ -123,12 +136,16 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
     final walletName = _nameCtrl.text.trim();
 
     return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
       key: const ValueKey('create_wallet_bottom_sheet'),
       child: Container(
         decoration: BoxDecoration(
           color: palette.card,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadii.xl)),
+          borderRadius: const BorderRadius.vertical(
+            top: Radius.circular(AppRadii.xl),
+          ),
         ),
         child: SingleChildScrollView(
           child: Form(
@@ -147,7 +164,9 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadii.xl)),
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(AppRadii.xl),
+                    ),
                   ),
                   padding: const EdgeInsets.fromLTRB(20, 14, 16, 24),
                   child: Column(
@@ -156,7 +175,8 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
                       // Drag handle
                       Center(
                         child: Container(
-                          width: 40, height: 4,
+                          width: 40,
+                          height: 4,
                           margin: const EdgeInsets.only(bottom: 16),
                           decoration: BoxDecoration(
                             color: Colors.white.withValues(alpha: 0.4),
@@ -169,14 +189,21 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
                           // Wallet icon bubble
                           AnimatedContainer(
                             duration: const Duration(milliseconds: 200),
-                            width: 56, height: 56,
+                            width: 56,
+                            height: 56,
                             decoration: BoxDecoration(
                               color: Colors.white.withValues(alpha: 0.22),
                               shape: BoxShape.circle,
-                              border: Border.all(color: Colors.white.withValues(alpha: 0.35), width: 1.5),
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.35),
+                                width: 1.5,
+                              ),
                             ),
                             child: Center(
-                              child: Text(_selectedIcon, style: const TextStyle(fontSize: 26)),
+                              child: Text(
+                                _selectedIcon,
+                                style: const TextStyle(fontSize: 26),
+                              ),
                             ),
                           ),
                           const SizedBox(width: 14),
@@ -185,7 +212,9 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  walletName.isEmpty ? 'Tên ví của bạn' : walletName,
+                                  walletName.isEmpty
+                                      ? 'Tên ví của bạn'
+                                      : walletName,
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontWeight: FontWeight.w800,
@@ -194,28 +223,45 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
                                   ),
                                 ),
                                 const SizedBox(height: 3),
-                                Row(children: [
-                                  Icon(
-                                    _walletType == 'group' ? Icons.group_outlined : Icons.account_balance_wallet_outlined,
-                                    color: Colors.white70, size: 13,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    _walletType == 'group' ? 'Ví chung (nhóm)' : 'Ví cá nhân',
-                                    style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w500),
-                                  ),
-                                ]),
+                                Row(
+                                  children: [
+                                    Icon(
+                                      _walletType == 'group'
+                                          ? Icons.group_outlined
+                                          : Icons
+                                                .account_balance_wallet_outlined,
+                                      color: Colors.white70,
+                                      size: 13,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      _walletType == 'group'
+                                          ? 'Ví chung (nhóm)'
+                                          : 'Ví cá nhân',
+                                      style: const TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ],
                             ),
                           ),
                           IconButton(
                             icon: Container(
-                              width: 32, height: 32,
+                              width: 32,
+                              height: 32,
                               decoration: BoxDecoration(
                                 color: Colors.white.withValues(alpha: 0.18),
                                 shape: BoxShape.circle,
                               ),
-                              child: const Icon(Icons.close, color: Colors.white, size: 16),
+                              child: const Icon(
+                                Icons.close,
+                                color: Colors.white,
+                                size: 16,
+                              ),
                             ),
                             onPressed: () => context.pop(),
                           ),
@@ -239,46 +285,101 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
                             color: AppColors.danger.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(AppRadii.md),
                           ),
-                          child: Row(children: [
-                            const Icon(Icons.error_outline, color: AppColors.danger, size: 20),
-                            const SizedBox(width: 8),
-                            Expanded(child: Text(_error!, style: const TextStyle(color: AppColors.danger, fontSize: 13, fontWeight: FontWeight.w500))),
-                          ]),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.error_outline,
+                                color: AppColors.danger,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  _error!,
+                                  style: const TextStyle(
+                                    color: AppColors.danger,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ],
 
                       // Tên ví
-                      Text('Tên ví', style: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600, color: palette.textSecondary)),
+                      Text(
+                        'Tên ví',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: palette.textSecondary,
+                        ),
+                      ),
                       const SizedBox(height: 8),
                       TextFormField(
                         controller: _nameCtrl,
                         maxLength: 80,
                         decoration: const InputDecoration(
                           hintText: 'VD: Ví chi tiêu nhóm, Quỹ du lịch...',
-                          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
                           counterText: '',
                         ),
                         style: TextStyle(color: palette.textPrimary),
                         onChanged: (_) => setState(() {}),
                         validator: (value) {
-                          if (value == null || value.trim().isEmpty) return 'Vui lòng nhập tên ví';
+                          if (value == null || value.trim().isEmpty)
+                            return 'Vui lòng nhập tên ví';
                           return null;
                         },
                       ),
                       const SizedBox(height: 16),
 
                       // Loại ví
-                      Text('Loại ví', style: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600, color: palette.textSecondary)),
+                      Text(
+                        'Loại ví',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: palette.textSecondary,
+                        ),
+                      ),
                       const SizedBox(height: 8),
-                      Row(children: [
-                        Expanded(child: _typeButton('personal', Icons.account_balance_wallet_outlined, 'Cá nhân', palette, accentColor)),
-                        const SizedBox(width: 12),
-                        Expanded(child: _typeButton('group', Icons.group_outlined, 'Ví chung', palette, accentColor)),
-                      ]),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _typeButton(
+                              'personal',
+                              Icons.account_balance_wallet_outlined,
+                              'Cá nhân',
+                              palette,
+                              accentColor,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _typeButton(
+                              'group',
+                              Icons.group_outlined,
+                              'Ví chung',
+                              palette,
+                              accentColor,
+                            ),
+                          ),
+                        ],
+                      ),
                       const SizedBox(height: 16),
 
                       // Số dư ban đầu
-                      Text('Số dư ban đầu (tùy chọn)', style: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600, color: palette.textSecondary)),
+                      Text(
+                        'Số dư ban đầu (tùy chọn)',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: palette.textSecondary,
+                        ),
+                      ),
                       const SizedBox(height: 8),
                       TextFormField(
                         controller: _balanceCtrl,
@@ -287,14 +388,23 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
                         decoration: const InputDecoration(
                           hintText: 'VD: 1,000,000',
                           suffixText: 'đ',
-                          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
                         ),
                         style: TextStyle(color: palette.textPrimary),
                       ),
                       const SizedBox(height: 16),
 
                       // Màu sắc
-                      Text('Màu sắc ví', style: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600, color: palette.textSecondary)),
+                      Text(
+                        'Màu sắc ví',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: palette.textSecondary,
+                        ),
+                      ),
                       const SizedBox(height: 10),
                       SizedBox(
                         height: 44,
@@ -311,14 +421,37 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
                                 duration: const Duration(milliseconds: 200),
                                 width: isSelected ? 48 : 40,
                                 height: isSelected ? 48 : 40,
-                                margin: EdgeInsets.only(right: 10, top: isSelected ? 0 : 4, bottom: isSelected ? 0 : 4),
+                                margin: EdgeInsets.only(
+                                  right: 10,
+                                  top: isSelected ? 0 : 4,
+                                  bottom: isSelected ? 0 : 4,
+                                ),
                                 decoration: BoxDecoration(
                                   color: color,
                                   shape: BoxShape.circle,
-                                  border: isSelected ? Border.all(color: Colors.white, width: 3) : null,
-                                  boxShadow: isSelected ? [BoxShadow(color: color.withValues(alpha: 0.5), blurRadius: 8, offset: const Offset(0, 2))] : null,
+                                  border: isSelected
+                                      ? Border.all(
+                                          color: Colors.white,
+                                          width: 3,
+                                        )
+                                      : null,
+                                  boxShadow: isSelected
+                                      ? [
+                                          BoxShadow(
+                                            color: color.withValues(alpha: 0.5),
+                                            blurRadius: 8,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ]
+                                      : null,
                                 ),
-                                child: isSelected ? const Icon(Icons.check, color: Colors.white, size: 18) : null,
+                                child: isSelected
+                                    ? const Icon(
+                                        Icons.check,
+                                        color: Colors.white,
+                                        size: 18,
+                                      )
+                                    : null,
                               ),
                             );
                           },
@@ -327,7 +460,13 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
                       const SizedBox(height: 16),
 
                       // Biểu tượng
-                      Text('Biểu tượng', style: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600, color: palette.textSecondary)),
+                      Text(
+                        'Biểu tượng',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: palette.textSecondary,
+                        ),
+                      ),
                       const SizedBox(height: 10),
                       SizedBox(
                         height: 52,
@@ -338,18 +477,38 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
                             final emoji = _icons[index];
                             final isSelected = _selectedIcon == emoji;
                             return GestureDetector(
-                              onTap: () => setState(() => _selectedIcon = emoji),
+                              onTap: () =>
+                                  setState(() => _selectedIcon = emoji),
                               child: AnimatedContainer(
                                 duration: const Duration(milliseconds: 180),
-                                width: 52, height: 52,
+                                width: 52,
+                                height: 52,
                                 margin: const EdgeInsets.only(right: 8),
                                 decoration: BoxDecoration(
-                                  color: isSelected ? accentColor.withValues(alpha: 0.15) : palette.surfaceAlt,
+                                  color: isSelected
+                                      ? accentColor.withValues(alpha: 0.15)
+                                      : palette.surfaceAlt,
                                   shape: BoxShape.circle,
-                                  border: isSelected ? Border.all(color: accentColor, width: 2) : Border.all(color: palette.border),
-                                  boxShadow: isSelected ? [BoxShadow(color: accentColor.withValues(alpha: 0.3), blurRadius: 6)] : null,
+                                  border: isSelected
+                                      ? Border.all(color: accentColor, width: 2)
+                                      : Border.all(color: palette.border),
+                                  boxShadow: isSelected
+                                      ? [
+                                          BoxShadow(
+                                            color: accentColor.withValues(
+                                              alpha: 0.3,
+                                            ),
+                                            blurRadius: 6,
+                                          ),
+                                        ]
+                                      : null,
                                 ),
-                                child: Center(child: Text(emoji, style: const TextStyle(fontSize: 22))),
+                                child: Center(
+                                  child: Text(
+                                    emoji,
+                                    style: const TextStyle(fontSize: 22),
+                                  ),
+                                ),
                               ),
                             );
                           },
@@ -363,9 +522,17 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 300),
                           decoration: BoxDecoration(
-                            gradient: LinearGradient(colors: [accentColor, gradientEnd]),
+                            gradient: LinearGradient(
+                              colors: [accentColor, gradientEnd],
+                            ),
                             borderRadius: BorderRadius.circular(AppRadii.lg),
-                            boxShadow: [BoxShadow(color: accentColor.withValues(alpha: 0.35), blurRadius: 10, offset: const Offset(0, 4))],
+                            boxShadow: [
+                              BoxShadow(
+                                color: accentColor.withValues(alpha: 0.35),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
                           ),
                           child: FilledButton(
                             onPressed: _loading ? null : _submit,
@@ -373,11 +540,29 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
                               backgroundColor: Colors.transparent,
                               shadowColor: Colors.transparent,
                               padding: const EdgeInsets.symmetric(vertical: 15),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadii.lg)),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(
+                                  AppRadii.lg,
+                                ),
+                              ),
                             ),
                             child: _loading
-                                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                                : const Text('Tạo ví', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: Colors.white)),
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      color: Colors.white,
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Text(
+                                    'Tạo ví',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 15,
+                                      color: Colors.white,
+                                    ),
+                                  ),
                           ),
                         ),
                       ),
@@ -393,7 +578,13 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
     );
   }
 
-  Widget _typeButton(String type, IconData icon, String label, dynamic palette, Color accentColor) {
+  Widget _typeButton(
+    String type,
+    IconData icon,
+    String label,
+    dynamic palette,
+    Color accentColor,
+  ) {
     final isSelected = _walletType == type;
     return GestureDetector(
       onTap: () => setState(() => _walletType = type),
@@ -401,15 +592,29 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.symmetric(vertical: 14),
         decoration: BoxDecoration(
-          color: isSelected ? accentColor.withValues(alpha: 0.12) : palette.surfaceAlt,
+          color: isSelected
+              ? accentColor.withValues(alpha: 0.12)
+              : palette.surfaceAlt,
           borderRadius: BorderRadius.circular(AppRadii.md),
-          border: Border.all(color: isSelected ? accentColor : Colors.transparent, width: 1.5),
+          border: Border.all(
+            color: isSelected ? accentColor : Colors.transparent,
+            width: 1.5,
+          ),
         ),
-        child: Column(children: [
-          Icon(icon, color: isSelected ? accentColor : palette.textSecondary),
-          const SizedBox(height: 4),
-          Text(label, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: isSelected ? accentColor : palette.textSecondary)),
-        ]),
+        child: Column(
+          children: [
+            Icon(icon, color: isSelected ? accentColor : palette.textSecondary),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 12,
+                color: isSelected ? accentColor : palette.textSecondary,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

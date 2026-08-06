@@ -17,7 +17,8 @@ class PeerCompareReportScreen extends StatefulWidget {
   const PeerCompareReportScreen({super.key});
 
   @override
-  State<PeerCompareReportScreen> createState() => _PeerCompareReportScreenState();
+  State<PeerCompareReportScreen> createState() =>
+      _PeerCompareReportScreenState();
 }
 
 class _PeerCompareReportScreenState extends State<PeerCompareReportScreen> {
@@ -54,6 +55,7 @@ class _PeerCompareReportScreenState extends State<PeerCompareReportScreen> {
       _isLoading = true;
       _hasError = false;
       _errorMsg = null;
+      _aiInsight = null;
     });
     try {
       final now = DateTime.now();
@@ -70,12 +72,17 @@ class _PeerCompareReportScreenState extends State<PeerCompareReportScreen> {
           _notEnoughPeers = res['notEnoughPeers'] as bool? ?? false;
 
           final dataList = res['data'] as List<dynamic>? ?? [];
-          _compareData = dataList.map((e) => e as Map<String, dynamic>).toList();
+          _compareData = dataList
+              .map((e) => e as Map<String, dynamic>)
+              .toList();
 
           if (!_hasProfile) {
-            _errorMsg = res['message'] as String? ?? 'Vui lòng cập nhật thông tin cá nhân.';
+            _errorMsg =
+                res['message'] as String? ??
+                'Vui lòng cập nhật thông tin cá nhân.';
           } else if (_notEnoughPeers) {
-            _errorMsg = res['message'] as String? ?? 'Chưa đủ dữ liệu để so sánh.';
+            _errorMsg =
+                res['message'] as String? ?? 'Chưa đủ dữ liệu để so sánh.';
           }
           _isLoading = false;
         });
@@ -93,31 +100,29 @@ class _PeerCompareReportScreenState extends State<PeerCompareReportScreen> {
 
   Future<void> _analyzeAI() async {
     setState(() => _isAnalyzingAI = true);
-    try {
-      int totalUser = 0;
-      int totalAvg = 0;
-      for (final d in _compareData) {
-        totalUser += ((d['userAmount'] as num?)?.toInt() ?? 0);
-        totalAvg += ((d['avgAmount'] as num?)?.toInt() ?? 0);
-      }
-
-      final prompt = 'Phân tích so sánh chi tiêu cộng đồng: Kỳ ${_getMonthLabel()}, nhóm tuổi: ${_ageGroup ?? "chưa rõ"}, nghề nghiệp: ${_jobTitle ?? "chưa rõ"}, tổng bạn chi: ${formatVnd(totalUser)}, trung bình nhóm cùng phân khúc chi: ${formatVnd(totalAvg)}. Đưa ra nhận định và giải pháp chi tiêu tối ưu cho người dùng.';
-      final res = await AIAdvisorService.askFinancialQuestion(prompt);
-      if (mounted) {
-        setState(() {
-          _aiInsight = res;
-          _isAnalyzingAI = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _aiInsight = 'Mức chi tiêu của bạn đang khá tương đồng với cộng đồng cùng nhóm nghề nghiệp và độ tuổi. Hãy tiếp tục duy trì!';
-          _isAnalyzingAI = false;
-        });
-      }
+    int totalUser = 0;
+    int totalAvg = 0;
+    for (final d in _compareData) {
+      totalUser += ((d['userAmount'] as num?)?.toInt() ?? 0);
+      totalAvg += ((d['avgAmount'] as num?)?.toInt() ?? 0);
+    }
+    await Future.delayed(const Duration(milliseconds: 400));
+    final insight = AIAdvisorService.analyzePeerCompare(
+      totalUser: totalUser,
+      totalAvg: totalAvg,
+      periodLabel: _getMonthLabel(),
+      ageGroup: _ageGroup,
+      jobTitle: _jobTitle,
+      compareData: _compareData,
+    );
+    if (mounted) {
+      setState(() {
+        _aiInsight = insight;
+        _isAnalyzingAI = false;
+      });
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -128,7 +133,11 @@ class _PeerCompareReportScreenState extends State<PeerCompareReportScreen> {
         elevation: 0,
         centerTitle: true,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new_rounded, color: context.palette.textPrimary, size: 20),
+          icon: Icon(
+            Icons.arrow_back_ios_new_rounded,
+            color: context.palette.textPrimary,
+            size: 20,
+          ),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: const Text(
@@ -139,14 +148,19 @@ class _PeerCompareReportScreenState extends State<PeerCompareReportScreen> {
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final isLandscapePhone = constraints.maxWidth > constraints.maxHeight && constraints.maxHeight < 500;
+            final isLandscapePhone =
+                constraints.maxWidth > constraints.maxHeight &&
+                constraints.maxHeight < 500;
             return Center(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 600),
                 child: Column(
                   children: [
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.md,
+                        vertical: 4,
+                      ),
                       child: ReportFilterBar(
                         isLandscapePhone: isLandscapePhone,
                         children: [
@@ -170,12 +184,12 @@ class _PeerCompareReportScreenState extends State<PeerCompareReportScreen> {
                       child: _isLoading
                           ? const Center(child: CircularProgressIndicator())
                           : _hasError
-                              ? _buildErrorState()
-                              : _hasProfile == false
-                                  ? _buildUpdateProfileState()
-                                  : _notEnoughPeers
-                                      ? _buildNotEnoughDataState()
-                                      : _buildContent(),
+                          ? _buildErrorState()
+                          : _hasProfile == false
+                          ? _buildUpdateProfileState()
+                          : _notEnoughPeers
+                          ? _buildNotEnoughDataState()
+                          : _buildContent(),
                     ),
                   ],
                 ),
@@ -201,18 +215,30 @@ class _PeerCompareReportScreenState extends State<PeerCompareReportScreen> {
                 color: AppColors.danger.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.error_outline_rounded, size: 40, color: AppColors.danger),
+              child: const Icon(
+                Icons.error_outline_rounded,
+                size: 40,
+                color: AppColors.danger,
+              ),
             ),
             const SizedBox(height: 24),
             Text(
               'Đã xảy ra lỗi',
-              style: TextStyle(color: context.palette.textPrimary, fontSize: 20, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                color: context.palette.textPrimary,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             const SizedBox(height: 12),
             Text(
               _errorMsg ?? 'Không thể kết nối đến máy chủ.',
               textAlign: TextAlign.center,
-              style: const TextStyle(color: AppColors.muted, fontSize: 14, height: 1.5),
+              style: const TextStyle(
+                color: AppColors.muted,
+                fontSize: 14,
+                height: 1.5,
+              ),
             ),
             const SizedBox(height: 32),
             FilledButton.icon(
@@ -221,8 +247,13 @@ class _PeerCompareReportScreenState extends State<PeerCompareReportScreen> {
               label: const Text('Thử lại'),
               style: FilledButton.styleFrom(
                 backgroundColor: AppColors.teal,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadii.lg)),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 14,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppRadii.lg),
+                ),
               ),
             ),
           ],
@@ -245,18 +276,30 @@ class _PeerCompareReportScreenState extends State<PeerCompareReportScreen> {
                 color: AppColors.teal.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.person_search_rounded, size: 40, color: AppColors.teal),
+              child: const Icon(
+                Icons.person_search_rounded,
+                size: 40,
+                color: AppColors.teal,
+              ),
             ),
             const SizedBox(height: 24),
             Text(
               'Cập nhật thông tin',
-              style: TextStyle(color: context.palette.textPrimary, fontSize: 20, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                color: context.palette.textPrimary,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             const SizedBox(height: 12),
             const Text(
               'Vào Cài đặt > Chọn "Thông tin cá nhân" để cập nhật đầy đủ Độ tuổi và Nghề nghiệp. Sau đó MiMo mới có thể so sánh chi tiêu của bạn với cộng đồng nhé!',
               textAlign: TextAlign.center,
-              style: TextStyle(color: AppColors.muted, fontSize: 14, height: 1.5),
+              style: TextStyle(
+                color: AppColors.muted,
+                fontSize: 14,
+                height: 1.5,
+              ),
             ),
             const SizedBox(height: 32),
             FilledButton.icon(
@@ -271,8 +314,13 @@ class _PeerCompareReportScreenState extends State<PeerCompareReportScreen> {
               label: const Text('Cập nhật hồ sơ ngay'),
               style: FilledButton.styleFrom(
                 backgroundColor: AppColors.teal,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadii.lg)),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 14,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppRadii.lg),
+                ),
               ),
             ),
           ],
@@ -295,18 +343,31 @@ class _PeerCompareReportScreenState extends State<PeerCompareReportScreen> {
                 color: AppColors.warning.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.analytics_outlined, size: 40, color: AppColors.warning),
+              child: const Icon(
+                Icons.analytics_outlined,
+                size: 40,
+                color: AppColors.warning,
+              ),
             ),
             const SizedBox(height: 24),
             Text(
               'Đang thu thập dữ liệu',
-              style: TextStyle(color: context.palette.textPrimary, fontSize: 20, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                color: context.palette.textPrimary,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             const SizedBox(height: 12),
             Text(
-              _errorMsg ?? 'Hiện tại chưa có đủ dữ liệu từ những người dùng có cùng nhóm tuổi và nghề nghiệp như bạn. Vui lòng quay lại sau.',
+              _errorMsg ??
+                  'Hiện tại chưa có đủ dữ liệu từ những người dùng có cùng nhóm tuổi và nghề nghiệp như bạn. Vui lòng quay lại sau.',
               textAlign: TextAlign.center,
-              style: const TextStyle(color: AppColors.muted, fontSize: 14, height: 1.5),
+              style: const TextStyle(
+                color: AppColors.muted,
+                fontSize: 14,
+                height: 1.5,
+              ),
             ),
           ],
         ),
@@ -344,7 +405,9 @@ class _PeerCompareReportScreenState extends State<PeerCompareReportScreen> {
                   ),
                   child: ClipOval(
                     child: Image.asset(
-                      _isAnalyzingAI ? 'assets/MiMo/emotions/Thinking.png' : 'assets/MiMo/emotions/Working.png',
+                      _isAnalyzingAI
+                          ? 'assets/MiMo/emotions/Thinking.png'
+                          : 'assets/MiMo/emotions/Working.png',
                       fit: BoxFit.cover,
                     ),
                   ),
@@ -356,22 +419,36 @@ class _PeerCompareReportScreenState extends State<PeerCompareReportScreen> {
                     children: [
                       const Text(
                         'Phân tích AI từ MiMo Mascot',
-                        style: TextStyle(color: AppColors.teal, fontSize: 15, fontWeight: FontWeight.w700),
+                        style: TextStyle(
+                          color: AppColors.teal,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                       const SizedBox(height: 2),
                       Text(
                         _isAnalyzingAI
                             ? 'MiMo đang so sánh dữ liệu cộng đồng...'
                             : 'Nhấn để MiMo phân tích điểm khác biệt chi tiêu',
-                        style: const TextStyle(color: AppColors.muted, fontSize: 12),
+                        style: const TextStyle(
+                          color: AppColors.muted,
+                          fontSize: 12,
+                        ),
                       ),
                     ],
                   ),
                 ),
                 if (_isAnalyzingAI)
-                  const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                  const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
                 else
-                  const Icon(Icons.chevron_right_rounded, color: AppColors.teal),
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    color: AppColors.teal,
+                  ),
               ],
             ),
           ),
@@ -397,7 +474,10 @@ class _PeerCompareReportScreenState extends State<PeerCompareReportScreen> {
                     shape: BoxShape.circle,
                   ),
                   child: ClipOval(
-                    child: Image.asset('assets/MiMo/emotions/Working.png', fit: BoxFit.cover),
+                    child: Image.asset(
+                      'assets/MiMo/emotions/Working.png',
+                      fit: BoxFit.cover,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -407,12 +487,20 @@ class _PeerCompareReportScreenState extends State<PeerCompareReportScreen> {
                     children: [
                       const Text(
                         'MiMo khuyên bạn:',
-                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: AppColors.teal),
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                          color: AppColors.teal,
+                        ),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         _aiInsight!,
-                        style: TextStyle(color: context.palette.textPrimary, fontSize: 13, height: 1.4),
+                        style: TextStyle(
+                          color: context.palette.textPrimary,
+                          fontSize: 13,
+                          height: 1.4,
+                        ),
                       ),
                     ],
                   ),
@@ -450,7 +538,11 @@ class _PeerCompareReportScreenState extends State<PeerCompareReportScreen> {
                     color: AppColors.teal.withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.groups_rounded, color: AppColors.teal, size: 24),
+                  child: const Icon(
+                    Icons.groups_rounded,
+                    color: AppColors.teal,
+                    size: 24,
+                  ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -459,17 +551,27 @@ class _PeerCompareReportScreenState extends State<PeerCompareReportScreen> {
                     children: [
                       Text(
                         'Nhóm tương đồng',
-                        style: TextStyle(color: context.palette.textPrimary, fontWeight: FontWeight.w700, fontSize: 15),
+                        style: TextStyle(
+                          color: context.palette.textPrimary,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
+                        ),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         'Độ tuổi: ${_ageGroup ?? "Chưa rõ"} ${(_jobTitle != null && _jobTitle!.isNotEmpty) ? " • $_jobTitle" : ""}',
-                        style: TextStyle(color: context.palette.textSecondary, fontSize: 13),
+                        style: TextStyle(
+                          color: context.palette.textSecondary,
+                          fontSize: 13,
+                        ),
                       ),
                       const SizedBox(height: 2),
                       Text(
                         'Dữ liệu ẩn danh từ $_peerCount người dùng',
-                        style: const TextStyle(color: AppColors.muted, fontSize: 11),
+                        style: const TextStyle(
+                          color: AppColors.muted,
+                          fontSize: 11,
+                        ),
                       ),
                     ],
                   ),
@@ -485,20 +587,31 @@ class _PeerCompareReportScreenState extends State<PeerCompareReportScreen> {
             const Center(
               child: Padding(
                 padding: EdgeInsets.symmetric(vertical: 40),
-                child: Text('Không có dữ liệu chi tiêu trong tháng này.', style: TextStyle(color: AppColors.muted)),
+                child: Text(
+                  'Không có dữ liệu chi tiêu trong tháng này.',
+                  style: TextStyle(color: AppColors.muted),
+                ),
               ),
             )
           else ...[
             Text(
               'Biểu đồ chi tiêu (Radar)',
-              style: TextStyle(color: context.palette.textPrimary, fontSize: 16, fontWeight: FontWeight.w700),
+              style: TextStyle(
+                color: context.palette.textPrimary,
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+              ),
             ),
             const SizedBox(height: 16),
             _buildRadarChart(),
             const SizedBox(height: 32),
             Text(
               'Chi tiết so sánh',
-              style: TextStyle(color: context.palette.textPrimary, fontSize: 16, fontWeight: FontWeight.w700),
+              style: TextStyle(
+                color: context.palette.textPrimary,
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+              ),
             ),
             const SizedBox(height: 16),
             ..._compareData.map((d) => _buildCompareItem(d)),
@@ -561,20 +674,32 @@ class _PeerCompareReportScreenState extends State<PeerCompareReportScreen> {
                   borderData: FlBorderData(show: false),
                   radarBorderData: const BorderSide(color: Colors.transparent),
                   titlePositionPercentageOffset: 0.2,
-                  titleTextStyle: TextStyle(color: context.palette.textSecondary, fontSize: 10),
+                  titleTextStyle: TextStyle(
+                    color: context.palette.textSecondary,
+                    fontSize: 10,
+                  ),
                   getTitle: (index, angle) {
-                    final catCode = _compareData[index]['categoryCode'] as String? ?? 'Other';
+                    final catCode =
+                        _compareData[index]['categoryCode'] as String? ??
+                        'Other';
                     final label = CategoryTheme.of(catCode).label;
-                    final shortLabel = label.length > 10 ? '${label.substring(0, 9)}…' : label;
-                    return RadarChartTitle(
-                      text: shortLabel,
-                      angle: angle,
-                    );
+                    final shortLabel = label.length > 10
+                        ? '${label.substring(0, 9)}…'
+                        : label;
+                    return RadarChartTitle(text: shortLabel, angle: angle);
                   },
                   tickCount: 3,
-                  ticksTextStyle: const TextStyle(color: Colors.transparent, fontSize: 10),
-                  tickBorderData: BorderSide(color: context.palette.border.withValues(alpha: 0.5)),
-                  gridBorderData: BorderSide(color: context.palette.border.withValues(alpha: 0.5), width: 1.5),
+                  ticksTextStyle: const TextStyle(
+                    color: Colors.transparent,
+                    fontSize: 10,
+                  ),
+                  tickBorderData: BorderSide(
+                    color: context.palette.border.withValues(alpha: 0.5),
+                  ),
+                  gridBorderData: BorderSide(
+                    color: context.palette.border.withValues(alpha: 0.5),
+                    width: 1.5,
+                  ),
                 ),
                 duration: const Duration(milliseconds: 400),
               ),
@@ -588,9 +713,20 @@ class _PeerCompareReportScreenState extends State<PeerCompareReportScreen> {
   Widget _buildLegendItem(String label, Color color) {
     return Row(
       children: [
-        Container(width: 12, height: 12, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+        Container(
+          width: 12,
+          height: 12,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
         const SizedBox(width: 6),
-        Text(label, style: TextStyle(color: context.palette.textSecondary, fontSize: 12, fontWeight: FontWeight.w600)),
+        Text(
+          label,
+          style: TextStyle(
+            color: context.palette.textSecondary,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
       ],
     );
   }
@@ -628,21 +764,32 @@ class _PeerCompareReportScreenState extends State<PeerCompareReportScreen> {
               Expanded(
                 child: Text(
                   catLabel,
-                  style: TextStyle(color: context.palette.textPrimary, fontWeight: FontWeight.w700, fontSize: 15),
+                  style: TextStyle(
+                    color: context.palette.textPrimary,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 15,
+                  ),
                 ),
               ),
               if (diffPct != null)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
-                    color: diffPct > 0 ? AppColors.danger.withValues(alpha: 0.1) : AppColors.teal.withValues(alpha: 0.1),
+                    color: diffPct > 0
+                        ? AppColors.danger.withValues(alpha: 0.1)
+                        : AppColors.teal.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
-                        diffPct > 0 ? Icons.trending_up_rounded : Icons.trending_down_rounded,
+                        diffPct > 0
+                            ? Icons.trending_up_rounded
+                            : Icons.trending_down_rounded,
                         size: 14,
                         color: diffPct > 0 ? AppColors.danger : AppColors.teal,
                       ),
@@ -650,7 +797,9 @@ class _PeerCompareReportScreenState extends State<PeerCompareReportScreen> {
                       Text(
                         '${diffPct > 0 ? "+" : ""}${diffPct.toStringAsFixed(0)}%',
                         style: TextStyle(
-                          color: diffPct > 0 ? AppColors.danger : AppColors.teal,
+                          color: diffPct > 0
+                              ? AppColors.danger
+                              : AppColors.teal,
                           fontWeight: FontWeight.bold,
                           fontSize: 12,
                         ),
@@ -667,13 +816,23 @@ class _PeerCompareReportScreenState extends State<PeerCompareReportScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Bạn chi', style: TextStyle(color: context.palette.textSecondary, fontSize: 12)),
+                    Text(
+                      'Bạn chi',
+                      style: TextStyle(
+                        color: context.palette.textSecondary,
+                        fontSize: 12,
+                      ),
+                    ),
                     const SizedBox(height: 4),
                     Text(
                       formatVnd(userAmt),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: context.palette.textPrimary, fontWeight: FontWeight.bold, fontSize: 14),
+                      style: TextStyle(
+                        color: context.palette.textPrimary,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
                     ),
                   ],
                 ),
@@ -683,13 +842,23 @@ class _PeerCompareReportScreenState extends State<PeerCompareReportScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Text('TB Nhóm', style: TextStyle(color: context.palette.textSecondary, fontSize: 12)),
+                    Text(
+                      'TB Nhóm',
+                      style: TextStyle(
+                        color: context.palette.textSecondary,
+                        fontSize: 12,
+                      ),
+                    ),
                     const SizedBox(height: 4),
                     Text(
                       formatVnd(avgAmt),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: context.palette.textPrimary, fontWeight: FontWeight.bold, fontSize: 14),
+                      style: TextStyle(
+                        color: context.palette.textPrimary,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
                     ),
                   ],
                 ),

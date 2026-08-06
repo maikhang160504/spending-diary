@@ -81,6 +81,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.6.0"
+  cached_storage:
+    dependency: "direct main"
+    description:
+      name: cached_storage
+      sha256: "834efe62c05a690a90ec41e4dc86625dadc5eacfc9d7cdd41f2a2576f6ab1e53"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.0.14"
   camera:
     dependency: "direct main"
     description:

@@ -41,7 +41,7 @@ class SyncService {
   void listenToRealtimeUpdates() {
     _wsChannel.stream.listen((message) {
       final data = jsonDecode(message);
-      
+
       if (data['type'] == 'NEW_TRANSACTION') {
         _handleNewTransaction(data['payload']);
       }
@@ -55,11 +55,11 @@ class SyncService {
 
     // Kiểm tra xem giao dịch đã tồn tại trong Local DB chưa (tránh trùng lặp)
     bool exists = await _localDb.checkExists(newTx.id);
-    
+
     if (!exists) {
       // Lưu vào Local DB để cập nhật UI ngay lập tức
       await _localDb.insertTransaction(newTx);
-      
+
       // Trigger thông báo Mascot cho thành viên khác
       NotificationService.triggerMascotNotification(newTx);
     }
@@ -68,7 +68,7 @@ class SyncService {
   // 3. Cơ chế đẩy dữ liệu Offline lên Cloud (Retry Mechanism)
   Future<void> syncPendingTransactions() async {
     final pendingTxs = await _localDb.getUnsyncedTransactions();
-    
+
     for (var tx in pendingTxs) {
       try {
         await _apiClient.postTransaction(tx);

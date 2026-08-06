@@ -11,7 +11,8 @@ class WalletChip extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback? onLongPress;
 
-  const WalletChip({super.key, 
+  const WalletChip({
+    super.key,
     required this.label,
     required this.icon,
     required this.isSelected,
@@ -77,7 +78,8 @@ class WalletChip extends StatelessWidget {
 class BalanceStat extends StatelessWidget {
   final String label, value;
   final Color color;
-  const BalanceStat({super.key, 
+  const BalanceStat({
+    super.key,
     required this.label,
     required this.value,
     required this.color,
@@ -92,9 +94,9 @@ class BalanceStat extends StatelessWidget {
         children: [
           Text(
             label,
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: context.palette.textSecondary),
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: context.palette.textSecondary,
+            ),
           ),
           const SizedBox(height: 4),
           Text(
@@ -115,7 +117,8 @@ class SegmentItem extends StatelessWidget {
   final IconData icon;
   final bool isSelected;
   final VoidCallback onTap;
-  const SegmentItem({super.key, 
+  const SegmentItem({
+    super.key,
     required this.label,
     required this.icon,
     required this.isSelected,
@@ -157,4 +160,3 @@ class SegmentItem extends StatelessWidget {
     );
   }
 }
-

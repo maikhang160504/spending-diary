@@ -1,8 +1,6 @@
-'use strict';
-
 const aiClient = require('../../services/aiClient');
 const r2Client = require('../../services/r2Client');
-const { query } = require('../../config/db');
+const { query, withTransaction } = require('../../config/db');
 const txService = require('../transactions/transactions.service');
 const actionService = require('./action.service');
 const statsService = require('../stats/stats.service');
@@ -765,111 +763,118 @@ async function _processTextBackground(userId, transactionId, payload) {
 
     const finalStatus = needsReview ? 'pending_review' : 'completed';
 
-    await query('BEGIN');
-    
-    // Update the pending transaction
-    await query(
-      `UPDATE transactions
-       SET amount = $1, type = $2, category_code = $3, note = $4,
-           ai_extracted = TRUE, ai_confidence = $5, ai_meta = $6,
-           processing_status = $7,
-           is_draft = $8,
-           updated_at = NOW()
-       WHERE id = $9`,
-      [
-        finalAmount,
-        recordType,
-        finalCategoryCode,
-        extracted.note || payload.text,
-        extracted.confidence ?? null,
-        aiMeta,
-        finalStatus,
-        needsReview, // Draft if needs review
-        transactionId
-      ]
-    );
-
     let storyId = null;
     let summaryText = null;
-    // Ưu tiên đọc từ gemini_json (kết quả LLM Gemini) trước, rồi mới fallback
-    const geminiJson = aiResponse.nlu?.gemini_json || aiResponse.gemini_json || {};
-    const llamaJson = aiResponse.nlu?.llama_json || aiResponse.llama_json || {};
-    let aiCommentContent =
-      geminiJson.response ||
-      geminiJson.story ||
-      aiResponse.nlg?.response ||
-      aiResponse.nlg_response ||
-      llamaJson.response ||
-      llamaJson.story ||
-      aiResponse.nlu?.nlg_response ||
-      aiResponse.nlu?.response ||
-      null;
-    let aiEmotion =
-      geminiJson.mimo_emotion ||
-      geminiJson.emotion ||
-      aiResponse.nlg?.emotion ||
-      llamaJson.mimo_emotion ||
-      llamaJson.emotion ||
-      aiResponse.nlu?.mimo_emotion ||
-      aiResponse.nlu?.llm_emotion ||
-      'Happy';
+    let finalAmountTx = finalAmount;
+    let recordTypeTx = recordType;
+    let finalCategoryCodeTx = finalCategoryCode;
+    let aiCommentContentTx = null;
+    let aiEmotionTx = 'Happy';
 
-    // If completed (auto-saved), create story items
-    if (!needsReview) {
-      // Find wallet name
-      let sourceName = 'Ví cá nhân';
-      if (payload.walletId) {
-        const walletRes = await query('SELECT name FROM wallets WHERE id = $1', [payload.walletId]);
-        if (walletRes.rows[0]) sourceName = walletRes.rows[0].name;
-      }
-      const isIncome = recordType === 'income';
-      summaryText = `${isIncome ? 'Thu' : 'Chi'} ${finalAmount.toLocaleString('vi-VN')}đ cho ${finalCategoryCode}`;
-      
-      if (!aiCommentContent) {
-        aiCommentContent = summaryText;
-      }
-      // Tiêu đề story dùng câu LLM nếu có, fallback về summaryText
-      const storyTitle = aiCommentContent || summaryText;
-
-      const occurredAt = payload.occurredAt ? new Date(payload.occurredAt) : new Date();
-      const storyRes = await query(
-        `INSERT INTO stories (user_id, wallet_id, title, total_amount, occurred_on)
-         VALUES ($1, $2, $3, $4, $5) RETURNING id`,
-        [userId, payload.walletId, storyTitle, finalAmount, occurredAt]
-      );
-      storyId = storyRes.rows[0].id;
-
-      const storyItemRes = await query(
-        `INSERT INTO story_items (story_id, raw_text, media_type)
-         VALUES ($1, $2, 'text') RETURNING id`,
-        [storyId, payload.text]
-      );
-      const storyItemId = storyItemRes.rows[0].id;
-
-      await query(
-        `UPDATE transactions SET story_item_id = $1 WHERE id = $2`,
-        [storyItemId, transactionId]
+    await withTransaction(async (client) => {
+      // Update the pending transaction
+      await client.query(
+        `UPDATE transactions
+         SET amount = $1, type = $2, category_code = $3, note = $4,
+             ai_extracted = TRUE, ai_confidence = $5, ai_meta = $6,
+             processing_status = $7,
+             is_draft = $8,
+             updated_at = NOW()
+         WHERE id = $9`,
+        [
+          finalAmountTx,
+          recordTypeTx,
+          finalCategoryCodeTx,
+          extracted.note || payload.text,
+          extracted.confidence ?? null,
+          aiMeta,
+          finalStatus,
+          needsReview, // Draft if needs review
+          transactionId
+        ]
       );
 
-      // Create AI Comment
-      await query(
-        `INSERT INTO ai_comments (story_id, content_text, visual_state, emotion)
-         VALUES ($1, $2, $3, $4)`,
-        [storyId, aiCommentContent, aiEmotion, aiEmotion]
-      );
-      
-      // Update wallet balance
-      if (payload.walletId) {
-        if (recordType === 'expense') {
-          await query('UPDATE wallets SET balance = balance - $1 WHERE id = $2', [finalAmount, payload.walletId]);
-        } else {
-          await query('UPDATE wallets SET balance = balance + $1 WHERE id = $2', [finalAmount, payload.walletId]);
+      // Ưu tiên đọc từ gemini_json (kết quả LLM Gemini) trước, rồi mới fallback
+      const geminiJson = aiResponse.nlu?.gemini_json || aiResponse.gemini_json || {};
+      const llamaJson = aiResponse.nlu?.llama_json || aiResponse.llama_json || {};
+      aiCommentContentTx =
+        geminiJson.response ||
+        geminiJson.story ||
+        aiResponse.nlg?.response ||
+        aiResponse.nlg_response ||
+        llamaJson.response ||
+        llamaJson.story ||
+        aiResponse.nlu?.nlg_response ||
+        aiResponse.nlu?.response ||
+        null;
+      aiEmotionTx =
+        geminiJson.mimo_emotion ||
+        geminiJson.emotion ||
+        aiResponse.nlg?.emotion ||
+        llamaJson.mimo_emotion ||
+        llamaJson.emotion ||
+        aiResponse.nlu?.mimo_emotion ||
+        aiResponse.nlu?.llm_emotion ||
+        'Happy';
+
+      // If completed (auto-saved), create story items
+      if (!needsReview) {
+        // Find wallet name
+        let sourceName = 'Ví cá nhân';
+        if (payload.walletId) {
+          const walletRes = await client.query('SELECT name FROM wallets WHERE id = $1', [payload.walletId]);
+          if (walletRes.rows[0]) sourceName = walletRes.rows[0].name;
+        }
+        const isIncome = recordTypeTx === 'income';
+        summaryText = `${isIncome ? 'Thu' : 'Chi'} ${finalAmountTx.toLocaleString('vi-VN')}đ cho ${finalCategoryCodeTx}`;
+        
+        if (!aiCommentContentTx) {
+          aiCommentContentTx = summaryText;
+        }
+        // Tiêu đề story dùng câu LLM nếu có, fallback về summaryText
+        const storyTitle = aiCommentContentTx || summaryText;
+
+        const occurredAt = payload.occurredAt ? new Date(payload.occurredAt) : new Date();
+        const storyRes = await client.query(
+          `INSERT INTO stories (user_id, wallet_id, title, total_amount, occurred_on)
+           VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+          [userId, payload.walletId, storyTitle, finalAmountTx, occurredAt]
+        );
+        storyId = storyRes.rows[0].id;
+
+        const storyItemRes = await client.query(
+          `INSERT INTO story_items (story_id, raw_text, media_type)
+           VALUES ($1, $2, 'text') RETURNING id`,
+          [storyId, payload.text]
+        );
+        const storyItemId = storyItemRes.rows[0].id;
+
+        await client.query(
+          `UPDATE transactions SET story_item_id = $1 WHERE id = $2`,
+          [storyItemId, transactionId]
+        );
+
+        // Create AI Comment
+        await client.query(
+          `INSERT INTO ai_comments (story_id, content_text, visual_state, emotion)
+           VALUES ($1, $2, $3, $4)`,
+          [storyId, aiCommentContentTx, aiEmotionTx, aiEmotionTx]
+        );
+        
+        // Update wallet balance
+        if (payload.walletId) {
+          if (recordTypeTx === 'expense') {
+            await client.query('UPDATE wallets SET balance = balance - $1 WHERE id = $2', [finalAmountTx, payload.walletId]);
+          } else {
+            await client.query('UPDATE wallets SET balance = balance + $1 WHERE id = $2', [finalAmountTx, payload.walletId]);
+          }
         }
       }
+    });
+
+    if (!needsReview && payload.walletId) {
       walletProfileCache.delete(`${userId}:${payload.walletId}`);
     }
-
-    await query('COMMIT');
 
     sendToUser(userId, {
       type: 'transaction_done',
@@ -885,12 +890,11 @@ async function _processTextBackground(userId, transactionId, payload) {
         categoryCode: finalCategoryCode,
         note: extracted.note || payload.text,
         storyId,
-        aiComment: aiCommentContent,
-        mascotMood: aiEmotion
+        aiComment: aiCommentContentTx,
+        mascotMood: aiEmotionTx
       }
     });
   } catch (err) {
-    await query('ROLLBACK').catch(() => {});
     logger.error({ err: err.message, stack: err.stack, transactionId }, 'Background text NLU failed');
     await query(
       `UPDATE transactions SET processing_status = 'failed', updated_at = NOW() WHERE id = $1`,
@@ -990,61 +994,77 @@ async function _processBillBackground(userId, walletId, transactionId, fileBuffe
       null;
     const billIntent = nlu.intent || 'Record';
     const mascotMood = pickMimoEmotionFromNlu(nlu, billIntent);
+    
+    const recordType = extracted.record_type === 'Income' ? 'income' : extracted.amount ? 'expense' : null;
 
     let storyId = null;
     let storyItemId = null;
+    
     try {
-      const storyRes = await query(
-        `INSERT INTO stories (user_id, wallet_id, title, total_amount, cover_image_url, occurred_on)
-         VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
-        [userId, walletId, extracted.note || extracted.category || 'Hóa đơn', extracted.amount || 0, imageUrl, occurredAt]
-      );
-      storyId = storyRes.rows[0].id;
-      const itemRes = await query(
-        `INSERT INTO story_items (story_id, raw_text, media_url, media_type)
-         VALUES ($1, $2, $3, $4) RETURNING id`,
-        [storyId, extracted.note || null, imageUrl, imageUrl ? 'image' : 'text']
-      );
-      storyItemId = itemRes.rows[0].id;
-      if (llmStory) {
-        await query(
-          `INSERT INTO ai_comments (story_id, content_text, visual_state, emotion)
-           VALUES ($1, $2, $3, $4)`,
-          [storyId, llmStory, mascotMood, mascotMood]
+      await withTransaction(async (client) => {
+        const storyRes = await client.query(
+          `INSERT INTO stories (user_id, wallet_id, title, total_amount, cover_image_url, occurred_on)
+           VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+          [userId, walletId, extracted.note || extracted.category || 'Hóa đơn', extracted.amount || 0, imageUrl, occurredAt]
         );
-      }
-    } catch (e) {
-      logger.warn({ err: e.message, transactionId }, 'bill story/ai_comment creation failed');
-    }
+        storyId = storyRes.rows[0].id;
+        
+        const itemRes = await client.query(
+          `INSERT INTO story_items (story_id, raw_text, media_url, media_type)
+           VALUES ($1, $2, $3, $4) RETURNING id`,
+          [storyId, extracted.note || null, imageUrl, imageUrl ? 'image' : 'text']
+        );
+        storyItemId = itemRes.rows[0].id;
+        
+        if (llmStory) {
+          await client.query(
+            `INSERT INTO ai_comments (story_id, content_text, visual_state, emotion)
+             VALUES ($1, $2, $3, $4)`,
+            [storyId, llmStory, mascotMood, mascotMood]
+          );
+        }
 
-    await query(
-      `UPDATE transactions SET
-         category_id       = COALESCE($1, category_id),
-         category_code     = COALESCE($2, category_code),
-         amount            = COALESCE($3, amount),
-         type              = COALESCE($4::varchar, type),
-         note              = COALESCE($5, note),
-         ai_extracted      = TRUE,
-         ai_confidence     = $6,
-         ai_meta           = $7,
-         story_item_id     = COALESCE($8, story_item_id),
-         processing_status = 'done',
-         occurred_at       = $10,
-         updated_at        = NOW()
-       WHERE id = $9`,
-      [
-        categoryId,
-        finalCategoryCode,
-        extracted.amount || null,
-        extracted.record_type === 'Income' ? 'income' : extracted.amount ? 'expense' : null,
-        extracted.note || null,
-        extracted.confidence != null ? Number(extracted.confidence) : null,
-        { nlu: aiResponse.nlu, ocr: aiResponse.ocr, image_url: imageUrl, personalizationKeyword },
-        storyItemId,
-        transactionId,
-        occurredAt,
-      ]
-    );
+        await client.query(
+          `UPDATE transactions SET
+             category_id       = COALESCE($1, category_id),
+             category_code     = COALESCE($2, category_code),
+             amount            = COALESCE($3, amount),
+             type              = COALESCE($4::varchar, type),
+             note              = COALESCE($5, note),
+             ai_extracted      = TRUE,
+             ai_confidence     = $6,
+             ai_meta           = $7,
+             story_item_id     = COALESCE($8, story_item_id),
+             processing_status = 'done',
+             occurred_at       = $10,
+             updated_at        = NOW()
+           WHERE id = $9`,
+          [
+            categoryId,
+            finalCategoryCode,
+            extracted.amount || null,
+            recordType,
+            extracted.note || null,
+            extracted.confidence != null ? Number(extracted.confidence) : null,
+            { nlu: aiResponse.nlu, ocr: aiResponse.ocr, image_url: imageUrl, personalizationKeyword },
+            storyItemId,
+            transactionId,
+            occurredAt,
+          ]
+        );
+
+        if (walletId && extracted.amount) {
+          if (recordType === 'expense') {
+            await client.query('UPDATE wallets SET balance = balance - $1 WHERE id = $2', [extracted.amount, walletId]);
+          } else if (recordType === 'income') {
+            await client.query('UPDATE wallets SET balance = balance + $1 WHERE id = $2', [extracted.amount, walletId]);
+          }
+        }
+      });
+    } catch (e) {
+      logger.error({ err: e.message, transactionId }, 'bill db transaction failed');
+      throw e;
+    }
 
     // Invalidate wallet profile cache
     walletProfileCache.delete(`${userId}:${walletId}`);
@@ -1330,6 +1350,24 @@ async function confirmAction(userId, payload) {
      ON CONFLICT (user_id, action_signature) DO NOTHING`,
     [userId, payload.actionSignature, payload.actionType || null]
   );
+  if (payload.messageId) {
+    try {
+      const existing = await query(
+        'SELECT intent_action FROM chat_messages WHERE id = $1 AND (session_id IN (SELECT id FROM chat_sessions WHERE user_id = $2))',
+        [payload.messageId, userId]
+      );
+      if (existing.rowCount > 0) {
+        const prev = existing.rows[0].intent_action || {};
+        const merged = { ...prev, action_executed: true };
+        await query(
+          'UPDATE chat_messages SET intent_action = $1 WHERE id = $2',
+          [merged, payload.messageId]
+        );
+      }
+    } catch (e) {
+      logger.warn({ err: e.message, userId }, 'Failed to mark chat message as executed upon confirm');
+    }
+  }
 }
 
 async function rejectAction(userId, payload) {

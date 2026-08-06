@@ -7,6 +7,7 @@ import '../../theme/app_radii.dart';
 import '../../theme/app_spacing.dart';
 
 import '../../services/api_client.dart';
+import '../../widgets/mimo_snackbar.dart';
 
 class OnboardingStep1 extends StatefulWidget {
   const OnboardingStep1({super.key});
@@ -43,9 +44,12 @@ class _OnboardingStep1State extends State<OnboardingStep1> {
       final loggedIn = await _api.isLoggedIn;
       if (!loggedIn) return;
       final settings = await _api.getSettings();
-      final ageGroup = settings['ageGroup'] as String? ?? settings['age_group'] as String?;
-      final jobType = settings['jobType'] as String? ?? settings['job_type'] as String?;
-      if ((ageGroup != null && ageGroup.isNotEmpty) || (jobType != null && jobType.isNotEmpty)) {
+      final ageGroup =
+          settings['ageGroup'] as String? ?? settings['age_group'] as String?;
+      final jobType =
+          settings['jobType'] as String? ?? settings['job_type'] as String?;
+      if ((ageGroup != null && ageGroup.isNotEmpty) ||
+          (jobType != null && jobType.isNotEmpty)) {
         if (mounted) {
           context.go(AppRoutes.home);
         }
@@ -68,12 +72,7 @@ class _OnboardingStep1State extends State<OnboardingStep1> {
       if (mounted) context.push(AppRoutes.onboardingStep2);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Lỗi: ${e.toString()}'),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
+        MimoSnackBar.showInfo(context, message: 'Lỗi: ${e.toString()}');
       }
     }
     if (mounted) setState(() => _saving = false);
@@ -87,41 +86,67 @@ class _OnboardingStep1State extends State<OnboardingStep1> {
         child: SafeArea(
           child: Column(
             children: [
-              const _ProgressHeader(label: 'Bước 1/4', percent: '25%', value: 0.25),
+              const _ProgressHeader(
+                label: 'Bước 1/4',
+                percent: '25%',
+                value: 0.25,
+              ),
               Expanded(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.xxl,
+                  ),
                   child: Container(
                     padding: const EdgeInsets.all(AppSpacing.xxl),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(AppRadii.xl),
                       boxShadow: const [
-                        BoxShadow(color: Color(0x33000000), blurRadius: 30, offset: Offset(0, 20)),
+                        BoxShadow(
+                          color: Color(0x33000000),
+                          blurRadius: 30,
+                          offset: Offset(0, 20),
+                        ),
                       ],
                     ),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Image.asset('assets/MiMo/emotions/Hello.png', width: 100, height: 100, fit: BoxFit.contain),
+                        Image.asset(
+                          'assets/MiMo/emotions/Hello.png',
+                          width: 100,
+                          height: 100,
+                          fit: BoxFit.contain,
+                        ),
                         const SizedBox(height: 12),
-                        Text('Xin chào! Mình là Mimo 😊', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700), textAlign: TextAlign.center),
+                        Text(
+                          'Xin chào! Mình là Mimo 😊',
+                          style: Theme.of(context).textTheme.titleLarge
+                              ?.copyWith(fontWeight: FontWeight.w700),
+                          textAlign: TextAlign.center,
+                        ),
                         const SizedBox(height: 10),
                         Text(
-                           'Còn bạn tên gì nhỉ? Cho mình xin tên để dễ gọi nha~',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
+                          'Còn bạn tên gì nhỉ? Cho mình xin tên để dễ gọi nha~',
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(color: AppColors.textSecondary),
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 24),
                         Align(
                           alignment: Alignment.centerLeft,
-                          child: Text('Tên của bạn', style: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
+                          child: Text(
+                            'Tên của bạn',
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(fontWeight: FontWeight.w600),
+                          ),
                         ),
                         const SizedBox(height: 8),
                         TextField(
                           controller: _controller,
                           decoration: const InputDecoration(
-                            hintText: 'Nguyễn Văn A, hoặc gọi bạn là gì cũng được',
+                            hintText:
+                                'Nguyễn Văn A, hoặc gọi bạn là gì cũng được',
                           ),
                         ),
                       ],
@@ -140,21 +165,31 @@ class _OnboardingStep1State extends State<OnboardingStep1> {
                       return FilledButton(
                         onPressed: hasText && !_saving ? _submit : null,
                         style: FilledButton.styleFrom(
-                          backgroundColor: Colors.white.withValues(alpha: hasText ? 1.0 : 0.25),
+                          backgroundColor: Colors.white.withValues(
+                            alpha: hasText ? 1.0 : 0.25,
+                          ),
                           foregroundColor: AppColors.teal,
                           padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadii.xl)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(AppRadii.xl),
+                          ),
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Text(_saving ? 'Đang lưu...' : 'Tiếp nào! ✨', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                            Text(
+                              _saving ? 'Đang lưu...' : 'Tiếp nào! ✨',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                             const SizedBox(width: 6),
                             const Icon(Icons.arrow_forward_ios, size: 14),
                           ],
                         ),
                       );
-                    }
+                    },
                   ),
                 ),
               ),
@@ -171,7 +206,11 @@ class _ProgressHeader extends StatelessWidget {
   final String percent;
   final double value;
 
-  const _ProgressHeader({required this.label, required this.percent, required this.value});
+  const _ProgressHeader({
+    required this.label,
+    required this.percent,
+    required this.value,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -182,8 +221,22 @@ class _ProgressHeader extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(label, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500)),
-              Text(percent, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500)),
+              Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              Text(
+                percent,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 10),

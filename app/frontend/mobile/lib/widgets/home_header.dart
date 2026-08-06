@@ -40,80 +40,178 @@ class HomeHeader extends StatelessWidget {
         ),
       ),
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(_formattedDate(), style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white70)),
-              const SizedBox(height: 4),
-              Row(children: [
-                Flexible(child: Text('Chào $userName!', style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.white, fontWeight: FontWeight.w700), maxLines: 1, overflow: TextOverflow.ellipsis)),
-                const SizedBox(width: 4),
-                const Text('👋', style: TextStyle(fontSize: 18)),
-              ]),
-            ]),
-          ),
-          GestureDetector(
-            onTap: onStreakTap,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(AppRadii.md)),
-              child: Row(children: [
-                const Text('🔥', style: TextStyle(fontSize: 14)),
-                const SizedBox(width: 6),
-                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('$streakDays ngày', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white, fontWeight: FontWeight.w600)),
-                  Text('Streak', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white70, fontSize: 10)),
-                ]),
-              ]),
-            ),
-          ),
-        ]),
-        const SizedBox(height: 16),
-        // Wallet chips
-        if (wallets.isNotEmpty)
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: wallets.map((w) => Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: _WalletChipWidget(
-                  label: w.label,
-                  icon: w.icon,
-                  isSelected: w.id == selectedWalletId,
-                  onTap: () => onWalletTap(w),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _formattedDate(),
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodySmall?.copyWith(color: Colors.white70),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            'Chào $userName!',
+                            style: Theme.of(context).textTheme.titleMedium
+                                ?.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        const Text('👋', style: TextStyle(fontSize: 18)),
+                      ],
+                    ),
+                  ],
                 ),
-              )).toList(),
+              ),
+              GestureDetector(
+                onTap: onStreakTap,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(AppRadii.md),
+                  ),
+                  child: Row(
+                    children: [
+                      const Text('🔥', style: TextStyle(fontSize: 14)),
+                      const SizedBox(width: 6),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '$streakDays ngày',
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                          ),
+                          Text(
+                            'Streak',
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(color: Colors.white70, fontSize: 10),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          // Wallet chips
+          if (wallets.isNotEmpty)
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: wallets
+                    .map(
+                      (w) => Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: _WalletChipWidget(
+                          label: w.label,
+                          icon: w.icon,
+                          isSelected: w.id == selectedWalletId,
+                          onTap: () => onWalletTap(w),
+                        ),
+                      ),
+                    )
+                    .toList(),
+              ),
+            ),
+          const SizedBox(height: 16),
+          // Balance card
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(AppRadii.lg),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.auto_awesome,
+                      color: AppColors.teal,
+                      size: 16,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Số dư hiện tại',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  balance,
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 26,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _BalanceStatWidget(
+                        label: 'Thu nhập',
+                        value: income,
+                        color: AppColors.teal,
+                      ),
+                    ),
+                    Container(width: 1, height: 28, color: AppColors.border),
+                    Expanded(
+                      child: _BalanceStatWidget(
+                        label: 'Chi tiêu',
+                        value: expense,
+                        color: AppColors.danger,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
-        const SizedBox(height: 16),
-        // Balance card
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(AppRadii.lg)),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(children: [
-              const Icon(Icons.auto_awesome, color: AppColors.teal, size: 16),
-              const SizedBox(width: 6),
-              Text('Số dư hiện tại', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary)),
-            ]),
-            const SizedBox(height: 8),
-            Text(balance, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700, fontSize: 26)),
-            const SizedBox(height: 12),
-            Row(children: [
-              Expanded(child: _BalanceStatWidget(label: 'Thu nhập', value: income, color: AppColors.teal)),
-              Container(width: 1, height: 28, color: AppColors.border),
-              Expanded(child: _BalanceStatWidget(label: 'Chi tiêu', value: expense, color: AppColors.danger)),
-            ]),
-          ]),
-        ),
-      ]),
+        ],
+      ),
     );
   }
 
   String _formattedDate() {
     final now = DateTime.now();
-    const weekdays = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
+    const weekdays = [
+      'Chủ Nhật',
+      'Thứ Hai',
+      'Thứ Ba',
+      'Thứ Tư',
+      'Thứ Năm',
+      'Thứ Sáu',
+      'Thứ Bảy',
+    ];
     return '${weekdays[now.weekday % 7]}, ${now.day} tháng ${now.month.toString().padLeft(2, '0')} ${now.year}';
   }
 }
@@ -139,7 +237,12 @@ class _WalletChipWidget extends StatelessWidget {
   final bool isSelected;
   final VoidCallback onTap;
 
-  const _WalletChipWidget({required this.label, required this.icon, required this.isSelected, required this.onTap});
+  const _WalletChipWidget({
+    required this.label,
+    required this.icon,
+    required this.isSelected,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -149,17 +252,29 @@ class _WalletChipWidget extends StatelessWidget {
         duration: const Duration(milliseconds: 150),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.22),
+          color: isSelected
+              ? Colors.white
+              : Colors.white.withValues(alpha: 0.22),
           borderRadius: BorderRadius.circular(AppRadii.md),
         ),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(icon, size: 16, color: isSelected ? AppColors.teal : Colors.white),
-          const SizedBox(width: 6),
-          Text(label, style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: isSelected ? AppColors.teal : Colors.white,
-            fontWeight: FontWeight.w600,
-          )),
-        ]),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 16,
+              color: isSelected ? AppColors.teal : Colors.white,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: isSelected ? AppColors.teal : Colors.white,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -168,17 +283,35 @@ class _WalletChipWidget extends StatelessWidget {
 class _BalanceStatWidget extends StatelessWidget {
   final String label, value;
   final Color color;
-  const _BalanceStatWidget({required this.label, required this.value, required this.color});
+  const _BalanceStatWidget({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(label, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary)),
-        const SizedBox(height: 4),
-        Text(value, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: color, fontWeight: FontWeight.w700)),
-      ]),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: color,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
