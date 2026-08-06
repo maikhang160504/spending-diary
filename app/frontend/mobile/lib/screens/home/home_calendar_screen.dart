@@ -76,7 +76,7 @@ class _HomeCalendarScreenState extends State<HomeCalendarScreen> {
 
       _userName = (me['user']?['username'] as String?) ?? 'bạn';
       _wallets = wallets;
-      AppQueries.streak().result.then((s) {
+      AppQueries.streak().refetch().then((s) {
         if (mounted) {
           setState(
             () =>
@@ -136,8 +136,27 @@ class _HomeCalendarScreenState extends State<HomeCalendarScreen> {
       _loadData();
       return;
     }
-    setState(() => _selectedWalletId = wallet['id'] as String?);
-    _loadWalletData();
+    
+    final newId = wallet['id'] as String?;
+    if (_selectedWalletId == newId) return;
+
+    final start = DateTime(_focus.year, _focus.month, 1).toIso8601String();
+    final end = DateTime(_focus.year, _focus.month + 1, 0, 23, 59, 59).toIso8601String();
+    final hasCache = AppQueries.dashboard(newId, from: start, to: end).state.data != null;
+
+    setState(() {
+      _selectedWalletId = newId;
+      if (!hasCache) {
+        _loading = true;
+        _dashboard = {};
+        _transactions = [];
+      }
+    });
+    
+    await _loadWalletData();
+    if (mounted && !hasCache) {
+      setState(() => _loading = false);
+    }
   }
 
   String _formattedDate() {
@@ -351,97 +370,85 @@ class _HomeCalendarScreenState extends State<HomeCalendarScreen> {
                           ],
                         ),
                       ),
-                      if (_selectedDay != null &&
-                          dayMap[_selectedDay!] != null) ...[
-                        const SizedBox(height: 16),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              '$_selectedDay tháng ${_focus.month} ${_focus.year}',
-                              style: Theme.of(context).textTheme.titleSmall
-                                  ?.copyWith(fontWeight: FontWeight.w700),
-                            ),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                Text(
-                                  '-${formatVnd((dayMap[_selectedDay!]!['expense'] as num?)?.toInt() ?? 0)}',
-                                  style: Theme.of(context).textTheme.bodyMedium
-                                      ?.copyWith(
-                                        color: AppColors.danger,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                ),
-                                if (((dayMap[_selectedDay!]!['income'] as num?)
-                                            ?.toInt() ??
-                                        0) >
-                                    0)
+                      ...(() {
+                        int dailyIncome = 0;
+                        int dailyExpense = 0;
+                        if (dayMap[_selectedDay!] != null) {
+                          dailyIncome = (dayMap[_selectedDay!]!['income'] as num?)?.toInt() ?? 0;
+                          dailyExpense = (dayMap[_selectedDay!]!['expense'] as num?)?.toInt() ?? 0;
+                        } else {
+                          for (final tx in _transactions) {
+                            final dateStr = tx['occurredAt'] as String? ?? tx['occurred_at'] as String? ?? tx['createdAt'] as String? ?? tx['created_at'] as String? ?? '';
+                            if (dateStr.isEmpty) continue;
+                            try {
+                              final dt = DateTime.parse(dateStr).toLocal();
+                              if (dt.year == _focus.year && dt.month == _focus.month && dt.day == _selectedDay) {
+                                final amt = parseToInt(tx['amount']);
+                                if (tx['type'] == 'income') {
+                                  dailyIncome += amt;
+                                } else {
+                                  dailyExpense += amt;
+                                }
+                              }
+                            } catch (_) {}
+                          }
+                        }
+
+                        final dayTxList = _transactions.where((tx) {
+                          final dateStr = tx['occurredAt'] as String? ?? tx['occurred_at'] as String? ?? tx['createdAt'] as String? ?? tx['created_at'] as String? ?? '';
+                          if (dateStr.isEmpty) return false;
+                          try {
+                            final dt = DateTime.parse(dateStr).toLocal();
+                            return dt.year == _focus.year && dt.month == _focus.month && dt.day == _selectedDay;
+                          } catch (_) { return false; }
+                        }).toList();
+
+                        if (_selectedDay == null || (dayTxList.isEmpty && dailyIncome == 0 && dailyExpense == 0)) return <Widget>[];
+
+                        return <Widget>[
+                          const SizedBox(height: 16),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                '$_selectedDay tháng ${_focus.month} ${_focus.year}',
+                                style: Theme.of(context).textTheme.titleSmall
+                                    ?.copyWith(fontWeight: FontWeight.w700),
+                              ),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
                                   Text(
-                                    '+${formatVnd((dayMap[_selectedDay!]!['income'] as num?)?.toInt() ?? 0)}',
-                                    style: Theme.of(context).textTheme.bodySmall
+                                    '-${formatVnd(dailyExpense)}',
+                                    style: Theme.of(context).textTheme.bodyMedium
                                         ?.copyWith(
-                                          color: AppColors.teal,
-                                          fontWeight: FontWeight.w600,
+                                          color: AppColors.danger,
+                                          fontWeight: FontWeight.w700,
                                         ),
                                   ),
-                              ],
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        ..._transactions
-                            .where((tx) {
-                              final dateStr =
-                                  tx['occurredAt'] as String? ??
-                                  tx['occurred_at'] as String? ??
-                                  tx['createdAt'] as String? ??
-                                  tx['created_at'] as String? ??
-                                  '';
-                              if (dateStr.isEmpty) return false;
-                              try {
-                                final dt = DateTime.parse(dateStr).toLocal();
-                                return dt.year == _focus.year &&
-                                    dt.month == _focus.month &&
-                                    dt.day == _selectedDay;
-                              } catch (_) {
-                                return false;
-                              }
-                            })
-                            .map((tx) {
-                              final dayNavIds = _transactions
-                                  .where((t) {
-                                    final ds =
-                                        t['occurredAt'] as String? ??
-                                        t['occurred_at'] as String? ??
-                                        t['createdAt'] as String? ??
-                                        t['created_at'] as String? ??
-                                        '';
-                                    if (ds.isEmpty) return false;
-                                    try {
-                                      final d = DateTime.parse(ds).toLocal();
-                                      return d.year == _focus.year &&
-                                          d.month == _focus.month &&
-                                          d.day == _selectedDay;
-                                    } catch (_) {
-                                      return false;
-                                    }
-                                  })
-                                  .map<String>(
-                                    (t) =>
-                                        (t['storyId'] as String?) ??
-                                        (t['story_id'] as String?) ??
-                                        (t['id'] as String?) ??
-                                        '',
-                                  )
-                                  .where((e) => e.isNotEmpty)
-                                  .toList();
-                              return _TransactionStoryCard(
-                                tx: tx,
-                                allStoryIds: dayNavIds,
-                              );
-                            }),
-                      ],
+                                  if (dailyIncome > 0)
+                                    Text(
+                                      '+${formatVnd(dailyIncome)}',
+                                      style: Theme.of(context).textTheme.bodySmall
+                                          ?.copyWith(
+                                            color: AppColors.teal,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                    ),
+                                ],
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          ...dayTxList.map((tx) {
+                            final dayNavIds = dayTxList.map<String>((t) => (t['id'] ?? t['_id']) as String? ?? '').where((e) => e.isNotEmpty).toList();
+                            return _TransactionStoryCard(
+                              tx: tx,
+                              allStoryIds: dayNavIds,
+                            );
+                          }),
+                        ];
+                      })(),
                       const SizedBox(height: 24),
                     ],
                   ),

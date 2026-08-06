@@ -24,6 +24,8 @@ class LimitsScreen extends StatefulWidget {
 class _LimitsScreenState extends State<LimitsScreen> {
   final _api = ApiClient();
   List<_LimitItem> _limits = [];
+  int _trueTotalLimit = 0;
+  int _trueTotalSpent = 0;
   bool _loading = true;
   String? _error;
 
@@ -48,10 +50,10 @@ class _LimitsScreenState extends State<LimitsScreen> {
       final uniqueBudgets = <dynamic>[];
       for (final b in budgets) {
         final rawCat =
-            b['categoryCode'] as String? ??
-            b['category_code'] as String? ??
-            'Other';
-        final cat = CategoryTheme.canonicalCodeOf(rawCat);
+            b['categoryCode'] as String? ?? b['category_code'] as String?;
+        final cat = rawCat == null
+            ? 'TOTAL'
+            : CategoryTheme.canonicalCodeOf(rawCat);
         if (!seenCategories.contains(cat)) {
           seenCategories.add(cat);
           uniqueBudgets.add(b);
@@ -59,11 +61,13 @@ class _LimitsScreenState extends State<LimitsScreen> {
       }
       _limits = uniqueBudgets.map((b) {
         final rawCat =
-            b['categoryCode'] as String? ??
-            b['category_code'] as String? ??
-            'Other';
-        final cat = CategoryTheme.canonicalCodeOf(rawCat);
+            b['categoryCode'] as String? ?? b['category_code'] as String?;
+
+        final cat = rawCat == null
+            ? 'TOTAL'
+            : CategoryTheme.canonicalCodeOf(rawCat);
         final style = CategoryTheme.of(cat);
+
         return _LimitItem(
           id: b['id'] as String,
           emoji: style.emoji,
@@ -81,7 +85,46 @@ class _LimitsScreenState extends State<LimitsScreen> {
     } catch (_) {
       _error = 'Không thể tải giới hạn';
     }
-    if (mounted) setState(() => _loading = false);
+
+    try {
+      final stats = await _api.getStatsCumulativeVsBudget(
+        timeRange: 'month',
+      );
+      final daily = stats['dailyCumulative'] as List<dynamic>? ?? [];
+      if (daily.isNotEmpty) {
+        _trueTotalSpent = (daily.last['cumulative'] as num?)?.toInt() ?? 0;
+      } else {
+        _trueTotalSpent = 0;
+      }
+    } catch (_) {
+      // Ignore errors for true total, defaults to 0
+    }
+
+    if (mounted) {
+      setState(() {
+        _loading = false;
+        
+        final specificLimits = _limits.where((l) => l.categoryCode != 'TOTAL').toList();
+        final sumLimit = specificLimits.fold(0, (s, l) => s + l.limit);
+
+        _trueTotalLimit = sumLimit;
+
+        _limits = _limits.map((l) {
+          if (l.categoryCode == 'TOTAL') {
+            return _LimitItem(
+              id: l.id,
+              emoji: l.emoji,
+              label: l.label,
+              color: l.color,
+              categoryCode: l.categoryCode,
+              limit: sumLimit,
+              spent: _trueTotalSpent,
+            );
+          }
+          return l;
+        }).toList();
+      });
+    }
   }
 
   // Find the first category near its limit (≥ 85% spent, not over)
@@ -349,6 +392,8 @@ class _LimitsScreenState extends State<LimitsScreen> {
                                                   context.palette.textSecondary,
                                               fontSize: 11,
                                             ),
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
                                           ),
                                       ],
                                     ),
@@ -381,7 +426,10 @@ class _LimitsScreenState extends State<LimitsScreen> {
                                 Icons.chat_bubble_outline,
                                 size: 16,
                               ),
-                              label: const Text('Hỏi Mimo AI'),
+                              label: const FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text('Hỏi Mimo AI'),
+                              ),
                               style: OutlinedButton.styleFrom(
                                 foregroundColor: AppColors.teal,
                                 side: const BorderSide(color: AppColors.teal),
@@ -425,7 +473,10 @@ class _LimitsScreenState extends State<LimitsScreen> {
                                 }
                               },
                               icon: const Icon(Icons.check, size: 16),
-                              label: const Text('Áp dụng ngay'),
+                              label: const FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text('Áp dụng ngay'),
+                              ),
                               style: FilledButton.styleFrom(
                                 backgroundColor: AppColors.teal,
                                 padding: const EdgeInsets.symmetric(
@@ -739,18 +790,14 @@ class _LimitsScreenState extends State<LimitsScreen> {
                             label: 'Tổng ngân sách',
                             value: _loading
                                 ? '...'
-                                : formatVnd(
-                                    _limits.fold(0, (s, l) => s + l.limit),
-                                  ),
+                                : formatVnd(_trueTotalLimit),
                           ),
                           const SizedBox(width: 10),
                           _SummaryChip(
                             label: 'Đã chi',
                             value: _loading
                                 ? '...'
-                                : formatVnd(
-                                    _limits.fold(0, (s, l) => s + l.spent),
-                                  ),
+                                : formatVnd(_trueTotalSpent),
                           ),
                         ],
                       ),

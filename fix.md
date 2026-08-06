@@ -1,15 +1,11 @@
 1. kiểm tra các action ở app, kiểm tra luồn của accept ảnh hóa đơn ở retrain, và ở các phần modal, các luồn retrain cần kiểm tra và sửa chưa
 17. modal run --detach modal_app.py::run_nlu_benchmark  
 12. tại sao encoder lại thấp trong benchmark như vậy dùng model là mới nhất và quá trình train cũng rất thành công
-1. tôi dùng addstory mà banner lại hiển thị là bbill
-2. mascot lại không lấy đúng câu phản hồi của LLM do gửi dư prompt xem và chỉnh lại addstory stage 2
-3. story được lưu cũng không lấy đúng câu mà LLM reponse (lấy câu mặc đinh) 
-5. ví cá nhân ban đầu luôn đứng đầu, và đang ở ví A thì chuyển sang mmàn hình khác thì quay lại vẫn là ví A chứ không phải là ví đâu tiên (ví dụ đang ở ví riêng Cá nhân cchuyển sang ví chung xong quay lại vẫn là ví Cá Nhân) 
-6. nếu người dùng đổi category của bill thì lấy item đã nhận dạng + số tiền để tạo mẫu sai
-7 . giữ chuổi đang bị sai, chuổi hiển thị là số 0, không chúc mừng khi hoàn thành lửa mơi
-8. nạp vào ví 1tr -> BONUS(income), thêm rule để biết phân rõ income và enpense
-9. phân biệt rõ ràng giữa yêu cầu action nhắc nợ và record dept vào prompt
-10. test thiếu thông tin
+13/ tạo tool py dùng để đồng bộ model và json ở trên modal expense-ocr-nlu-storage>nlu_models về máy
+10. test thiếu thông tin, chitchat
+Chi tiết đo lường hiệu năng (telemetry runs) cho 2 mô hình tf-idf, encoder :
+- Độ chính xác ý định (tầng 1)
+- Độ chính xác danh mục (tầng 2)
 #### Sửa luận #####
 - thêm ảnh đợi quét hóa đơn 3.5, 
 - chưa thấy chức năng nào nhắc nói tới RAG, viết lại lý thuyết RAG và cách ứng dụng nó vào hệ thống (NLU)

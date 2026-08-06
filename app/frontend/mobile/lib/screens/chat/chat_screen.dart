@@ -1,9 +1,7 @@
-﻿import 'dart:math' as math;
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:go_router/go_router.dart';
-import 'package:dio/dio.dart';
-import 'package:path_provider/path_provider.dart';
 
 import '../../routes/app_routes.dart';
 import '../../services/api_client.dart';
@@ -24,7 +22,6 @@ import '../../theme/categories.dart';
 import '../../theme/theme_controller.dart';
 import '../../utils/formatters.dart';
 import '../../utils/budget_prompt.dart';
-import '../../widgets/mimo_snackbar.dart';
 
 String _actionSignatureFromNlu(Map<String, dynamic> nlu, {String? messageId}) {
   final fromApi = nluString(nlu['action_signature']);
@@ -41,7 +38,6 @@ String _actionSignatureFromNlu(Map<String, dynamic> nlu, {String? messageId}) {
   if (actionType.contains('LIMIT')) {
     return '$actionType|${cat ?? 'all'}|$amount$suffix';
   }
-  if (actionType.contains('DELETE')) return '$actionType|last$suffix';
   if (actionType.contains('GOAL')) return '$actionType|$amount$suffix';
   return '$actionType|default$suffix';
 }
@@ -54,13 +50,13 @@ String? _categoryFromNlu(Map<String, dynamic> nlu) {
   if (CategoryTheme.styles.containsKey(canonical)) return canonical;
   final norm = target
       .toLowerCase()
-      .replaceAll('Äƒ', 'a')
-      .replaceAll('Ã¢', 'a')
-      .replaceAll('Ä‘', 'd')
-      .replaceAll('Ãª', 'e')
-      .replaceAll('Ã´', 'o')
-      .replaceAll('Æ¡', 'o')
-      .replaceAll('Æ°', 'u');
+      .replaceAll('ă', 'a')
+      .replaceAll('â', 'a')
+      .replaceAll('đ', 'd')
+      .replaceAll('ê', 'e')
+      .replaceAll('ô', 'o')
+      .replaceAll('ơ', 'o')
+      .replaceAll('ư', 'u');
   const viMap = {
     'an uong': 'Food',
     'di chuyen': 'Transport',
@@ -100,59 +96,54 @@ String _actionSummary(
       ? CategoryTheme.of(categoryCode).label
       : null;
   String verbLabel(String base) {
-    if (v == 'ADD') return 'TÄƒng $base';
-    if (v == 'SUB') return 'Giáº£m $base';
-    if (v == 'SET') return 'Äáº·t $base';
+    if (v == 'ADD') return 'Tăng $base';
+    if (v == 'SUB') return 'Giảm $base';
+    if (v == 'SET') return 'Đặt $base';
     return base;
   }
 
   if (t.contains('LIMIT') || t == 'SET_LIMIT') {
-    return '${verbLabel('háº¡n má»©c')}${catLabel != null ? ' $catLabel' : ''}${amt != null ? ': $amt' : ''}';
+    return '${verbLabel('hạn mức')}${catLabel != null ? ' $catLabel' : ''}${amt != null ? ': $amt' : ''}';
   }
-  if (t.contains('DELETE')) return 'XÃ³a giao dá»‹ch gáº§n nháº¥t';
   if (t.contains('GOAL') ||
       t == 'SET_GOAL' ||
       t == 'ADD_GOAL' ||
       t.contains('LOAN')) {
     if (toolType == 'challenge') {
-      return 'Táº¡o thá»­ thÃ¡ch tiáº¿t kiá»‡m${amt != null ? ' $amt' : ''}';
+      return 'Tạo thử thách tiết kiệm${amt != null ? ' $amt' : ''}';
     }
     if (toolType == 'saving_group') {
-      return 'Táº¡o nhÃ³m tiáº¿t kiá»‡m${amt != null ? ' $amt' : ''}';
+      return 'Tạo nhóm tiết kiệm${amt != null ? ' $amt' : ''}';
     }
     if (toolType == 'loan' || t.contains('LOAN')) {
-      return 'Táº¡o nháº¯c háº¹n vay mÆ°á»£n${amt != null ? ' $amt' : ''}';
+      return 'Tạo nhắc hẹn vay mượn${amt != null ? ' $amt' : ''}';
     }
-    return '${verbLabel('má»¥c tiÃªu')}${amt != null ? ' $amt' : ''}';
+    return '${verbLabel('mục tiêu')}${amt != null ? ' $amt' : ''}';
   }
   if (t.contains('TONE') || t == 'SET_VERBAL_STYLE') {
     final styleLabel = verbalStyle == 'dan_doi'
-        ? 'Dáº­n Dá»—i'
+        ? 'Dận Dỗi'
         : (verbalStyle == 'dui_de'
-              ? 'Dui Dáº»'
+              ? 'Dui Dẻ'
               : (verbalStyle == 'kho_tinh'
-                    ? 'KhÃ³ TÃ­nh'
-                    : (verbalStyle == 'ngot_ngao' ? 'Ngá»t NgÃ o' : '')));
-    return 'Äá»•i giá»ng nÃ³i Mimo${styleLabel.isNotEmpty ? ' thÃ nh $styleLabel' : ''}';
+                    ? 'Khó Tính'
+                    : (verbalStyle == 'ngot_ngao' ? 'Ngọt Ngào' : '')));
+    return 'Đổi giọng nói Mimo${styleLabel.isNotEmpty ? ' thành $styleLabel' : ''}';
   }
-  if (t.contains('SEARCH')) return 'TÃ¬m kiáº¿m giao dá»‹ch';
+  if (t.contains('SEARCH')) return 'Tìm kiếm giao dịch';
   if (t.contains('SETTING') || t.contains('SYSTEM_SETTING')) {
-    if (theme == 'dark') return 'Äá»•i sang giao diá»‡n tá»‘i';
-    if (theme == 'light') return 'Äá»•i sang giao diá»‡n sÃ¡ng';
-    return 'Má»Ÿ cÃ i Ä‘áº·t á»©ng dá»¥ng';
+    if (theme == 'dark') return 'Đổi sang giao diện tối';
+    if (theme == 'light') return 'Đổi sang giao diện sáng';
+    return 'Mở cài đặt ứng dụng';
   }
-  if (t.contains('SUGGEST')) return 'Gá»£i Ã½ háº¡n má»©c thÃ´ng minh';
-  if (t == 'SET_USERNAME') return 'Äá»•i tÃªn Mimo gá»i báº¡n';
+  if (t.contains('SUGGEST')) return 'Gợi ý hạn mức thông minh';
+  if (t == 'SET_USERNAME') return 'Đổi tên Mimo gọi bạn';
   if (t == 'SET_INCOME') {
-    return 'CÃ i thu nháº­p hÃ ng thÃ¡ng${amt != null ? ': $amt' : ''}';
-  }
-  if (t == 'UPDATE_RECORD' || t == 'EDIT') {
-    return 'Sá»­a giao dá»‹ch gáº§n nháº¥t${catLabel != null ? ' ($catLabel)' : ''}${amt != null ? ': $amt' : ''}';
+    return 'Cài thu nhập hàng tháng${amt != null ? ': $amt' : ''}';
   }
   if (t == 'SET_ALERT') {
-    return 'CÃ i cáº£nh bÃ¡o chi tiÃªu${catLabel != null ? ' $catLabel' : ''}';
+    return 'Cài cảnh báo chi tiêu${catLabel != null ? ' $catLabel' : ''}';
   }
-  if (t == 'EXPORT_DATA') return 'Xuáº¥t dá»¯ liá»‡u chi tiÃªu';
   return '$actionType${v.isNotEmpty ? ' ($v)' : ''}';
 }
 
@@ -168,22 +159,26 @@ _ActionPreview _actionPreviewFromNlu(
   final needsCategory =
       t.contains('LIMIT') ||
       t.contains('SEARCH') ||
-      t == 'UPDATE_RECORD' ||
-      t == 'EDIT' ||
       t.contains('REPORT') ||
       t == 'SET_ALERT';
   final categoryCode = needsCategory ? _categoryFromNlu(nlu) : null;
-  final details = nluMap(nlu['action_details']);
-  final verb = nluString(details?['verb']);
+  final slots = nluMap(nlu['slots']);
+  final details = nluMap(nlu['action_details']) ?? slots;
+  final verb = nluString(details?['verb']) ?? nluString(slots?['verb']);
   final verbalStyle =
       nluString(details?['verbal_style']) ??
       nluString(details?['verbalStyle']) ??
+      nluString(slots?['verbal_style']) ??
       nluString(nlu['verbal_style']) ??
       nluString(nlu['verbalStyle']);
-  final theme = nluString(details?['theme']) ?? nluString(nlu['theme']);
+  final theme =
+      nluString(details?['theme']) ??
+      nluString(slots?['theme']) ??
+      nluString(nlu['theme']);
   final toolType =
       nluString(details?['tool_type']) ??
       nluString(details?['toolType']) ??
+      nluString(slots?['tool_type']) ??
       nluString(nlu['tool_type']) ??
       nluString(nlu['toolType']);
   return _ActionPreview(
@@ -201,7 +196,7 @@ _ActionPreview _actionPreviewFromNlu(
       theme: theme,
       toolType: toolType,
     ),
-    actionDetails: nlu['action_details'] as Map<String, dynamic>?,
+    actionDetails: (nlu['action_details'] as Map<String, dynamic>?) ?? slots,
     aiLine: aiLine,
   );
 }
@@ -226,6 +221,8 @@ Map<String, dynamic> _executeBodyFromPreview(
   final query = nluString(details?['query']);
   final verbalStyle =
       nluString(details?['verbal_style']) ?? nluString(details?['verbalStyle']);
+  final theme =
+      nluString(details?['theme']) ?? nluString(details?['themeMode']);
   return {
     'actionType': preview.actionType,
     if (preview.amount != null) 'amount': preview.amount,
@@ -239,6 +236,7 @@ Map<String, dynamic> _executeBodyFromPreview(
     if (query != null && query.isNotEmpty) 'query': query,
     if (verbalStyle != null && verbalStyle.isNotEmpty)
       'verbalStyle': verbalStyle,
+    if (theme != null && theme.isNotEmpty) 'theme': theme,
     if (walletId != null) 'walletId': walletId,
     'text': preview.originalText,
     if (preview.actionDetails != null) 'actionDetails': preview.actionDetails,
@@ -315,7 +313,7 @@ _ReportStoryPreview? _reportPreviewFromResult(Map<String, dynamic> result) {
   final prevByDay = result['prev_by_day'] as List<dynamic>?;
 
   return _ReportStoryPreview(
-    periodLabel: nluString(result['period_label']) ?? 'BÃ¡o cÃ¡o',
+    periodLabel: nluString(result['period_label']) ?? 'Báo cáo',
     totalExpense: nluInt(result['total_expense']) ?? 0,
     totalIncome: nluInt(result['total_income']) ?? 0,
     reportKind: kind,
@@ -329,11 +327,17 @@ _ReportStoryPreview? _reportPreviewFromResult(Map<String, dynamic> result) {
 }
 
 String _formatTargetMonthLabel(String targetMonth) {
-  final parts = targetMonth.split('-');
-  if (parts.length != 2) return targetMonth;
-  final month = int.tryParse(parts[1]);
-  if (month == null) return targetMonth;
-  return 'thÃ¡ng $month/${parts[0]}';
+  try {
+    final parts = targetMonth.split('-');
+    if (parts.length == 2) {
+      final month = int.tryParse(parts[1]);
+      if (month != null) {
+        final mStr = month < 10 ? '0$month' : '$month';
+        return '$mStr/${parts[0]}';
+      }
+    }
+  } catch (_) {}
+  return targetMonth;
 }
 
 bool _actionNeedsConfirm(String actionType) {
@@ -341,12 +345,8 @@ bool _actionNeedsConfirm(String actionType) {
   if (t.contains('REPORT')) return false;
   if (t.contains('SUGGEST')) return false;
   if (t.contains('SEARCH')) return false;
-  if (t == 'EXPORT_DATA') return false;
-  return t.contains('LIMIT') ||
-      t.contains('GOAL') ||
-      t.contains('SETTING') ||
-      t == 'SET_USERNAME' ||
-      t == 'SET_ALERT';
+  if (t == 'SET_TONE' || t == 'SET_USERNAME') return false;
+  return true;
 }
 
 _SearchResultPreview? _searchPreviewFromNlu(Map<String, dynamic> nlu) {
@@ -381,7 +381,7 @@ _ReportStoryPreview? _reportPreviewFromNlu(Map<String, dynamic> nlu) {
     periodLabel:
         nluString(ar['period_label']) ??
         nluString(nluMap(nlu['time_range'])?['period_label']) ??
-        'BÃ¡o cÃ¡o',
+        'Báo cáo',
     totalExpense: nluInt(ar['total_expense']) ?? 0,
     totalIncome: nluInt(ar['total_income']) ?? 0,
     reportKind: kind,
@@ -426,7 +426,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   bool _showConfetti = false;
   String? _llmPendingMessageId;
 
-  /// TrÃ¡nh gá»i load-more khi ListView reverse vá»«a layout (chÆ°a á»•n scroll).
+  /// Tránh gọi load-more khi ListView reverse vừa layout (chưa ổn scroll).
   bool _readyForOlderLoad = false;
   String _verbalStyle = 'funny';
   String? _sessionId;
@@ -434,27 +434,27 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   String? _oldestMessageId;
 
   static const List<String> _candidateSuggestions = [
-    'Thá»‘ng kÃª chi tiÃªu tuáº§n nÃ y',
-    'Tá»•ng chi tiÃªu thÃ¡ng nÃ y',
-    'ThÃ¡ng trÆ°á»›c chi háº¿t bao nhiÃªu?',
-    'HÃ´m nay tiÃªu gÃ¬ rá»“i?',
-    'Ä‚n sÃ¡ng 35k',
-    'Mua trÃ  sá»¯a 45k',
-    'Äá»• xÄƒng 50k',
-    'Äáº·t háº¡n má»©c Ä‚n uá»‘ng 3 triá»‡u',
-    'TÃ¬m cÃ¡c giao dá»‹ch Äƒn uá»‘ng',
-    'Äáº·t má»¥c tiÃªu tiáº¿t kiá»‡m 10 triá»‡u',
-    'Äá»•i giá»ng nÃ³i cá»§a Mimo sang dui dáº»',
-    'Chuyá»ƒn sang giao diá»‡n tá»‘i',
-    'Gá»£i Ã½ háº¡n má»©c thÃ¡ng má»›i',
-    'Xem bÃ¡o cÃ¡o chi tiÃªu hÃ´m qua',
-    'So sÃ¡nh chi tiÃªu tuáº§n nÃ y vá»›i tuáº§n trÆ°á»›c',
-    'Gá»£i Ã½ chi tiÃªu thÃ¡ng sau',
-    'ÄÃ£ nháº­n lÆ°Æ¡ng thÃ¡ng nÃ y 12 triá»‡u',
-    'TÄƒng háº¡n má»©c Ä‘i láº¡i lÃªn 2 triá»‡u',
-    'Máº¹ cho 500k Äƒn sÃ¡ng',
-    'Báº­t cáº£nh bÃ¡o vÆ°á»£t háº¡n má»©c mua sáº¯m',
-    'Giáº£m giá»›i háº¡n giáº£i trÃ­ Ä‘i 100k',
+    'Thống kê chi tiêu tuần này',
+    'Tổng chi tiêu tháng này',
+    'Tháng trước chi hết bao nhiêu?',
+    'Hôm nay tiêu gì rồi?',
+    'Ăn sáng 35k',
+    'Mua trà sữa 45k',
+    'Đổ xăng 50k',
+    'Đặt hạn mức Ăn uống 3 triệu',
+    'Tìm các giao dịch ăn uống',
+    'Đặt mục tiêu tiết kiệm 10 triệu',
+    'Đổi giọng nói của Mimo sang dui dẻ',
+    'Chuyển sang giao diện tối',
+    'Gợi ý hạn mức tháng mới',
+    'Xem báo cáo chi tiêu hôm qua',
+    'So sánh chi tiêu tuần này với tuần trước',
+    'Gợi ý chi tiêu tháng sau',
+    'Đã nhận lương tháng này 12 triệu',
+    'Tăng hạn mức đi lại lên 2 triệu',
+    'Mẹ cho 500k ăn sáng',
+    'Bật cảnh báo vượt hạn mức mua sắm',
+    'Giảm giới hạn giải trí đi 100k',
   ];
 
   final List<String> _suggestions = [];
@@ -522,22 +522,27 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
             if (update.intentAction != null &&
                 update.intentAction!['action_executed'] == true) {
               final actionResult = update.intentAction!['action_result'];
-              final resultText = actionResult != null
-                  ? actionResult['message']
-                  : null;
+
+              // Handle immediate UI updates for executed actions
+              if (actionResult != null) {
+                final kind = actionResult['kind'];
+                if (kind == 'theme') {
+                  final themeModeVal = actionResult['themeMode'] as bool?;
+                  if (themeModeVal != null) {
+                    ThemeController.instance.setMode(
+                      themeModeVal ? ThemeMode.dark : ThemeMode.light,
+                    );
+                  }
+                }
+              }
+
               if (update.isRag) {
                 // For RAG flow, we want 3 bubbles:
                 // 1. Original msg text (already set by chat_llm_update)
                 // 2. The Card (added by _updateMessagePreviews below)
                 // 3. A NEW message for the RAG narrative
               } else {
-                if (resultText != null &&
-                    resultText.toString().isNotEmpty &&
-                    update.content! != resultText) {
-                  msg.text = '$resultText\n\n${update.content!}';
-                } else {
-                  msg.text = update.content!;
-                }
+                msg.text = update.content!;
               }
             } else {
               if (!update.isRag) {
@@ -555,14 +560,22 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
             if (update.isRag &&
                 update.content != null &&
                 update.content!.isNotEmpty) {
-              final ragMsg = _ChatMsg(
-                text: update.content!,
-                isUser: false,
-                time: _now(),
-                chatEmotion: update.mood ?? 'Happy',
-                backendMessageId: '${update.messageId}_rag',
+              final ragId = '${update.messageId}_rag';
+              final existingRagIdx = _messages.indexWhere(
+                (m) => m.backendMessageId == ragId,
               );
-              _messages.insert(0, ragMsg);
+              if (existingRagIdx >= 0) {
+                _messages[existingRagIdx].text = update.content!;
+              } else {
+                final ragMsg = _ChatMsg(
+                  text: update.content!,
+                  isUser: false,
+                  time: _now(),
+                  chatEmotion: update.mood ?? 'Happy',
+                  backendMessageId: ragId,
+                );
+                _messages.insert(0, ragMsg);
+              }
             }
 
             break;
@@ -586,14 +599,22 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
           if (update.isRag &&
               update.content != null &&
               update.content!.isNotEmpty) {
-            final ragMsg = _ChatMsg(
-              text: update.content!,
-              isUser: false,
-              time: _now(),
-              chatEmotion: update.mood ?? 'Happy',
-              backendMessageId: '${update.messageId}_rag',
+            final ragId = '${update.messageId}_rag';
+            final existingRagIdx = _messages.indexWhere(
+              (m) => m.backendMessageId == ragId,
             );
-            _messages.insert(0, ragMsg);
+            if (existingRagIdx >= 0) {
+              _messages[existingRagIdx].text = update.content!;
+            } else {
+              final ragMsg = _ChatMsg(
+                text: update.content!,
+                isUser: false,
+                time: _now(),
+                chatEmotion: update.mood ?? 'Happy',
+                backendMessageId: ragId,
+              );
+              _messages.insert(0, ragMsg);
+            }
           }
         }
       }
@@ -734,7 +755,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       return;
     }
     final pos = _scrollCtrl.position;
-    // reverse: true â€” cuá»™n lÃªn (tin cÅ©) â†’ pixels gáº§n maxScrollExtent
+    // reverse: true — cuộn lên (tin cũ) → pixels gần maxScrollExtent
     if (pos.maxScrollExtent - pos.pixels < 120) {
       _loadOlderMessages();
     }
@@ -759,8 +780,6 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       String? chatEmotion;
       var displayText = nluString(map['content']) ?? '';
       bool isPremiumLocked = false;
-      bool isBudgetApplied = false;
-      bool isBudgetDismissed = false;
 
       if (metadata != null && role != 'user') {
         final statusEvent = nluMap(metadata['budget_status_event']);
@@ -789,20 +808,22 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
           isPremiumLocked = actionResult['isPremiumLocked'] == true;
         }
 
-        if (metadata['action_executed'] == true && actionResult != null) {
+        if (actionResult != null) {
           budgetSuggestionPreview = _budgetSuggestionFromResult(actionResult);
           searchPreview = _searchPreviewFromResult(actionResult);
           final resultText = nluString(actionResult['message']);
           final llmText = llmMeta?.text ?? '';
-          if (llmText.isNotEmpty) {
-            displayText = llmText;
-          } else if (resultText != null && resultText.isNotEmpty) {
-            displayText = resultText;
+          if (displayText.isEmpty) {
+            if (llmText.isNotEmpty) {
+              displayText = llmText;
+            } else if (resultText != null && resultText.isNotEmpty) {
+              displayText = resultText;
+            }
           }
         }
 
         final budgetSuggestion = nluMap(metadata['budget_suggestion']);
-        if (budgetSuggestion != null) {
+        if (budgetSuggestion != null && budgetSuggestionPreview == null) {
           budgetSuggestionPreview = _budgetSuggestionFromResult(
             budgetSuggestion,
           );
@@ -833,7 +854,9 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
             final amountInt = nluInt(amount) ?? 0;
             final reply = llmMeta ?? LlmMimoReply.fromNlu(nlu, intent: intent);
             final llmText = reply.text.trim();
-            if (llmText.isNotEmpty) displayText = llmText;
+            if (displayText.isEmpty && llmText.isNotEmpty) {
+              displayText = llmText;
+            }
             txPreview = _TxPreview(
               category: nluString(metadata['category']) ?? 'Other',
               amount: amountInt,
@@ -851,12 +874,16 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
             final search = _searchPreviewFromNlu(nlu);
             if (report != null) {
               reportPreview = report;
-              if (llmMeta != null && llmMeta.text.isNotEmpty) {
+              if (displayText.isEmpty &&
+                  llmMeta != null &&
+                  llmMeta.text.isNotEmpty) {
                 displayText = llmMeta.text;
               }
             } else if (search != null) {
               searchPreview = search;
-              if (llmMeta != null && llmMeta.text.isNotEmpty) {
+              if (displayText.isEmpty &&
+                  llmMeta != null &&
+                  llmMeta.text.isNotEmpty) {
                 displayText = llmMeta.text;
               }
             } else {
@@ -871,7 +898,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                 aiLine: llmText.isNotEmpty ? llmText : null,
                 messageId: nluString(map['id']),
               );
-              if (llmText.isNotEmpty) {
+              if (displayText.isEmpty && llmText.isNotEmpty) {
                 displayText = llmText;
               }
             }
@@ -879,7 +906,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
         }
       }
 
-      // Äá»c tráº¡ng thÃ¡i saved tá»« metadata thay vÃ¬ máº·c Ä‘á»‹nh true
+      // Đọc trạng thái saved từ metadata thay vì mặc định true
       final nlu = metadata != null ? nluMap(metadata['nlu']) : null;
       final savedFlag = (metadata?['saved'] == true);
 
@@ -927,15 +954,15 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
         }
       }
 
-      // Náº¿u tin nháº¯n hiá»‡n táº¡i lÃ  tin xÃ¡c nháº­n Ä‘Ã£ lÆ°u ("saved": true)
+      // Nếu tin nhắn hiện tại là tin xác nhận đã lưu ("saved": true)
       if (metadata != null && metadata['saved'] == true && role != 'user') {
-        // TÃ¬m ngÆ°á»£c trong danh sÃ¡ch 'out' Ä‘á»ƒ Ä‘Ã¡nh dáº¥u tin nháº¯n gá»‘c lÃ  Ä‘Ã£ lÆ°u
+        // Tìm ngược trong danh sách 'out' để đánh dấu tin nhắn gốc là đã lưu
         for (int i = out.length - 1; i >= 0; i--) {
           final prevMsg = out[i];
           if (prevMsg.txPreview != null || prevMsg.multiRecords != null) {
             if (!prevMsg.isSaved) {
               prevMsg.isSaved = true;
-              // Chuyá»ƒn transactionId(s) sang parent preview
+              // Chuyển transactionId(s) sang parent preview
               if (prevMsg.txPreview != null) {
                 prevMsg.txPreview!.transactionId = nluString(
                   metadata['transaction_id'] ?? metadata['transactionId'],
@@ -961,11 +988,24 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
             }
           }
         }
-        // KhÃ´ng hiá»ƒn thá»‹ tin nháº¯n xÃ¡c nháº­n "Ä‘Ã£ lÆ°u" â€” chá»‰ Ä‘Ã¡nh dáº¥u parent
+        // Không hiển thị tin nhắn xác nhận "đã lưu" — chỉ đánh dấu parent
         continue;
       }
 
       out.add(newMsg);
+
+      final ragNarrative = nluString(metadata?['rag_narrative']);
+      if (ragNarrative != null && ragNarrative.trim().isNotEmpty) {
+        out.add(
+          _ChatMsg(
+            text: ragNarrative.trim(),
+            isUser: false,
+            time: _formatMsgTime(nluString(map['created_at'])),
+            chatEmotion: chatEmotion,
+            backendMessageId: '${nluString(map['id'])}_rag',
+          ),
+        );
+      }
     }
     return out;
   }
@@ -984,7 +1024,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     final parsed = _parseMessagesFromApi(
       page['messages'] as List<dynamic>? ?? [],
     );
-    // API: chronological cÅ©â†’má»›i; ListView reverse: index 0 = tin má»›i nháº¥t (Ä‘Ã¡y mÃ n hÃ¬nh)
+    // API: chronological cũ→mới; ListView reverse: index 0 = tin mới nhất (đáy màn hình)
     final batchNewestFirst = parsed.reversed.toList();
     setState(() {
       if (loadOlder) {
@@ -1089,11 +1129,11 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       }
 
       // 3. Create a new session
-      String walletName = 'VÃ­ cÃ¡ nhÃ¢n';
+      String walletName = 'Ví cá nhân';
       if (_walletId != null) {
         try {
           final wallet = await _api.getWallet(_walletId!);
-          walletName = wallet['name'] as String? ?? 'VÃ­';
+          walletName = wallet['name'] as String? ?? 'Ví';
         } catch (_) {}
       }
 
@@ -1164,7 +1204,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
             0,
             _ChatMsg(
               text:
-                  'Mimo chÆ°a káº¿t ná»‘i Ä‘Æ°á»£c. Vui lÃ²ng kiá»ƒm tra máº¡ng vÃ  thá»­ láº¡i nhÃ©! ðŸŒ',
+                  'Mimo chưa kết nối được. Vui lòng kiểm tra mạng và thử lại nhé! 🌐',
               isUser: false,
               time: _now(),
             ),
@@ -1287,7 +1327,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
         _messages.insert(
           0,
           _ChatMsg(
-            text: 'Mimo gáº·p lá»—i rá»“i ðŸ˜… Thá»­ láº¡i sau nhÃ©!',
+            text: 'Mimo gặp lỗi rồi 😅 Thử lại sau nhé!',
             isUser: false,
             time: _now(),
           ),
@@ -1337,16 +1377,6 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     final action = msg.actionPreview;
     if (action == null) return;
     try {
-      if (action.navOnly) {
-        await _api.aiConfirmAction(
-          action.signature,
-          actionType: action.actionType,
-        );
-        if (!mounted) return;
-        context.go(AppRoutes.settings);
-        return;
-      }
-
       final result = await _api.aiExecuteAction(
         _executeBodyFromPreview(
           action,
@@ -1360,13 +1390,12 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       if (!mounted) return;
 
       final message =
-          result['message'] as String? ?? 'âœ… ÄÃ£ thá»±c hiá»‡n hÃ nh Ä‘á»™ng!';
+          result['message'] as String? ?? '✅ Đã thực hiện hành động!';
       final searchPreview = _searchPreviewFromResult(result);
       final budgetPreview = _budgetSuggestionFromResult(result);
       final reportPreview = _reportPreviewFromResult(result);
       final kind = result['kind'] as String?;
 
-      if (kind == 'delete') notifyTransactionChanged();
       if (kind == 'theme') {
         final themeModeVal = result['themeMode'] as bool?;
         if (themeModeVal != null) {
@@ -1378,9 +1407,9 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
 
       setState(() {
         msg.isConfirmed = true;
-        // Chá»‰ ghi Ä‘Ã¨ text LLM náº¿u action cÃ³ card xÃ¡c nháº­n phá»©c táº¡p
-        // CÃ¡c action settings Ä‘Æ¡n giáº£n (set_alert, tone, theme, set_username, budget_suggestion)
-        // giá»¯ nguyÃªn text LLM gá»‘c â€” khÃ´ng táº¡o ra cáº£m giÃ¡c "bubble má»›i"
+        // Chỉ ghi đè text LLM nếu action có card xác nhận phức tạp
+        // Các action settings đơn giản (set_alert, tone, theme, set_username, budget_suggestion)
+        // giữ nguyên text LLM gốc — không tạo ra cảm giác "bubble mới"
         final simpleKinds = {
           'tone',
           'set_alert',
@@ -1414,16 +1443,10 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
           reportPreview != null) {
         await _persistActionResultMessage(message, result);
       }
-
-      final navigate = result['navigate'] as String?;
-      if (navigate == 'settings') {
-        if (!mounted) return;
-        context.go(AppRoutes.settings);
-      }
     } catch (_) {
       if (!mounted) return;
       setState(() {
-        msg.text = 'âŒ KhÃ´ng thá»±c hiá»‡n Ä‘Æ°á»£c hÃ nh Ä‘á»™ng.';
+        msg.text = '❌ Không thực hiện được hành động.';
       });
       _scrollToBottom();
     }
@@ -1451,7 +1474,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
         _messages.insert(
           0,
           _ChatMsg(
-            text: 'âŒ KhÃ´ng Ã¡p dá»¥ng Ä‘Æ°á»£c gá»£i Ã½. Thá»­ láº¡i sau nhÃ©!',
+            text: '❌ Không áp dụng được gợi ý. Thử lại sau nhé!',
             isUser: false,
             time: _now(),
           ),
@@ -1564,9 +1587,6 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                             onRejectAction: _handleActionReject,
                             onApplyBudgetSuggestion: _handleBudgetApply,
                             onDismissBudgetSuggestion: _handleBudgetDismiss,
-                            onEditTxCategory: _showEditTxSheet,
-                            onEditTxPreview: _showEditTxPreviewSheet,
-                            onDownloadUrl: _handleDownloadFile,
                             onSendMessage: _sendMessage,
                           );
                         },
@@ -1574,40 +1594,59 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                     ),
                     // Quick action chips
                     if (_suggestions.isNotEmpty && !_aiThinking)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        child: ShaderMask(
-                          shaderCallback: (Rect bounds) {
-                            return const LinearGradient(
-                              begin: Alignment.centerLeft,
-                              end: Alignment.centerRight,
-                              colors: [
-                                Colors.black,
-                                Colors.black,
-                                Colors.transparent,
-                              ],
-                              stops: [0.0, 0.90, 1.0],
-                            ).createShader(bounds);
-                          },
-                          blendMode: BlendMode.dstIn,
-                          child: SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            child: Row(
-                              children: [
-                                for (
-                                  int i = 0;
-                                  i < _suggestions.length;
-                                  i++
-                                ) ...[
-                                  _QuickChip(
-                                    label: _suggestions[i],
-                                    onTap: () => _sendMessage(_suggestions[i]),
-                                  ),
-                                  if (i < _suggestions.length - 1)
-                                    const SizedBox(width: 8),
+                      AnimatedBuilder(
+                        animation: _scrollCtrl,
+                        builder: (context, child) {
+                          // Removed isScrolled check as requested
+                          return ValueListenableBuilder<TextEditingValue>(
+                            valueListenable: _inputCtrl,
+                            builder: (context, val, child) {
+                              if (val.text.trim().isNotEmpty) {
+                                return const SizedBox.shrink();
+                              }
+                              return child!;
+                            },
+                            child: child,
+                          );
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          child: ShaderMask(
+                            shaderCallback: (Rect bounds) {
+                              return const LinearGradient(
+                                begin: Alignment.centerLeft,
+                                end: Alignment.centerRight,
+                                colors: [
+                                  Colors.black,
+                                  Colors.black,
+                                  Colors.transparent,
                                 ],
-                              ],
+                                stops: [0.0, 0.90, 1.0],
+                              ).createShader(bounds);
+                            },
+                            blendMode: BlendMode.dstIn,
+                            child: SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                              ),
+                              child: Row(
+                                children: [
+                                  for (
+                                    int i = 0;
+                                    i < _suggestions.length;
+                                    i++
+                                  ) ...[
+                                    _QuickChip(
+                                      label: _suggestions[i],
+                                      onTap: () =>
+                                          _sendMessage(_suggestions[i]),
+                                    ),
+                                    if (i < _suggestions.length - 1)
+                                      const SizedBox(width: 8),
+                                  ],
+                                ],
+                              ),
                             ),
                           ),
                         ),
@@ -1641,43 +1680,6 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     );
   }
 
-  Future<void> _handleDownloadFile(String downloadPath) async {
-    try {
-      final dir = await getTemporaryDirectory();
-      final uri = Uri.parse(downloadPath);
-      final filename = uri.pathSegments.isNotEmpty
-          ? uri.pathSegments.last
-          : 'transactions_export.csv';
-      final savePath = '${dir.path}/$filename';
-
-      final token = await _api.accessToken;
-      final fullUrl =
-          '${_api.baseUrl}$downloadPath${downloadPath.contains('?') ? '&' : '?'}token=$token';
-
-      if (!mounted) return;
-      MimoSnackBar.showInfo(
-        context,
-        message: 'â³ Äang táº£i xuá»‘ng bÃ¡o cÃ¡o Excel/CSV...',
-      );
-
-      final dio = Dio();
-      await dio.download(fullUrl, savePath);
-
-      if (!mounted) return;
-      MimoSnackBar.showSuccess(
-        context,
-        message: 'âœ… ÄÃ£ táº£i xuá»‘ng bÃ¡o cÃ¡o chi tiÃªu: $filename',
-      );
-    } catch (e) {
-      debugPrint('Download file error: $e');
-      if (!mounted) return;
-      MimoSnackBar.showError(
-        context,
-        message: 'âŒ Lá»—i táº£i tá»‡p: ${e.toString()}',
-      );
-    }
-  }
-
   Future<void> _handleActionReject(_ChatMsg msg) async {
     if (msg.isRejected) return;
     final action = msg.actionPreview;
@@ -1695,7 +1697,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
         _messages.insert(
           0,
           _ChatMsg(
-            text: 'âŒ ÄÃ£ bá» qua. Mimo sáº½ cáº£i thiá»‡n sau!',
+            text: '❌ Đã bỏ qua. Mimo sẽ cải thiện sau!',
             isUser: false,
             time: _now(),
           ),
@@ -1761,11 +1763,11 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
           );
         }
       }
-      // Cáº­p nháº­t tráº¡ng thÃ¡i saved lÃªn backend chat metadata
+      // Cập nhật trạng thái saved lên backend chat metadata
       if (_sessionId != null && !wasSavedBefore) {
         try {
           await _api.sendChatMessageRaw(_sessionId!, {
-            'content': 'ðŸ’¾ ÄÃ£ lÆ°u giao dá»‹ch',
+            'content': '💾 Đã lưu giao dịch',
             'role': 'assistant',
             'intentAction': {
               'saved': true,
@@ -1783,7 +1785,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
           _messages.insert(
             0,
             _ChatMsg(
-              text: 'âŒ KhÃ´ng thá»ƒ lÆ°u giao dá»‹ch',
+              text: '❌ Không thể lưu giao dịch',
               isUser: false,
               time: _now(),
             ),
@@ -1791,189 +1793,6 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
         });
       }
     }
-  }
-
-  void _showEditTxSheet(_ChatMsg msg) {
-    if (msg.txPreview == null) return;
-    _showEditTxPreviewSheet(msg, msg.txPreview!);
-  }
-
-  void _showEditTxPreviewSheet(_ChatMsg msg, _TxPreview preview) {
-    final amountCtrl = TextEditingController(text: preview.amount.toString());
-    final noteCtrl = TextEditingController(text: preview.note);
-    // Chuáº©n hÃ³a category code Ä‘á»ƒ trÃ¡nh crash DropdownButton khi value lÃ  alias
-    String editCategory = CategoryTheme.canonicalCodeOf(preview.category);
-    if (!CategoryTheme.primaryCodes.contains(editCategory)) {
-      editCategory = 'Other';
-    }
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      constraints: const BoxConstraints(maxWidth: 600),
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setSheetState) => Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(ctx).viewInsets.bottom,
-          ),
-          child: Container(
-            padding: const EdgeInsets.all(AppSpacing.xl),
-            decoration: BoxDecoration(
-              color: ctx.palette.card,
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(AppRadii.xl),
-              ),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: AppColors.border,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Chá»‰nh sá»­a giao dá»‹ch',
-                  style: Theme.of(ctx).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Sá»‘ tiá»n',
-                  style: Theme.of(
-                    ctx,
-                  ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: amountCtrl,
-                  keyboardType: TextInputType.number,
-                  autofocus: true,
-                  decoration: const InputDecoration(
-                    hintText: 'Nháº­p sá»‘ tiá»n',
-                    suffixText: 'Ä‘',
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'Danh má»¥c',
-                  style: Theme.of(
-                    ctx,
-                  ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 8),
-                DropdownButtonFormField<String>(
-                  initialValue: editCategory,
-                  decoration: InputDecoration(
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(AppRadii.md),
-                    ),
-                  ),
-                  items: CategoryTheme.styles.entries
-                      .where((e) => CategoryTheme.primaryCodes.contains(e.key))
-                      .map(
-                        (e) => DropdownMenuItem<String>(
-                          value: e.key,
-                          child: Row(
-                            children: [
-                              CategoryTheme.iconOf(e.key, size: 22),
-                              const SizedBox(width: 8),
-                              Text(e.value.label),
-                            ],
-                          ),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: (val) {
-                    if (val != null) setSheetState(() => editCategory = val);
-                  },
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'Ghi chÃº',
-                  style: Theme.of(
-                    ctx,
-                  ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: noteCtrl,
-                  decoration: const InputDecoration(
-                    hintText: 'Ghi chÃº cho giao dá»‹ch',
-                  ),
-                ),
-                const SizedBox(height: 20),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                    onPressed: () async {
-                      final parsedAmount =
-                          int.tryParse(amountCtrl.text) ?? preview.amount;
-                      final updatedNote = noteCtrl.text;
-                      final updatedCategory = editCategory;
-                      final oldCategory = preview.category;
-
-                      setState(() {
-                        preview.amount = parsedAmount;
-                        preview.note = updatedNote;
-                        preview.category = updatedCategory;
-                      });
-
-                      if (msg.isSaved && preview.transactionId != null) {
-                        try {
-                          await _api.updateTransaction(preview.transactionId!, {
-                            'amount': parsedAmount,
-                            'note': updatedNote,
-                            'categoryCode': updatedCategory,
-                          });
-                          notifyTransactionChanged();
-
-                          // Ghi nháº­n correction cho NLU learning khi Ä‘á»•i category
-                          // Chá»‰ gá»­i náº¿u nguá»“n lÃ  'chat' (khÃ´ng ghi bill/OCR)
-                          if (oldCategory != updatedCategory &&
-                              preview.source == 'chat') {
-                            try {
-                              await _api.aiCorrection({
-                                'text': preview.note,
-                                'correctedCategory': updatedCategory,
-                                'originalCategory': oldCategory,
-                                'source': 'chat_edit',
-                              });
-                            } catch (_) {}
-                          }
-                        } catch (_) {}
-                      }
-                      if (ctx.mounted) {
-                        ctx.pop();
-                      }
-                    },
-                    style: FilledButton.styleFrom(
-                      backgroundColor: AppColors.teal,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                    ),
-                    child: const Text('LÆ°u chá»‰nh sá»­a'),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
   }
 
   Future<void> _saveMultiTransactions(
@@ -2006,7 +1825,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
           'note': preview.note,
           'source': 'text',
           ...LlmMimoReply(
-            text: 'Ghi nháº­n giao dá»‹ch tá»± Ä‘á»™ng',
+            text: 'Ghi nhận giao dịch tự động',
             emotionAsset: 'Success',
           ).toStoryPersistFields(),
         });
@@ -2032,11 +1851,11 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
           );
         }
       }
-      // Cáº­p nháº­t tráº¡ng thÃ¡i saved lÃªn backend chat metadata
+      // Cập nhật trạng thái saved lên backend chat metadata
       if (_sessionId != null && !wasSavedBefore) {
         try {
           await _api.sendChatMessageRaw(_sessionId!, {
-            'content': 'ðŸ’¾ ÄÃ£ lÆ°u táº¥t cáº£ giao dá»‹ch',
+            'content': '💾 Đã lưu tất cả giao dịch',
             'role': 'assistant',
             'intentAction': {
               'saved': true,
@@ -2060,7 +1879,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
           _messages.insert(
             0,
             _ChatMsg(
-              text: 'âŒ KhÃ´ng thá»ƒ lÆ°u giao dá»‹ch',
+              text: '❌ Không thể lưu giao dịch',
               isUser: false,
               time: _now(),
             ),
@@ -2071,7 +1890,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   }
 }
 
-// â”€â”€â”€ Models â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Models ──────────────────────────────────────────────────────────
 
 class _ReportCategoryRow {
   final String categoryCode;
@@ -2117,10 +1936,10 @@ class _TxPreview {
   String recordType;
   String? transactionId;
 
-  /// Nguá»“n táº¡o giao dá»‹ch: 'chat' (NLU text), 'bill' (OCR camera), 'manual' (nháº­p tay)
+  /// Nguồn tạo giao dịch: 'chat' (NLU text), 'bill' (OCR camera), 'manual' (nhập tay)
   final String source;
 
-  /// CÃ¹ng LLM reply â€” khi lÆ°u story: [aiComment] + [emotionAsset] (avatar).
+  /// Cùng LLM reply — khi lưu story: [aiComment] + [emotionAsset] (avatar).
   String? emotionAsset;
   String? aiComment;
   final Map<String, dynamic>? nlu;
@@ -2133,27 +1952,8 @@ class _TxPreview {
     this.aiComment,
     this.nlu,
     this.transactionId,
-    this.source = 'chat', // máº·c Ä‘á»‹nh lÃ  chat
+    this.source = 'chat', // mặc định là chat
   });
-
-  /// Factory dÃ¹ng cho giao dá»‹ch tá»« OCR/Camera scan (khÃ´ng gá»­i NLU correction).
-  // ignore: unused_element
-  factory _TxPreview.fromBill({
-    required String category,
-    required int amount,
-    required String note,
-    String recordType = 'Expense',
-    String? transactionId,
-  }) {
-    return _TxPreview(
-      category: category,
-      amount: amount,
-      note: note,
-      recordType: recordType,
-      transactionId: transactionId,
-      source: 'bill',
-    );
-  }
 }
 
 class _ChatMsg {
@@ -2171,7 +1971,7 @@ class _ChatMsg {
   final String? downloadUrl;
   List<String>? suggestedActions;
 
-  /// Emoji chat (cÃ¹ng emotion LLM, khÃ¡c tÃªn vá»›i avatar story).
+  /// Emoji chat (cùng emotion LLM, khác tên với avatar story).
   String? chatEmotion;
   bool isSaved;
   bool isConfirmed = false;
@@ -2199,7 +1999,7 @@ class _ChatMsg {
   });
 }
 
-// â”€â”€â”€ Widgets â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Widgets ─────────────────────────────────────────────────────────
 
 class _ChatHeader extends StatelessWidget {
   final String verbalStyle;
@@ -2214,7 +2014,7 @@ class _ChatHeader extends StatelessWidget {
   @override
   Widget build(BuildContext ctx) {
     final mascotAsset = personalityMascotAsset(verbalStyle);
-    final fallbackEmoji = verbalStyle == 'strict' ? 'ðŸ”¥' : 'ðŸ˜Ž';
+    final fallbackEmoji = verbalStyle == 'strict' ? '🔥' : '😎';
 
     return Container(
       decoration: const BoxDecoration(
@@ -2246,7 +2046,7 @@ class _ChatHeader extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(width: 16), // Khoáº£ng cÃ¡ch 16px cÃ¡ch nÃºt Back
+          const SizedBox(width: 16), // Khoảng cách 16px cách nút Back
           Container(
             width: 40,
             height: 40,
@@ -2269,7 +2069,7 @@ class _ChatHeader extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  'Chat vá»›i Mimo',
+                  'Chat với Mimo',
                   style: Theme.of(ctx).textTheme.titleMedium?.copyWith(
                     color: Colors.white,
                     fontWeight: FontWeight.w700,
@@ -2277,7 +2077,7 @@ class _ChatHeader extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'Phong cÃ¡ch $personalityLabel Â· ghi nháº­n chi tiÃªu',
+                  'Phong cách $personalityLabel · ghi nhận chi tiêu',
                   style: Theme.of(
                     ctx,
                   ).textTheme.bodySmall?.copyWith(color: Colors.white70),
@@ -2310,7 +2110,7 @@ class _ChatHeader extends StatelessWidget {
   }
 }
 
-/// Emoji pháº£n há»“i LLM trong bubble chat (khÃ´ng pháº£i avatar story).
+/// Emoji phản hồi LLM trong bubble chat (không phải avatar story).
 class _ChatEmotionSticker extends StatelessWidget {
   final String emotionAsset;
   const _ChatEmotionSticker({required this.emotionAsset});
@@ -2388,11 +2188,11 @@ class _TypingIndicator extends StatelessWidget {
                 width: 22,
                 height: 22,
                 errorBuilder: (_, _, _) =>
-                    const Text('ðŸ¤”', style: TextStyle(fontSize: 14)),
+                    const Text('🤔', style: TextStyle(fontSize: 14)),
               ),
               const SizedBox(width: 8),
               Text(
-                'Mimo Ä‘ang nghÄ©',
+                'Mimo đang nghĩ',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: AppColors.muted,
                   fontStyle: FontStyle.italic,
@@ -2495,7 +2295,7 @@ class _TypingBubbleIndicatorState extends State<_TypingBubbleIndicator>
   }
 }
 
-// â”€â”€â”€ Action Preview â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Action Preview ─────────────────────────────────────────────────
 
 class _ActionPreview {
   final String actionType;
@@ -2717,8 +2517,8 @@ class _ReportStoryCard extends StatelessWidget {
                 Text(
                   preview.reportKind != null &&
                           preview.reportKind!.toUpperCase().contains('INCOME')
-                      ? 'Tá»•ng thu nháº­p'
-                      : 'Tá»•ng chi tiÃªu',
+                      ? 'Tổng thu nhập'
+                      : 'Tổng chi tiêu',
                   style: TextStyle(
                     color: context.palette.textPrimary.withValues(alpha: 0.6),
                     fontWeight: FontWeight.w600,
@@ -2729,7 +2529,7 @@ class _ReportStoryCard extends StatelessWidget {
                     preview.reportKind!.toUpperCase().contains('SAVING')) ...[
                   const SizedBox(height: 4),
                   Text(
-                    'Thu ${formatVnd(preview.totalIncome)} Â· Chi ${formatVnd(preview.totalExpense)}',
+                    'Thu ${formatVnd(preview.totalIncome)} · Chi ${formatVnd(preview.totalExpense)}',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: AppColors.teal,
                       fontWeight: FontWeight.w600,
@@ -2741,13 +2541,13 @@ class _ReportStoryCard extends StatelessWidget {
                 Text(
                   preview.reportKind != null &&
                           preview.reportKind!.toUpperCase().contains('INCOME')
-                      ? '${preview.transactionCount} khoáº£n thu trong ká»³'
+                      ? '${preview.transactionCount} khoản thu trong kỳ'
                       : (preview.reportKind != null &&
                                 preview.reportKind!.toUpperCase().contains(
                                   'SAVING',
                                 )
-                            ? '${preview.transactionCount} khoáº£n tÃ­ch lÅ©y trong ká»³'
-                            : '${preview.transactionCount} khoáº£n chi trong ká»³'),
+                            ? '${preview.transactionCount} khoản tích lũy trong kỳ'
+                            : '${preview.transactionCount} khoản chi trong kỳ'),
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: AppColors.muted,
                     fontWeight: FontWeight.w500,
@@ -2763,7 +2563,7 @@ class _ReportStoryCard extends StatelessWidget {
                 if (topCats.isNotEmpty) ...[
                   const SizedBox(height: 16),
                   Text(
-                    'Theo danh má»¥c',
+                    'Theo danh mục',
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
                       fontWeight: FontWeight.w700,
                       color: context.palette.textPrimary.withValues(alpha: 0.8),
@@ -2777,7 +2577,7 @@ class _ReportStoryCard extends StatelessWidget {
                       onTap: () {
                         if (onSendMessage != null) {
                           onSendMessage!(
-                            'TÃ¬m cÃ¡c khoáº£n chi cá»§a má»¥c ${style.label}',
+                            'Tìm các khoản chi của mục ${style.label}',
                           );
                         }
                       },
@@ -2879,7 +2679,7 @@ class _ReportStoryCard extends StatelessWidget {
                     onPressed: () => context.go(AppRoutes.report),
                     icon: const Icon(Icons.arrow_forward_ios, size: 10),
                     label: const Text(
-                      'Xem chi tiáº¿t',
+                      'Xem chi tiết',
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
@@ -2929,12 +2729,32 @@ class _BudgetSuggestionModalState extends State<_BudgetSuggestionModal> {
     }
   }
 
+  int get _totalSelectedAmount {
+    int total = 0;
+    for (final item in widget.preview.items) {
+      if (_selected[item.categoryCode] ?? true) {
+        total += _amounts[item.categoryCode] ?? item.suggestedAmount;
+      }
+    }
+    return total;
+  }
+
+  int get _selectedCount {
+    int count = 0;
+    for (final item in widget.preview.items) {
+      if (_selected[item.categoryCode] ?? true) {
+        count++;
+      }
+    }
+    return count;
+  }
+
   void _showEditDialog(String categoryCode, String label, int currentAmount) {
     final controller = TextEditingController(text: currentAmount.toString());
     final presets = [
       ('+10%', (currentAmount * 1.1).round()),
       ('+20%', (currentAmount * 1.2).round()),
-      ('Ã—1.5', (currentAmount * 1.5).round()),
+      ('×1.5', (currentAmount * 1.5).round()),
       ('-10%', (currentAmount * 0.9).round()),
       ('-20%', (currentAmount * 0.8).round()),
     ];
@@ -2948,7 +2768,7 @@ class _BudgetSuggestionModalState extends State<_BudgetSuggestionModal> {
               borderRadius: BorderRadius.circular(AppRadii.lg),
             ),
             title: Text(
-              'Sá»­a háº¡n má»©c: $label',
+              'Sửa hạn mức: $label',
               style: TextStyle(
                 color: ctx.palette.textPrimary,
                 fontSize: 16,
@@ -2965,9 +2785,9 @@ class _BudgetSuggestionModalState extends State<_BudgetSuggestionModal> {
                   autofocus: true,
                   style: TextStyle(color: ctx.palette.textPrimary),
                   decoration: InputDecoration(
-                    suffixText: 'Ä‘',
+                    suffixText: 'đ',
                     suffixStyle: TextStyle(color: ctx.palette.textSecondary),
-                    hintText: 'Nháº­p sá»‘ tiá»n...',
+                    hintText: 'Nhập số tiền...',
                     hintStyle: TextStyle(
                       color: ctx.palette.textSecondary.withValues(alpha: 0.5),
                     ),
@@ -2975,7 +2795,7 @@ class _BudgetSuggestionModalState extends State<_BudgetSuggestionModal> {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  'Nháº­p nhanh',
+                  'Nhập nhanh',
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
@@ -3017,7 +2837,7 @@ class _BudgetSuggestionModalState extends State<_BudgetSuggestionModal> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
-                child: const Text('Há»§y', style: TextStyle(color: Colors.grey)),
+                child: const Text('Hủy', style: TextStyle(color: Colors.grey)),
               ),
               FilledButton(
                 onPressed: () {
@@ -3030,7 +2850,7 @@ class _BudgetSuggestionModalState extends State<_BudgetSuggestionModal> {
                   Navigator.pop(ctx);
                 },
                 style: FilledButton.styleFrom(backgroundColor: AppColors.teal),
-                child: const Text('LÆ°u'),
+                child: const Text('Lưu'),
               ),
             ],
           ),
@@ -3039,22 +2859,14 @@ class _BudgetSuggestionModalState extends State<_BudgetSuggestionModal> {
     );
   }
 
-  String _formatTargetMonthLabel(String yyyyMM) {
-    try {
-      final parts = yyyyMM.split('-');
-      if (parts.length == 2) {
-        return '${parts[1]}/${parts[0]}';
-      }
-    } catch (_) {}
-    return yyyyMM;
-  }
-
   @override
   Widget build(BuildContext context) {
     const accent = AppColors.teal;
+    final monthLabel = _formatTargetMonthLabel(widget.preview.targetMonth);
+
     return Container(
       constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.8,
+        maxHeight: MediaQuery.of(context).size.height * 0.82,
       ),
       padding: EdgeInsets.only(
         top: 20,
@@ -3075,20 +2887,33 @@ class _BudgetSuggestionModalState extends State<_BudgetSuggestionModal> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: accent.withValues(alpha: 0.1),
+                  color: accent.withValues(alpha: 0.12),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(Icons.auto_awesome, color: accent, size: 20),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: Text(
-                  'Háº¡n má»©c ${_formatTargetMonthLabel(widget.preview.targetMonth)}',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 16,
-                    color: accent,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Hạn mức tháng $monthLabel',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 16,
+                        color: accent,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Đã chọn $_selectedCount/${widget.preview.items.length} danh mục',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: context.palette.textSecondary,
+                      ),
+                    ),
+                  ],
                 ),
               ),
               IconButton(
@@ -3097,12 +2922,43 @@ class _BudgetSuggestionModalState extends State<_BudgetSuggestionModal> {
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: accent.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: accent.withValues(alpha: 0.15)),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Tổng hạn mức đề xuất',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: context.palette.textPrimary,
+                  ),
+                ),
+                Text(
+                  '${formatVnd(_totalSelectedAmount)}đ',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                    color: accent,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
           Flexible(
             child: ListView.separated(
               shrinkWrap: true,
               itemCount: widget.preview.items.length,
-              separatorBuilder: (ctx, idx) => const SizedBox(height: 8),
+              separatorBuilder: (ctx, idx) =>
+                  const Divider(height: 1, indent: 48),
               itemBuilder: (ctx, idx) {
                 final item = widget.preview.items[idx];
                 final style = CategoryTheme.of(item.categoryCode);
@@ -3119,7 +2975,7 @@ class _BudgetSuggestionModalState extends State<_BudgetSuggestionModal> {
                   borderRadius: BorderRadius.circular(12),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(
-                      vertical: 8,
+                      vertical: 10,
                       horizontal: 4,
                     ),
                     child: Row(
@@ -3134,7 +2990,7 @@ class _BudgetSuggestionModalState extends State<_BudgetSuggestionModal> {
                               color: isSel
                                   ? accent
                                   : context.palette.textSecondary.withValues(
-                                      alpha: 0.5,
+                                      alpha: 0.4,
                                     ),
                               width: 1.5,
                             ),
@@ -3143,7 +2999,7 @@ class _BudgetSuggestionModalState extends State<_BudgetSuggestionModal> {
                           child: Icon(
                             Icons.check,
                             color: isSel ? Colors.white : Colors.transparent,
-                            size: 12,
+                            size: 14,
                           ),
                         ),
                         Container(
@@ -3170,18 +3026,18 @@ class _BudgetSuggestionModalState extends State<_BudgetSuggestionModal> {
                                 Text(
                                   style.label,
                                   style: TextStyle(
-                                    fontSize: 15,
+                                    fontSize: 14,
                                     fontWeight: FontWeight.w700,
                                     color: context.palette.textPrimary,
                                   ),
                                   overflow: TextOverflow.ellipsis,
                                 ),
                                 if (item.reason.isNotEmpty) ...[
-                                  const SizedBox(height: 4),
+                                  const SizedBox(height: 2),
                                   Text(
                                     item.reason,
                                     style: TextStyle(
-                                      fontSize: 12,
+                                      fontSize: 11,
                                       color: context.palette.textSecondary,
                                     ),
                                     maxLines: 2,
@@ -3192,7 +3048,7 @@ class _BudgetSuggestionModalState extends State<_BudgetSuggestionModal> {
                             ),
                           ),
                         ),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: 8),
                         Opacity(
                           opacity: isSel ? 1.0 : 0.45,
                           child: Column(
@@ -3202,40 +3058,36 @@ class _BudgetSuggestionModalState extends State<_BudgetSuggestionModal> {
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Text(
-                                    '${formatVnd(currentAmt)}Ä‘',
+                                    '${formatVnd(currentAmt)}đ',
                                     style: const TextStyle(
-                                      fontSize: 15,
+                                      fontSize: 14,
                                       fontWeight: FontWeight.w800,
                                       color: accent,
                                     ),
                                   ),
-                                  Opacity(
-                                    opacity: isSel ? 1.0 : 0.0,
-                                    child: IconButton(
+                                  if (isSel)
+                                    IconButton(
                                       icon: const Icon(
-                                        Icons.edit,
+                                        Icons.edit_outlined,
                                         size: 16,
                                         color: accent,
                                       ),
                                       padding: const EdgeInsets.only(left: 4),
                                       constraints: const BoxConstraints(),
-                                      onPressed: isSel
-                                          ? () => _showEditDialog(
-                                              item.categoryCode,
-                                              style.label,
-                                              currentAmt,
-                                            )
-                                          : null,
+                                      onPressed: () => _showEditDialog(
+                                        item.categoryCode,
+                                        style.label,
+                                        currentAmt,
+                                      ),
                                     ),
-                                  ),
                                 ],
                               ),
                               if (item.baseSpending > 0 &&
                                   currentAmt != item.baseSpending)
                                 Text(
-                                  '${formatVnd(item.baseSpending)}Ä‘',
+                                  '${formatVnd(item.baseSpending)}đ',
                                   style: TextStyle(
-                                    fontSize: 12,
+                                    fontSize: 11,
                                     color: context.palette.textSecondary
                                         .withValues(alpha: 0.6),
                                     decoration: TextDecoration.lineThrough,
@@ -3272,7 +3124,7 @@ class _BudgetSuggestionModalState extends State<_BudgetSuggestionModal> {
                     ),
                   ),
                   child: Text(
-                    'Bá» qua',
+                    'Bỏ qua',
                     style: TextStyle(
                       fontSize: 14,
                       color: context.palette.textSecondary,
@@ -3305,9 +3157,15 @@ class _BudgetSuggestionModalState extends State<_BudgetSuggestionModal> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: const Text(
-                    'Ãp dá»¥ng',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      'Áp dụng (${formatVnd(_totalSelectedAmount)}đ)',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -3334,26 +3192,20 @@ class _BudgetSuggestionCard extends StatelessWidget {
     this.onDismiss,
   });
 
-  String _formatTargetMonthLabel(String yyyyMM) {
-    try {
-      final parts = yyyyMM.split('-');
-      if (parts.length == 2) {
-        return '${parts[1]}/${parts[0]}';
-      }
-    } catch (_) {}
-    return yyyyMM;
-  }
-
   @override
   Widget build(BuildContext context) {
     const accent = AppColors.teal;
+    final monthLabel = _formatTargetMonthLabel(preview.targetMonth);
+    final topItems = preview.items.take(3).toList();
+    final remainingCount = preview.items.length - topItems.length;
+
     return Container(
       margin: const EdgeInsets.only(top: 8),
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: context.palette.card,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: accent.withValues(alpha: 0.15), width: 1.5),
+        border: Border.all(color: accent.withValues(alpha: 0.18), width: 1.5),
         boxShadow: context.palette.softShadow,
       ),
       child: Column(
@@ -3362,71 +3214,183 @@ class _BudgetSuggestionCard extends StatelessWidget {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(6),
+                padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: accent.withValues(alpha: 0.1),
+                  color: accent.withValues(alpha: 0.12),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.auto_awesome, color: accent, size: 16),
+                child: const Icon(Icons.auto_awesome, color: accent, size: 18),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 10),
               Expanded(
-                child: Text(
-                  'Háº¡n má»©c ${_formatTargetMonthLabel(preview.targetMonth)}',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 13,
-                    color: accent,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Gợi ý hạn mức tháng $monthLabel',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 14,
+                        color: accent,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Dựa trên chi tiêu gần đây của bạn',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: context.palette.textSecondary,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            'Mimo Ä‘Ã£ phÃ¢n tÃ­ch chi tiÃªu vÃ  cÃ³ má»™t sá»‘ gá»£i Ã½ háº¡n má»©c má»›i cho báº¡n.',
-            style: TextStyle(
-              fontSize: 12,
-              color: context.palette.textSecondary,
+          if (preview.totalSuggested > 0) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: accent.withValues(alpha: 0.06),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: accent.withValues(alpha: 0.1)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Tổng dự kiến',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: context.palette.textSecondary,
+                    ),
+                  ),
+                  Text(
+                    '${formatVnd(preview.totalSuggested)}đ',
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w900,
+                      color: accent,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 12),
-          if (isApplied)
-            const Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.check_circle, color: accent, size: 16),
-                SizedBox(width: 6),
-                Text(
-                  'ÄÃ£ Ã¡p dá»¥ng háº¡n má»©c',
+          ],
+          if (topItems.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            ...topItems.map((item) {
+              final style = CategoryTheme.of(item.categoryCode);
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 28,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        color: style.color.withValues(alpha: 0.12),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Center(
+                        child: CategoryTheme.iconOf(
+                          item.categoryCode,
+                          size: 14,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        style.label,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: context.palette.textPrimary,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    Text(
+                      '${formatVnd(item.suggestedAmount)}đ',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: context.palette.textPrimary,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
+            if (remainingCount > 0)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  '+ $remainingCount danh mục khác',
                   style: TextStyle(
-                    color: accent,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
+                    fontSize: 11,
+                    fontStyle: FontStyle.italic,
+                    color: context.palette.textSecondary,
                   ),
                 ),
-              ],
+              ),
+          ],
+          const SizedBox(height: 14),
+          if (isApplied)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              decoration: BoxDecoration(
+                color: accent.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.check_circle, color: accent, size: 16),
+                  SizedBox(width: 6),
+                  Text(
+                    'Đã áp dụng hạn mức',
+                    style: TextStyle(
+                      color: accent,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
             )
           else if (isDismissed)
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.cancel, color: Colors.grey, size: 16),
-                const SizedBox(width: 6),
-                const Text(
-                  'ÄÃ£ bá» qua gá»£i Ã½',
-                  style: TextStyle(
-                    color: Colors.grey,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.grey.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.cancel_outlined, color: Colors.grey, size: 16),
+                  SizedBox(width: 6),
+                  Text(
+                    'Đã bỏ qua gợi ý',
+                    style: TextStyle(
+                      color: Colors.grey,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             )
           else
             SizedBox(
               width: double.infinity,
-              child: FilledButton(
+              child: FilledButton.icon(
                 onPressed: () {
                   showModalBottomSheet(
                     context: context,
@@ -3439,13 +3403,18 @@ class _BudgetSuggestionCard extends StatelessWidget {
                     ),
                   );
                 },
+                icon: const Icon(Icons.tune_rounded, size: 18),
+                label: const Text(
+                  'Xem & tùy chỉnh gợi ý',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                ),
                 style: FilledButton.styleFrom(
                   backgroundColor: accent,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: const Text('Xem gá»£i Ã½'),
               ),
             ),
         ],
@@ -3471,7 +3440,6 @@ class _ActionConfirmCard extends StatelessWidget {
 
   IconData get _icon {
     final t = preview.actionType.toUpperCase();
-    if (t.contains('DELETE')) return Icons.delete_outline;
     if (t.contains('LIMIT')) return Icons.speed;
     if (t.contains('GOAL')) return Icons.flag_outlined;
     if (t.contains('SEARCH')) return Icons.search;
@@ -3481,14 +3449,13 @@ class _ActionConfirmCard extends StatelessWidget {
 
   Color get _accent {
     final t = preview.actionType.toUpperCase();
-    if (t.contains('DELETE')) return AppColors.danger;
-    if (t.contains('LIMIT')) return const Color(0xFFF97316); // Cam tÆ°Æ¡i
+    if (t.contains('LIMIT')) return const Color(0xFFF97316); // Cam tươi
     if (t.contains('GOAL')) return const Color(0xFF10B981); // Xanh Mint
-    if (t.contains('USERNAME')) return const Color(0xFF64748B); // XÃ¡m nháº¹/Slate
+    if (t.contains('USERNAME')) return const Color(0xFF64748B); // Xám nhẹ/Slate
     if (t.contains('TONE') || t.contains('VERBAL')) {
-      return const Color(0xFF8B5CF6); // TÃ­m
+      return const Color(0xFF8B5CF6); // Tím
     }
-    if (t.contains('ALERT')) return const Color(0xFF3B82F6); // Xanh dÆ°Æ¡ng
+    if (t.contains('ALERT')) return const Color(0xFF3B82F6); // Xanh dương
     return const Color(0xFFF59E0B);
   }
 
@@ -3581,7 +3548,7 @@ class _ActionConfirmCard extends StatelessWidget {
                             ),
                           ),
                           Text(
-                            'Háº¡n má»©c má»›i',
+                            'Hạn mức mới',
                             style: TextStyle(
                               fontSize: 11,
                               color: context.palette.textSecondary,
@@ -3637,7 +3604,7 @@ class _ActionConfirmCard extends StatelessWidget {
                                   preview.actionDetails?['goal_name'] ??
                                       preview.actionDetails?['goalName'],
                                 ) ??
-                                'Má»¥c tiÃªu má»›i',
+                                'Mục tiêu mới',
                             style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w700,
@@ -3646,8 +3613,8 @@ class _ActionConfirmCard extends StatelessWidget {
                           ),
                           Text(
                             preview.actionType.toUpperCase() == 'ADD_GOAL'
-                                ? 'ThÃªm tiá»n vÃ o má»¥c tiÃªu'
-                                : 'Äáº·t má»¥c tiÃªu má»›i',
+                                ? 'Thêm tiền vào mục tiêu'
+                                : 'Đặt mục tiêu mới',
                             style: TextStyle(
                               fontSize: 11,
                               color: context.palette.textSecondary,
@@ -3685,7 +3652,7 @@ class _ActionConfirmCard extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      'TÃªn má»›i: ',
+                      'Tên mới: ',
                       style: TextStyle(
                         fontSize: 13,
                         color: context.palette.textSecondary,
@@ -3723,7 +3690,7 @@ class _ActionConfirmCard extends StatelessWidget {
                   Icon(Icons.check_circle_rounded, color: accent, size: 16),
                   const SizedBox(width: 6),
                   Text(
-                    preview.navOnly ? 'ÄÃ£ má»Ÿ' : 'ÄÃ£ xÃ¡c nháº­n',
+                    preview.navOnly ? 'Đã mở' : 'Đã xác nhận',
                     style: TextStyle(
                       color: accent,
                       fontSize: 12,
@@ -3743,7 +3710,7 @@ class _ActionConfirmCard extends StatelessWidget {
                   ),
                   const SizedBox(width: 6),
                   Text(
-                    'ÄÃ£ bá» qua',
+                    'Đã bỏ qua',
                     style: TextStyle(
                       color: context.palette.textSecondary.withValues(
                         alpha: 0.6,
@@ -3772,7 +3739,7 @@ class _ActionConfirmCard extends StatelessWidget {
                         ),
                       ),
                       child: Text(
-                        preview.navOnly ? 'Äá»ƒ sau' : 'Bá» qua',
+                        preview.navOnly ? 'Để sau' : 'Bỏ qua',
                         style: TextStyle(
                           fontSize: 12,
                           color: context.palette.textSecondary,
@@ -3793,7 +3760,7 @@ class _ActionConfirmCard extends StatelessWidget {
                         ),
                       ),
                       child: Text(
-                        preview.navOnly ? 'Má»Ÿ' : 'XÃ¡c nháº­n',
+                        preview.navOnly ? 'Mở' : 'Xác nhận',
                         style: const TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
@@ -3919,7 +3886,7 @@ class _SearchResultCard extends StatelessWidget {
                           ),
                           if (item.occurredAt != null) ...[
                             Text(
-                              ' â€¢ ',
+                              ' • ',
                               style: TextStyle(
                                 fontSize: 10,
                                 color: AppColors.muted,
@@ -3987,7 +3954,7 @@ class _SearchResultCard extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Text(
-                'Káº¿t quáº£ tÃ¬m kiáº¿m (${preview.items.length})',
+                'Kết quả tìm kiếm (${preview.items.length})',
                 style: const TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w800,
@@ -4004,7 +3971,7 @@ class _SearchResultCard extends StatelessWidget {
                 horizontal: 4.0,
               ),
               child: Text(
-                'KhÃ´ng tÃ¬m tháº¥y giao dá»‹ch nÃ o.',
+                'Không tìm thấy giao dịch nào.',
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
@@ -4083,7 +4050,7 @@ class _SearchResultCard extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      'Xem táº¥t cáº£ káº¿t quáº£',
+                      'Xem tất cả kết quả',
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
@@ -4107,7 +4074,7 @@ class _SearchResultCard extends StatelessWidget {
   }
 }
 
-class _ChatBubble extends StatelessWidget {
+class _ChatBubble extends StatefulWidget {
   final _ChatMsg message;
   final Future<void> Function(_ChatMsg)? onSaveTx;
   final Future<void> Function(_ChatMsg)? onSaveMultiTx;
@@ -4116,9 +4083,6 @@ class _ChatBubble extends StatelessWidget {
   final Future<void> Function(_ChatMsg, Map<String, num>)?
   onApplyBudgetSuggestion;
   final Future<void> Function(_ChatMsg)? onDismissBudgetSuggestion;
-  final void Function(_ChatMsg)? onEditTxCategory;
-  final void Function(_ChatMsg, _TxPreview)? onEditTxPreview;
-  final Future<void> Function(String)? onDownloadUrl;
   final void Function(String)? onSendMessage;
 
   const _ChatBubble({
@@ -4130,110 +4094,200 @@ class _ChatBubble extends StatelessWidget {
     this.onRejectAction,
     this.onApplyBudgetSuggestion,
     this.onDismissBudgetSuggestion,
-    this.onEditTxCategory,
-    this.onEditTxPreview,
-    this.onDownloadUrl,
     this.onSendMessage,
   });
 
+  @override
+  State<_ChatBubble> createState() => _ChatBubbleState();
+}
+
+class _ChatBubbleState extends State<_ChatBubble> {
+  Future<void> _showCategoryPicker(BuildContext context, _TxPreview tx) async {
+    final picked = await showModalBottomSheet<String>(
+      context: context,
+      useSafeArea: true,
+      constraints: const BoxConstraints(maxWidth: 600),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: Text(
+                'Sửa danh mục',
+                style: Theme.of(
+                  ctx,
+                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+              ),
+            ),
+            Flexible(
+              child: ListView(
+                shrinkWrap: true,
+                children: CategoryTheme.primaryCodes.map((code) {
+                  final style = CategoryTheme.of(code);
+                  return ListTile(
+                    leading: CategoryTheme.iconOf(code, size: 22),
+                    title: Text(style.label),
+                    onTap: () => Navigator.pop(ctx, code),
+                  );
+                }).toList(),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (picked != null) {
+      setState(() {
+        tx.category = picked;
+      });
+      if (widget.message.isSaved && tx.transactionId != null) {
+        try {
+          final api = ApiClient();
+          await api.updateTransaction(tx.transactionId!, {'categoryCode': picked});
+          notifyTransactionChanged();
+        } catch (_) {}
+      }
+    }
+  }
+
   Widget _buildSingleTxCard(BuildContext context) {
+    final tx = widget.message.txPreview!;
+    final isIncome = tx.recordType == 'Income';
+    final style = CategoryTheme.of(tx.category);
+
     return Container(
-      padding: const EdgeInsets.all(10),
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFF0FDFB),
-        borderRadius: BorderRadius.circular(AppRadii.md),
-        border: Border.all(color: AppColors.teal.withValues(alpha: 0.3)),
+        color: context.palette.card,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: AppColors.teal.withValues(alpha: 0.15),
+          width: 1.5,
+        ),
+        boxShadow: context.palette.softShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Icon(Icons.receipt_long, color: AppColors.teal, size: 16),
-              const SizedBox(width: 6),
-              Text(
-                message.txPreview!.category,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 12,
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: style.color.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: CategoryTheme.iconOf(tx.category, size: 16),
                 ),
               ),
-              const Spacer(),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      tx.note.isNotEmpty ? tx.note : style.label,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13,
+                        color: context.palette.textPrimary,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      style.label,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: context.palette.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               Text(
-                '${message.txPreview!.recordType == 'Income' ? '+' : '-'}${formatVnd(message.txPreview!.amount)}',
+                '${isIncome ? '+' : '-'}${formatVnd(tx.amount)}',
                 style: TextStyle(
-                  color: message.txPreview!.recordType == 'Income'
-                      ? const Color(0xFF22C55E)
-                      : AppColors.danger,
-                  fontWeight: FontWeight.w700,
+                  color: isIncome ? const Color(0xFF22C55E) : AppColors.danger,
+                  fontWeight: FontWeight.w800,
                   fontSize: 14,
                 ),
               ),
             ],
           ),
-          if (message.txPreview!.note.isNotEmpty) ...[
-            const SizedBox(height: 4),
-            Text(
-              message.txPreview!.note,
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: AppColors.muted),
-            ),
-          ],
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           Row(
             children: [
               Expanded(
-                child: OutlinedButton(
-                  onPressed: () => onEditTxCategory?.call(message),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    side: const BorderSide(color: AppColors.teal),
-                  ),
-                  child: const Text(
-                    'âœï¸ Chá»‰nh sá»­a',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.teal,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: message.isSaved
+                child: widget.message.isSaved
                     ? OutlinedButton(
                         onPressed: null,
                         style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          padding: const EdgeInsets.symmetric(vertical: 10),
                           side: BorderSide(
-                            color: AppColors.muted.withValues(alpha: 0.3),
+                            color: context.palette.textSecondary.withValues(
+                              alpha: 0.3,
+                            ),
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        child: const Text(
-                          'âœ“ ÄÃ£ lÆ°u',
+                        child: Text(
+                          '✓ Đã lưu',
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
-                            color: AppColors.muted,
+                            color: context.palette.textSecondary,
                           ),
                         ),
                       )
                     : FilledButton(
-                        onPressed: () => onSaveTx?.call(message),
+                        onPressed: () => widget.onSaveTx?.call(widget.message),
                         style: FilledButton.styleFrom(
                           backgroundColor: AppColors.teal,
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                           textStyle: const TextStyle(
                             fontSize: 12,
-                            fontWeight: FontWeight.w600,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
-                        child: const Text('ðŸ’¾ LÆ°u'),
+                        child: const Text('💾 Lưu vào sổ'),
                       ),
               ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => _showCategoryPicker(context, tx),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      side: BorderSide(
+                        color: context.palette.textSecondary.withValues(
+                          alpha: 0.3,
+                        ),
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: Text(
+                      '✎ Sửa',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: context.palette.textSecondary,
+                      ),
+                    ),
+                  ),
+                ),
             ],
           ),
         ],
@@ -4243,129 +4297,151 @@ class _ChatBubble extends StatelessWidget {
 
   Widget _buildMultiTxCard(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFF0FDFB),
-        borderRadius: BorderRadius.circular(AppRadii.md),
-        border: Border.all(color: AppColors.teal.withValues(alpha: 0.3)),
+        color: context.palette.card,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: AppColors.teal.withValues(alpha: 0.15),
+          width: 1.5,
+        ),
+        boxShadow: context.palette.softShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Icon(
-                Icons.playlist_add_check_rounded,
-                color: AppColors.teal,
-                size: 18,
-              ),
-              const SizedBox(width: 6),
-              Text(
-                '${message.multiRecords!.length} giao dá»‹ch Ä‘Æ°á»£c nháº­n dáº¡ng',
-                style: const TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 13,
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: AppColors.teal.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.playlist_add_check_rounded,
                   color: AppColors.teal,
+                  size: 16,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Nhiều giao dịch',
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14,
+                  color: context.palette.textPrimary,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          ...message.multiRecords!.map((record) {
-            final style = CategoryTheme.of(record.category);
-            return Container(
-              margin: const EdgeInsets.only(bottom: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(AppRadii.sm),
-                border: Border.all(color: Colors.grey.shade200),
-              ),
+          const SizedBox(height: 12),
+          ...widget.message.multiRecords!.map((tx) {
+            final isIncome = tx.recordType == 'Income';
+            final style = CategoryTheme.of(tx.category);
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8.0),
               child: Row(
                 children: [
-                  Text(style.emoji, style: const TextStyle(fontSize: 16)),
-                  const SizedBox(width: 8),
+                  Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      color: style.color.withValues(alpha: 0.12),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Center(
+                      child: CategoryTheme.iconOf(tx.category, size: 14),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          style.label,
-                          style: const TextStyle(
+                          tx.note.isNotEmpty ? tx.note : style.label,
+                          style: TextStyle(
                             fontWeight: FontWeight.w600,
-                            fontSize: 12,
+                            fontSize: 13,
+                            color: context.palette.textPrimary,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          style.label,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: context.palette.textSecondary,
                           ),
                         ),
-                        if (record.note.isNotEmpty)
-                          Text(
-                            record.note,
-                            style: const TextStyle(
-                              fontSize: 11,
-                              color: Colors.grey,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
                       ],
                     ),
                   ),
                   Text(
-                    '${record.recordType == 'Income' ? '+' : '-'}${formatVnd(record.amount)}',
+                    '${isIncome ? '+' : '-'}${formatVnd(tx.amount)}',
                     style: TextStyle(
-                      color: record.recordType == 'Income'
-                          ? const Color(0xFF22C55E)
-                          : AppColors.danger,
+                      color:
+                          isIncome ? const Color(0xFF22C55E) : AppColors.danger,
                       fontWeight: FontWeight.w700,
-                      fontSize: 12,
+                      fontSize: 13,
                     ),
                   ),
-                  const SizedBox(width: 6),
-                  GestureDetector(
-                    onTap: () => onEditTxPreview?.call(message, record),
-                    child: const Icon(
-                      Icons.edit_outlined,
-                      size: 16,
-                      color: AppColors.teal,
-                    ),
+                  IconButton(
+                    icon: const Icon(Icons.edit_outlined, size: 18),
+                    padding: const EdgeInsets.all(4),
+                    constraints: const BoxConstraints(),
+                    onPressed: () => _showCategoryPicker(context, tx),
+                    color: context.palette.textSecondary,
                   ),
                 ],
               ),
             );
           }),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           Row(
             children: [
               Expanded(
-                child: message.isSaved
+                child: widget.message.isSaved
                     ? OutlinedButton(
                         onPressed: null,
                         style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          padding: const EdgeInsets.symmetric(vertical: 10),
                           side: BorderSide(
-                            color: AppColors.muted.withValues(alpha: 0.3),
+                            color: context.palette.textSecondary.withValues(
+                              alpha: 0.3,
+                            ),
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        child: const Text(
-                          'âœ“ ÄÃ£ lÆ°u',
+                        child: Text(
+                          '✓ Đã lưu tất cả',
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
-                            color: AppColors.muted,
+                            color: context.palette.textSecondary,
                           ),
                         ),
                       )
                     : FilledButton(
-                        onPressed: () => onSaveMultiTx?.call(message),
+                        onPressed: () => widget.onSaveMultiTx?.call(widget.message),
                         style: FilledButton.styleFrom(
                           backgroundColor: AppColors.teal,
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                           textStyle: const TextStyle(
                             fontSize: 12,
-                            fontWeight: FontWeight.w600,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
-                        child: const Text('ðŸ’¾ LÆ°u'),
+                        child: const Text('💾 Lưu tất cả vào sổ'),
                       ),
               ),
             ],
@@ -4375,111 +4451,41 @@ class _ChatBubble extends StatelessWidget {
     );
   }
 
-  Widget _buildDownloadExcelCard(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFEFF6FF), // light blue background
-        borderRadius: BorderRadius.circular(AppRadii.md),
-        border: Border.all(color: Colors.blue.shade200),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(
-                Icons.file_download_outlined,
-                color: Colors.blue,
-                size: 20,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Táº£i BÃ¡o CÃ¡o Excel/CSV',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
-                    color: Colors.blue.shade800,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          const Text(
-            'Tá»‡p dá»¯ liá»‡u chi tiÃªu Ä‘Ã£ Ä‘Æ°á»£c táº¡o thÃ nh cÃ´ng. Vui lÃ²ng báº¥m vÃ o nÃºt bÃªn dÆ°á»›i Ä‘á»ƒ lÆ°u vá» thiáº¿t bá»‹.',
-            style: TextStyle(fontSize: 11, color: Colors.black87),
-          ),
-          const SizedBox(height: 10),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              onPressed: () {
-                if (message.downloadUrl != null) {
-                  onDownloadUrl?.call(message.downloadUrl!);
-                }
-              },
-              icon: const Icon(Icons.download, size: 16),
-              label: const Text('Báº¥m táº£i xuá»‘ng'),
-              style: FilledButton.styleFrom(
-                backgroundColor: Colors.blue.shade600,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                textStyle: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    final bubbleColor = message.isUser ? AppColors.teal : context.palette.card;
-    final textColor = message.isUser
+    final bubbleColor = widget.message.isUser ? AppColors.teal : context.palette.card;
+    final textColor = widget.message.isUser
         ? Colors.white
         : context.palette.textPrimary;
-    final alignment = message.isUser
+    final alignment = widget.message.isUser
         ? CrossAxisAlignment.end
         : CrossAxisAlignment.start;
 
-    final suppressText =
-        !message.isUser &&
-        message.actionPreview != null &&
-        {
-          'SET_ALERT',
-          'SUGGEST_BUDGET',
-        }.contains(message.actionPreview!.actionType);
-    final hasText = message.text.isNotEmpty && !suppressText;
-    final hasEmotion = !message.isUser && message.chatEmotion != null;
+    final hasText = widget.message.text.isNotEmpty;
+    final hasEmotion = !widget.message.isUser && widget.message.chatEmotion != null;
     final hasSpecialCard =
-        !message.isUser &&
-        (message.reportPreview != null ||
-            (message.actionPreview != null &&
-                _actionNeedsConfirm(message.actionPreview!.actionType)) ||
-            message.searchPreview != null ||
-            message.budgetSuggestionPreview != null ||
-            message.txPreview != null ||
-            message.downloadUrl != null ||
-            (message.multiRecords != null && message.multiRecords!.isNotEmpty));
+        !widget.message.isUser &&
+        (widget.message.reportPreview != null ||
+            (widget.message.actionPreview != null &&
+                _actionNeedsConfirm(widget.message.actionPreview!.actionType)) ||
+            widget.message.searchPreview != null ||
+            widget.message.budgetSuggestionPreview != null ||
+            widget.message.txPreview != null ||
+            widget.message.downloadUrl != null ||
+            (widget.message.multiRecords != null && widget.message.multiRecords!.isNotEmpty));
 
     return Column(
       crossAxisAlignment: alignment,
       children: [
-        // Sticker xuáº¥t hiá»‡n TRÆ¯á»šC, Text xuáº¥t hiá»‡n SAU (khÃ´ng viá»n bong bÃ³ng, trong suá»‘t)
+        // Sticker xuất hiện TRƯỚC, Text xuất hiện SAU (không viền bong bóng, trong suốt)
         if (hasEmotion)
           Padding(
             padding: const EdgeInsets.only(bottom: 8.0, left: 12.0),
-            child: _ChatEmotionSticker(emotionAsset: message.chatEmotion!),
+            child: _ChatEmotionSticker(emotionAsset: widget.message.chatEmotion!),
           ),
 
-        // 1. Text bubble (chá»‰ hiá»ƒn thá»‹ náº¿u cÃ³ text hoáº·c Ä‘ang soáº¡n thÃªm)
-        if (hasText || (!message.isUser && message.llmPending))
+        // 1. Text bubble (chỉ hiển thị nếu có text hoặc đang soạn thêm)
+        if (hasText || (!widget.message.isUser && widget.message.llmPending))
           ConstrainedBox(
             constraints: BoxConstraints(
               maxWidth: math.min(MediaQuery.of(context).size.width * 0.75, 400),
@@ -4487,8 +4493,8 @@ class _ChatBubble extends StatelessWidget {
             child: Container(
               margin: EdgeInsets.only(
                 bottom: hasSpecialCard ? AppSpacing.sm : AppSpacing.md,
-                left: message.isUser ? 60 : 0,
-                right: message.isUser ? 0 : 60,
+                left: widget.message.isUser ? 60 : 0,
+                right: widget.message.isUser ? 0 : 60,
               ),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               decoration: BoxDecoration(
@@ -4496,12 +4502,12 @@ class _ChatBubble extends StatelessWidget {
                 borderRadius: BorderRadius.only(
                   topLeft: const Radius.circular(AppRadii.lg),
                   topRight: const Radius.circular(AppRadii.lg),
-                  bottomLeft: Radius.circular(message.isUser ? AppRadii.lg : 4),
+                  bottomLeft: Radius.circular(widget.message.isUser ? AppRadii.lg : 4),
                   bottomRight: Radius.circular(
-                    message.isUser ? 4 : AppRadii.lg,
+                    widget.message.isUser ? 4 : AppRadii.lg,
                   ),
                 ),
-                boxShadow: message.isUser
+                boxShadow: widget.message.isUser
                     ? null
                     : const [
                         BoxShadow(
@@ -4514,21 +4520,21 @@ class _ChatBubble extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (message.text.isNotEmpty)
+                  if (widget.message.text.isNotEmpty)
                     Text(
-                      message.text,
+                      widget.message.text,
                       style: Theme.of(
                         context,
                       ).textTheme.bodyMedium?.copyWith(color: textColor),
                     ),
-                  if (!message.isUser && message.llmPending) ...[
-                    if (message.text.isNotEmpty) const SizedBox(height: 6),
+                  if (!widget.message.isUser && widget.message.llmPending) ...[
+                    if (widget.message.text.isNotEmpty) const SizedBox(height: 6),
                     const _TypingBubbleIndicator(showBackground: false),
                   ],
                   if (!hasSpecialCard) ...[
                     const SizedBox(height: 6),
                     Text(
-                      message.time,
+                      widget.message.time,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: textColor.withValues(alpha: 0.7),
                       ),
@@ -4554,38 +4560,36 @@ class _ChatBubble extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (message.reportPreview != null)
+                  if (widget.message.reportPreview != null)
                     _ReportStoryCard(
-                      preview: message.reportPreview!,
-                      onSendMessage: onSendMessage,
+                      preview: widget.message.reportPreview!,
+                      onSendMessage: widget.onSendMessage,
                     ),
-                  if (message.downloadUrl != null)
-                    _buildDownloadExcelCard(context),
-                  if (message.actionPreview != null &&
-                      _actionNeedsConfirm(message.actionPreview!.actionType))
+                  if (widget.message.actionPreview != null &&
+                      _actionNeedsConfirm(widget.message.actionPreview!.actionType))
                     _ActionConfirmCard(
-                      preview: message.actionPreview!,
-                      isConfirmed: message.isConfirmed,
-                      isRejected: message.isRejected,
-                      onConfirm: () => onConfirmAction?.call(message),
-                      onReject: () => onRejectAction?.call(message),
+                      preview: widget.message.actionPreview!,
+                      isConfirmed: widget.message.isConfirmed,
+                      isRejected: widget.message.isRejected,
+                      onConfirm: () => widget.onConfirmAction?.call(widget.message),
+                      onReject: () => widget.onRejectAction?.call(widget.message),
                     ),
-                  if (message.budgetSuggestionPreview != null)
+                  if (widget.message.budgetSuggestionPreview != null)
                     _BudgetSuggestionCard(
-                      preview: message.budgetSuggestionPreview!,
-                      isApplied: message.isBudgetApplied,
-                      isDismissed: message.isBudgetDismissed,
+                      preview: widget.message.budgetSuggestionPreview!,
+                      isApplied: widget.message.isBudgetApplied,
+                      isDismissed: widget.message.isBudgetDismissed,
                       onApply: (overrides) =>
-                          onApplyBudgetSuggestion?.call(message, overrides),
-                      onDismiss: () => onDismissBudgetSuggestion?.call(message),
+                          widget.onApplyBudgetSuggestion?.call(widget.message, overrides),
+                      onDismiss: () => widget.onDismissBudgetSuggestion?.call(widget.message),
                     ),
-                  if (message.searchPreview != null)
-                    _SearchResultCard(preview: message.searchPreview!),
-                  if (message.txPreview != null) _buildSingleTxCard(context),
-                  if (message.multiRecords != null &&
-                      message.multiRecords!.isNotEmpty)
+                  if (widget.message.searchPreview != null)
+                    _SearchResultCard(preview: widget.message.searchPreview!),
+                  if (widget.message.txPreview != null) _buildSingleTxCard(context),
+                  if (widget.message.multiRecords != null &&
+                      widget.message.multiRecords!.isNotEmpty)
                     _buildMultiTxCard(context),
-                  if (message.isPremiumLocked) ...[
+                  if (widget.message.isPremiumLocked) ...[
                     const SizedBox(height: 12),
                     ValueListenableBuilder<bool>(
                       valueListenable: AdsService.instance.premiumNotifier,
@@ -4603,7 +4607,7 @@ class _ChatBubble extends StatelessWidget {
                             size: 18,
                           ),
                           label: const Text(
-                            'NÃ¢ng cáº¥p Premium',
+                            'Nâng cấp Premium',
                             style: TextStyle(fontWeight: FontWeight.bold),
                           ),
                           style: FilledButton.styleFrom(
@@ -4616,7 +4620,7 @@ class _ChatBubble extends StatelessWidget {
                   ],
                   const SizedBox(height: 6),
                   Text(
-                    message.time,
+                    widget.message.time,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: context.palette.textSecondary.withValues(
                         alpha: 0.7,
@@ -4629,9 +4633,9 @@ class _ChatBubble extends StatelessWidget {
           ),
 
         // 3. Suggested Actions Chips
-        if (!message.isUser &&
-            message.suggestedActions != null &&
-            message.suggestedActions!.isNotEmpty)
+        if (!widget.message.isUser &&
+            widget.message.suggestedActions != null &&
+            widget.message.suggestedActions!.isNotEmpty)
           Container(
             margin: const EdgeInsets.only(
               top: 4,
@@ -4642,7 +4646,7 @@ class _ChatBubble extends StatelessWidget {
             child: Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: message.suggestedActions!.map((action) {
+              children: widget.message.suggestedActions!.map((action) {
                 return ActionChip(
                   label: Text(
                     action,
@@ -4664,8 +4668,8 @@ class _ChatBubble extends StatelessWidget {
                     vertical: 0,
                   ),
                   onPressed: () {
-                    if (onSendMessage != null) {
-                      onSendMessage!(action);
+                    if (widget.onSendMessage != null) {
+                      widget.onSendMessage!(action);
                     }
                   },
                 );
@@ -4711,8 +4715,8 @@ class _ChatComposer extends StatelessWidget {
               onSubmitted: (_) => isSending ? null : onSend(),
               decoration: InputDecoration(
                 hintText: isSending
-                    ? 'Mimo Ä‘ang tráº£ lá»i...'
-                    : 'Nháº¯n tin cho Mimo...',
+                    ? 'Mimo đang trả lời...'
+                    : 'Nhắn tin cho Mimo...',
                 filled: true,
                 fillColor: context.palette.surfaceAlt,
                 contentPadding: const EdgeInsets.symmetric(
@@ -4954,7 +4958,7 @@ class _DailyCompareChart extends StatelessWidget {
             ),
             const SizedBox(width: 6),
             const Text(
-              'Ká»³ nÃ y',
+              'Kỳ này',
               style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
             ),
             const SizedBox(width: 16),
@@ -4968,7 +4972,7 @@ class _DailyCompareChart extends StatelessWidget {
             ),
             const SizedBox(width: 6),
             const Text(
-              'Ká»³ trÆ°á»›c',
+              'Kỳ trước',
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
@@ -4995,7 +4999,7 @@ class _DailyCompareChart extends StatelessWidget {
                     return touchedSpots.map((spot) {
                       final isCurr = spot.barIndex == 0;
                       return LineTooltipItem(
-                        '${isCurr ? "Ká»³ nÃ y" : "Ká»³ trÆ°á»›c"}: ${formatVnd(spot.y.toInt())}',
+                        '${isCurr ? "Kỳ này" : "Kỳ trước"}: ${formatVnd(spot.y.toInt())}',
                         TextStyle(
                           color: isCurr ? AppColors.teal : AppColors.muted,
                           fontWeight: FontWeight.w700,
@@ -5103,5 +5107,4 @@ class _DailyCompareChart extends StatelessWidget {
     );
   }
 }
-
 

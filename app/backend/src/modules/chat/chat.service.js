@@ -135,7 +135,7 @@ async function updateMessageContent(userId, sessionId, messageId, content, inten
   };
 
   await query(
-    `UPDATE chat_messages SET content = $1, intent_action = $2 WHERE id = $3 AND session_id = $4`,
+    `UPDATE chat_messages SET content = COALESCE($1, content), intent_action = $2 WHERE id = $3 AND session_id = $4`,
     [content, merged, messageId, sessionId]
   );
 

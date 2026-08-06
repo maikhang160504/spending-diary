@@ -106,6 +106,12 @@ class CategoryTheme {
 
   static const Map<String, CategoryStyle> styles = {
     // ── 18 canonical categories matching assets/MiMo/category/ ──────
+    'TOTAL': CategoryStyle(
+      color: Color(0xFF14B8A6), // teal
+      emoji: '📊',
+      label: 'Tổng chi tiêu',
+      iconAsset: '',
+    ),
     'Food': CategoryStyle(
       color: Color(0xFFEC4899),
       emoji: '🍔',

@@ -99,7 +99,7 @@ class _HomeScreenState extends State<HomeScreen> {
           me['user']?['avatar_url'] as String?;
       _currentUserId = me['user']?['id'] as String?;
       _wallets = walletsList;
-      AppQueries.streak().result.then((s) {
+      AppQueries.streak().refetch().then((s) {
         if (mounted) {
           setState(
             () =>
@@ -184,9 +184,26 @@ class _HomeScreenState extends State<HomeScreen> {
       _loadData();
       return;
     }
-    setState(() => _selectedWalletId = wallet['id'] as String?);
+    final newId = wallet['id'] as String?;
+    if (_selectedWalletId == newId) return;
+
+    final hasCache = AppQueries.dashboard(newId).state.data != null;
+    
+    setState(() {
+      _selectedWalletId = newId;
+      if (!hasCache) {
+        _loading = true;
+        _dashboard = {};
+        _transactions = [];
+        _stories = [];
+      }
+    });
     ApiClient.lastSelectedWalletId = _selectedWalletId;
-    _loadWalletData();
+    
+    await _loadWalletData();
+    if (mounted && !hasCache) {
+      setState(() => _loading = false);
+    }
   }
 
   Future<void> _deleteWallet(dynamic wallet) async {

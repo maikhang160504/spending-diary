@@ -112,10 +112,10 @@ function NluOpsPage() {
   });
   const [trainHistory, setTrainHistory] = useState([]);
   const [reloadingNlu, setReloadingNlu] = useState(false);
-  const [intentBackend, setIntentBackend] = useState("tfidf");
-  const [categoryBackend, setCategoryBackend] = useState("tfidf");
+  const [intentBackend, setIntentBackend] = useState("encoder");
+  const [categoryBackend, setCategoryBackend] = useState("llm_v2");
   const [savingBackend, setSavingBackend] = useState(false);
-  const [compareTrainType, setCompareTrainType] = useState("tfidf");
+  const [compareTrainType, setCompareTrainType] = useState("encoder");
 
   // Model 3-state
   const [promotingModel, setPromotingModel] = useState(false);
@@ -183,9 +183,9 @@ function NluOpsPage() {
         setTrainProgressInfo(statusData);
         setModelMeta(metaData);
         setTrainHistory(historyData);
-        setIntentBackend(backendData?.intent_backend || metaData?.intent_backend || "tfidf");
-        setCategoryBackend(backendData?.category_backend || metaData?.category_backend || "tfidf");
-        const intent_b = backendData?.intent_backend || metaData?.intent_backend || "tfidf";
+        setIntentBackend(backendData?.intent_backend || metaData?.intent_backend || "encoder");
+        setCategoryBackend(backendData?.category_backend || metaData?.category_backend || "llm_v2");
+        const intent_b = backendData?.intent_backend || metaData?.intent_backend || "encoder";
         setCompareTrainType(intent_b === "encoder" ? "encoder" : "tfidf");
         setLoading(false);
       })
@@ -916,8 +916,8 @@ function NluOpsPage() {
                   style={{ width: "100%", padding: "12px", borderRadius: "8px", background: "var(--bg-obsidian-950)", border: "1px solid var(--border-color)", color: "var(--text-primary)", outline: "none", cursor: "pointer", fontWeight: "500", appearance: "none" }}
                 >
                   <option value="tfidf">📊 TF-IDF Classic (Local CPU)</option>
-                  <option value="encoder">🧬 PhoBERT Encoder (Local CPU/GPU)</option>
-                  <option value="llm_v2">🔥 Qwen2.5 LLM Rules (Mặc định)</option>
+                  <option value="encoder">🧬 PhoBERT Encoder (Local CPU/GPU) (Mặc định)</option>
+                  <option value="llm_v2">🔥 Qwen2.5 LLM Rules</option>
                 </select>
               </div>
 

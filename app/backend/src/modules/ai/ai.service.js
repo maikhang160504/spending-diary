@@ -146,38 +146,33 @@ async function _enrichNluWithAction(userId, payload, response) {
   const missingSlotsResult = actionService.checkMissingSlots(actionType, { ...response, text: payload.text || response.text }, response.slots || response.action_details);
   if (missingSlotsResult) {
     response.action_result = missingSlotsResult;
-    response.nlg_response = missingSlotsResult.message;
+    const llmOriginalText = response.gemini_json?.response || response.nlg_response || response.response;
+    const fallbackText = llmOriginalText || missingSlotsResult.message;
+    response.nlg_response = fallbackText;
     if (!response.gemini_json) response.gemini_json = {};
-    response.gemini_json.response = missingSlotsResult.message;
+    response.gemini_json.response = fallbackText;
     return response;
   }
   
   if (actionType === 'SUGGEST_BUDGET') {
     try {
-      const suggestionService = require('../budgets/suggestion.service');
-      const now = new Date();
-      let m = now.getMonth() + 2;
-      let y = now.getFullYear();
-      if (m > 12) { m = 1; y += 1; }
-      const targetMonth = `${y}-${String(m).padStart(2, '0')}`;
-      
-      let suggestions = await suggestionService.getSuggestions(userId, targetMonth);
-      if (suggestions.length === 0) {
-        await suggestionService.generateForUser(userId, targetMonth);
-        suggestions = await suggestionService.getSuggestions(userId, targetMonth);
-      }
-      const story = suggestionService.buildSuggestionStory(suggestions, targetMonth);
-      
-      const displayEmotion = 'Thinking';
+      const actionResult = await actionService.executeSuggestBudget(userId, {
+        actionType,
+        text: payload.text || response.text || '',
+        actionDetails: response.action_details,
+        slots: response.slots || {},
+        ...response.slots,
+        ...response.action_details,
+      });
+      response.action_result = actionResult;
+
+      const displayEmotion = pickMimoEmotionFromNlu(response, 'Action');
       response.gemini_json = response.gemini_json || {};
-      response.gemini_json.story = story;
       response.gemini_json.mimo_emotion = displayEmotion;
       response.gemini_json.emotion = displayEmotion;
       response.mimo_emotion = displayEmotion;
-      response.nlg_response = story;
-      response.action_result = { suggestions };
-      
-      await logAi(userId, 'action_executed', { text: payload.text, actionType }, { suggestions }, { backend: response.backend });
+
+      await logAi(userId, 'action_executed', { text: payload.text, actionType }, actionResult, { backend: response.backend });
       return response;
     } catch (err) {
       logger.warn({ err: err.message, userId }, 'action suggest budget execution failed');
@@ -207,7 +202,7 @@ async function _enrichNluWithAction(userId, payload, response) {
       response.action_result = actionResult;
       let story = actionResult.message;
       const hasLlmResponse = Boolean(response.gemini_json?.response || response.gemini_json?.story || response.nlg_response || response.response);
-      const runLlm = !hasLlmResponse && Boolean(payload.runLlm || payload.run_llm);
+      const runLlm = Boolean(payload.runLlm || payload.run_llm);
       if (runLlm) {
         try {
           let nlgPersona = payload.nlgPersona || payload.emotion;
@@ -257,7 +252,7 @@ async function _enrichNluWithAction(userId, payload, response) {
     }
   }
 
-  if (['SET_TONE', 'SYSTEM_SETTING', 'SET_USERNAME', 'SET_ALERT', 'SET_GOAL', 'ADD_GOAL', 'SET_LIMIT'].includes(actionType)) {
+  if (['SET_TONE', 'SET_USERNAME'].includes(actionType)) {
     try {
       const actionResult = await actionService.executeAction(userId, {
         actionType,
@@ -354,7 +349,7 @@ async function _enrichNluWithAction(userId, payload, response) {
     });
     let story = actionService.buildReportStory(actionResult);
 
-    const runLlm = Boolean(payload.runLlm || payload.run_llm || response.gemini_json || response.llama_json);
+    const runLlm = false; // ASYNC RAG FIX: We now let the background follow-up handle the RAG so we don't block the initial card.
     if (runLlm) {
       try {
         let nlgPersona = payload.nlgPersona || payload.emotion;
@@ -1490,22 +1485,30 @@ async function _runChatLlmFollowUp(userId, sessionId, messageId, context) {
       llama_json: llmRes.llama_json || aiResponse.llama_json,
       nlg_response: llmText,
     };
-    const mood = pickMimoEmotionFromNlu(mergedNlu, intent);
+    const mood = pickMimoEmotionFromNlu(isRagFollowUp ? aiResponse : mergedNlu, intent);
     const intentActionPatch = {
       mood,
       llmUpdated: true,
       llmPending: false,
-      nlu: mergedNlu,
+      ...(isRagFollowUp ? { rag_narrative: llmText } : { nlu: mergedNlu }),
     };
 
-    await chatService.updateMessageContent(userId, sessionId, messageId, llmText, intentActionPatch);
+    // For RAG follow-up, do not overwrite original Bubble 1 content; only update metadata
+    await chatService.updateMessageContent(
+      userId,
+      sessionId,
+      messageId,
+      isRagFollowUp ? null : llmText,
+      intentActionPatch
+    );
 
     const completeIntentAction = {
       ...intentActionPatch,
       intent: intent,
-      amount: mergedNlu.amount ?? mergedNlu.amount_spent,
-      category: mergedNlu.category,
-      nlu: mergedNlu,
+      amount: aiResponse.amount ?? aiResponse.amount_spent,
+      category: aiResponse.category,
+      nlu: isRagFollowUp ? aiResponse : mergedNlu,
+      ...(isRagFollowUp ? { rag_narrative: llmText } : {}),
     };
     if (mergedNlu.multi_records && Array.isArray(mergedNlu.multi_records) && mergedNlu.multi_records.length >= 2) {
       completeIntentAction.multi_records = mergedNlu.multi_records.map(r => ({
@@ -1518,10 +1521,11 @@ async function _runChatLlmFollowUp(userId, sessionId, messageId, context) {
     }
 
     sendToUser(userId, {
-      type: 'chat_llm_update',
+      type: isRagFollowUp ? 'chat_rag_update' : 'chat_llm_update',
       sessionId,
       messageId,
       content: llmText,
+      ragContent: isRagFollowUp ? llmText : undefined,
       mood,
       intentAction: completeIntentAction,
     });
@@ -1662,6 +1666,7 @@ async function _processAiChatBackground(userId, sessionId, userMessage, contextM
       chat_summary: summary,
       run_llm: true,
     });
+    delete aiResponse.action_result;
     const disambiguated = actionService.disambiguateActionType(
       userMessage,
       aiResponse.action_type || ''
@@ -1679,7 +1684,7 @@ async function _processAiChatBackground(userId, sessionId, userMessage, contextM
       aiResponse.nlg_response ||
       aiResponse.response ||
       aiResponse.content;
-    aiResponse = await _enrichNluWithAction(userId, { text: userMessage, walletId: passedWalletId }, aiResponse);
+    aiResponse = await _enrichNluWithAction(userId, { text: userMessage, walletId: walletId, runLlm: true }, aiResponse);
     // After enrich: nlg_response có thể là RAG narrative (Bubble 3)
     const ragNarrative =
       aiResponse.gemini_json?.story ||
@@ -1690,78 +1695,11 @@ async function _processAiChatBackground(userId, sessionId, userMessage, contextM
     let llmText = llmTextBeforeEnrich || ragNarrative;
     const llmError = aiResponse.llm_error || null;
 
-    let fallbackText = null;
-    if (!llmText) {
-      const intent = aiResponse.intent || 'Chitchat';
-      if (intent === 'Record') {
-        const isIncome = aiResponse.record_type === 'Income';
-        const categoryCode = aiResponse.category || 'Others';
-        const amount = aiResponse.amount ?? aiResponse.amount_spent;
-
-        const vietCategoryMap = {
-          'Food': 'Ăn uống',
-          'Transport': 'Di chuyển',
-          'Housing': 'Nhà ở',
-          'Shopping': 'Mua sắm',
-          'Entertainment': 'Giải trí',
-          'Health': 'Sức khỏe',
-          'Education': 'Giáo dục',
-          'Others': 'Tiêu dùng khác',
-          'Other': 'Tiêu dùng khác',
-          'Essentials': 'Thiết yếu',
-          'Beauty': 'Làm đẹp',
-          'Social': 'Xã hội',
-          'Salary': 'Lương',
-          'Bonus': 'Thưởng',
-          'Business': 'Kinh doanh'
-        };
-        const vietCat = vietCategoryMap[categoryCode] || categoryCode;
-
-        if (amount && amount > 0) {
-          const amtStr = new Intl.NumberFormat('vi-VN').format(amount);
-          if (isIncome) {
-            fallbackText = `Tuyệt vời! Mimo đã ghi nhận khoản thu nhập ${amtStr}đ vào danh mục ${vietCat}. Tích tiểu thành đại, cố gắng phát huy nhé! 🎉`;
-          } else {
-            fallbackText = `Mimo đã ghi nhận khoản chi ${amtStr}đ cho ${vietCat} vào ví của bạn. Hãy cân đối chi tiêu hợp lý nhé!`;
-          }
-        } else {
-          if (isIncome) {
-            fallbackText = `Mimo đã chuẩn bị sẵn phiếu ghi nhận thu nhập cho danh mục ${vietCat}. Bạn hãy nhập số tiền và bấm lưu nhé!`;
-          } else {
-            fallbackText = `Mimo đã chuẩn bị sẵn phiếu ghi nhận chi tiêu cho danh mục ${vietCat}. Bạn hãy nhập số tiền và bấm lưu nhé!`;
-          }
-        }
-      } else if (intent === 'Action') {
-        const actionType = (aiResponse.action_type || 'Thao tác').toUpperCase();
-        // Fallback cho Action khi LLM không sinh được text
-        if (actionType.includes('REPORT')) {
-          fallbackText = 'Đây là báo cáo chi tiêu Mimo vừa tổng hợp được cho bạn nhé!';
-        } else if (actionType.includes('SEARCH')) {
-          fallbackText = 'Mimo tìm thấy các giao dịch này theo yêu cầu của bạn nè.';
-        } else if (actionType.includes('SUGGEST')) {
-          fallbackText = 'Dựa vào chi tiêu gần đây, Mimo gợi ý ngân sách này cho bạn. Bạn có thể điều chỉnh và áp dụng nhé!';
-        } else {
-          fallbackText = `Mimo đã chuẩn bị sẵn thao tác cho bạn. Bạn xem có đúng ý không rồi xác nhận nhé!`;
-        }
-      }
-    }
-
-    if (!llmText && fallbackText) {
-      if (!aiResponse.gemini_json) {
-        aiResponse.gemini_json = {};
-      }
-      aiResponse.gemini_json.response = fallbackText;
-      aiResponse.gemini_json.story = fallbackText;
-      if (!aiResponse.nlg_response) {
-        aiResponse.nlg_response = fallbackText;
-      }
-    }
-
-    const assistantContent = llmText || fallbackText || (llmError
+    const assistantContent = llmText || (llmError
       ? 'Mimo tạm thời gặp sự cố kết nối AI 🤖 Bạn thử lại sau chút nhé!'
-      : 'Xin lỗi, tôi không hiểu. Bạn có thể nói rõ hơn không?');
+      : 'Xin lỗi, Mimo chưa hiểu ý bạn.');
     if (!llmText) {
-      logger.warn({ userId, sessionId, llmError, backend: aiResponse.backend }, 'LLM response empty — using fallback text');
+      logger.warn({ userId, sessionId, llmError, backend: aiResponse.backend }, 'LLM response empty');
     }
 
     // Parse and normalize the LLM/NLU emotion to PascalCase asset name
@@ -1848,35 +1786,38 @@ async function _processAiChatBackground(userId, sessionId, userMessage, contextM
       }
     }
 
-    const isRagAction = actionService.isReportAction(intentAction.nlu?.action_type) ||
-      String(intentAction.nlu?.action_type || '').includes('SEARCH');
-    const isLlmBackend = (aiResponse.backend === 'llm_unified' || aiResponse.backend === 'llm_fallback' || String(aiResponse.backend).startsWith('user_') || actionService.isReportAction(intentAction.nlu?.action_type));
+    const isRagAction = actionService.isReportAction(intentAction.nlu?.action_type);
 
-    if (isRagAction && ragNarrative && llmTextBeforeEnrich && llmTextBeforeEnrich !== ragNarrative) {
-      intentAction.rag_narrative = ragNarrative;
-    }
-
-    // Update the pending message with actual AI response
+    // Update the pending message with actual AI response (Bubble 1 text)
     await chatService.updateMessageContent(userId, sessionId, messageId,
       assistantContent, intentAction
     );
     const savedMsg = { id: messageId };
 
-    if (!isLlmBackend && process.env.NODE_ENV !== 'test') {
-      // Push initial result to frontend, then schedule LLM follow-up
-      const { sendToUser: pushUpdate } = require('../../services/wsHub');
+    const { sendToUser: pushUpdate } = require('../../services/wsHub');
+
+    if (isRagAction) {
+      // === Kịch bản 3: Báo cáo & So sánh (RAG) ===
+      // Bước 1: Gửi ngay Bubble 1 (lời dẫn LLM) + Bubble 2 (thẻ báo cáo)
       pushUpdate(userId, {
-        type: 'chat_llm_update', sessionId, messageId: savedMsg.id,
-        content: assistantContent, mood: intentAction.mood || 'Happy',
+        type: 'chat_llm_update',
+        sessionId,
+        messageId: savedMsg.id,
+        content: assistantContent,
+        mood: intentAction.mood || 'Happy',
         intentAction,
       });
 
+      // Bước 2: Chạy RAG trong background để LLM phân tích số liệu và sinh Bubble 3
       setImmediate(() => {
         _runChatLlmFollowUp(userId, sessionId, savedMsg.id, {
           userMessage,
           aiResponse,
           emotion,
-          profile,
+          profile: {
+            ...(profile || {}),
+            action_facts: intentAction.action_result,
+          },
           userCorrections,
           summary,
           slidingWindow,
@@ -1884,37 +1825,14 @@ async function _processAiChatBackground(userId, sessionId, userMessage, contextM
           logger.warn({ err: err.message, userId, sessionId }, 'chat LLM follow-up scheduling failed');
         });
       });
-    } else if (isRagAction && llmTextBeforeEnrich && ragNarrative && llmTextBeforeEnrich !== ragNarrative) {
-      // === 3-Bubble RAG Flow ===
-      const { sendToUser: pushDone } = require('../../services/wsHub');
-      // Bubble 1: LLM NLU response text (nhận dạng, phản hồi ban đầu)
-      pushDone(userId, {
-        type: 'chat_llm_update', sessionId, messageId: savedMsg.id,
-        content: llmTextBeforeEnrich,
-        mood: intentAction.mood || 'Happy',
-        intentAction: {
-          ...intentAction,
-          // Không gửi action_result ở event này — chỉ hiển thị Bubble 1 text
-          action_result: undefined,
-          action_executed: false,
-        },
-      });
-      // Bubble 2 (card) + Bubble 3 (RAG narrative): gửi event riêng với action_result
-      pushDone(userId, {
-        type: 'chat_rag_update', sessionId, messageId: savedMsg.id,
-        ragContent: ragNarrative,   // Bubble 3 text
-        mood: intentAction.mood || 'Happy',
-        intentAction: {
-          ...intentAction,
-          action_executed: true,    // Bubble 2: kích hoạt render card
-        },
-      });
     } else {
-      // Report/Search fallback or non-RAG: push result directly via WebSocket
-      const { sendToUser: pushDone } = require('../../services/wsHub');
-      pushDone(userId, {
-        type: 'chat_llm_update', sessionId, messageId: savedMsg.id,
-        content: assistantContent, mood: intentAction.mood || 'Happy',
+      // === Kịch bản 1 & 2: Ghi chép, Tra cứu, Thao tác cài đặt, Chitchat ===
+      pushUpdate(userId, {
+        type: 'chat_llm_update',
+        sessionId,
+        messageId: savedMsg.id,
+        content: assistantContent,
+        mood: intentAction.mood || 'Happy',
         intentAction,
       });
     }

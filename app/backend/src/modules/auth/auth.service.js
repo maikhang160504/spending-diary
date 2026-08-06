@@ -213,7 +213,15 @@ async function getStreak(userId) {
      ORDER BY day DESC`,
     [userId]
   );
-  const dates = r.rows.map((row) => row.day).filter(Boolean);
+  // Lọc bỏ các ngày có năm bất hợp lệ (do dữ liệu seed/test sai timestamp)
+  const currentYear = new Date().getFullYear();
+  const dates = r.rows
+    .map((row) => row.day)
+    .filter((d) => {
+      if (!d) return false;
+      const year = parseInt(d.substring(0, 4), 10);
+      return !isNaN(year) && year >= 2000 && year <= currentYear + 1;
+    });
 
   if (dates.length === 0) {
     return {
@@ -229,10 +237,10 @@ async function getStreak(userId) {
   const lastActiveStr = dates[0];
   const daysSinceLast = getDaysDiff(todayStr, lastActiveStr);
 
-  // Tính current streak — Bắt buộc liên tục (không có khoan hồng 1 ngày)
+  // Tính current streak
   // Nếu hôm nay (0 ngày) hoặc hôm qua (1 ngày) thì chuỗi vẫn còn hiệu lực.
   let currentStreak = 0;
-  if (daysSinceLast <= 1) {
+  if (!isNaN(daysSinceLast) && daysSinceLast <= 1) {
     currentStreak = 1;
     for (let i = 1; i < dates.length; i++) {
       const diff = getDaysDiff(dates[i - 1], dates[i]);

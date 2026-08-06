@@ -376,8 +376,8 @@ function getCategoryLabelVi(catCode) {
 
 
 
-async function getHighestTransactions(userId, from, to) {
-  const values = [userId, from, to];
+async function getHighestTransactions(userId, from, to, walletId = null) {
+  const values = [userId, from, to, walletId];
   const sql = `
     SELECT t.id, t.amount, t.note, t.category_code, t.occurred_at
     FROM transactions t
@@ -385,8 +385,9 @@ async function getHighestTransactions(userId, from, to) {
       AND t.wallet_id IN (
         SELECT w.id FROM wallets w
         JOIN wallet_members wm ON wm.wallet_id = w.id
-        WHERE wm.user_id = $1 AND w.type = 'personal'
+        WHERE wm.user_id = $1
       )
+      AND ($4::uuid IS NULL OR t.wallet_id = $4::uuid)
       AND t.occurred_at BETWEEN $2 AND $3
       AND t.type = 'expense'
       AND (t.category_code IS NULL OR t.category_code != 'Saving')
@@ -403,10 +404,10 @@ async function getHighestTransactions(userId, from, to) {
   }));
 }
 
-async function getHighestTransactionOnDay(userId, dayStr) {
+async function getHighestTransactionOnDay(userId, dayStr, walletId = null) {
   const startOfDay = `${dayStr}T00:00:00.000Z`;
   const endOfDay = `${dayStr}T23:59:59.999Z`;
-  const values = [userId, startOfDay, endOfDay];
+  const values = [userId, startOfDay, endOfDay, walletId];
   const sql = `
     SELECT t.note, t.category_code, t.amount
     FROM transactions t
@@ -414,8 +415,9 @@ async function getHighestTransactionOnDay(userId, dayStr) {
       AND t.wallet_id IN (
         SELECT w.id FROM wallets w
         JOIN wallet_members wm ON wm.wallet_id = w.id
-        WHERE wm.user_id = $1 AND w.type = 'personal'
+        WHERE wm.user_id = $1
       )
+      AND ($4::uuid IS NULL OR t.wallet_id = $4::uuid)
       AND t.occurred_at BETWEEN $2 AND $3
       AND t.type = 'expense'
       AND (t.category_code IS NULL OR t.category_code != 'Saving')
@@ -532,13 +534,14 @@ async function executeReport(userId, { timeRange, categoryCode, reportKind, text
     const matchedCat = byCategory.find((c) => c.categoryCode === resolvedCategory);
     byCategory = byCategory.filter((c) => c.categoryCode === resolvedCategory);
     if (matchedCat) {
-      totalExpense = Number(matchedCat.total);
-      txCount = Number(matchedCat.count);
-      totalIncome = 0;
-      if (['Salary', 'Bonus', 'Investment', 'Business'].includes(resolvedCategory)) {
+      if (kind === 'income' || ['Salary', 'Bonus', 'Investment', 'Business'].includes(resolvedCategory)) {
         totalIncome = Number(matchedCat.total);
         totalExpense = 0;
+      } else {
+        totalExpense = Number(matchedCat.total);
+        totalIncome = 0;
       }
+      txCount = Number(matchedCat.count);
     } else {
       totalExpense = 0;
       txCount = 0;
@@ -549,6 +552,7 @@ async function executeReport(userId, { timeRange, categoryCode, reportKind, text
       const list = await txService.listForUser(userId, {
         from: range.from,
         to: range.to,
+        walletId: walletId || undefined,
         pageSize: 1000
       });
       const filteredTxs = (list.items || []).filter(
@@ -667,7 +671,7 @@ async function executeReport(userId, { timeRange, categoryCode, reportKind, text
   // 3. Fetch highest transactions in this period
   let highestTransactions = [];
   try {
-    highestTransactions = await getHighestTransactions(userId, range.from, range.to);
+    highestTransactions = await getHighestTransactions(userId, range.from, range.to, walletId);
   } catch (err) {
     console.error('Failed to query highest transactions:', err);
   }
@@ -688,7 +692,7 @@ async function executeReport(userId, { timeRange, categoryCode, reportKind, text
       const dayOfWeek = getVietnameseDayOfWeek(maxDay.day);
       let txInfo = null;
       try {
-        txInfo = await getHighestTransactionOnDay(userId, maxDay.day);
+        txInfo = await getHighestTransactionOnDay(userId, maxDay.day, walletId);
       } catch (err) {
         console.error('Failed to query peak day highest transaction:', err);
       }
@@ -1296,10 +1300,10 @@ async function executeAction(userId, payload) {
     const normText = _norm(payload.text || '');
     if (themeSlot === 'dark' || /\b(toi|dark|dem|night|den)\b/.test(normText)) {
       await settingsService.update(userId, { themeMode: true });
-      return { kind: 'theme', themeMode: true, message: '✅ Đã chuyển sang giao diện tối!' };
+      return { kind: 'theme', themeMode: true, message: '✅ Đã chuyển sang giao diện tối.' };
     } else if (themeSlot === 'light' || /\b(sang|light|day|trang)\b/.test(normText)) {
       await settingsService.update(userId, { themeMode: false });
-      return { kind: 'theme', themeMode: false, message: '✅ Đã chuyển sang giao diện sáng!' };
+      return { kind: 'theme', themeMode: false, message: '✅ Đã chuyển sang giao diện sáng.' };
     }
     return { kind: 'navigate', navigate: 'settings', message: '⚙️ Mở màn hình cài đặt.' };
   }

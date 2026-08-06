@@ -162,7 +162,37 @@ async function create(userId, payload) {
     setImmediate(() => checkBudgetLimitsAndAlert(userId, payload.categoryCode, payload.walletId));
   }
 
-  return tx;
+  // Automatically log correction if the category was updated before saving (AI extraction)
+  if (tx.ai_extracted && payload.aiMeta?.nlu) {
+    const predictedCategory = payload.aiMeta.nlu.categoryCode || payload.aiMeta.nlu.category;
+    if (predictedCategory && payload.categoryCode && payload.categoryCode !== predictedCategory) {
+      const text = resolveCategoryCorrectionKeyword(tx);
+      if (text) {
+        try {
+          const recordType = (payload.type || 'expense').toLowerCase() === 'income' ? 'Income' : 'Expense';
+          await query(
+            `INSERT INTO user_corrections
+               (user_id, text, intent, category_code, record_type, predicted, source)
+             VALUES ($1, $2, 'Record', $3, $4, $5, 'user')`,
+            [userId, text, payload.categoryCode, recordType, payload.aiMeta.nlu]
+          );
+
+          const cleanedText = text.trim().toLowerCase();
+          await query(
+            `INSERT INTO user_category_mappings (user_id, keyword, category_code, updated_at)
+             VALUES ($1, $2, $3, NOW())
+             ON CONFLICT (user_id, keyword)
+             DO UPDATE SET category_code = EXCLUDED.category_code, updated_at = NOW()`,
+            [userId, cleanedText, payload.categoryCode]
+          );
+        } catch (err) {
+          console.error('[NLU Personalization] Failed to write correction triggers:', err.message);
+        }
+      }
+    }
+  }
+
+  return row(tx);
 }
 
 async function listForUser(userId, filters) {
