@@ -1894,11 +1894,183 @@ function clearWalletProfileCache(userId, walletId) {
   walletProfileCache.delete(`${userId}:${walletId}`);
 }
 
+async function _processGroupBillBackground(userId, groupId, transactionId, fileBuffer, originalName, contentType, imageUrl) {
+  const { sendToUser } = require('../../services/wsHub');
+  try {
+    const aiResponse = await aiClient.groupExpenseFromBill(
+      fileBuffer,
+      originalName || 'group_bill.jpg',
+      contentType || 'image/jpeg'
+    );
+    await logAi(userId, 'expense_group_from_bill', { filename: originalName }, aiResponse, {
+      backend: aiResponse.backend,
+      latency_ms: aiResponse.latency_ms,
+      confidence: aiResponse.suggestion?.confidence,
+    });
+    
+    let occurredAt = new Date();
+    const timestampStr = aiResponse.extra_fields?.kie_fields?.TIMESTAMP;
+    if (timestampStr) {
+      const parsedDate = parseBillDate(timestampStr);
+      if (parsedDate) {
+        occurredAt = parsedDate;
+      }
+    }
+    
+    const amount = aiResponse.suggestion?.amount || 0;
+    if (!amount || amount <= 0) {
+      throw new Error('Không tìm thấy số tiền trên hóa đơn. Vui lòng đảm bảo ảnh chụp là hóa đơn rõ ràng.');
+    }
+    
+    let note = aiResponse.extra_fields?.kie_fields?.SELLER;
+    if (!note && aiResponse.lines && aiResponse.lines.length > 0) {
+      note = aiResponse.lines[0].text;
+    }
+    note = note || 'Hóa đơn Nhóm';
+
+    try {
+      await withTransaction(async (client) => {
+        const txCheck = await client.query('SELECT paid_by FROM group_transactions WHERE id = $1', [transactionId]);
+        let paidByMemberId = txCheck.rows[0]?.paid_by;
+        
+        if (!paidByMemberId) {
+          const memberRes = await client.query('SELECT id FROM group_members WHERE group_id = $1 AND user_id = $2', [groupId, userId]);
+          paidByMemberId = memberRes.rows[0]?.id;
+          if (!paidByMemberId) {
+            throw new Error('User is not a member of the group');
+          }
+        }
+
+        await client.query(
+          `UPDATE group_transactions SET
+             amount            = COALESCE($1, amount),
+             note              = COALESCE($2, note),
+             ai_extracted      = TRUE,
+             ai_confidence     = $3,
+             ai_meta           = $4,
+             processing_status = 'done',
+             occurred_at       = $5,
+             updated_at        = NOW(),
+             paid_by           = $6
+           WHERE id = $7`,
+          [
+            amount || null,
+            note,
+            aiResponse.suggestion?.confidence != null ? Number(aiResponse.suggestion.confidence) : null,
+            { ocr: aiResponse, image_url: imageUrl },
+            occurredAt,
+            paidByMemberId,
+            transactionId,
+          ]
+        );
+      });
+    } catch (e) {
+      logger.error({ err: e.message, transactionId }, 'bill db transaction failed');
+      throw e;
+    }
+
+    const mascotMood = 'happy'; // Default mood for group bill OCR since we don't have NLU
+    
+    sendToUser(userId, {
+      type: 'transaction_done',
+      transactionId,
+      data: {
+        amount: amount,
+        category: aiResponse.suggestion?.category,
+        note: note,
+        imageUrl,
+        mascotMood: mascotMood,
+        mascot_mood: mascotMood,
+        ai_confidence: extracted.confidence != null ? Number(extracted.confidence) : null,
+        aiComment: 'Đã bóc tách xong hóa đơn nhóm!',
+        isGroupBill: true,
+        groupId: groupId,
+      },
+    });
+
+  } catch (err) {
+    logger.error({ err: err.message, transactionId }, 'group bill background job failed');
+    await query(
+      `DELETE FROM group_transactions WHERE id = $1`,
+      [transactionId]
+    ).catch(() => {});
+
+    if (imageUrl) {
+      try {
+        const r2Client = require('../../services/r2Client');
+        const env = require('../../config/env');
+        if (env.r2.publicBaseUrl) {
+          const key = imageUrl.replace(env.r2.publicBaseUrl, '').replace(/^\//, '');
+          await r2Client.deleteFile(key);
+        }
+      } catch (r2Err) {
+        logger.warn({ err: r2Err.message, imageUrl }, 'Failed to delete failed bill image from R2');
+      }
+    }
+
+    sendToUser(userId, { type: 'transaction_failed', transactionId, error: err.message });
+  }
+}
+
+async function expenseGroupFromBill(userId, fileBuffer, originalName, contentType, groupId, paidBy = null) {
+  if (!fileBuffer || fileBuffer.length === 0) {
+    throw ApiError.badRequest('Empty file.');
+  }
+  
+  let paidByMemberId = paidBy;
+  if (!paidByMemberId) {
+    const memberRes = await query('SELECT id FROM group_members WHERE group_id = $1 AND user_id = $2', [groupId, userId]);
+    if (memberRes.rowCount === 0) {
+      throw ApiError.forbidden('User is not a member of this group');
+    }
+    paidByMemberId = memberRes.rows[0].id;
+  } else {
+    // Validate if provided paidBy belongs to the group
+    const checkMemberRes = await query('SELECT id FROM group_members WHERE group_id = $1 AND id = $2', [groupId, paidByMemberId]);
+    if (checkMemberRes.rowCount === 0) {
+      throw ApiError.badRequest('The specified paidBy member does not belong to this group');
+    }
+  }
+
+  let imageUrl = null;
+  if (r2Client.isConfigured()) {
+    try {
+      const uploaded = await r2Client.uploadBuffer(userId, fileBuffer, {
+        filename: originalName || 'group_bill.jpg',
+        contentType: contentType || 'image/jpeg',
+      });
+      imageUrl = uploaded.publicUrl || null;
+    } catch (err) {
+      logger.warn({ err: err.message }, 'R2 upload failed, continuing without persisted image');
+    }
+  }
+
+  // Create PENDING placeholder transaction immediately in group_transactions
+  const pendingTx = await query(
+    `INSERT INTO group_transactions
+       (group_id, paid_by, amount, note, occurred_at, created_by, image_url, processing_status, is_draft)
+     VALUES ($1, $2, 0, 'Đang xử lý', NOW(), $3, $4, 'pending', true)
+     RETURNING id`,
+    [groupId, paidByMemberId, userId, imageUrl]
+  );
+  const transactionId = pendingTx.rows[0].id;
+
+  // Fire background job
+  setImmediate(() =>
+    ocrSemaphore.run(() =>
+      _processGroupBillBackground(userId, groupId, transactionId, fileBuffer, originalName, contentType, imageUrl)
+    )
+  );
+
+  return { transactionId, status: 'pending', imageUrl };
+}
+
 module.exports = {
   nluInfer,
   expenseFromText,
   expenseFromTextAsync,
   expenseFromBill,
+  expenseGroupFromBill,
   saveCorrection,
   isActionConfirmed,
   confirmAction,

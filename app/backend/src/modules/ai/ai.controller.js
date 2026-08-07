@@ -39,6 +39,22 @@ exports.expenseFromBill = asyncHandler(async (req, res) => {
   res.status(202).json({ success: true, data });
 });
 
+exports.expenseGroupFromBill = asyncHandler(async (req, res) => {
+  if (!req.file) throw ApiError.badRequest('Field "file" is required.');
+  const groupId = req.body?.groupId || req.query?.groupId || null;
+  const paidBy = req.body?.paidBy || req.query?.paidBy || null;
+  if (!groupId) throw ApiError.badRequest('groupId is required.');
+  const data = await service.expenseGroupFromBill(
+    req.user.id,
+    req.file.buffer,
+    req.file.originalname,
+    req.file.mimetype,
+    groupId,
+    paidBy
+  );
+  res.status(202).json({ success: true, data });
+});
+
 exports.saveCorrection = asyncHandler(async (req, res) => {
   const data = await service.saveCorrection(req.user.id, req.body);
   res.status(201).json({ success: true, data });

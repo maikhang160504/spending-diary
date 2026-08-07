@@ -250,6 +250,10 @@ export async function getNluModelMeta() {
   return request("/api/admin/train/model-meta");
 }
 
+export async function getNluModelsStatus() {
+  return request("/api/admin/train/models/status");
+}
+
 export async function promoteNluModel(retrainPassword) {
   return request("/api/admin/train/promote", {
     method: "POST",
@@ -479,5 +483,38 @@ export function toggleUserPremium(userId, isPremium) {
   return request(`/api/admin/users/${userId}/premium`, {
     method: "POST",
     body: JSON.stringify({ isPremium })
+  });
+}
+
+export function getBillModelCandidate() {
+  return request("/api/admin/bill-retrain/model/candidate");
+}
+
+
+export function rollbackNluModel(retrainPassword) {
+  return request("/api/admin/train/rollback", {
+    method: "POST",
+    body: JSON.stringify({ retrainPassword })
+  });
+}
+
+export function promoteBillModel(retrainPassword) {
+  return request("/api/admin/bill-retrain/model/promote", {
+    method: "POST",
+    body: JSON.stringify({ retrainPassword })
+  });
+}
+
+export function rollbackBillModel(retrainPassword) {
+  return request("/api/admin/bill-retrain/model/rollback", {
+    method: "POST",
+    body: JSON.stringify({ retrainPassword })
+  });
+}
+
+export function syncBillModelWorkspace(retrainPassword) {
+  return request("/api/admin/bill-retrain/model/sync-workspace", {
+    method: "POST",
+    body: JSON.stringify({ retrainPassword })
   });
 }

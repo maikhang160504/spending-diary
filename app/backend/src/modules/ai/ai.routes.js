@@ -145,6 +145,7 @@ router.post(
   controller.expenseFromTextAsync
 );
 router.post('/expense/from-bill', upload.single('file'), controller.expenseFromBill);
+router.post('/expense/group-from-bill', upload.single('file'), controller.expenseGroupFromBill);
 
 router.post('/corrections', validate({ body: correctionSchema }), controller.saveCorrection);
 router.post('/dislike-intent', validate({ body: dislikeIntentSchema }), controller.dislikeIntent);

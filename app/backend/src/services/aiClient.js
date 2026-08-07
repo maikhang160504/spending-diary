@@ -186,6 +186,27 @@ async function expenseFromBill(fileBuffer, filename, userId, contentType) {
   });
 }
 
+async function groupExpenseFromBill(fileBuffer, filename, contentType) {
+  return withRetry(async () => {
+    const form = new FormData();
+    form.append('file', fileBuffer, {
+      filename: filename || 'group_bill.jpg',
+      contentType: contentType || 'image/jpeg',
+    });
+
+    const timeoutMs = env.ai.billOcrTimeoutMs;
+    const r = await client.post('/api/v1/ocr/review', form, {
+      headers: form.getHeaders(),
+      timeout: timeoutMs,
+    });
+    logger.info(
+      { filename, latency_ms: r.data?.latency_ms, backend: r.data?.backend },
+      'Group Bill OCR completed (fast track without LLM)'
+    );
+    return r.data;
+  });
+}
+
 async function getPrompts() {
   const r = await client.get('/api/v1/nlu/prompts');
   return r.data;
@@ -240,6 +261,15 @@ async function billExportVerified(samples, triggerKaggle = false, kaggleJobType 
   return r.data;
 }
 
+async function exportFinetuneData(res) {
+  const r = await client.post('/api/v1/nlu/export-finetune', {}, {
+    responseType: 'stream'
+  });
+  res.setHeader('Content-Disposition', 'attachment; filename="dataset_finetune.jsonl"');
+  res.setHeader('Content-Type', 'application/jsonl');
+  r.data.pipe(res);
+}
+
 async function billKagglePlan(jobType) {
   const r = await client.post('/api/v1/bill-retrain/kaggle/plan', { job_type: jobType });
   return r.data;
@@ -278,6 +308,64 @@ async function billGoldenEval() {
   return r.data;
 }
 
+async function triggerBillModal(numEpochs = 30, learningRate = 0.00002) {
+  const r = await client.post('/api/v1/bill-retrain/modal/trigger', {
+    num_epochs: numEpochs,
+    learning_rate: learningRate
+  });
+  return r.data;
+}
+
+async function getBillModalProgress() {
+  const r = await client.get('/api/v1/bill-retrain/modal/progress');
+  return r.data;
+}
+
+async function getBillModelCandidate() {
+  const r = await client.get('/api/v1/bill-retrain/model/candidate');
+  return r.data;
+}
+
+async function promoteBillModel() {
+  try {
+    const response = await client.post('/api/v1/bill-retrain/model/promote');
+    return response.data;
+  } catch (error) {
+    console.error("AI Client: Error promoting layoutlmv3 model", error.message);
+    throw error;
+  }
+}
+
+async function rollbackBillModel() {
+  try {
+    const response = await client.post('/api/v1/bill-retrain/model/rollback');
+    return response.data;
+  } catch (error) {
+    console.error("AI Client: Error rolling back layoutlmv3 model", error.message);
+    throw error;
+  }
+}
+
+async function rollbackNluModel() {
+  try {
+    const response = await client.post('/api/v1/nlu/models/rollback');
+    return response.data;
+  } catch (error) {
+    console.error("AI Client: Error rolling back NLU model", error.message);
+    throw error;
+  }
+}
+
+async function syncBillModelWorkspace() {
+  try {
+    const response = await client.post('/api/v1/bill-retrain/model/sync-workspace');
+    return response.data;
+  } catch (error) {
+    console.error("AI Client: Error syncing layoutlmv3 model to workspace", error.message);
+    throw error;
+  }
+}
+
 async function billModalTrigger(numEpochs = 30, learningRate = 0.00002) {
   for (const key of cacheStore.keys()) {
     if (key.startsWith('getTrainStatus')) {
@@ -302,13 +390,33 @@ async function reloadModels(scope = 'ocr') {
 }
 
 async function getNluTrainHistory() {
-  const r = await client.get('/api/v1/nlu/train/history');
-  return r.data;
+  try {
+    const response = await client.get('/api/v1/nlu/train/history');
+    return response.data;
+  } catch (error) {
+    console.error("AI Client: Error fetching NLU train history", error.message);
+    throw error;
+  }
+}
+
+async function getNluModelsStatus() {
+  try {
+    const response = await client.get('/api/v1/nlu/models/status');
+    return response.data;
+  } catch (error) {
+    console.error("AI Client: Error fetching NLU models status", error.message);
+    throw error;
+  }
 }
 
 async function getNluModelMeta() {
-  const r = await client.get('/api/v1/nlu/model-meta');
-  return r.data;
+  try {
+    const response = await client.get('/api/v1/nlu/model-meta');
+    return response.data;
+  } catch (error) {
+    console.error("AI Client: Error fetching NLU model meta", error.message);
+    throw error;
+  }
 }
 
 async function getNluBenchmarkResults() {
@@ -377,6 +485,7 @@ module.exports = {
   ocrImage,
   expenseFromText: expenseFromTextCached,
   expenseFromBill,
+  groupExpenseFromBill,
   aiChat,
   getPrompts,
   savePrompts,
@@ -386,7 +495,16 @@ module.exports = {
   getInternalStatus,
   billPrelabel,
   billExportVerified,
+  exportFinetuneData,
   billGoldenEval,
+  triggerBillModal,
+  getBillModalProgress,
+  getNluModelsStatus,
+  getBillModelCandidate,
+  promoteBillModel,
+  rollbackBillModel,
+  rollbackNluModel,
+  syncBillModelWorkspace,
   billModalTrigger,
   reloadModels,
   getNluTrainHistory: getNluTrainHistoryCached,

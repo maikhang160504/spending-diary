@@ -14,6 +14,10 @@ import {
   uploadBillSample,
   saveBillSample,
   triggerBillModal,
+  getBillModelCandidate,
+  promoteBillModel,
+  rollbackBillModel,
+  syncBillModelWorkspace,
 } from "../services/api";
 
 const ENTITIES = ["OTHER", "SELLER", "ADDRESS", "TIMESTAMP", "TOTAL_COST"];
@@ -120,7 +124,8 @@ export default function BillRetrainPage() {
   const [prelabelJobs, setPrelabelJobs] = useState([]);
   const [page, setPage] = useState(1);
   const [filterStatus, setFilterStatus] = useState("all");
-  
+  const [modelStaging, setModelStaging] = useState({ current: null, candidate: null });
+
   const handledJobsRef = useRef(new Set());
   const toastTimerRef = useRef(null);
   const prelabelTimersRef = useRef({});
@@ -138,16 +143,16 @@ export default function BillRetrainPage() {
         console.error("Lỗi lấy trạng thái train:", err);
       }
     };
-    
+
     fetchTrainStatus();
     const interval = setInterval(() => {
       if (modalTrainStatus?.isTraining) {
         fetchTrainStatus();
       }
     }, 3000);
-    
+
     return () => clearInterval(interval);
-  }, [modalTrainStatus?.isTraining]);  const filteredSamples = useMemo(() => {
+  }, [modalTrainStatus?.isTraining]); const filteredSamples = useMemo(() => {
     return samples.filter(s => {
       if (s.status === "exported_archived") return false;
       if (filterStatus !== "all" && s.status !== filterStatus) return false;
@@ -276,6 +281,15 @@ export default function BillRetrainPage() {
         reloadAiModels("ocr").catch(() => { });
       }
     });
+    const fetchCandidate = async () => {
+      try {
+        const data = await getBillModelCandidate();
+        setModelStaging(data);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    fetchCandidate();
   }, [loadSamples, refreshOcrStatus]);
 
   const applyPrelabelResult = (sample, prelabel) => {
@@ -503,7 +517,58 @@ export default function BillRetrainPage() {
     }
   };
 
+  const onPromoteModel = async () => {
+    const pw = window.prompt("Bạn có chắc chắn muốn triển khai (promote) candidate model thành model_best (production) không?\n\nThao tác này sẽ thay thế model hiện tại.\n\nNhập mật khẩu quản trị hệ thống (PASSWORD_RETRAIN) để xác nhận:");
+    if (!pw) return;
+    setBusy(true, "Đang triển khai model...");
+    try {
+      const res = await promoteBillModel(pw);
+      setMessageIsError(!res.ok);
+      setMessage(res.message || "Đã triển khai model thành công.");
+      // Refresh
+      const data = await getBillModelCandidate();
+      setModelStaging(data);
+    } catch (err) {
+      setMessageIsError(true);
+      setMessage(err.message || "Lỗi khi triển khai model");
+    } finally {
+      setBusy(false);
+    }
+  };
 
+  const onRollbackModel = async () => {
+    const pw = window.prompt("Bạn có chắc chắn muốn khôi phục (rollback) lại model trước đó không?\n\nThao tác này sẽ ghi đè model production hiện tại bằng bản lưu trước đó.\n\nNhập mật khẩu quản trị hệ thống (PASSWORD_RETRAIN) để xác nhận:");
+    if (!pw) return;
+    setBusy(true, "Đang khôi phục model...");
+    try {
+      const res = await rollbackBillModel(pw);
+      setMessageIsError(!res.ok);
+      setMessage(res.message || "Đã khôi phục model thành công.");
+      const data = await getBillModelCandidate();
+      setModelStaging(data);
+    } catch (err) {
+      setMessageIsError(true);
+      setMessage(err.message || "Lỗi khi khôi phục model");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const onSyncWorkspace = async () => {
+    const pw = window.prompt("Bạn có chắc chắn muốn đồng bộ model mới nhất từ đám mây (Modal) về máy tính (Workspace) không?\n\nQuá trình này có thể tốn vài phút để tải file 500MB.\n\nNhập mật khẩu quản trị hệ thống (PASSWORD_RETRAIN) để xác nhận:");
+    if (!pw) return;
+    setBusy(true, "Đang tải model từ Cloud về máy. Vui lòng không đóng trang...");
+    try {
+      const res = await syncBillModelWorkspace(pw);
+      setMessageIsError(!res.ok);
+      setMessage(res.message || "Đã đồng bộ model về workspace thành công.");
+    } catch (err) {
+      setMessageIsError(true);
+      setMessage(err.message || "Lỗi khi đồng bộ model");
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const imageUrl =
     active?.imageUrl && !active?.imageArchived
@@ -633,16 +698,77 @@ export default function BillRetrainPage() {
               {modalTrainStatus?.isTraining ? "Đang train..." : "Train LayoutLMv3"}
             </button>
             {modalTrainStatus?.isTraining && (
-              <div style={{ marginLeft: 10, display: 'flex', flexDirection: 'column', minWidth: 200 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', marginBottom: 2 }}>
-                  <span>{modalTrainStatus.message}</span>
-                  <span>{modalTrainStatus.progress_percent}%</span>
+              <div style={{ marginLeft: 16, display: 'flex', flexDirection: 'column', minWidth: 240 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: 6, color: 'var(--accent-amber-hover)' }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span className="status-dot pulse" style={{ background: "var(--accent-amber)", boxShadow: "0 0 8px var(--accent-amber)", width: "6px", height: "6px", borderRadius: "50%" }}></span>
+                    {modalTrainStatus.message}
+                  </span>
+                  <span style={{ fontWeight: 600 }}>{modalTrainStatus.progress_percent}%</span>
                 </div>
-                <div style={{ height: 6, background: '#eee', borderRadius: 3, overflow: 'hidden' }}>
-                  <div style={{ width: `${modalTrainStatus.progress_percent}%`, height: '100%', background: 'var(--primary)', transition: 'width 0.3s ease' }}></div>
+                <div style={{ width: "100%", height: "4px", background: "var(--bg-obsidian-800)", borderRadius: "2px", overflow: "hidden" }}>
+                  <div style={{ width: `${modalTrainStatus.progress_percent}%`, height: '100%', background: 'var(--accent-emerald)', transition: 'width 0.5s ease' }}></div>
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      </div>
+
+      <div className="bill-surface" style={{ marginBottom: 24 }}>
+        <div className="bill-surface-head">
+          <div>
+            <h2 className="bill-surface-title">Quản lý Mô hình LayoutLMv3</h2>
+          </div>
+        </div>
+        <div className="grid-2" style={{ gap: 16, marginTop: 16 }}>
+          {/* Production Model Card */}
+          <div className="bill-model-card" style={{ display: 'flex', flexDirection: 'column', padding: 16, border: '1px solid var(--border-color)', borderRadius: 8, background: 'var(--surface-color-2)' }}>
+            <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: 'var(--text-color)' }}>Mô hình Hiện tại (Production)</h3>
+
+            <div style={{ flex: 1 }}>
+              {modelStaging.current ? (
+                <div style={{ fontSize: 13, marginBottom: 16 }}>
+                  <p style={{ marginBottom: 4 }}><strong>Ngày train:</strong> {new Date(modelStaging.current.trained_at).toLocaleString('vi-VN')}</p>
+                  <p style={{ marginBottom: 4 }}><strong>F1 Score:</strong> {modelStaging.current.metrics?.f1}%</p>
+                  <p style={{ marginBottom: 0 }}><strong>Precision:</strong> {modelStaging.current.metrics?.precision}% <span style={{ margin: '0 8px', color: 'var(--border-color)' }}>|</span> <strong>Recall:</strong> {modelStaging.current.metrics?.recall}%</p>
+                </div>
+              ) : (
+                <p className="muted" style={{ fontSize: 13, marginBottom: 16 }}>Chưa có mô hình production (được log trong history).</p>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', gap: '8px', borderTop: '1px solid var(--border-color)', paddingTop: 12, marginTop: 'auto' }}>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={onSyncWorkspace} disabled={loading} title="Tải model mới nhất từ Cloud về thư mục máy tính" style={{ flex: 1, justifyContent: 'center' }}>
+                Đồng bộ về máy
+              </button>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={onRollbackModel} disabled={loading} title="Khôi phục lại model trước đó" style={{ flex: 1, justifyContent: 'center' }}>
+                Khôi phục bản cũ
+              </button>
+            </div>
+          </div>
+
+          {/* Candidate Model Card */}
+          <div className="bill-model-card" style={{ display: 'flex', flexDirection: 'column', padding: 16, border: '1px solid var(--primary-color, #10a37f)', borderRadius: 8, background: 'rgba(16, 163, 127, 0.05)' }}>
+            <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: 'var(--primary-color, #10a37f)' }}>Candidate Model (Mới huấn luyện)</h3>
+
+            <div style={{ flex: 1 }}>
+              {modelStaging.candidate ? (
+                <div style={{ fontSize: 13, marginBottom: 16 }}>
+                  <p style={{ marginBottom: 4 }}><strong>Ngày train:</strong> {new Date(modelStaging.candidate.trained_at).toLocaleString('vi-VN')}</p>
+                  <p style={{ marginBottom: 4 }}><strong>F1 Score:</strong> {modelStaging.candidate.metrics?.f1}%</p>
+                  <p style={{ marginBottom: 0 }}><strong>Precision:</strong> {modelStaging.candidate.metrics?.precision}% <span style={{ margin: '0 8px', color: 'var(--primary-color, #10a37f)', opacity: 0.3 }}>|</span> <strong>Recall:</strong> {modelStaging.candidate.metrics?.recall}%</p>
+                </div>
+              ) : (
+                <p className="muted" style={{ fontSize: 13, marginBottom: 16 }}>Không có candidate model nào đang chờ duyệt.</p>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', gap: '8px', borderTop: '1px solid rgba(16, 163, 127, 0.2)', paddingTop: 12, marginTop: 'auto' }}>
+              <button type="button" className="btn btn-primary btn-sm" onClick={onPromoteModel} disabled={loading || !modelStaging.candidate} style={{ flex: 1, justifyContent: 'center' }}>
+                Triển khai ngay
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -657,9 +783,9 @@ export default function BillRetrainPage() {
           </div>
 
           <div className="bill-queue-controls" style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
-            <select 
-              className="bill-select" 
-              value={filterStatus} 
+            <select
+              className="bill-select"
+              value={filterStatus}
               onChange={e => { setFilterStatus(e.target.value); setPage(1); }}
               style={{ flex: 1 }}
             >
@@ -675,47 +801,48 @@ export default function BillRetrainPage() {
               <span className="muted">Không tìm thấy hóa đơn nào phù hợp.</span>
             </div>
           )}
-          
+
           <ul className="sample-list" style={{ maxHeight: 'none', overflow: 'visible' }}>
             {paginatedSamples.map((s) => {
               const hasLabels = s.adminLabels?.length > 0 || s.autoLabels?.boxes?.length > 0;
               return (
-              <li key={s.id} className="sample-list-row">
-                <button
-                  type="button"
-                  className={`sample-card ${active?.id === s.id ? "active" : ""} ${s.status === "approved" ? "approved" : ""} ${s.status === "exported_archived" ? "exported" : ""}`}
-                  onClick={() => onSelectSample(s)}
-                >
-                  <code>{s.id.slice(0, 8)}</code>
-                  <span className={`sample-status ${s.status}`}>{sampleStatusLabel(s.status)}</span>
-                  {s.imageArchived && <span className="sample-meta archived-tag">ảnh archived</span>}
-                  {s.metadata?.category && <span className="sample-meta">{s.metadata.category}</span>}
-                  {!hasLabels && (
-                    <span className="sample-meta unlabeled-tag" title="Chưa có nhãn (bbox)">Chưa có nhãn</span>
-                  )}
-                </button>
-                <button type="button" className="btn-icon danger" title="Xóa khỏi hàng đợi" onClick={() => onDelete(s.id)} disabled={loading}>
-                  ×
-                </button>
-              </li>
-            )})}
+                <li key={s.id} className="sample-list-row">
+                  <button
+                    type="button"
+                    className={`sample-card ${active?.id === s.id ? "active" : ""} ${s.status === "approved" ? "approved" : ""} ${s.status === "exported_archived" ? "exported" : ""}`}
+                    onClick={() => onSelectSample(s)}
+                  >
+                    <code>{s.id.slice(0, 8)}</code>
+                    <span className={`sample-status ${s.status}`}>{sampleStatusLabel(s.status)}</span>
+                    {s.imageArchived && <span className="sample-meta archived-tag">ảnh archived</span>}
+                    {s.metadata?.category && <span className="sample-meta">{s.metadata.category}</span>}
+                    {!hasLabels && (
+                      <span className="sample-meta unlabeled-tag" title="Chưa có nhãn (bbox)">Chưa có nhãn</span>
+                    )}
+                  </button>
+                  <button type="button" className="btn-icon danger" title="Xóa khỏi hàng đợi" onClick={() => onDelete(s.id)} disabled={loading}>
+                    ×
+                  </button>
+                </li>
+              )
+            })}
           </ul>
 
           {totalPages > 1 && (
             <div className="bill-pagination" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 16, marginTop: 16 }}>
-              <button 
-                type="button" 
-                className="btn btn-secondary" 
-                disabled={page <= 1} 
+              <button
+                type="button"
+                className="btn btn-secondary"
+                disabled={page <= 1}
                 onClick={() => setPage(p => Math.max(1, p - 1))}
               >
                 Trước
               </button>
               <span className="muted" style={{ fontSize: 13 }}>Trang {page} / {totalPages}</span>
-              <button 
-                type="button" 
-                className="btn btn-secondary" 
-                disabled={page >= totalPages} 
+              <button
+                type="button"
+                className="btn btn-secondary"
+                disabled={page >= totalPages}
                 onClick={() => setPage(p => Math.min(totalPages, p + 1))}
               >
                 Sau

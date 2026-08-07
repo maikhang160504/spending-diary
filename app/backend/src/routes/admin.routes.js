@@ -292,7 +292,8 @@ router.post('/create-admin', async (req, res, next) => {
 router.post('/cache/clear/:userId', async (req, res, next) => {
   const { userId } = req.params;
   try {
-    res.json({ success: true, message: `Redis memory cache invalidated for user ${userId}!` });
+    const result = await query('DELETE FROM user_category_mappings WHERE user_id = $1', [userId]);
+    res.json({ success: true, message: `Đã xóa sạch ${result.rowCount} quy tắc cá nhân hóa của user ${userId}!` });
   } catch (err) {
     next(err);
   }
@@ -604,6 +605,15 @@ router.get('/train/model-meta', async (req, res, next) => {
   }
 });
 
+router.get('/train/models/status', async (req, res, next) => {
+  try {
+    const status = await aiClient.getNluModelsStatus();
+    res.json(status);
+  } catch (err) {
+    next(err);
+  }
+});
+
 // 13.5 POST /api/admin/train/kaggle/resume — resume stuck job after server restart
 router.post('/train/kaggle/resume', async (req, res, next) => {
   try {
@@ -668,6 +678,15 @@ router.post('/train/inference-backend', requireRetrainPassword, async (req, res,
 router.post('/train/promote', requireRetrainPassword, async (req, res, next) => {
   try {
     const result = await aiClient.promoteNluModel();
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/train/rollback', requireRetrainPassword, async (req, res, next) => {
+  try {
+    const result = await aiClient.rollbackNluModel();
     res.json(result);
   } catch (err) {
     next(err);
@@ -1293,55 +1312,55 @@ router.post('/train/llm-trigger', requireRetrainPassword, async (req, res, next)
   }
 });
 
-let modalTrainState = {
-  isTraining: false,
-  stage: 'idle',
-  progress_percent: 0,
-  message: 'Chưa có tiến trình huấn luyện nào',
-  elapsed: 0
-};
-let modalTrainInterval = null;
-
-router.get('/bill-retrain/train/status', (req, res) => {
-  res.json(modalTrainState);
-});
-
 router.post('/bill-retrain/modal/trigger', requireRetrainPassword, async (req, res, next) => {
   try {
     const { numEpochs, learningRate } = req.body;
-    
-    // Mock the modal trigger because FastAPI OCR doesn't have modal/trigger
-    const result = { ok: true };
-    
-    if (result.ok) {
-      modalTrainState = { 
-        isTraining: true, 
-        stage: 'starting', 
-        progress_percent: 5, 
-        message: 'Đang khởi chạy Modal Cloud...', 
-        elapsed: 0 
-      };
-      if (modalTrainInterval) clearInterval(modalTrainInterval);
-      modalTrainInterval = setInterval(() => {
-        if (!modalTrainState.isTraining) {
-          clearInterval(modalTrainInterval);
-          return;
-        }
-        modalTrainState.elapsed += 3;
-        if (modalTrainState.progress_percent < 95) {
-          modalTrainState.progress_percent += Math.floor(Math.random() * 3) + 1;
-          modalTrainState.stage = 'training';
-          modalTrainState.message = `Đang huấn luyện (Epoch ${Math.floor(modalTrainState.progress_percent / (100 / numEpochs)) || 1}/${numEpochs})...`;
-        } else if (modalTrainState.elapsed > 120) { // 2 phút mô phỏng
-          modalTrainState.isTraining = false;
-          modalTrainState.progress_percent = 100;
-          modalTrainState.stage = 'completed';
-          modalTrainState.message = 'Huấn luyện và đồng bộ mô hình hoàn tất!';
-          clearInterval(modalTrainInterval);
-        }
-      }, 3000);
-    }
-    
+    const result = await aiClient.triggerBillModal(numEpochs, learningRate);
+    res.json({ success: true, ...result });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/bill-retrain/train/status', async (req, res, next) => {
+  try {
+    const progress = await aiClient.getBillModalProgress();
+    res.json(progress || { isTraining: false });
+  } catch (err) {
+    res.json({ isTraining: false });
+  }
+});
+
+router.get('/bill-retrain/model/candidate', async (req, res, next) => {
+  try {
+    const candidate = await aiClient.getBillModelCandidate();
+    res.json(candidate);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/bill-retrain/model/promote', requireRetrainPassword, async (req, res, next) => {
+  try {
+    const result = await aiClient.promoteBillModel();
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/bill-retrain/model/rollback', requireRetrainPassword, async (req, res, next) => {
+  try {
+    const result = await aiClient.rollbackBillModel();
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/bill-retrain/model/sync-workspace', requireRetrainPassword, async (req, res, next) => {
+  try {
+    const result = await aiClient.syncBillModelWorkspace();
     res.json(result);
   } catch (err) {
     next(err);

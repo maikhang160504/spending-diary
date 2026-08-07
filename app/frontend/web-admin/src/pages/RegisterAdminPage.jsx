@@ -30,7 +30,7 @@ function RegisterAdminPage() {
     setLoading(true);
     try {
       const token = localStorage.getItem("admin_token");
-      const res = await fetch(import.meta.env.VITE_API_BASE_URL + "/api/admin/create-admin" || "http://localhost:4000/api/admin/create-admin", {
+      const res = await fetch((import.meta.env.VITE_API_BASE_URL || "http://localhost:4000") + "/api/admin/create-admin", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

@@ -12,6 +12,7 @@ function UserCacheInspector({ userId, data, loading, onRefresh }) {
 
   const handleClearCache = () => {
     if (!data) return;
+    if (!window.confirm("Bạn có chắc chắn muốn xóa toàn bộ quy tắc cá nhân hóa (reset) của người dùng này không? Hành động này không thể hoàn tác.")) return;
     setClearing(true);
     clearUserCache(userId)
       .then((res) => {
@@ -101,9 +102,9 @@ function UserCacheInspector({ userId, data, loading, onRefresh }) {
         type="button"
         className="btn btn-danger user-inspector-clear-btn"
         onClick={handleClearCache}
-        disabled={busy || data.cacheSize === "0 KB"}
+        disabled={busy || !data.overrides || data.overrides.length === 0}
       >
-        Clear and force reload cache
+        Xóa toàn bộ quy tắc (Reset)
       </button>
 
       <div className="user-inspector-corrections">

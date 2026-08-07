@@ -39,6 +39,13 @@ function BotPromptsPage() {
     dailyVol: 5
   });
 
+  // Prompt tabs
+  const [promptTab, setPromptTab] = useState("persona"); // "persona" | "intent" | "category"
+  const [intentPrompt, setIntentPrompt] = useState("");
+  const [categoryPrompt, setCategoryPrompt] = useState("");
+  const [recordPrompt, setRecordPrompt] = useState("");
+  const [actionSlotPrompt, setActionSlotPrompt] = useState("");
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testingPrompt, setTestingPrompt] = useState(false);
@@ -69,6 +76,11 @@ function BotPromptsPage() {
         if (prompts.emotions && prompts.emotions[persona]) {
           setCustomPrompt(prompts.emotions[persona].system);
         }
+        // Load NLU classification prompts
+        setIntentPrompt(prompts.llm_intent_classification?.system || "");
+        setCategoryPrompt(prompts.llm_record_slot_extraction?.system || "");
+        setRecordPrompt(prompts.llm_unified_prompt?.system || "");
+        setActionSlotPrompt(prompts.llm_action_slot_extraction?.system || "");
         if (settings) {
           setSystemSettings({
             llmTemperature: settings.llmTemperature !== undefined ? settings.llmTemperature : 0.7,
@@ -106,6 +118,19 @@ function BotPromptsPage() {
     const updatedPrompts = { ...promptsData };
     if (updatedPrompts.emotions && updatedPrompts.emotions[persona]) {
       updatedPrompts.emotions[persona].system = customPrompt;
+    }
+    // Save NLU classification prompts
+    if (updatedPrompts.llm_intent_classification) {
+      updatedPrompts.llm_intent_classification.system = intentPrompt;
+    }
+    if (updatedPrompts.llm_record_slot_extraction) {
+      updatedPrompts.llm_record_slot_extraction.system = categoryPrompt;
+    }
+    if (updatedPrompts.llm_unified_prompt) {
+      updatedPrompts.llm_unified_prompt.system = recordPrompt;
+    }
+    if (updatedPrompts.llm_action_slot_extraction) {
+      updatedPrompts.llm_action_slot_extraction.system = actionSlotPrompt;
     }
 
     Promise.all([
@@ -238,52 +263,217 @@ function BotPromptsPage() {
             <span className="form-desc" style={{ fontSize: "12px", color: "var(--text-muted)" }}>Thiết lập phản hồi và tính cách tương tác của chatbot.</span>
           </div>
 
-          {/* Persona selector tabs */}
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
-            {Object.keys(PERSONA_LABELS).map((key) => (
+          {/* Main prompt tabs */}
+          <div style={{ display: "flex", gap: "8px", borderBottom: "1px solid var(--border-color)", paddingBottom: "12px", flexWrap: "wrap" }}>
+            {[
+              { key: "persona", label: "🎭 Tính cách bot", desc: "Giọng điệu cảm xúc" },
+              { key: "intent", label: "🎯 Phân loại intent", desc: "Record / Action / Chitchat" },
+              { key: "category", label: "🏷️ Trích xuất Category", desc: "Danh mục & giao dịch" },
+              { key: "action", label: "⚡ Trích xuất Action", desc: "Slots & lệnh hành động" },
+            ].map(tab => (
               <button
-                key={key}
+                key={tab.key}
                 type="button"
-                onClick={() => handlePersonaChange(key)}
+                onClick={() => setPromptTab(tab.key)}
                 style={{
-                  background: persona === key ? "rgba(2, 132, 199, 0.15)" : "var(--bg-obsidian-950)",
-                  border: `1px solid ${persona === key ? "var(--accent-blue)" : "var(--border-color)"}`,
-                  color: persona === key ? "var(--accent-blue-hover)" : "var(--text-secondary)",
+                  background: promptTab === tab.key ? "rgba(2, 132, 199, 0.15)" : "var(--bg-obsidian-950)",
+                  border: `1px solid ${promptTab === tab.key ? "var(--accent-blue)" : "var(--border-color)"}`,
+                  color: promptTab === tab.key ? "var(--accent-blue-hover)" : "var(--text-secondary)",
                   borderRadius: "8px",
                   padding: "8px 14px",
                   fontSize: "12px",
                   fontWeight: "600",
                   cursor: "pointer",
-                  transition: "all 0.2s"
+                  transition: "all 0.2s",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "flex-start",
+                  gap: "2px",
                 }}
               >
-                {PERSONA_ICONS[key]} {PERSONA_LABELS[key].split(" / ")[0]}
+                <span>{tab.label}</span>
+                <span style={{ fontSize: "10px", fontWeight: "400", opacity: 0.7 }}>{tab.desc}</span>
               </button>
             ))}
           </div>
+          {/* Tab: Persona sub-selector (sub-tabs for persona tone) */}
+          {promptTab === "persona" && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginTop: "4px" }}>
+              {Object.keys(PERSONA_LABELS).map((key) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => handlePersonaChange(key)}
+                  style={{
+                    background: persona === key ? "rgba(2, 132, 199, 0.15)" : "var(--bg-obsidian-950)",
+                    border: `1px solid ${persona === key ? "var(--accent-blue)" : "var(--border-color)"}`,
+                    color: persona === key ? "var(--accent-blue-hover)" : "var(--text-secondary)",
+                    borderRadius: "8px",
+                    padding: "8px 14px",
+                    fontSize: "12px",
+                    fontWeight: "600",
+                    cursor: "pointer",
+                    transition: "all 0.2s"
+                  }}
+                >
+                  {PERSONA_ICONS[key]} {PERSONA_LABELS[key].split(" / ")[0]}
+                </button>
+              ))}
+            </div>
+          )}
 
           <form onSubmit={handleSaveAllSettings} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-            <div className="form-group">
-              <label className="form-label" style={{ color: "var(--text-primary)", fontWeight: "600", display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
-                <span>System Instruction Prompt</span>
-                <span className="monospaced" style={{ color: "var(--accent-blue-hover)", fontSize: "12px" }}>{persona}.system</span>
-              </label>
-              <textarea
-                className="form-textarea monospaced"
-                value={customPrompt}
-                onChange={(e) => setCustomPrompt(e.target.value)}
-                style={{
-                  fontSize: "13px",
-                  lineHeight: "1.6",
-                  background: "var(--bg-obsidian-950)",
-                  border: "1px solid var(--border-color)",
-                  borderRadius: "8px",
-                  padding: "14px",
-                  minHeight: "160px",
-                  color: "var(--text-primary)"
-                }}
-              />
-            </div>
+            {/* Persona prompt editor */}
+            {promptTab === "persona" && (
+              <div className="form-group">
+                <label className="form-label" style={{ color: "var(--text-primary)", fontWeight: "600", display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
+                  <span>System Instruction Prompt</span>
+                  <span className="monospaced" style={{ color: "var(--accent-blue-hover)", fontSize: "12px" }}>{persona}.system</span>
+                </label>
+                <textarea
+                  className="form-textarea monospaced"
+                  value={customPrompt}
+                  onChange={(e) => setCustomPrompt(e.target.value)}
+                  style={{
+                    fontSize: "13px",
+                    lineHeight: "1.6",
+                    background: "var(--bg-obsidian-950)",
+                    border: "1px solid var(--border-color)",
+                    borderRadius: "8px",
+                    padding: "14px",
+                    minHeight: "160px",
+                    color: "var(--text-primary)"
+                  }}
+                />
+              </div>
+            )}
+
+            {/* Intent classification prompt editor */}
+            {promptTab === "intent" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                <div style={{ background: "rgba(2,132,199,0.05)", border: "1px solid rgba(2,132,199,0.2)", borderRadius: "8px", padding: "12px", fontSize: "12px", color: "var(--accent-blue-hover)" }}>
+                  🎯 Prompt phân loại ý định (Tầng 1 NLU): quyết định câu nói thuộc nhóm Record / Action / Chitchat. Được gọi khi không có rule cứng override.
+                </div>
+                <div className="form-group">
+                  <label className="form-label" style={{ color: "var(--text-primary)", fontWeight: "600", display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
+                    <span>Intent Classification Prompt</span>
+                    <span className="monospaced" style={{ color: "var(--accent-blue-hover)", fontSize: "12px" }}>llm_intent_classification.system</span>
+                  </label>
+                  <textarea
+                    className="form-textarea monospaced"
+                    value={intentPrompt}
+                    onChange={(e) => setIntentPrompt(e.target.value)}
+                    style={{
+                      fontSize: "12px",
+                      lineHeight: "1.6",
+                      background: "var(--bg-obsidian-950)",
+                      border: "1px solid var(--border-color)",
+                      borderRadius: "8px",
+                      padding: "14px",
+                      minHeight: "220px",
+                      color: "var(--text-primary)",
+                      fontFamily: "var(--font-mono)"
+                    }}
+                  />
+                  <span style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "6px", display: "block" }}>
+                    Prompt phải trả về JSON: {`{"intent": "Record|Action|Chitchat", "confidence": 0.0-1.0}`}. Không thay đổi format output.
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Category & Record extraction prompt editor */}
+            {promptTab === "category" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                <div style={{ background: "rgba(16,185,129,0.05)", border: "1px solid rgba(16,185,129,0.2)", borderRadius: "8px", padding: "12px", fontSize: "12px", color: "var(--accent-emerald-hover)" }}>
+                  🏷️ Prompt trích xuất danh mục chi tiêu (Tầng 2 NLU - Record): quyết định label, amount, type từ câu ghi chép giao dịch.
+                </div>
+                <div className="form-group">
+                  <label className="form-label" style={{ color: "var(--text-primary)", fontWeight: "600", display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
+                    <span>Record Slot Extraction Prompt</span>
+                    <span className="monospaced" style={{ color: "var(--accent-emerald-hover)", fontSize: "12px" }}>llm_record_slot_extraction.system</span>
+                  </label>
+                  <textarea
+                    className="form-textarea monospaced"
+                    value={categoryPrompt}
+                    onChange={(e) => setCategoryPrompt(e.target.value)}
+                    style={{
+                      fontSize: "12px",
+                      lineHeight: "1.6",
+                      background: "var(--bg-obsidian-950)",
+                      border: "1px solid var(--border-color)",
+                      borderRadius: "8px",
+                      padding: "14px",
+                      minHeight: "220px",
+                      color: "var(--text-primary)",
+                      fontFamily: "var(--font-mono)"
+                    }}
+                  />
+                  <span style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "6px", display: "block" }}>
+                    Danh mục hợp lệ: Food / Transport / Shopping / Entertainment / Health / Education / Beauty / Housing / Social / Business / Bonus / Charity / Essentials / Debt / Investment / Savings / Salary / Others.
+                  </span>
+                </div>
+                <div className="form-group">
+                  <label className="form-label" style={{ color: "var(--text-primary)", fontWeight: "600", display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
+                    <span>Unified LLM Prompt (Tổng hợp NLU + NLG)</span>
+                    <span className="monospaced" style={{ color: "var(--text-muted)", fontSize: "12px" }}>llm_unified_prompt.system</span>
+                  </label>
+                  <textarea
+                    className="form-textarea monospaced"
+                    value={recordPrompt}
+                    onChange={(e) => setRecordPrompt(e.target.value)}
+                    style={{
+                      fontSize: "12px",
+                      lineHeight: "1.6",
+                      background: "var(--bg-obsidian-950)",
+                      border: "1px solid rgba(255,255,255,0.08)",
+                      borderRadius: "8px",
+                      padding: "14px",
+                      minHeight: "180px",
+                      color: "var(--text-primary)",
+                      fontFamily: "var(--font-mono)"
+                    }}
+                  />
+                  <span style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "6px", display: "block" }}>
+                    Prompt tổng hợp xử lý NLU và tạo câu trả lời NLG cuối cùng (khi dùng chế độ full LLM pipeline).
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Action slot prompt editor */}
+            {promptTab === "action" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                <div style={{ background: "rgba(251,191,36,0.05)", border: "1px solid rgba(251,191,36,0.2)", borderRadius: "8px", padding: "12px", fontSize: "12px", color: "var(--accent-amber-hover)" }}>
+                  ⚡ Prompt trích xuất action slots (Tầng 2 NLU - Action): xác định action_type và slots từ lệnh của người dùng như báo cáo, đặt hạn mức, tạo mục tiêu.
+                </div>
+                <div className="form-group">
+                  <label className="form-label" style={{ color: "var(--text-primary)", fontWeight: "600", display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
+                    <span>Action Slot Extraction Prompt</span>
+                    <span className="monospaced" style={{ color: "var(--accent-amber-hover)", fontSize: "12px" }}>llm_action_slot_extraction.system</span>
+                  </label>
+                  <textarea
+                    className="form-textarea monospaced"
+                    value={actionSlotPrompt}
+                    onChange={(e) => setActionSlotPrompt(e.target.value)}
+                    style={{
+                      fontSize: "12px",
+                      lineHeight: "1.6",
+                      background: "var(--bg-obsidian-950)",
+                      border: "1px solid var(--border-color)",
+                      borderRadius: "8px",
+                      padding: "14px",
+                      minHeight: "220px",
+                      color: "var(--text-primary)",
+                      fontFamily: "var(--font-mono)"
+                    }}
+                  />
+                  <span style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "6px", display: "block" }}>
+                    Action types hợp lệ: REPORT_GENERAL / REPORT_COMPARE / SET_LIMIT / SET_GOAL / ADD_GOAL / SET_TONE / SEARCH_RECORD / SUGGEST_BUDGET / SYSTEM_SETTING / SET_USERNAME / SET_ALERT.
+                  </span>
+                </div>
+              </div>
+            )}
 
             {/* AI Response Preview */}
             <div className="form-group">

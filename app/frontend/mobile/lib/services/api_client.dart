@@ -474,7 +474,11 @@ class ApiClient {
     final result = await _request(
       'GET',
       '/stats/dashboard',
-      queryParams: {if (walletId != null) 'walletId': walletId, if (from != null) 'from': from, if (to != null) 'to': to},
+      queryParams: {
+        if (walletId != null) 'walletId': walletId,
+        if (from != null) 'from': from,
+        if (to != null) 'to': to,
+      },
     );
     return result['data'] as Map<String, dynamic>;
   }
@@ -952,7 +956,10 @@ class ApiClient {
   }
 
   Future<List<dynamic>> getStatsByMonth({int? year, String? walletId}) async {
-    final params = {if (year != null) 'year': year.toString(), if (walletId != null) 'walletId': walletId};
+    final params = {
+      if (year != null) 'year': year.toString(),
+      if (walletId != null) 'walletId': walletId,
+    };
     final result = await _request(
       'GET',
       '/stats/by-month',
@@ -1059,6 +1066,116 @@ class ApiClient {
     final data = result['data'] as Map<String, dynamic>?;
     return data?['isPremium'] as bool? ?? false;
   }
+
+  // ==========================================
+  // Group Expenses (Chia Bill Nhóm)
+  // ==========================================
+
+  Future<List<dynamic>> getExpenseGroups() async {
+    final response = await _request('GET', '/expense-groups');
+    return response['data'] as List<dynamic>? ?? [];
+  }
+
+  Future<Map<String, dynamic>> createExpenseGroup(String name) async {
+    final response = await _request(
+      'POST',
+      '/expense-groups',
+      body: {'name': name},
+    );
+    return response['data'] as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> getExpenseGroupDetails(String groupId) async {
+    final response = await _request('GET', '/expense-groups/$groupId');
+    return response['data'] as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> joinExpenseGroup(String inviteCode) async {
+    final response = await _request(
+      'POST',
+      '/expense-groups/join',
+      body: {'inviteCode': inviteCode},
+    );
+    return response['data'] as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> addGroupTransaction(
+    String groupId,
+    Map<String, dynamic> data,
+  ) async {
+    final response = await _request(
+      'POST',
+      '/expense-groups/$groupId/transactions',
+      body: data,
+    );
+    return response['data'] as Map<String, dynamic>? ?? {};
+  }
+
+  Future<Map<String, dynamic>> updateGroupTransaction(
+    String txId,
+    Map<String, dynamic> data,
+  ) async {
+    final response = await _request(
+      'PUT',
+      '/expense-groups/transactions/$txId',
+      body: data,
+    );
+    return response['data'] as Map<String, dynamic>? ?? {};
+  }
+
+  Future<Map<String, dynamic>> splitGroupBills(String groupId) async {
+    final response = await _request('POST', '/expense-groups/$groupId/split');
+    return response['data'] as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> settleGroupDebt(
+    String groupId,
+    String debtId,
+  ) async {
+    final response = await _request(
+      'POST',
+      '/expense-groups/$groupId/settle',
+      body: {'debtId': debtId},
+    );
+    return response['data'] as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> uploadGroupBill({
+    required String groupId,
+    required String filePath,
+    required String paidBy,
+  }) async {
+    final token = await accessToken;
+    if (token == null) {
+      throw ApiException(statusCode: 401, message: 'Vui lòng đăng nhập lại.');
+    }
+
+    final uri = Uri.parse(
+      '$baseUrl/ai/expense/group-from-bill?groupId=$groupId',
+    );
+    final request = http.MultipartRequest('POST', uri);
+    request.headers['Authorization'] = 'Bearer $token';
+
+    request.fields['paidBy'] = paidBy;
+    request.files.add(await http.MultipartFile.fromPath('file', filePath));
+
+    try {
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      final decoded = jsonDecode(response.body);
+      if (response.statusCode >= 400) {
+        throw ApiException(
+          statusCode: response.statusCode,
+          message: decoded['message'] ?? 'Upload failed',
+        );
+      }
+      return decoded['data'] as Map<String, dynamic>;
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      throw ApiException(statusCode: 500, message: 'Network error: $e');
+    }
+  }
 }
 
 /// API exception with status code and message.
@@ -1075,19 +1192,18 @@ class ApiException implements Exception {
   String get localizedMessage {
     switch (code) {
       case 'INVALID_CREDENTIALS':
-        return 'Email hoáº·c máº­t kháº©u khÃ´ng Ä‘Ãºng';
+        return 'Email hoặc mật khẩu không đúng';
       case 'EMAIL_EXISTS':
-        return 'Email Ä‘Ã£ Ä‘Æ°á»£c Ä‘Äƒng kÃ½';
+        return 'Email đã được đăng ký';
       case 'NOT_FOUND':
-        return 'KhÃ´ng tÃ¬m tháº¥y';
+        return 'Không tìm thấy';
       case 'VALIDATION_ERROR':
-        return 'Dá»¯ liá»‡u khÃ´ng há»£p lá»‡';
+        return '  Dữ liệu không hợp lệ';
       default:
-        if (statusCode == 401) return 'PhiÃªn Ä‘Äƒng nháº­p háº¿t háº¡n';
-        if (statusCode == 403) return 'KhÃ´ng cÃ³ quyá»n truy cáº­p';
-        if (statusCode == 500) return 'Lá»—i há»‡ thá»‘ng, vui lÃ²ng thá»­ láº¡i sau';
+        if (statusCode == 401) return 'Phiên đăng nhập hết hạn';
+        if (statusCode == 403) return 'Không có quyền truy cập';
+        if (statusCode == 500) return 'Lỗi hệ thống, vui lòng thử lại sau';
         return message;
     }
   }
 }
-

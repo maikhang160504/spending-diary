@@ -152,6 +152,7 @@ _ActionPreview _actionPreviewFromNlu(
   String userText, {
   String? aiLine,
   String? messageId,
+  List<String>? missingSlots,
 }) {
   final actionType = nlu['action_type'] as String? ?? 'Unknown';
   final amount = _amountFromNlu(nlu);
@@ -198,6 +199,7 @@ _ActionPreview _actionPreviewFromNlu(
     ),
     actionDetails: (nlu['action_details'] as Map<String, dynamic>?) ?? slots,
     aiLine: aiLine,
+    missingSlots: missingSlots,
   );
 }
 
@@ -697,11 +699,17 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
         final isMissingSlots = actionResult != null && actionResult['kind'] == 'missing_slots';
         msg.isMissingSlots = isMissingSlots;
         
+        List<String>? missingSlotsList;
+        if (isMissingSlots && actionResult['missing'] != null) {
+          missingSlotsList = (actionResult['missing'] as List<dynamic>).map((e) => e.toString()).toList();
+        }
+
         final preview = _actionPreviewFromNlu(
           nlu,
           originalUser,
           aiLine: msg.text,
           messageId: msg.backendMessageId,
+          missingSlots: missingSlotsList,
         );
         msg.actionPreview = preview;
         if (isExecuted && !isMissingSlots) {
@@ -891,6 +899,12 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
             } else {
               final actionResult = nluMap(metadata['action_result']);
               final isMissingSlots = actionResult != null && actionResult['kind'] == 'missing_slots';
+              
+              List<String>? missingSlotsList;
+              if (isMissingSlots && actionResult['missing'] != null) {
+                missingSlotsList = (actionResult['missing'] as List<dynamic>).map((e) => e.toString()).toList();
+              }
+              
               final llmText = (llmMeta?.text ?? displayText).trim();
               final originalUser =
                   nluString(nlu['text']) ??
@@ -902,6 +916,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                 originalUser,
                 aiLine: llmText.isNotEmpty ? llmText : null,
                 messageId: nluString(map['id']),
+                missingSlots: missingSlotsList,
               );
               
               actionPreview = preview;
@@ -2322,6 +2337,7 @@ class _ActionPreview {
   final String? categoryCode;
   final Map<String, dynamic>? actionDetails;
   final bool navOnly;
+  final List<String>? missingSlots;
   const _ActionPreview({
     required this.actionType,
     required this.signature,
@@ -2332,6 +2348,7 @@ class _ActionPreview {
     this.categoryCode,
     this.actionDetails,
     this.navOnly = false,
+    this.missingSlots,
   });
 
   _ActionPreview copyWith({bool? navOnly, String? aiLine}) => _ActionPreview(
@@ -2344,6 +2361,7 @@ class _ActionPreview {
     categoryCode: categoryCode,
     actionDetails: actionDetails,
     navOnly: navOnly ?? this.navOnly,
+    missingSlots: missingSlots,
   );
 }
 
@@ -3815,8 +3833,43 @@ class _MissingSlotInputCardState extends State<_MissingSlotInputCard> {
     super.dispose();
   }
 
+  void _submit(String val) {
+    final text = val.trim();
+    final missing = widget.preview.missingSlots ?? [];
+    
+    if (text.isEmpty) {
+      final missingText = missing.isNotEmpty ? missing.join(", ") : "thông tin";
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Vui lòng nhập $missingText'),
+          backgroundColor: AppColors.danger,
+        ),
+      );
+      return;
+    }
+    
+    if (missing.contains('amount')) {
+      final cleanText = text.replaceAll(RegExp(r'[^0-9-]'), '');
+      if (cleanText.startsWith('-')) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Số tiền không được là số âm'),
+            backgroundColor: AppColors.danger,
+          ),
+        );
+        return;
+      }
+    }
+    widget.onSubmit(text);
+  }
+
   @override
   Widget build(BuildContext context) {
+    final missing = widget.preview.missingSlots ?? [];
+    final isMissingAmount = missing.contains('amount');
+    final hintText = isMissingAmount ? 'Nhập số tiền...' : (missing.isNotEmpty ? 'Nhập ${missing.join(", ")}...' : 'Nhập thông tin tại đây...');
+    final keyboardType = isMissingAmount ? TextInputType.number : TextInputType.text;
+
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -3877,13 +3930,10 @@ class _MissingSlotInputCardState extends State<_MissingSlotInputCard> {
                 child: TextField(
                   controller: _controller,
                   textInputAction: TextInputAction.send,
-                  onSubmitted: (val) {
-                    if (val.trim().isNotEmpty) {
-                      widget.onSubmit(val.trim());
-                    }
-                  },
+                  keyboardType: keyboardType,
+                  onSubmitted: _submit,
                   decoration: InputDecoration(
-                    hintText: 'Nhập thông tin tại đây...',
+                    hintText: hintText,
                     hintStyle: TextStyle(
                       fontSize: 13,
                       color: context.palette.textSecondary.withValues(alpha: 0.6),
@@ -3908,10 +3958,7 @@ class _MissingSlotInputCardState extends State<_MissingSlotInputCard> {
               const SizedBox(width: 8),
               FilledButton(
                 onPressed: () {
-                  final val = _controller.text.trim();
-                  if (val.isNotEmpty) {
-                    widget.onSubmit(val);
-                  }
+                  _submit(_controller.text);
                 },
                 style: FilledButton.styleFrom(
                   backgroundColor: AppColors.teal,
@@ -4832,8 +4879,28 @@ class _ChatBubbleState extends State<_ChatBubble> {
                     vertical: 0,
                   ),
                   onPressed: () {
-                    if (widget.onSendMessage != null) {
-                      widget.onSendMessage!(action);
+                    if (action == "Quét bill") {
+                      context.push(
+                        AppRoutes.camera,
+                        extra: {
+                          'walletId': ApiClient.lastSelectedWalletId,
+                          'initialMode': 'Bill',
+                        },
+                      );
+                    } else if (action == "Xem báo cáo") {
+                      context.go(AppRoutes.report);
+                    } else if (action == "Ghi chép") {
+                      context.push(
+                        AppRoutes.cameraInput,
+                        extra: {
+                          'walletId': ApiClient.lastSelectedWalletId,
+                          'isBill': false,
+                        },
+                      );
+                    } else {
+                      if (widget.onSendMessage != null) {
+                        widget.onSendMessage!(action);
+                      }
                     }
                   },
                 );

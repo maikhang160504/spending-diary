@@ -19,12 +19,14 @@ class BillJob {
     required this.walletId,
     this.localImagePath,
     this.isText = false,
+    this.isGroupBill = false,
   });
 
   String transactionId;
   final String walletId;
   final String? localImagePath;
   final bool isText;
+  final bool isGroupBill;
 
   BillJobPhase phase = BillJobPhase.uploading;
   String? errorMessage;
@@ -116,6 +118,58 @@ class BillProcessingService extends ChangeNotifier {
       if (job != null) _failJob(job, e.localizedMessage);
     } catch (e) {
       if (job != null) _failJob(job, 'Không thể gửi bill. Thử lại sau.');
+    }
+  }
+
+  Future<void> submitGroupBill({
+    required String groupId,
+    required String imagePath,
+    required String paidBy,
+  }) async {
+    BillJob? job;
+    try {
+      final uploadJob = BillJob(
+        transactionId: 'uploading',
+        walletId: groupId, // Reusing walletId field to store groupId
+        localImagePath: imagePath,
+        isGroupBill: true,
+      );
+      // Lữu tạm paidBy vào localImagePath hoặc thêm properties mới.
+      // Tuy nhiên tạm thời chưa cần thiết lắm nếu backend tự gán. 
+      // Nhưng để nhất quán, ta truyền paidBy lên api.
+      
+      job = uploadJob;
+      _jobs.insert(0, uploadJob);
+      notifyListeners();
+      _startElapsedTimer(uploadJob);
+
+      uploadJob.phase = BillJobPhase.uploading;
+      uploadJob.progress = 0.08;
+      notifyListeners();
+
+      final result = await _api.uploadGroupBill(
+        groupId: groupId,
+        filePath: imagePath,
+        paidBy: paidBy,
+      );
+
+      final txId = result['transactionId'] as String?;
+      if (txId == null || txId.isEmpty) {
+        throw ApiException(
+          statusCode: 500,
+          message: 'Thiếu transactionId từ server',
+        );
+      }
+
+      uploadJob.transactionId = txId;
+      uploadJob.phase = BillJobPhase.processing;
+      uploadJob.progress = 0.18;
+      notifyListeners();
+      _startPolling(uploadJob);
+    } on ApiException catch (e) {
+      if (job != null) _failJob(job, e.localizedMessage);
+    } catch (e) {
+      if (job != null) _failJob(job, 'Không thể gửi bill nhóm. Thử lại sau.');
     }
   }
 
@@ -239,6 +293,9 @@ class BillProcessingService extends ChangeNotifier {
       'imagePath': job.localImagePath,
       'localImagePath': job.localImagePath,
       'imageUrl': data['imageUrl'],
+      'amount': amount is num ? amount.toInt() : 0,
+      'note': data['note'] ?? '',
+      'paidBy': data['paidBy'],
       'extracted': {
         'amount': amount is num ? amount.toInt() : 0,
         'category': data['categoryCode'] ?? 'Others',
@@ -324,6 +381,7 @@ class BillProcessingService extends ChangeNotifier {
       'amount': data['amount'],
       'categoryCode': data['categoryCode'] ?? data['category'],
       'note': data['note'],
+      'paidBy': data['paidBy'],
       'storyId': data['storyId'],
       'imageUrl': data['imageUrl'],
       'aiComment': aiComment,
@@ -365,23 +423,33 @@ class BillProcessingService extends ChangeNotifier {
     if (confirmExtra != null) {
       _pendingReviewExtra = confirmExtra;
     }
-    final storyRoute = job.storyId != null
+    
+    var storyRoute = job.storyId != null
         ? AppRoutes.storyDetailOf(job.storyId!)
         : AppRoutes.home;
+    var reviewRoute = AppRoutes.cameraConfirm;
+    
+    if (job.isGroupBill) {
+      storyRoute = AppRoutes.groupDetailOf(job.walletId);
+      reviewRoute = AppRoutes.groupDetailOf(job.walletId);
+      if (confirmExtra != null) {
+        confirmExtra['reviewGroupBill'] = true;
+      }
+    }
 
     if (needsReview) {
       inAppNotificationController.show(
         InAppNotification(
-          title: job.isText
-              ? 'Story cần kiểm tra lại'
-              : 'Bill cần kiểm tra lại',
+          title: job.isGroupBill 
+              ? 'Bill nhóm cần kiểm tra lại' 
+              : (job.isText ? 'Story cần kiểm tra lại' : 'Bill cần kiểm tra lại'),
           message: message,
-          deepLink: AppRoutes.cameraConfirm,
+          deepLink: reviewRoute,
           actionLabel: 'Kiểm tra lại',
           onAction: () {
             if (confirmExtra != null) {
               clearPendingReviewExtra();
-              onNavigate?.call(AppRoutes.cameraConfirm, confirmExtra);
+              onNavigate?.call(reviewRoute, confirmExtra);
             }
           },
         ),
@@ -391,10 +459,10 @@ class BillProcessingService extends ChangeNotifier {
     PushNotificationService.instance.showNotification(
       id: job.transactionId.hashCode & 0x7fffffff,
       title: needsReview
-          ? (job.isText ? 'Story cần kiểm tra lại' : 'Bill cần kiểm tra lại')
-          : (job.isText ? 'Story đã lưu thành công' : 'Bill đã đọc xong'),
+          ? (job.isGroupBill ? 'Bill nhóm cần kiểm tra' : (job.isText ? 'Story cần kiểm tra lại' : 'Bill cần kiểm tra lại'))
+          : (job.isGroupBill ? 'Bill nhóm đã quét xong' : (job.isText ? 'Story đã lưu thành công' : 'Bill đã đọc xong')),
       body: message,
-      payload: needsReview ? AppRoutes.cameraConfirm : storyRoute,
+      payload: needsReview ? reviewRoute : storyRoute,
     );
 
     mimoController.show(MiMoResponse(emotionAsset: mood, message: message));

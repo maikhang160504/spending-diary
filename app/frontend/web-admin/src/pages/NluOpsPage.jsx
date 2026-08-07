@@ -8,12 +8,16 @@ import {
   getNluTrainStatus,
   getNluModelMeta,
   getNluTrainHistory,
+  getNluModelsStatus,
+  getNluBenchmarkResults,
   reloadAiModels,
   getNluInferenceBackend,
   setNluInferenceBackend,
   triggerLlmFinetune,
   exportFinetuneData,
   promoteNluModel,
+  rollbackNluModel,
+  getLlmTrainHistory,
 } from "../services/api";
 
 const NLU_METRIC_SOURCES = {
@@ -99,6 +103,10 @@ function NluOpsPage() {
   const [isTraining, setIsTraining] = useState(false);
   const [trainProgressInfo, setTrainProgressInfo] = useState(null);
   const [isLlmTraining, setIsLlmTraining] = useState(false);
+  const [modelsStatus, setModelsStatus] = useState(null);
+  const [llmHistory, setLlmHistory] = useState([]);
+  const [benchmarkResults, setBenchmarkResults] = useState(null);
+  const [isBenchmarking, setIsBenchmarking] = useState(false);
   const [llmTrainParams, setLlmTrainParams] = useState({
     epochs: 3,
     lr: 0.0002,
@@ -112,7 +120,7 @@ function NluOpsPage() {
   });
   const [trainHistory, setTrainHistory] = useState([]);
   const [reloadingNlu, setReloadingNlu] = useState(false);
-  const [intentBackend, setIntentBackend] = useState("encoder");
+  const [intentBackend, setIntentBackend] = useState("llm_v2");
   const [categoryBackend, setCategoryBackend] = useState("llm_v2");
   const [savingBackend, setSavingBackend] = useState(false);
   const [compareTrainType, setCompareTrainType] = useState("encoder");
@@ -176,13 +184,19 @@ function NluOpsPage() {
       getNluModelMeta().catch(() => ({ version: "v1.2.0-fallback", trainedAt: "2026-06-21", f1Score: "91.2%" })),
       getNluTrainHistory().catch(() => []),
       getNluInferenceBackend().catch(() => ({ backend: "tfidf" })),
+      getNluModelsStatus().catch(() => null),
+      getLlmTrainHistory().catch(() => []),
+      getNluBenchmarkResults().catch(() => null)
     ])
-      .then(([overridesData, statusData, metaData, historyData, backendData]) => {
+      .then(([overridesData, statusData, metaData, historyData, backendData, modelsStatusData, llmHistData, benchData]) => {
         setLayer1Rules(overridesData);
         setIsTraining(statusData.training_active);
         setTrainProgressInfo(statusData);
         setModelMeta(metaData);
         setTrainHistory(historyData);
+        setModelsStatus(modelsStatusData);
+        setLlmHistory(llmHistData);
+        setBenchmarkResults(benchData);
         setIntentBackend(backendData?.intent_backend || metaData?.intent_backend || "encoder");
         setCategoryBackend(backendData?.category_backend || metaData?.category_backend || "llm_v2");
         const intent_b = backendData?.intent_backend || metaData?.intent_backend || "encoder";
@@ -212,6 +226,7 @@ function NluOpsPage() {
               showToast("Model retraining completed successfully!");
               getNluModelMeta().then(meta => setModelMeta(meta)).catch(() => {});
               getNluTrainHistory().then(history => setTrainHistory(history)).catch(() => {});
+              getNluModelsStatus().then(st => setModelsStatus(st)).catch(() => {});
             }
           })
           .catch(() => {});
@@ -231,6 +246,9 @@ function NluOpsPage() {
       getNluTrainStatus().then(data => setIsTraining(data.training_active)).catch(() => {});
       getNluModelMeta().then(data => setModelMeta(data)).catch(() => {});
       getNluTrainHistory().then(data => setTrainHistory(data)).catch(() => {});
+      getNluModelsStatus().then(data => setModelsStatus(data)).catch(() => {});
+      getLlmTrainHistory().then(data => setLlmHistory(data)).catch(() => {});
+      getNluBenchmarkResults().then(data => setBenchmarkResults(data)).catch(() => {});
     }
   };
 
@@ -307,7 +325,7 @@ function NluOpsPage() {
     }
   };
   const handleInferenceBackendChange = async (newIntentBackend, newCategoryBackend) => {
-    const pwd = window.prompt("Nhập mật khẩu Retrain để lưu chuyển đổi mô hình (mặc định: retrain123):", "retrain123");
+    const pwd = window.prompt("Nhập mật khẩu quản trị để xác nhận chuyển đổi mô hình:", "");
     if (pwd === null) return;
 
     setSavingBackend(true);
@@ -331,7 +349,7 @@ function NluOpsPage() {
 
   const handlePromoteModel = async () => {
     if (!window.confirm("Bạn có chắc chắn muốn duyệt áp dụng mô hình mới (Candidate -> Active) và chuyển mô hình hiện tại thành Cũ (Old) không?")) return;
-    const pwd = window.prompt("Nhập mật khẩu Retrain để duyệt mô hình (mặc định: retrain123):", "retrain123");
+    const pwd = window.prompt("Nhập mật khẩu quản trị để duyệt áp dụng mô hình mới:", "");
     if (pwd === null) return;
 
     setPromotingModel(true);
@@ -356,7 +374,7 @@ function NluOpsPage() {
   };
 
   const handleLlmFinetune = async () => {
-    const pwd = window.prompt("Nhập mật khẩu Retrain để kích hoạt fine-tune LLM trên GPU Modal (mặc định: retrain123):", "retrain123");
+    const pwd = window.prompt("Nhập mật khẩu quản trị để kích hoạt fine-tune LLM trên GPU Modal:", "");
     if (pwd === null) return;
 
     setIsLlmTraining(true);
@@ -378,8 +396,9 @@ function NluOpsPage() {
   // Trigger retraining in background
   const handleRetrain = async (target = "local") => {
     const label = target === "encoder" ? "PhoBERT Encoder" : "TF-IDF & NLU";
-    const pw = window.prompt(`Bạn có chắc chắn muốn bắt đầu huấn luyện lại mô hình ${label} không?\nQuá trình này sẽ diễn ra chạy nền.\n\nNhập mật khẩu quản trị hệ thống (PASSWORD_RETRAIN) để xác nhận:`, "retrain123");
+    const pw = window.prompt(`Xác nhận huấn luyện lại mô hình ${label}.\nQuá trình này sẽ chạy nền.\n\nNhập mật khẩu quản trị hệ thống để xác nhận:`, "");
     if (!pw) return;
+    setCompareTrainType(target === "encoder" ? "encoder" : "tfidf");
     setLoading(true);
     try {
       const res = await triggerNluTrain(target, pw);
@@ -390,6 +409,35 @@ function NluOpsPage() {
       showToast("Huấn luyện thất bại: " + (err.message || err));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleRunBenchmark = async () => {
+    if (!window.confirm("Bắt đầu tiến trình đánh giá Benchmark NLU với Golden Dataset? (Có thể tốn vài phút)")) return;
+    setIsBenchmarking(true);
+    try {
+      const data = await triggerNluBenchmark();
+      showToast(data?.message || "Đã bắt đầu chạy Benchmark NLU!");
+      // Optionally fetch results after a delay or let user manually refresh
+      setTimeout(() => {
+        getNluBenchmarkResults().then(res => setBenchmarkResults(res)).catch(() => {});
+        setIsBenchmarking(false);
+      }, 5000);
+    } catch (err) {
+      showToast("Khởi chạy Benchmark thất bại: " + (err.message || err));
+      setIsBenchmarking(false);
+    }
+  };
+
+  const handleSaveBackends = async () => {
+    setSavingBackend(true);
+    try {
+      const res = await setNluInferenceBackend(intentBackend, categoryBackend);
+      showToast(res.message || "Đã lưu cài đặt backend AI thành công!");
+    } catch (err) {
+      showToast("Lưu thất bại: " + (err.message || err));
+    } finally {
+      setSavingBackend(false);
     }
   };
 
@@ -405,6 +453,18 @@ function NluOpsPage() {
       showToast("Tải lại model thất bại: " + (err.message || err));
     } finally {
       setReloadingNlu(false);
+    }
+  };
+
+  const handleRollbackNlu = async () => {
+    const pw = window.prompt("Xác nhận khôi phục mô hình NLU về phiên bản trước.\n\nNhập mật khẩu quản trị hệ thống để xác nhận:", "");
+    if (!pw) return;
+    try {
+      const res = await rollbackNluModel(pw);
+      showToast(res.message || "Đã khôi phục thành công mô hình NLU trước đó!");
+      fetchAllData();
+    } catch (err) {
+      showToast("Khôi phục thất bại: " + (err.message || err));
     }
   };
 
@@ -916,8 +976,8 @@ function NluOpsPage() {
                   style={{ width: "100%", padding: "12px", borderRadius: "8px", background: "var(--bg-obsidian-950)", border: "1px solid var(--border-color)", color: "var(--text-primary)", outline: "none", cursor: "pointer", fontWeight: "500", appearance: "none" }}
                 >
                   <option value="tfidf">📊 TF-IDF Classic (Local CPU)</option>
-                  <option value="encoder">🧬 PhoBERT Encoder (Local CPU/GPU) (Mặc định)</option>
-                  <option value="llm_v2">🔥 Qwen2.5 LLM Rules</option>
+                  <option value="encoder">🧬 PhoBERT Encoder (Local CPU/GPU)</option>
+                  <option value="llm_v2">🔥 Qwen2.5 LLM Rules (Mặc định)</option>
                 </select>
               </div>
 
@@ -982,10 +1042,10 @@ function NluOpsPage() {
                   }}
                 >
                   <div style={{ fontSize: "32px", marginBottom: "10px" }}>💻</div>
-                  <h4 style={{ fontSize: "14px", fontWeight: "600", color: "var(--text-primary)", marginBottom: "6px" }}>Huấn luyện NLU Classic</h4>
+                  <h4 style={{ fontSize: "14px", fontWeight: "600", color: "var(--text-primary)", marginBottom: "6px" }}>Huấn luyện TF-IDF (2 Stages)</h4>
                   <span style={{ fontSize: "12px", color: "var(--text-secondary)", display: "block" }}>Chạy nền · 1-2 phút</span>
                   <span style={{ fontSize: "11px", color: "var(--text-muted)", display: "block", marginTop: "8px", lineHeight: 1.4 }}>
-                    Huấn luyện lại bộ phân loại TF-IDF cho Intent, Category, Record Type và mô hình Named Entity (NER).
+                    Huấn luyện lại bộ phân loại TF-IDF qua 2 giai đoạn: Nhận dạng ý định (Intent) và Nhận dạng danh mục (Category).
                   </span>
                 </div>
 
@@ -1185,7 +1245,10 @@ function NluOpsPage() {
                       {renderProgressStepper(trainProgressInfo?.stage || "PREPARING")}
                       <div style={{ fontSize: "12px", color: "var(--accent-amber-hover)", display: "flex", alignItems: "center", gap: "6px", marginTop: "4px" }}>
                         <span className="status-dot pulse" style={{ background: "var(--accent-amber)", boxShadow: "0 0 8px var(--accent-amber)", width: "6px", height: "6px", borderRadius: "50%" }}></span>
-                        {trainProgressInfo?.progress ? `${trainProgressInfo.progress}%` : ""} — {trainProgressInfo?.message || "Đang huấn luyện NLU nền..."}
+                        {trainProgressInfo?.progress_percent ? `${trainProgressInfo.progress_percent}%` : ""} — {trainProgressInfo?.message || "Đang huấn luyện NLU nền..."}
+                      </div>
+                      <div style={{ width: "100%", height: "4px", background: "var(--bg-obsidian-800)", borderRadius: "2px", marginTop: "8px", overflow: "hidden" }}>
+                        <div style={{ width: `${trainProgressInfo?.progress_percent || 0}%`, height: "100%", background: "var(--accent-emerald)", transition: "width 0.5s ease" }}></div>
                       </div>
                     </div>
                   ) : (
@@ -1218,6 +1281,7 @@ function NluOpsPage() {
                 </div>
                 {(() => {
                   const hasNewCandidate = Boolean(
+                    modelsStatus?.candidate?.version ||
                     modelMeta?.has_candidate ||
                     modelMeta?.candidate ||
                     (modelMeta?.pendingRunIndex && modelMeta.pendingRunIndex > (modelMeta?.lastAcceptedRunIndex || 0)) ||
@@ -1266,11 +1330,23 @@ function NluOpsPage() {
                     <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>Dự phòng roll-back</span>
                   </div>
                   <h3 style={{ fontSize: "15px", fontWeight: "700", color: "var(--text-secondary)", marginBottom: "6px" }}>
-                    {trainHistory.length > 1 ? `Phiên bản #${trainHistory.length - 1}` : "Chưa có bản lưu dự phòng"}
+                    {modelsStatus?.old?.version ? `Phiên bản: ${modelsStatus.old.version}` : "Chưa có bản lưu dự phòng"}
                   </h3>
                   <p style={{ fontSize: "12px", color: "var(--text-muted)", margin: 0, fontFamily: "var(--font-mono)" }}>
-                    {trainHistory.length > 1 ? `Ngày: ${trainHistory[trainHistory.length - 2]?.finished_at || "N/A"}` : "Hệ thống đang chạy phiên bản duy nhất"}
+                    {modelsStatus?.old?.trained_at ? `Ngày: ${new Date(modelsStatus.old.trained_at).toLocaleString("vi-VN")}` : "Hệ thống đang chạy phiên bản duy nhất"}
                   </p>
+                  
+                  {modelsStatus?.old?.version && (
+                    <button
+                      className="btn"
+                      style={{ marginTop: "16px", width: "100%", padding: "8px", fontSize: "12px", borderRadius: "6px", background: "var(--accent-rose)", color: "#fff", border: "none", display: "flex", justifyContent: "center", alignItems: "center", gap: "6px", cursor: isTraining ? "not-allowed" : "pointer", opacity: isTraining ? 0.6 : 1 }}
+                      onClick={handleRollbackNlu}
+                      disabled={isTraining}
+                      title="Phục hồi lại phiên bản Cũ (đổi chỗ Current và Old)"
+                    >
+                      ↺ Khôi phục phiên bản này
+                    </button>
+                  )}
                 </div>
 
                 {/* State 2: Current / Active */}
@@ -1288,10 +1364,10 @@ function NluOpsPage() {
                     <span style={{ fontSize: "12px", color: "var(--accent-emerald-hover)", fontWeight: "600" }}>● ACTIVE</span>
                   </div>
                   <h3 style={{ fontSize: "15px", fontWeight: "700", color: "var(--text-primary)", marginBottom: "6px" }}>
-                    {modelMeta.version || "Phiên bản hiện tại"}
+                    {modelsStatus?.current?.version || modelMeta.version || "Phiên bản hiện tại"}
                   </h3>
                   <p style={{ fontSize: "12px", color: "var(--text-muted)", margin: 0, fontFamily: "var(--font-mono)" }}>
-                    Cập nhật: {modelMeta.trainedAt} · {modelMeta.trainingRows ? `${modelMeta.trainingRows} mẫu` : ""}
+                    Cập nhật: {modelsStatus?.current?.trained_at ? new Date(modelsStatus.current.trained_at).toLocaleString("vi-VN") : (modelMeta.trainedAt || "N/A")}
                   </p>
                 </div>
 
@@ -1309,10 +1385,10 @@ function NluOpsPage() {
                     <span style={{ fontSize: "12px", color: "#c084fc", fontWeight: "600" }}>Chờ duyệt áp dụng</span>
                   </div>
                   <h3 style={{ fontSize: "15px", fontWeight: "700", color: "var(--text-primary)", marginBottom: "6px" }}>
-                    {Boolean(modelMeta?.has_candidate || modelMeta?.candidate || trainProgressInfo?.model_state === "candidate") ? "Mô hình mới sẵn sàng" : "Chưa có mô hình chờ duyệt"}
+                    {modelsStatus?.candidate?.version ? `Mô hình mới: ${modelsStatus.candidate.version}` : "Chưa có mô hình chờ duyệt"}
                   </h3>
                   <p style={{ fontSize: "12px", color: "var(--text-muted)", margin: 0, fontFamily: "var(--font-mono)" }}>
-                    {Boolean(modelMeta?.has_candidate || modelMeta?.candidate || trainProgressInfo?.model_state === "candidate") ? "Hãy bấm nút Duyệt để kích hoạt vào luồng hoạt động" : "Hệ thống sẽ tạo Candidate sau khi hoàn tất huấn luyện"}
+                    {modelsStatus?.candidate?.trained_at ? `Huấn luyện: ${new Date(modelsStatus.candidate.trained_at).toLocaleString("vi-VN")}` : "Hệ thống sẽ tạo Candidate sau khi hoàn tất huấn luyện"}
                   </p>
                 </div>
               </div>
@@ -1419,6 +1495,154 @@ function NluOpsPage() {
               </table>
             </div>
 
+            {/* LLM Fine-tune History Table */}
+            <div className="panel" style={{
+              background: "var(--bg-obsidian-900)",
+              border: "1px solid var(--border-color)",
+              borderRadius: "16px",
+              padding: "24px",
+              boxShadow: "0 4px 20px rgba(0, 0, 0, 0.15)",
+              marginTop: "24px"
+            }}>
+              <div className="panel-header" style={{ paddingBottom: "20px", borderBottom: "1px solid var(--border-color)", marginBottom: "16px" }}>
+                <div>
+                  <h2 className="panel-title" style={{ fontSize: "16px", fontWeight: "600", color: "var(--text-primary)" }}>Lịch sử Fine-tune Qwen2.5-14B (LoRA)</h2>
+                  <span className="form-desc" style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "2px", display: "block" }}>
+                    Theo dõi các lần huấn luyện LLM trên GPU Modal
+                  </span>
+                </div>
+              </div>
+              
+              {llmHistory.length === 0 && (
+                <div style={{ padding: "14px", borderRadius: "8px", background: "var(--bg-obsidian-950)", border: "1px solid var(--border-color)", fontSize: "12px", color: "var(--text-muted)", textAlign: "center" }}>
+                  Chưa có lịch sử fine-tune LLM.
+                </div>
+              )}
+              
+              {llmHistory.length > 0 && (
+                <div className="table-container" style={{ borderRadius: "12px", border: "1px solid var(--border-color)", overflow: "hidden" }}>
+                  <table className="custom-table">
+                    <thead>
+                      <tr style={{ background: "var(--bg-obsidian-950)" }}>
+                        <th style={{ padding: "12px 16px", color: "var(--text-primary)", fontSize: "11px", fontWeight: "600", textTransform: "uppercase" }}>Run ID</th>
+                        <th style={{ padding: "12px 16px", color: "var(--text-primary)", fontSize: "11px", fontWeight: "600", textTransform: "uppercase" }}>Thời gian</th>
+                        <th style={{ padding: "12px 16px", color: "var(--text-primary)", fontSize: "11px", fontWeight: "600", textTransform: "uppercase" }}>Epochs</th>
+                        <th style={{ padding: "12px 16px", color: "var(--text-primary)", fontSize: "11px", fontWeight: "600", textTransform: "uppercase" }}>LR</th>
+                        <th style={{ padding: "12px 16px", color: "var(--text-primary)", fontSize: "11px", fontWeight: "600", textTransform: "uppercase" }}>Batch</th>
+                        <th style={{ padding: "12px 16px", color: "var(--text-primary)", fontSize: "11px", fontWeight: "600", textTransform: "uppercase" }}>Target</th>
+                        <th style={{ padding: "12px 16px", color: "var(--text-primary)", fontSize: "11px", fontWeight: "600", textTransform: "uppercase" }}>Eval Loss</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {llmHistory.map((run, i) => (
+                        <tr key={i}>
+                          <td style={{ padding: "12px 16px", color: "var(--text-primary)", fontSize: "12px", fontFamily: "var(--font-mono)" }}>#{run.run_index || (llmHistory.length - i)}</td>
+                          <td style={{ padding: "12px 16px", color: "var(--text-secondary)", fontSize: "12px" }}>{new Date(run.trained_at).toLocaleString("vi-VN")}</td>
+                          <td style={{ padding: "12px 16px", color: "var(--text-primary)", fontSize: "12px", fontWeight: "600" }}>{run.epochs}</td>
+                          <td style={{ padding: "12px 16px", color: "var(--text-secondary)", fontSize: "12px", fontFamily: "var(--font-mono)" }}>{run.learning_rate}</td>
+                          <td style={{ padding: "12px 16px", color: "var(--text-primary)", fontSize: "12px" }}>{run.batch_size}</td>
+                          <td style={{ padding: "12px 16px", color: "var(--accent-violet)", fontSize: "12px", fontWeight: "500" }}>{run.lora_target || "q_proj,v_proj"}</td>
+                          <td style={{ padding: "12px 16px", color: "var(--accent-emerald)", fontSize: "12px", fontWeight: "600" }}>{run.eval_loss ? Number(run.eval_loss).toFixed(4) : "N/A"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* NLU Benchmark Panel */}
+            <div className="panel" style={{
+              background: "var(--bg-obsidian-900)",
+              border: "1px solid var(--border-color)",
+              borderRadius: "16px",
+              padding: "24px",
+              boxShadow: "0 4px 20px rgba(0, 0, 0, 0.15)",
+              marginTop: "24px"
+            }}>
+              <div className="panel-header" style={{ paddingBottom: "20px", borderBottom: "1px solid var(--border-color)", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "16px", marginBottom: "16px" }}>
+                <div>
+                  <h2 className="panel-title" style={{ fontSize: "16px", fontWeight: "600", color: "var(--text-primary)", display: "flex", alignItems: "center", gap: "8px" }}>
+                    <span style={{ fontSize: "20px" }}>🎯</span>
+                    NLU Performance Benchmark (Golden Dataset)
+                  </h2>
+                  <span className="form-desc" style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "4px", display: "block" }}>
+                    Đánh giá độ chính xác và tốc độ suy luận của các kiến trúc AI trên tập dữ liệu chuẩn.
+                  </span>
+                </div>
+                <button 
+                  className="btn btn-primary"
+                  onClick={handleRunBenchmark}
+                  disabled={isBenchmarking}
+                  style={{
+                    background: "var(--accent-blue)",
+                    opacity: isBenchmarking ? 0.7 : 1,
+                    cursor: isBenchmarking ? "wait" : "pointer"
+                  }}
+                >
+                  {isBenchmarking ? "Đang chạy đánh giá..." : "Chạy Benchmark"}
+                </button>
+              </div>
+
+              {!benchmarkResults ? (
+                <div style={{ padding: "20px", textAlign: "center", color: "var(--text-muted)", fontSize: "13px" }}>
+                  Đang tải kết quả Benchmark...
+                </div>
+              ) : (
+                <div className="table-container" style={{ borderRadius: "12px", border: "1px solid var(--border-color)", overflow: "hidden" }}>
+                  <table className="custom-table">
+                    <thead>
+                      <tr style={{ background: "var(--bg-obsidian-950)" }}>
+                        <th style={{ padding: "14px 18px", color: "var(--text-primary)", fontSize: "11px", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.08em" }}>Kiến trúc Mô hình</th>
+                        <th style={{ padding: "14px 18px", color: "var(--text-primary)", fontSize: "11px", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.08em", textAlign: "center" }}>Intent Accuracy (Stage 1)</th>
+                        <th style={{ padding: "14px 18px", color: "var(--text-primary)", fontSize: "11px", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.08em", textAlign: "center" }}>Category Accuracy (Stage 2)</th>
+                        <th style={{ padding: "14px 18px", color: "var(--text-primary)", fontSize: "11px", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.08em", textAlign: "center" }}>Overall Accuracy</th>
+                        <th style={{ padding: "14px 18px", color: "var(--text-primary)", fontSize: "11px", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.08em", textAlign: "right" }}>Avg Latency</th>
+                        <th style={{ padding: "14px 18px", color: "var(--text-primary)", fontSize: "11px", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.08em", textAlign: "right" }}>P95 Latency</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {/* TF-IDF */}
+                      <tr>
+                        <td style={{ padding: "14px 18px" }}>
+                          <div style={{ color: "var(--text-primary)", fontWeight: "600", fontSize: "13px" }}>TF-IDF Classic</div>
+                          <div style={{ color: "var(--text-muted)", fontSize: "11px", marginTop: "2px" }}>CPU Inference</div>
+                        </td>
+                        <td style={{ padding: "14px 18px", textAlign: "center", color: "var(--text-secondary)", fontWeight: "500" }}>{benchmarkResults.tfidf?.intent_accuracy || 0}%</td>
+                        <td style={{ padding: "14px 18px", textAlign: "center", color: "var(--text-secondary)", fontWeight: "500" }}>{benchmarkResults.tfidf?.category_accuracy || 0}%</td>
+                        <td style={{ padding: "14px 18px", textAlign: "center", color: "var(--text-primary)", fontWeight: "600" }}>{benchmarkResults.tfidf?.record_type_accuracy || 0}%</td>
+                        <td style={{ padding: "14px 18px", textAlign: "right", color: "var(--accent-emerald)", fontWeight: "600", fontFamily: "var(--font-mono)" }}>{benchmarkResults.tfidf?.avg_latency_ms || 0}ms</td>
+                        <td style={{ padding: "14px 18px", textAlign: "right", color: "var(--text-muted)", fontSize: "12px", fontFamily: "var(--font-mono)" }}>{benchmarkResults.tfidf?.p95_latency_ms || 0}ms</td>
+                      </tr>
+                      {/* PhoBERT */}
+                      <tr>
+                        <td style={{ padding: "14px 18px" }}>
+                          <div style={{ color: "var(--text-primary)", fontWeight: "600", fontSize: "13px" }}>PhoBERT Encoder</div>
+                          <div style={{ color: "var(--text-muted)", fontSize: "11px", marginTop: "2px" }}>CPU/ONNX Inference</div>
+                        </td>
+                        <td style={{ padding: "14px 18px", textAlign: "center", color: "var(--text-secondary)", fontWeight: "500" }}>{benchmarkResults.phobert?.intent_accuracy || 0}%</td>
+                        <td style={{ padding: "14px 18px", textAlign: "center", color: "var(--text-secondary)", fontWeight: "500" }}>{benchmarkResults.phobert?.category_accuracy || 0}%</td>
+                        <td style={{ padding: "14px 18px", textAlign: "center", color: "var(--accent-blue-hover)", fontWeight: "600" }}>{benchmarkResults.phobert?.record_type_accuracy || 0}%</td>
+                        <td style={{ padding: "14px 18px", textAlign: "right", color: "var(--accent-emerald)", fontWeight: "600", fontFamily: "var(--font-mono)" }}>{benchmarkResults.phobert?.avg_latency_ms || 0}ms</td>
+                        <td style={{ padding: "14px 18px", textAlign: "right", color: "var(--text-muted)", fontSize: "12px", fontFamily: "var(--font-mono)" }}>{benchmarkResults.phobert?.p95_latency_ms || 0}ms</td>
+                      </tr>
+                      {/* Qwen2.5 */}
+                      <tr>
+                        <td style={{ padding: "14px 18px", borderBottom: "none" }}>
+                          <div style={{ color: "var(--text-primary)", fontWeight: "600", fontSize: "13px" }}>Qwen2.5-14B (LLM)</div>
+                          <div style={{ color: "var(--text-muted)", fontSize: "11px", marginTop: "2px" }}>GPU (vLLM) / API Inference</div>
+                        </td>
+                        <td style={{ padding: "14px 18px", textAlign: "center", color: "var(--text-secondary)", fontWeight: "500", borderBottom: "none" }}>{benchmarkResults.qwen?.intent_accuracy || 0}%</td>
+                        <td style={{ padding: "14px 18px", textAlign: "center", color: "var(--text-secondary)", fontWeight: "500", borderBottom: "none" }}>{benchmarkResults.qwen?.category_accuracy || 0}%</td>
+                        <td style={{ padding: "14px 18px", textAlign: "center", color: "var(--accent-violet)", fontWeight: "600", borderBottom: "none" }}>{benchmarkResults.qwen?.record_type_accuracy || 0}%</td>
+                        <td style={{ padding: "14px 18px", textAlign: "right", color: "var(--accent-rose)", fontWeight: "600", fontFamily: "var(--font-mono)", borderBottom: "none" }}>{benchmarkResults.qwen?.avg_latency_ms || 0}ms</td>
+                        <td style={{ padding: "14px 18px", textAlign: "right", color: "var(--text-muted)", fontSize: "12px", fontFamily: "var(--font-mono)", borderBottom: "none" }}>{benchmarkResults.qwen?.p95_latency_ms || 0}ms</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
 
           </div>
         </>

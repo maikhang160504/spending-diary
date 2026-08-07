@@ -34,6 +34,7 @@ import '../screens/story/detail_story_screen.dart';
 import '../screens/streak/streak_screen.dart';
 import '../screens/wallet/share_wallet_screen.dart';
 import '../screens/group/group_analytics_screen.dart';
+import '../screens/financial_tools/group_detail_screen.dart';
 import '../screens/premium/premium_payment_screen.dart';
 
 /// Tất cả tên route tập trung tại đây
@@ -78,6 +79,7 @@ class AppRoutes {
   static const goalDetail = '/app/goals/:goalId';
   static const recurring = '/recurring';
   static const groupAnalytics = '/group-analytics/:walletId';
+  static const groupDetail = '/group/:groupId';
 
   // Premium
   static const premiumPayment = '/premium/payment';
@@ -91,6 +93,10 @@ class AppRoutes {
   /// Build the group analytics path with a real [walletId]
   static String groupAnalyticsOf(String walletId) =>
       '/group-analytics/$walletId';
+
+  /// Build the group detail path with a real [groupId]
+  static String groupDetailOf(String groupId) =>
+      '/group/$groupId';
 }
 
 /// Helper function to build a page with a Lottie transition
@@ -340,6 +346,7 @@ final GoRouter appRouter = GoRouter(
         return CameraScreen(
           returnOnlyImagePath: extra?['returnOnlyImagePath'] as bool? ?? false,
           walletId: extra?['walletId'] as String?,
+          groupId: extra?['groupId'] as String?,
           initialMode: extra?['initialMode'] as String?,
         );
       },
@@ -416,6 +423,16 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) {
         return GroupAnalyticsScreen(
           walletId: state.pathParameters['walletId'] ?? '',
+        );
+      },
+    ),
+    GoRoute(
+      path: AppRoutes.groupDetail,
+      builder: (context, state) {
+        final extra = state.extra as Map<String, dynamic>?;
+        return GroupDetailScreen(
+          groupId: state.pathParameters['groupId'] ?? '',
+          reviewExtra: extra,
         );
       },
     ),

@@ -3,6 +3,7 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_radii.dart';
 import '../goals/goal_screen.dart';
 import 'loans_screen.dart';
+import 'group_bills_screen.dart';
 
 class FinancialToolsScreen extends StatefulWidget {
   final int initialTabIndex;
@@ -119,6 +120,20 @@ class _FinancialToolsScreenState extends State<FinancialToolsScreen> {
                                     subtitle: 'Quản lý khoản vay và cho mượn',
                                     onTap: () =>
                                         _openFeatureCard(const LoansScreen()),
+                                  ),
+                                ),
+                                SizedBox(
+                                  width: cardWidth,
+                                  child: _buildToolCard(
+                                    context: context,
+                                    icon: Icons.groups_rounded,
+                                    iconColor: const Color(0xFFEF4444),
+                                    iconBgColor: const Color(0xFFFEE2E2),
+                                    title: 'Chia Bill Nhóm',
+                                    subtitle: 'Quản lý chi tiêu chung',
+                                    onTap: () => _openFeatureCard(
+                                      const GroupBillsScreen(),
+                                    ),
                                   ),
                                 ),
                               ],

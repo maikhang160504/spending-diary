@@ -146,19 +146,20 @@ function ModelSubChart({ title, modelKey, historyData }) {
     }
 
     if (run.metrics && run.metrics[metric] !== undefined && !run.metrics[key]) {
-      return run.metrics[metric];
+      return run.metrics[metric] <= 1 ? run.metrics[metric] * 100 : run.metrics[metric];
     }
     if (!run.metrics || !run.metrics[key]) {
       if (metric === "test_set") return 150;
-      return 88.0;
+      return 0;
     }
     const val = run.metrics[key][metric];
-    if (val !== undefined) return val;
+    if (val !== undefined) return val <= 1 ? val * 100 : val;
 
     if (metric === "f1_score") {
-      return run.metrics[key].weighted_f1 || run.metrics[key].f1 || run.metrics[key].ents_f || 88.0;
+      const f1 = run.metrics[key].weighted_f1 || run.metrics[key].f1 || run.metrics[key].ents_f || 0;
+      return f1 <= 1 ? f1 * 100 : f1;
     }
-    return 88.0;
+    return 0;
   };
 
   const runs = historyData.filter(r => r.status === "success");
@@ -970,7 +971,7 @@ function DashboardPage() {
               ready={readiness.category.ready}
               extra={`${readiness.category.correctionRows} dữ liệu chỉnh sửa`}
               actionTo="/nlu-ops"
-              actionLabel="Duyệt dữ liệu sửa lỗi NLU"
+              actionLabel="Đến trang quản lý NLU"
             />
             <ReadinessCard
               title="Trích xuất thông tin (OCR / KIE)"
@@ -981,7 +982,7 @@ function DashboardPage() {
               ready={readiness.billOcr.ready}
               extra={`Đang chờ duyệt: ${readiness.billOcr.pending} · Đã lưu trữ: ${readiness.billOcr.exported}`}
               actionTo="/bill-retrain"
-              actionLabel="Duyệt nhãn Bill OCR"
+              actionLabel="Đến trang quản lý OCR"
             />
           </div>
         </section>

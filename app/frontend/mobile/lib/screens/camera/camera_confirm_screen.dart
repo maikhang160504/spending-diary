@@ -148,17 +148,27 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
 
   Future<void> _onConfirm() async {
     if (_saving) return;
+    final isGroupBill = widget.extractedData?['isGroupBill'] == true;
+    final groupId = widget.extractedData?['groupId'] as String?;
+    
     final wallets = _wallets.isNotEmpty ? _wallets : await _api.getWallets();
     if (!mounted) return;
-    final targetWalletId =
-        _targetWalletId ??
-        widget.extractedData?['walletId'] as String? ??
-        ApiClient.lastSelectedWalletId ??
-        (wallets.isNotEmpty ? wallets[0]['id'] as String : '');
-    final targetWallet = wallets.firstWhere(
-      (w) => w['id'] == targetWalletId,
-      orElse: () => null,
-    );
+    
+    // Wallets logic is ignored if it's a group bill
+    final targetWalletId = isGroupBill
+        ? groupId!
+        : _targetWalletId ??
+          widget.extractedData?['walletId'] as String? ??
+          ApiClient.lastSelectedWalletId ??
+          (wallets.isNotEmpty ? wallets[0]['id'] as String : '');
+          
+    final targetWallet = isGroupBill
+        ? null
+        : wallets.firstWhere(
+            (w) => w['id'] == targetWalletId,
+            orElse: () => null,
+          );
+          
     final isGroupWallet =
         targetWallet != null && targetWallet['type'] == 'group';
     final reviewTxId = widget.extractedData?['transactionId'] as String?;
@@ -168,7 +178,7 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
       _saveError = null;
     });
     try {
-      if (wallets.isEmpty) throw Exception('Không có ví nào');
+      if (!isGroupBill && wallets.isEmpty) throw Exception('Không có ví nào');
       if (_amount <= 0) {
         throw Exception(
           'Vui lòng nhập số tiền hợp lệ (lớn hơn 0)',
@@ -195,15 +205,23 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
       final llm = LlmMimoReply(text: llmText, emotionAsset: llmMood);
 
       if (reviewTxId != null) {
-        await _api.updateTransaction(reviewTxId, {
-          'amount': _amount,
-          'type': _recordType == 'Income' ? 'income' : 'expense',
-          'categoryCode': _category,
-          'note': _note,
-          'aiConfidence': _confidence,
-          'isDraft': false,
-          ...llm.toStoryPersistFields(),
-        });
+        if (isGroupBill) {
+          await _api.updateGroupTransaction(reviewTxId, {
+            'amount': _amount,
+            'note': _note,
+            'isDraft': false,
+          });
+        } else {
+          await _api.updateTransaction(reviewTxId, {
+            'amount': _amount,
+            'type': _recordType == 'Income' ? 'income' : 'expense',
+            'categoryCode': _category,
+            'note': _note,
+            'aiConfidence': _confidence,
+            'isDraft': false,
+            ...llm.toStoryPersistFields(),
+          });
+        }
       } else {
         String? imageUrl;
         final imagePath = widget.extractedData?['imagePath'] as String?;
@@ -270,7 +288,9 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
 
       if (!mounted) return;
 
-      if (isGroupWallet) {
+      if (isGroupBill) {
+        context.pop(); // Quay lại trang trước (có thể là trang chi tiết nhóm)
+      } else if (isGroupWallet) {
         context.go(AppRoutes.shareWallet, extra: {'walletId': targetWalletId});
       } else {
         context.go(AppRoutes.home);
