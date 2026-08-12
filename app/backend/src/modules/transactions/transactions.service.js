@@ -296,6 +296,7 @@ async function update(userId, id, payload) {
     ['imageUrl', 'image_url'],
     ['thumbnailUrl', 'thumbnail_url'],
     ['isDraft', 'is_draft'],
+    ['processingStatus', 'processing_status'],
   ]) {
     if (payload[k] !== undefined) {
       fields.push(`${col} = $${i++}`);

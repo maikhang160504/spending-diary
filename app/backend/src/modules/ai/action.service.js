@@ -1484,6 +1484,31 @@ async function executeSuggestBudget(userId, payload) {
     suggestions = await suggestionService.getSuggestions(userId, targetMonth);
   }
 
+  // Nếu vẫn không có dữ liệu (người dùng mới chưa có giao dịch nào),
+  // trả về bản mẫu ngân sách tiêu chuẩn thay vì để AI phân tích dữ liệu trống
+  if (suggestions.length === 0) {
+    const DEFAULT_INCOME = 5_000_000;
+    const templateSuggestions = [
+      { categoryCode: 'Food',          suggestedAmount: Math.round(DEFAULT_INCOME * 0.30), baseSpending: 0, reason: 'Ăn uống: 30% thu nhập (mẫu)' },
+      { categoryCode: 'Transport',     suggestedAmount: Math.round(DEFAULT_INCOME * 0.10), baseSpending: 0, reason: 'Di chuyển: 10% thu nhập (mẫu)' },
+      { categoryCode: 'Housing',       suggestedAmount: Math.round(DEFAULT_INCOME * 0.20), baseSpending: 0, reason: 'Nhà ở: 20% thu nhập (mẫu)' },
+      { categoryCode: 'Shopping',      suggestedAmount: Math.round(DEFAULT_INCOME * 0.10), baseSpending: 0, reason: 'Mua sắm: 10% thu nhập (mẫu)' },
+      { categoryCode: 'Entertainment', suggestedAmount: Math.round(DEFAULT_INCOME * 0.05), baseSpending: 0, reason: 'Giải trí: 5% thu nhập (mẫu)' },
+      { categoryCode: 'Health',        suggestedAmount: Math.round(DEFAULT_INCOME * 0.05), baseSpending: 0, reason: 'Sức khỏe: 5% thu nhập (mẫu)' },
+      { categoryCode: 'Savings',       suggestedAmount: Math.round(DEFAULT_INCOME * 0.20), baseSpending: 0, reason: 'Tiết kiệm: 20% thu nhập (mẫu)' },
+    ];
+    const totalTemplate = templateSuggestions.reduce((sum, s) => sum + s.suggestedAmount, 0);
+    return {
+      kind: 'budget_suggestion',
+      targetMonth,
+      is_template: true,
+      suggestions: templateSuggestions,
+      totalSuggested: totalTemplate,
+      message: `Mimo chưa có đủ dữ liệu chi tiêu của bạn nên gợi ý theo ngân sách mẫu chuẩn (thu nhập tham chiếu: ${suggestionService.formatVnd(DEFAULT_INCOME)}đ/tháng). Hãy ghi chép chi tiêu thêm để Mimo phân tích chính xác hơn nhé! 📊`,
+      apply_action: { type: 'APPLY_BUDGET_SUGGESTION', targetMonth },
+    };
+  }
+
   const story = suggestionService.buildSuggestionStory(suggestions, targetMonth);
 
   return {

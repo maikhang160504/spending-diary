@@ -634,7 +634,7 @@ async function expenseFromText(userId, payload) {
       type: extracted.record_type === 'Income' ? 'income' : 'expense',
       source: 'text',
       categoryCode: extracted.category || 'Others',
-      note: extracted.note || payload.text,
+      note: payload.text,
       occurredAt: payload.occurredAt,
       aiExtracted: true,
       aiConfidence: extracted.confidence ?? null,
@@ -768,7 +768,7 @@ async function _processTextBackground(userId, transactionId, payload) {
           finalAmountTx,
           recordTypeTx,
           finalCategoryCodeTx,
-          extracted.note || payload.text,
+          payload.text,
           extracted.confidence ?? null,
           aiMeta,
           finalStatus,
@@ -931,6 +931,13 @@ async function _processBillBackground(userId, walletId, transactionId, fileBuffe
 
     const extracted = aiResponse.extracted || {};
     
+    // NEW LOGIC: For bill, note should be SELLER. If no seller, use the item (note) returned by LLM.
+    let finalNote = aiResponse.ocr?.extra_fields?.kie_fields?.SELLER || aiResponse.ocr?.kie_fields?.SELLER;
+    if (!finalNote) {
+      finalNote = extracted.note || (aiResponse.ocr?.lines && aiResponse.ocr.lines.length > 0 ? aiResponse.ocr.lines[0].text : null);
+    }
+    extracted.note = finalNote;
+
     // Verify if it is a valid receipt image. 
     // A valid bill MUST have an amount > 0.
     // If it has no amount, it's either a normal image or an unreadable bill.

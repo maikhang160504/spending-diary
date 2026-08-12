@@ -28,8 +28,21 @@ async function joinGroup(req, res, next) {
   try {
     const userId = req.user.id;
     const userName = req.user.username;
-    const group = await service.joinGroup(userId, userName, req.body.inviteCode);
+    const group = await service.joinGroup(userId, userName, req.body.inviteCode, req.body.memberId);
     res.json({ success: true, data: group });
+  } catch (err) {
+    if (err.message === 'NOT_FOUND') {
+      return res.status(404).json({ success: false, message: 'Invite code not found' });
+    }
+    next(err);
+  }
+}
+
+async function previewGroup(req, res, next) {
+  try {
+    const code = req.params.code;
+    const result = await service.previewGroup(code);
+    res.json({ success: true, data: result });
   } catch (err) {
     if (err.message === 'NOT_FOUND') {
       return res.status(404).json({ success: false, message: 'Invite code not found' });
@@ -112,13 +125,39 @@ async function settleGroupDebt(req, res, next) {
   }
 }
 
+async function removeMember(req, res, next) {
+  try {
+    const userId = req.user.id;
+    const groupId = req.params.id;
+    const memberId = req.params.memberId;
+    await service.removeMember(groupId, userId, memberId);
+    res.json({ success: true, message: 'Thành viên đã bị xóa' });
+  } catch (err) {
+    if (err.message === 'FORBIDDEN') {
+      return res.status(403).json({ success: false, message: 'Access denied' });
+    }
+    if (err.message === 'MEMBER_NOT_FOUND') {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy thành viên' });
+    }
+    if (err.message === 'CANNOT_REMOVE_MEMBER_WITH_TRANSACTIONS') {
+      return res.status(400).json({ success: false, message: 'Không thể xóa thành viên đã có giao dịch' });
+    }
+    if (err.message === 'CANNOT_REMOVE_OWNER') {
+      return res.status(400).json({ success: false, message: 'Không thể xóa chủ nhóm' });
+    }
+    next(err);
+  }
+}
+
 module.exports = {
   createGroup,
   listGroups,
   joinGroup,
+  previewGroup,
   getGroupDetails,
   addTransaction,
   updateTransaction,
   calculateSplit,
-  settleGroupDebt
+  settleGroupDebt,
+  removeMember
 };

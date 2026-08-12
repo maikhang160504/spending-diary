@@ -8,8 +8,8 @@ const env = require('../config/env');
 const billRetrainStore = require('./billRetrainStore');
 
 const THRESHOLDS = {
-  categoryCorrections: 500,
-  ocrKieApproved: 2000,
+  totalTransactions: 10000,   // NLU: khi CSDL đạt 10,000 giao dịch
+  ocrScanned: 1000,           // OCR: khi đã quét được 1,000 ảnh hóa đơn
 };
 
 function readinessStatus(current, threshold) {
@@ -42,42 +42,44 @@ function readExportedManifestCount() {
 
 async function getRetrainReadiness() {
   const bill = billRetrainStore.sampleStats();
-  const ocrKie = readinessStatus(bill.approved, THRESHOLDS.ocrKieApproved);
   const exportInfo = readExportedManifestCount();
 
-  let categoryPool = 0;
+  // OCR: đếm tổng ảnh hóa đơn đã quét (approved + pending)
+  const totalScanned = (bill.approved || 0) + (bill.pending || 0);
+  const ocrKie = readinessStatus(totalScanned, THRESHOLDS.ocrScanned);
+
+  // NLU: đếm tổng số giao dịch trong CSDL (thay vì user corrections)
+  let totalTransactions = 0;
   let correctionRows = 0;
   try {
-    const totalRes = await query('SELECT COUNT(*)::int AS c FROM user_corrections');
-    correctionRows = totalRes.rows[0]?.c || 0;
-    const poolRes = await query(
-      'SELECT COUNT(*)::int AS c FROM user_corrections WHERE category_code IS NOT NULL',
-    );
-    categoryPool = poolRes.rows[0]?.c || 0;
+    const txRes = await query('SELECT COUNT(*)::int AS c FROM transactions');
+    totalTransactions = txRes.rows[0]?.c || 0;
+    const corrRes = await query('SELECT COUNT(*)::int AS c FROM user_corrections');
+    correctionRows = corrRes.rows[0]?.c || 0;
   } catch {
-    categoryPool = 0;
+    totalTransactions = 0;
     correctionRows = 0;
   }
 
-  const category = readinessStatus(categoryPool, THRESHOLDS.categoryCorrections);
+  const nlu = readinessStatus(totalTransactions, THRESHOLDS.totalTransactions);
 
   const recommendations = [];
   if (bill.pending > 0) {
     recommendations.push(`${bill.pending} bill đang chờ duyệt bbox trên Bill OCR Retrain.`);
   }
-  if (!ocrKie.ready && bill.approved > 0) {
+  if (!ocrKie.ready && totalScanned > 0) {
     recommendations.push(
-      `OCR/KIE: ${bill.approved}/${THRESHOLDS.ocrKieApproved} bill approved — tiếp tục duyệt hoặc export batch nhỏ để thử.`,
+      `OCR: ${totalScanned}/${THRESHOLDS.ocrScanned} ảnh hóa đơn đã quét — tiếp tục duyệt để đủ ngưỡng retrain.`,
     );
   }
   if (ocrKie.ready) {
-    recommendations.push('Đủ ngưỡng OCR/KIE — có thể Export + Kaggle retrain PICK KIE.');
+    recommendations.push('Đủ ngưỡng OCR — có thể Export + Kaggle retrain mô hình nhận diện hóa đơn.');
   }
-  if (category.ready) {
-    recommendations.push('Đủ ngưỡng category — duyệt NLU curation và retrain category model.');
-  } else if (categoryPool > 0) {
+  if (nlu.ready) {
+    recommendations.push('Đủ ngưỡng NLU — CSDL đã có 10,000 giao dịch, sẵn sàng retrain mô hình phân loại.');
+  } else if (totalTransactions > 0) {
     recommendations.push(
-      `Category: ${categoryPool}/${THRESHOLDS.categoryCorrections} user corrections — gom thêm trước retrain.`,
+      `NLU: ${totalTransactions}/${THRESHOLDS.totalTransactions} giao dịch — cần thêm dữ liệu trước khi retrain.`,
     );
   }
   if (bill.approved > 0 && exportInfo.exported === 0) {
@@ -89,14 +91,16 @@ async function getRetrainReadiness() {
     billOcr: {
       ...bill,
       ...ocrKie,
+      scanned: totalScanned,
       exported: exportInfo.exported,
     },
+    // Giữ field 'category' cho backward-compat với frontend (map sang nlu)
     category: {
       correctionRows,
-      curatedPool: categoryPool,
-      ...category,
+      curatedPool: totalTransactions,
+      ...nlu,
     },
-    anyReady: ocrKie.ready || category.ready,
+    anyReady: ocrKie.ready && nlu.ready,
     recommendations,
     updatedAt: new Date().toISOString(),
   };

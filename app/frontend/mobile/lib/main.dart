@@ -1,4 +1,5 @@
 import 'package:cached_query/cached_query.dart';
+import 'package:cached_storage/cached_storage.dart';
 import 'package:flutter/material.dart';
 
 import 'app.dart';
@@ -9,6 +10,7 @@ Future<void> main() async {
   // Cấu hình cache chung cho cached_query: giữ dữ liệu "tươi" 30s (không refetch),
   // và giữ trong bộ nhớ lâu hơn để không bị mất.
   CachedQuery.instance.config(
+    storage: await CachedStorage.ensureInitialized(),
     config: QueryConfig(
       refetchDuration: const Duration(
         days: 1,

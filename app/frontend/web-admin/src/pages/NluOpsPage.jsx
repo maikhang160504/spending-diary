@@ -1611,7 +1611,13 @@ function NluOpsPage() {
                         <td style={{ padding: "14px 18px", textAlign: "center", color: "var(--text-secondary)", fontWeight: "500" }}>{benchmarkResults.tfidf?.intent_accuracy || 0}%</td>
                         <td style={{ padding: "14px 18px", textAlign: "center", color: "var(--text-secondary)", fontWeight: "500" }}>{benchmarkResults.tfidf?.category_accuracy || 0}%</td>
                         <td style={{ padding: "14px 18px", textAlign: "center", color: "var(--text-primary)", fontWeight: "600" }}>{benchmarkResults.tfidf?.record_type_accuracy || 0}%</td>
-                        <td style={{ padding: "14px 18px", textAlign: "right", color: "var(--accent-emerald)", fontWeight: "600", fontFamily: "var(--font-mono)" }}>{benchmarkResults.tfidf?.avg_latency_ms || 0}ms</td>
+                        <td style={{ padding: "14px 18px", textAlign: "right" }}>
+                          <div style={{ color: "var(--accent-emerald)", fontWeight: "600", fontFamily: "var(--font-mono)" }}>{benchmarkResults.tfidf?.avg_latency_ms || 0}ms</div>
+                          <div style={{ color: "var(--text-muted)", fontSize: "9px", marginTop: "4px", lineHeight: "1.2" }}>
+                            Ý định: {benchmarkResults.tfidf?.intent_latency_ms || 0}ms<br/>
+                            Hạng mục: {benchmarkResults.tfidf?.category_latency_ms || 0}ms
+                          </div>
+                        </td>
                         <td style={{ padding: "14px 18px", textAlign: "right", color: "var(--text-muted)", fontSize: "12px", fontFamily: "var(--font-mono)" }}>{benchmarkResults.tfidf?.p95_latency_ms || 0}ms</td>
                       </tr>
                       {/* PhoBERT */}
@@ -1623,20 +1629,50 @@ function NluOpsPage() {
                         <td style={{ padding: "14px 18px", textAlign: "center", color: "var(--text-secondary)", fontWeight: "500" }}>{benchmarkResults.phobert?.intent_accuracy || 0}%</td>
                         <td style={{ padding: "14px 18px", textAlign: "center", color: "var(--text-secondary)", fontWeight: "500" }}>{benchmarkResults.phobert?.category_accuracy || 0}%</td>
                         <td style={{ padding: "14px 18px", textAlign: "center", color: "var(--accent-blue-hover)", fontWeight: "600" }}>{benchmarkResults.phobert?.record_type_accuracy || 0}%</td>
-                        <td style={{ padding: "14px 18px", textAlign: "right", color: "var(--accent-emerald)", fontWeight: "600", fontFamily: "var(--font-mono)" }}>{benchmarkResults.phobert?.avg_latency_ms || 0}ms</td>
+                        <td style={{ padding: "14px 18px", textAlign: "right" }}>
+                          <div style={{ color: "var(--accent-emerald)", fontWeight: "600", fontFamily: "var(--font-mono)" }}>{benchmarkResults.phobert?.avg_latency_ms || 0}ms</div>
+                          <div style={{ color: "var(--text-muted)", fontSize: "9px", marginTop: "4px", lineHeight: "1.2" }}>
+                            Ý định: {benchmarkResults.phobert?.intent_latency_ms || 0}ms<br/>
+                            Hạng mục: {benchmarkResults.phobert?.category_latency_ms || 0}ms
+                          </div>
+                        </td>
                         <td style={{ padding: "14px 18px", textAlign: "right", color: "var(--text-muted)", fontSize: "12px", fontFamily: "var(--font-mono)" }}>{benchmarkResults.phobert?.p95_latency_ms || 0}ms</td>
                       </tr>
-                      {/* Qwen2.5 */}
+                      {/* Qwen2.5 Base */}
+                      <tr>
+                        <td style={{ padding: "14px 18px", borderBottom: "1px solid var(--border-color)" }}>
+                          <div style={{ color: "var(--text-primary)", fontWeight: "600", fontSize: "13px" }}>Qwen2.5-14B Base</div>
+                          <div style={{ color: "var(--text-muted)", fontSize: "11px", marginTop: "2px" }}>Zero/Few-shot (Không Fine-tune)</div>
+                        </td>
+                        <td style={{ padding: "14px 18px", textAlign: "center", color: "var(--text-secondary)", fontWeight: "500", borderBottom: "1px solid var(--border-color)" }}>{benchmarkResults.qwen_base?.intent_accuracy || 0}%</td>
+                        <td style={{ padding: "14px 18px", textAlign: "center", color: "var(--text-secondary)", fontWeight: "500", borderBottom: "1px solid var(--border-color)" }}>{benchmarkResults.qwen_base?.category_accuracy || 0}%</td>
+                        <td style={{ padding: "14px 18px", textAlign: "center", color: "var(--accent-violet)", fontWeight: "600", borderBottom: "1px solid var(--border-color)" }}>{benchmarkResults.qwen_base?.record_type_accuracy || 0}%</td>
+                        <td style={{ padding: "14px 18px", textAlign: "right", borderBottom: "1px solid var(--border-color)" }}>
+                          <div style={{ color: "var(--accent-rose)", fontWeight: "600", fontFamily: "var(--font-mono)" }}>{benchmarkResults.qwen_base?.avg_latency_ms || 0}ms</div>
+                          <div style={{ color: "var(--text-muted)", fontSize: "9px", marginTop: "4px", lineHeight: "1.2" }}>
+                            Ý định: {benchmarkResults.qwen_base?.intent_latency_ms || 0}ms<br/>
+                            Hạng mục: {benchmarkResults.qwen_base?.category_latency_ms || 0}ms
+                          </div>
+                        </td>
+                        <td style={{ padding: "14px 18px", textAlign: "right", color: "var(--text-muted)", fontSize: "12px", fontFamily: "var(--font-mono)", borderBottom: "1px solid var(--border-color)" }}>{benchmarkResults.qwen_base?.p95_latency_ms || 0}ms</td>
+                      </tr>
+                      {/* Qwen2.5 LoRA */}
                       <tr>
                         <td style={{ padding: "14px 18px", borderBottom: "none" }}>
-                          <div style={{ color: "var(--text-primary)", fontWeight: "600", fontSize: "13px" }}>Qwen2.5-14B (LLM)</div>
+                          <div style={{ color: "var(--text-primary)", fontWeight: "600", fontSize: "13px" }}>Qwen2.5-14B Fine-tuned (LoRA)</div>
                           <div style={{ color: "var(--text-muted)", fontSize: "11px", marginTop: "2px" }}>GPU (vLLM) / API Inference</div>
                         </td>
-                        <td style={{ padding: "14px 18px", textAlign: "center", color: "var(--text-secondary)", fontWeight: "500", borderBottom: "none" }}>{benchmarkResults.qwen?.intent_accuracy || 0}%</td>
-                        <td style={{ padding: "14px 18px", textAlign: "center", color: "var(--text-secondary)", fontWeight: "500", borderBottom: "none" }}>{benchmarkResults.qwen?.category_accuracy || 0}%</td>
-                        <td style={{ padding: "14px 18px", textAlign: "center", color: "var(--accent-violet)", fontWeight: "600", borderBottom: "none" }}>{benchmarkResults.qwen?.record_type_accuracy || 0}%</td>
-                        <td style={{ padding: "14px 18px", textAlign: "right", color: "var(--accent-rose)", fontWeight: "600", fontFamily: "var(--font-mono)", borderBottom: "none" }}>{benchmarkResults.qwen?.avg_latency_ms || 0}ms</td>
-                        <td style={{ padding: "14px 18px", textAlign: "right", color: "var(--text-muted)", fontSize: "12px", fontFamily: "var(--font-mono)", borderBottom: "none" }}>{benchmarkResults.qwen?.p95_latency_ms || 0}ms</td>
+                        <td style={{ padding: "14px 18px", textAlign: "center", color: "var(--text-secondary)", fontWeight: "500", borderBottom: "none" }}>{benchmarkResults.qwen_lora?.intent_accuracy || 0}%</td>
+                        <td style={{ padding: "14px 18px", textAlign: "center", color: "var(--text-secondary)", fontWeight: "500", borderBottom: "none" }}>{benchmarkResults.qwen_lora?.category_accuracy || 0}%</td>
+                        <td style={{ padding: "14px 18px", textAlign: "center", color: "var(--accent-emerald)", fontWeight: "600", borderBottom: "none" }}>{benchmarkResults.qwen_lora?.record_type_accuracy || 0}%</td>
+                        <td style={{ padding: "14px 18px", textAlign: "right", borderBottom: "none" }}>
+                          <div style={{ color: "var(--accent-rose)", fontWeight: "600", fontFamily: "var(--font-mono)" }}>{benchmarkResults.qwen_lora?.avg_latency_ms || 0}ms</div>
+                          <div style={{ color: "var(--text-muted)", fontSize: "9px", marginTop: "4px", lineHeight: "1.2" }}>
+                            Ý định: {benchmarkResults.qwen_lora?.intent_latency_ms || 0}ms<br/>
+                            Hạng mục: {benchmarkResults.qwen_lora?.category_latency_ms || 0}ms
+                          </div>
+                        </td>
+                        <td style={{ padding: "14px 18px", textAlign: "right", color: "var(--text-muted)", fontSize: "12px", fontFamily: "var(--font-mono)", borderBottom: "none" }}>{benchmarkResults.qwen_lora?.p95_latency_ms || 0}ms</td>
                       </tr>
                     </tbody>
                   </table>

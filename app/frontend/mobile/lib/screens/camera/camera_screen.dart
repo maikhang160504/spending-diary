@@ -13,11 +13,13 @@ import '../../widgets/mimo_snackbar.dart';
 class CameraScreen extends StatefulWidget {
   final bool returnOnlyImagePath;
   final String? walletId;
+  final String? groupId;
   final String? initialMode;
   const CameraScreen({
     super.key,
     this.returnOnlyImagePath = false,
     this.walletId,
+    this.groupId,
     this.initialMode,
   });
   @override
@@ -149,48 +151,58 @@ class _CameraScreenState extends State<CameraScreen>
   }
 
   Future<void> _handleImagePath(String imagePath) async {
-    if (widget.returnOnlyImagePath) {
-      context.pop(imagePath);
-      return;
-    }
-    if (_mode == 'Bill') {
-      String? targetId = widget.walletId ?? ApiClient.lastSelectedWalletId;
-      if (targetId == null || targetId.isEmpty) {
-        try {
-          final wallets = await _api.getWallets();
-          wallets.sort((a, b) {
-            final aType = a['type'] as String? ?? 'personal';
-            final bType = b['type'] as String? ?? 'personal';
-            if (aType == 'personal' && bType != 'personal') return -1;
-            if (aType != 'personal' && bType == 'personal') return 1;
-            return 0;
-          });
-          if (wallets.isNotEmpty) targetId = wallets[0]['id'] as String?;
-        } catch (_) {}
+    // Guard: không xử lý nếu đang bận (ngăn double-tap tạo giao dịch trùng)
+    if (_isTakingPhoto) return;
+    setState(() => _isTakingPhoto = true);
+    try {
+      if (widget.returnOnlyImagePath) {
+        if (mounted) context.pop(imagePath);
+        return;
       }
-      targetId ??= '';
+      if (_mode == 'Bill') {
+        // Group bills are handled externally via returnOnlyImagePath = true.
+        // So here we only handle personal/shared wallets.
+        String? targetId = widget.walletId ?? ApiClient.lastSelectedWalletId;
+        if (targetId == null || targetId.isEmpty) {
+          try {
+            final wallets = await _api.getWallets();
+            wallets.sort((a, b) {
+              final aType = a['type'] as String? ?? 'personal';
+              final bType = b['type'] as String? ?? 'personal';
+              if (aType == 'personal' && bType != 'personal') return -1;
+              if (aType != 'personal' && bType == 'personal') return 1;
+              return 0;
+            });
+            if (wallets.isNotEmpty) targetId = wallets[0]['id'] as String?;
+          } catch (_) {}
+        }
+        targetId ??= '';
 
-      // Gửi đi ngay lập tức (không block UI) và quay lại màn hình trước để hiển thị banner
-      BillProcessingService.instance.submitBill(
-        walletId: targetId,
-        imagePath: imagePath,
-      );
+        // Gửi đi ngay lập tức (không block UI) và quay lại màn hình trước để hiển thị banner
+        BillProcessingService.instance.submitBill(
+          walletId: targetId,
+          imagePath: imagePath,
+        );
 
-      if (!mounted) return;
-      context.pop();
-      MimoSnackBar.showSuccess(
-        context,
-        message: 'Đã gửi hóa đơn! Đang phân tích ngầm...',
-      );
-    } else {
-      context.push(
-        AppRoutes.cameraInput,
-        extra: {
-          'imagePath': imagePath,
-          'isBill': false,
-          'walletId': widget.walletId ?? ApiClient.lastSelectedWalletId,
-        },
-      );
+        if (!mounted) return;
+        context.pop();
+        MimoSnackBar.showSuccess(
+          context,
+          message: 'Đã gửi hóa đơn! Đang phân tích ngầm...',
+        );
+      } else {
+        if (!mounted) return;
+        context.push(
+          AppRoutes.cameraInput,
+          extra: {
+            'imagePath': imagePath,
+            'isBill': false,
+            'walletId': widget.walletId ?? ApiClient.lastSelectedWalletId,
+          },
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isTakingPhoto = false);
     }
   }
 
@@ -211,6 +223,8 @@ class _CameraScreenState extends State<CameraScreen>
   }
 
   Future<void> _pickFromGallery() async {
+    // Guard: không cho mở gallery khi đang xử lý ảnh
+    if (_isTakingPhoto) return;
     XFile? xFile;
     try {
       final picker = ImagePicker();

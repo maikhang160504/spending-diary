@@ -494,7 +494,7 @@ class _StoryPageState extends State<_StoryPage> {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'Ghi chú',
+                    'Tiêu đề',
                     style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
                       fontWeight: FontWeight.w600,
                     ),
@@ -503,7 +503,7 @@ class _StoryPageState extends State<_StoryPage> {
                   TextField(
                     controller: noteCtrl,
                     decoration: const InputDecoration(
-                      hintText: 'Ghi chú cho giao dịch',
+                      hintText: 'Tiêu đề hoặc ghi chú cho giao dịch',
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -626,15 +626,37 @@ class _StoryPageState extends State<_StoryPage> {
         title.toLowerCase() == 'khoản chi' ||
         title.toLowerCase() == 'khoản thu' ||
         title.toLowerCase() == 'chi tiêu';
+
     if (isGeneric && items != null && items.isNotEmpty) {
       final firstItem = items.first;
       final rawText =
           firstItem['raw_text'] as String? ?? firstItem['rawText'] as String?;
+      
       if (rawText != null && rawText.trim().isNotEmpty) {
         title = rawText.trim();
+      } else {
+        final txs = firstItem['transactions'] as List<dynamic>?;
+        if (txs != null && txs.isNotEmpty) {
+          final tx = txs.first;
+          final aiMeta = tx['aiMeta'] ?? tx['ai_meta'];
+          if (aiMeta is Map) {
+            final ocr = aiMeta['ocr'];
+            if (ocr is Map) {
+              final seller = ocr['seller'] ?? (ocr['kie_fields'] is Map ? (ocr['kie_fields']['SELLER'] ?? ocr['kie_fields']['seller']) : null);
+              if (seller != null && seller.toString().trim().isNotEmpty) {
+                title = seller.toString().trim();
+              } else {
+                final productNames = ocr['product_names'];
+                if (productNames is List && productNames.isNotEmpty) {
+                  title = productNames.first.toString().trim();
+                }
+              }
+            }
+          }
+        }
       }
     }
-    if (title.isEmpty) {
+    if (title.isEmpty || isGeneric && title.toLowerCase() == 'giao dịch') {
       title = 'Giao dịch';
     }
 

@@ -543,43 +543,39 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                 // 1. Original msg text (already set by chat_llm_update)
                 // 2. The Card (added by _updateMessagePreviews below)
                 // 3. A NEW message for the RAG narrative
+                bool foundRag = false;
+                for (final rMsg in _messages) {
+                  if (rMsg.backendMessageId == '${update.messageId}_rag') {
+                    rMsg.text = update.content!;
+                    foundRag = true;
+                    break;
+                  }
+                }
+                if (!foundRag && update.content!.isNotEmpty) {
+                  _messages.insert(
+                    0,
+                    _ChatMsg(
+                      text: update.content!,
+                      isUser: false,
+                      time: _now(),
+                      chatEmotion: update.mood ?? 'Thinking',
+                      backendMessageId: '${update.messageId}_rag',
+                    ),
+                  );
+                }
               } else {
                 msg.text = update.content!;
               }
             } else {
-              if (!update.isRag) {
-                msg.text = update.content!;
+              msg.text = update.content!;
+              if (update.mood != null && update.mood!.isNotEmpty) {
+                msg.chatEmotion = update.mood!;
               }
-            }
-            if (update.mood != null && update.mood!.isNotEmpty) {
-              msg.chatEmotion = update.mood!;
-            }
-            if (update.intentAction != null) {
-              _updateMessagePreviews(msg, update.intentAction!);
+              if (update.intentAction != null) {
+                _updateMessagePreviews(msg, update.intentAction!);
+              }
             }
             found = true;
-
-            if (update.isRag &&
-                update.content != null &&
-                update.content!.isNotEmpty) {
-              final ragId = '${update.messageId}_rag';
-              final existingRagIdx = _messages.indexWhere(
-                (m) => m.backendMessageId == ragId,
-              );
-              if (existingRagIdx >= 0) {
-                _messages[existingRagIdx].text = update.content!;
-              } else {
-                final ragMsg = _ChatMsg(
-                  text: update.content!,
-                  isUser: false,
-                  time: _now(),
-                  chatEmotion: update.mood ?? 'Happy',
-                  backendMessageId: ragId,
-                );
-                _messages.insert(0, ragMsg);
-              }
-            }
-
             break;
           }
         }
@@ -597,27 +593,6 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
             _updateMessagePreviews(confirmMsg, update.intentAction!);
           }
           _messages.insert(0, confirmMsg);
-
-          if (update.isRag &&
-              update.content != null &&
-              update.content!.isNotEmpty) {
-            final ragId = '${update.messageId}_rag';
-            final existingRagIdx = _messages.indexWhere(
-              (m) => m.backendMessageId == ragId,
-            );
-            if (existingRagIdx >= 0) {
-              _messages[existingRagIdx].text = update.content!;
-            } else {
-              final ragMsg = _ChatMsg(
-                text: update.content!,
-                isUser: false,
-                time: _now(),
-                chatEmotion: update.mood ?? 'Happy',
-                backendMessageId: ragId,
-              );
-              _messages.insert(0, ragMsg);
-            }
-          }
         }
       }
 
@@ -696,12 +671,15 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       } else {
         final originalUser =
             nluString(nlu['text']) ?? nluString(nlu['clean_content']) ?? '';
-        final isMissingSlots = actionResult != null && actionResult['kind'] == 'missing_slots';
+        final isMissingSlots =
+            actionResult != null && actionResult['kind'] == 'missing_slots';
         msg.isMissingSlots = isMissingSlots;
-        
+
         List<String>? missingSlotsList;
         if (isMissingSlots && actionResult['missing'] != null) {
-          missingSlotsList = (actionResult['missing'] as List<dynamic>).map((e) => e.toString()).toList();
+          missingSlotsList = (actionResult['missing'] as List<dynamic>)
+              .map((e) => e.toString())
+              .toList();
         }
 
         final preview = _actionPreviewFromNlu(
@@ -898,19 +876,23 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
               }
             } else {
               final actionResult = nluMap(metadata['action_result']);
-              final isMissingSlots = actionResult != null && actionResult['kind'] == 'missing_slots';
-              
+              final isMissingSlots =
+                  actionResult != null &&
+                  actionResult['kind'] == 'missing_slots';
+
               List<String>? missingSlotsList;
               if (isMissingSlots && actionResult['missing'] != null) {
-                missingSlotsList = (actionResult['missing'] as List<dynamic>).map((e) => e.toString()).toList();
+                missingSlotsList = (actionResult['missing'] as List<dynamic>)
+                    .map((e) => e.toString())
+                    .toList();
               }
-              
+
               final llmText = (llmMeta?.text ?? displayText).trim();
               final originalUser =
                   nluString(nlu['text']) ??
                   nluString(nlu['clean_content']) ??
                   '';
-              
+
               final preview = _actionPreviewFromNlu(
                 nlu,
                 originalUser,
@@ -918,7 +900,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                 messageId: nluString(map['id']),
                 missingSlots: missingSlotsList,
               );
-              
+
               actionPreview = preview;
               if (displayText.isEmpty && llmText.isNotEmpty) {
                 displayText = llmText;
@@ -959,8 +941,9 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
             : null,
         suggestedActions: suggestedActions,
         isPremiumLocked: isPremiumLocked,
-        isMissingSlots: metadata != null && 
-            metadata['action_result'] != null && 
+        isMissingSlots:
+            metadata != null &&
+            metadata['action_result'] != null &&
             metadata['action_result']['kind'] == 'missing_slots',
       );
       if (metadata != null) {
@@ -1312,23 +1295,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
           }
         }
 
-        // Auto save transactions if confidence is high
-        final nlu = intentAction['nlu'] as Map<String, dynamic>? ?? {};
-        final intentConfidence =
-            nluDouble(nlu['intent_confidence']) ??
-            nluDouble(nlu['confidence']) ??
-            0;
-        final willAutoSave =
-            intentConfidence >= 0.9 &&
-            (confirmMsg.txPreview != null || confirmMsg.multiRecords != null);
-        if (willAutoSave) {
-          confirmMsg.isSaved = true;
-        }
-        if (confirmMsg.txPreview != null && intentConfidence >= 0.9) {
-          await _saveTransaction(confirmMsg, force: true);
-        } else if (confirmMsg.multiRecords != null && intentConfidence >= 0.9) {
-          await _saveMultiTransactions(confirmMsg, force: true);
-        }
+        // Disable auto-save to always show confirmation screen per user request
       }
 
       if (mounted) {
@@ -3811,12 +3778,12 @@ class _ActionConfirmCard extends StatelessWidget {
 }
 
 class _MissingSlotInputCard extends StatefulWidget {
-  final _ActionPreview preview;
+  final List<String> missingSlots;
   final ValueChanged<String> onSubmit;
 
   const _MissingSlotInputCard({
     super.key,
-    required this.preview,
+    required this.missingSlots,
     required this.onSubmit,
   });
 
@@ -3835,8 +3802,8 @@ class _MissingSlotInputCardState extends State<_MissingSlotInputCard> {
 
   void _submit(String val) {
     final text = val.trim();
-    final missing = widget.preview.missingSlots ?? [];
-    
+    final missing = widget.missingSlots;
+
     if (text.isEmpty) {
       final missingText = missing.isNotEmpty ? missing.join(", ") : "thông tin";
       ScaffoldMessenger.of(context).showSnackBar(
@@ -3847,7 +3814,7 @@ class _MissingSlotInputCardState extends State<_MissingSlotInputCard> {
       );
       return;
     }
-    
+
     if (missing.contains('amount')) {
       final cleanText = text.replaceAll(RegExp(r'[^0-9-]'), '');
       if (cleanText.startsWith('-')) {
@@ -3865,10 +3832,16 @@ class _MissingSlotInputCardState extends State<_MissingSlotInputCard> {
 
   @override
   Widget build(BuildContext context) {
-    final missing = widget.preview.missingSlots ?? [];
+    final missing = widget.missingSlots;
     final isMissingAmount = missing.contains('amount');
-    final hintText = isMissingAmount ? 'Nhập số tiền...' : (missing.isNotEmpty ? 'Nhập ${missing.join(", ")}...' : 'Nhập thông tin tại đây...');
-    final keyboardType = isMissingAmount ? TextInputType.number : TextInputType.text;
+    final hintText = isMissingAmount
+        ? 'Nhập số tiền...'
+        : (missing.isNotEmpty
+              ? 'Nhập ${missing.join(", ")}...'
+              : 'Nhập thông tin tại đây...');
+    final keyboardType = isMissingAmount
+        ? TextInputType.number
+        : TextInputType.text;
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -3915,15 +3888,7 @@ class _MissingSlotInputCardState extends State<_MissingSlotInputCard> {
             ],
           ),
           const SizedBox(height: 12),
-          Text(
-            widget.preview.summary,
-            style: TextStyle(
-              fontSize: 12,
-              color: context.palette.textSecondary,
-              fontStyle: FontStyle.italic,
-            ),
-          ),
-          const SizedBox(height: 12),
+
           Row(
             children: [
               Expanded(
@@ -3936,7 +3901,9 @@ class _MissingSlotInputCardState extends State<_MissingSlotInputCard> {
                     hintText: hintText,
                     hintStyle: TextStyle(
                       fontSize: 13,
-                      color: context.palette.textSecondary.withValues(alpha: 0.6),
+                      color: context.palette.textSecondary.withValues(
+                        alpha: 0.6,
+                      ),
                     ),
                     filled: true,
                     fillColor: context.palette.surfaceAlt,
@@ -4345,7 +4312,9 @@ class _ChatBubbleState extends State<_ChatBubble> {
       if (widget.message.isSaved && tx.transactionId != null) {
         try {
           final api = ApiClient();
-          await api.updateTransaction(tx.transactionId!, {'categoryCode': picked});
+          await api.updateTransaction(tx.transactionId!, {
+            'categoryCode': picked,
+          });
           notifyTransactionChanged();
         } catch (_) {}
       }
@@ -4468,27 +4437,27 @@ class _ChatBubbleState extends State<_ChatBubble> {
               Expanded(
                 child: OutlinedButton(
                   onPressed: () => _showCategoryPicker(context, tx),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      side: BorderSide(
-                        color: context.palette.textSecondary.withValues(
-                          alpha: 0.3,
-                        ),
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    side: BorderSide(
+                      color: context.palette.textSecondary.withValues(
+                        alpha: 0.3,
                       ),
                     ),
-                    child: Text(
-                      '✎ Sửa',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: context.palette.textSecondary,
-                      ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: Text(
+                    '✎ Sửa',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: context.palette.textSecondary,
                     ),
                   ),
                 ),
+              ),
             ],
           ),
         ],
@@ -4584,8 +4553,9 @@ class _ChatBubbleState extends State<_ChatBubble> {
                   Text(
                     '${isIncome ? '+' : '-'}${formatVnd(tx.amount)}',
                     style: TextStyle(
-                      color:
-                          isIncome ? const Color(0xFF22C55E) : AppColors.danger,
+                      color: isIncome
+                          ? const Color(0xFF22C55E)
+                          : AppColors.danger,
                       fontWeight: FontWeight.w700,
                       fontSize: 13,
                     ),
@@ -4629,7 +4599,8 @@ class _ChatBubbleState extends State<_ChatBubble> {
                         ),
                       )
                     : FilledButton(
-                        onPressed: () => widget.onSaveMultiTx?.call(widget.message),
+                        onPressed: () =>
+                            widget.onSaveMultiTx?.call(widget.message),
                         style: FilledButton.styleFrom(
                           backgroundColor: AppColors.teal,
                           foregroundColor: Colors.white,
@@ -4654,7 +4625,9 @@ class _ChatBubbleState extends State<_ChatBubble> {
 
   @override
   Widget build(BuildContext context) {
-    final bubbleColor = widget.message.isUser ? AppColors.teal : context.palette.card;
+    final bubbleColor = widget.message.isUser
+        ? AppColors.teal
+        : context.palette.card;
     final textColor = widget.message.isUser
         ? Colors.white
         : context.palette.textPrimary;
@@ -4663,17 +4636,21 @@ class _ChatBubbleState extends State<_ChatBubble> {
         : CrossAxisAlignment.start;
 
     final hasText = widget.message.text.isNotEmpty;
-    final hasEmotion = !widget.message.isUser && widget.message.chatEmotion != null;
+    final hasEmotion =
+        !widget.message.isUser && widget.message.chatEmotion != null;
     final hasSpecialCard =
         !widget.message.isUser &&
         (widget.message.reportPreview != null ||
             (widget.message.actionPreview != null &&
-                _actionNeedsConfirm(widget.message.actionPreview!.actionType)) ||
+                _actionNeedsConfirm(
+                  widget.message.actionPreview!.actionType,
+                )) ||
             widget.message.searchPreview != null ||
             widget.message.budgetSuggestionPreview != null ||
             widget.message.txPreview != null ||
             widget.message.downloadUrl != null ||
-            (widget.message.multiRecords != null && widget.message.multiRecords!.isNotEmpty));
+            (widget.message.multiRecords != null &&
+                widget.message.multiRecords!.isNotEmpty));
 
     return Column(
       crossAxisAlignment: alignment,
@@ -4682,7 +4659,9 @@ class _ChatBubbleState extends State<_ChatBubble> {
         if (hasEmotion)
           Padding(
             padding: const EdgeInsets.only(bottom: 8.0, left: 12.0),
-            child: _ChatEmotionSticker(emotionAsset: widget.message.chatEmotion!),
+            child: _ChatEmotionSticker(
+              emotionAsset: widget.message.chatEmotion!,
+            ),
           ),
 
         // 1. Text bubble (chỉ hiển thị nếu có text hoặc đang soạn thêm)
@@ -4703,7 +4682,9 @@ class _ChatBubbleState extends State<_ChatBubble> {
                 borderRadius: BorderRadius.only(
                   topLeft: const Radius.circular(AppRadii.lg),
                   topRight: const Radius.circular(AppRadii.lg),
-                  bottomLeft: Radius.circular(widget.message.isUser ? AppRadii.lg : 4),
+                  bottomLeft: Radius.circular(
+                    widget.message.isUser ? AppRadii.lg : 4,
+                  ),
                   bottomRight: Radius.circular(
                     widget.message.isUser ? 4 : AppRadii.lg,
                   ),
@@ -4729,7 +4710,8 @@ class _ChatBubbleState extends State<_ChatBubble> {
                       ).textTheme.bodyMedium?.copyWith(color: textColor),
                     ),
                   if (!widget.message.isUser && widget.message.llmPending) ...[
-                    if (widget.message.text.isNotEmpty) const SizedBox(height: 6),
+                    if (widget.message.text.isNotEmpty)
+                      const SizedBox(height: 6),
                     const _TypingBubbleIndicator(showBackground: false),
                   ],
                   if (!hasSpecialCard) ...[
@@ -4767,10 +4749,13 @@ class _ChatBubbleState extends State<_ChatBubble> {
                       onSendMessage: widget.onSendMessage,
                     ),
                   if (widget.message.actionPreview != null &&
-                      _actionNeedsConfirm(widget.message.actionPreview!.actionType))
+                      _actionNeedsConfirm(
+                        widget.message.actionPreview!.actionType,
+                      ))
                     if (widget.message.isMissingSlots)
                       _MissingSlotInputCard(
-                        preview: widget.message.actionPreview!,
+                        missingSlots:
+                            widget.message.actionPreview!.missingSlots ?? [],
                         onSubmit: (val) {
                           if (widget.onSendMessage != null) {
                             widget.onSendMessage!(val);
@@ -4782,21 +4767,44 @@ class _ChatBubbleState extends State<_ChatBubble> {
                         preview: widget.message.actionPreview!,
                         isConfirmed: widget.message.isConfirmed,
                         isRejected: widget.message.isRejected,
-                        onConfirm: () => widget.onConfirmAction?.call(widget.message),
-                        onReject: () => widget.onRejectAction?.call(widget.message),
+                        onConfirm: () =>
+                            widget.onConfirmAction?.call(widget.message),
+                        onReject: () =>
+                            widget.onRejectAction?.call(widget.message),
                       ),
                   if (widget.message.budgetSuggestionPreview != null)
                     _BudgetSuggestionCard(
                       preview: widget.message.budgetSuggestionPreview!,
                       isApplied: widget.message.isBudgetApplied,
                       isDismissed: widget.message.isBudgetDismissed,
-                      onApply: (overrides) =>
-                          widget.onApplyBudgetSuggestion?.call(widget.message, overrides),
-                      onDismiss: () => widget.onDismissBudgetSuggestion?.call(widget.message),
+                      onApply: (overrides) => widget.onApplyBudgetSuggestion
+                          ?.call(widget.message, overrides),
+                      onDismiss: () => widget.onDismissBudgetSuggestion?.call(
+                        widget.message,
+                      ),
                     ),
                   if (widget.message.searchPreview != null)
                     _SearchResultCard(preview: widget.message.searchPreview!),
-                  if (widget.message.txPreview != null) _buildSingleTxCard(context),
+                  if (widget.message.txPreview != null)
+                    if (!widget.message.isSaved &&
+                        widget.message.txPreview!.amount == 0)
+                      _MissingSlotInputCard(
+                        missingSlots: const ['amount'],
+                        onSubmit: (val) {
+                          final numStr = val.replaceAll(RegExp(r'[^0-9]'), '');
+                          if (numStr.isNotEmpty) {
+                            final amount = int.parse(numStr);
+                            setState(() {
+                              widget.message.txPreview!.amount = amount;
+                            });
+                            if (widget.onSaveTx != null) {
+                              widget.onSaveTx!(widget.message);
+                            }
+                          }
+                        },
+                      )
+                    else
+                      _buildSingleTxCard(context),
                   if (widget.message.multiRecords != null &&
                       widget.message.multiRecords!.isNotEmpty)
                     _buildMultiTxCard(context),
@@ -5338,4 +5346,3 @@ class _DailyCompareChart extends StatelessWidget {
     );
   }
 }
-

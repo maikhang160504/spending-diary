@@ -1,6 +1,6 @@
 # Danh sách Trích dẫn BibTeX Toàn bộ Luận văn (Đã đồng bộ & Rút gọn)
 
-Dưới đây là tập hợp 19 mã trích dẫn học thuật cốt lõi theo định dạng chuẩn BibTeX dành cho luận văn của bạn, được sắp xếp và đồng bộ đúng với thứ tự trong mục "TÀI LIỆU THAM KHẢO".
+Dưới đây là tập hợp 9 mã trích dẫn học thuật cốt lõi theo định dạng chuẩn BibTeX dành cho luận văn của bạn, được sắp xếp và đồng bộ đúng với thứ tự trong mục "TÀI LIỆU THAM KHẢO".
 
 ```bibtex
 % [1]
@@ -14,73 +14,72 @@ Dưới đây là tập hợp 19 mã trích dẫn học thuật cốt lõi theo 
 }
 
 % [2]
-@inproceedings{vaswani2017attention,
-  author = {Vaswani, Ashish and Shazeer, Noam and Parmar, Niki and Uszkoreit, Jakob and Jones, Llion and Gomez, Aidan N and Kaiser, {\L}ukasz and Polosukhin, Illia},
-  title = {Attention is all you need},
-  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
-  year = {2017},
-  pages = {5998--6008}
+@inproceedings{liao2020real,
+  author = {Liao, Minghui and Wan, Zhaoyi and Yao, Cong and Chen, Kai and Bai, Xiang},
+  title = {Real-time scene text detection with differentiable binarization},
+  booktitle = {Proceedings of the AAAI Conference on Artificial Intelligence},
+  volume = {34},
+  number = {07},
+  pages = {11474--11481},
+  year = {2020}
 }
 
 % [3]
-@inproceedings{liao2020realtime,
-  author = {Liao, Minghui and Wan, Zhaoyi and Yao, Cong and Chen, Kai and Bai, Xiang},
-  title = {Real-time Scene Text Detection with Differentiable Binarization},
-  booktitle = {AAAI Conference on Artificial Intelligence},
-  year = {2020}
+@misc{phan2021vietocr,
+  author = {Phan, Quoc Bao},
+  title = {VietOCR - Vietnamese text recognition},
+  year = {2021},
+  url = {https://pbcquoc.github.io/vietocr/},
+  note = {Accessed: 15-Jul-2024}
 }
 
 % [4]
-@inproceedings{howard2019searching,
-  author = {Howard, Andrew and Sandler, Mark and Chu, Grace and Chen, Liang-Chieh and Chen, Bo and Tan, Mingxing and Wang, Weijun and Zhu, Yukun and Pang, Ruoming and Vasudevan, Vijay and Le, Quoc V.},
-  title = {Searching for MobileNetV3},
-  booktitle = {Proceedings of the IEEE/CVF International Conference on Computer Vision (ICCV)},
-  year = {2019}
-}
-
-% [5]
-@inproceedings{bahdanau2015neural,
-  author = {Bahdanau, Dzmitry and Cho, Kyunghyun and Bengio, Yoshua},
-  title = {Neural Machine Translation by Jointly Learning to Align and Translate},
-  booktitle = {International Conference on Learning Representations (ICLR)},
-  year = {2015}
-}
-
-% [6]
 @inproceedings{huang2022layoutlmv3,
   author = {Huang, Yupan and Lv, Tengchao and Cui, Lei and Lu, Yuning and Wei, Furu},
   title = {LayoutLMv3: Pre-training for Document AI with Unified Text and Image Masking},
-  booktitle = {ACM Multimedia},
-  year = {2022}
+  booktitle = {Proceedings of the 30th ACM International Conference on Multimedia},
+  year = {2022},
+  pages = {4083--4091}
 }
 
-% [7]
+% [5]
+@inproceedings{qader2019overview,
+  author = {Qader, Wisam A. and Ameen, Musa M. and Ahmed, Bilal I.},
+  title = {An Overview of Bag of Words; Importance, Implementation, Applications, and Challenges},
+  booktitle = {2019 International Engineering Conference (IEC)},
+  year = {2019},
+  pages = {200--204},
+  doi = {10.1109/IEC47844.2019.8950616}
+}
+
+% [6]
 @inproceedings{nguyen2020phobert,
   author = {Nguyen, Dat Quoc and Nguyen, Anh Tuan},
   title = {PhoBERT: Pre-trained language models for Vietnamese},
-  booktitle = {Findings of the Association for Computational Linguistics: EMNLP},
-  year = {2020}
+  booktitle = {Findings of the Association for Computational Linguistics: EMNLP 2020},
+  year = {2020},
+  pages = {1037--1042}
+}
+
+% [7]
+@article{qwen2024qwen,
+  author = {{Qwen Team}},
+  title = {Qwen2.5: A Party of Foundation Models},
+  journal = {arXiv preprint arXiv:2412.15115},
+  year = {2024}
 }
 
 % [8]
-@inproceedings{niculescu2005predicting,
-  author = {Niculescu-Mizil, Alexandru and Caruana, Rich},
-  title = {Predicting good probabilities with supervised learning},
-  booktitle = {Proceedings of the 22nd international conference on Machine learning (ICML)},
-  year = {2005}
-}
-
-% [9]
 @inproceedings{hu2022lora,
-  author = {Hu, Edward J and Shen, Yelong and Wallis, Phillip and Allen-Zhu, Zeyuan and Li, Yuanzhi and Wang, Shean and Wang, Lu and Chen, Weizhu},
+  author = {Hu, Edward J. and Shen, Yelong and Wallis, Phillip and Allen-Zhu, Zeyuan and Li, Yuanzhi and Wang, Shean and Wang, Lu and Chen, Weizhu},
   title = {LoRA: Low-Rank Adaptation of Large Language Models},
   booktitle = {International Conference on Learning Representations (ICLR)},
   year = {2022}
 }
 
-% [10]
+% [9]
 @inproceedings{lewis2020retrieval,
-  author = {Lewis, Patrick and Perez, Ethan and Piktus, Aleksandra and Petroni, Fabio and Karpukhin, Vladimir and Goyal, Naman and K{\"u}ttler, Heinrich and Lewis, Mike and Yih, Wen-tau and Rockt{\"a}schel, Tim and Riedel, Sebastian and Kiela, Douwe},
+  author = {Lewis, Patrick and Perez, Ethan and Piktus, Aleksandra and Petroni, Fabio and Karpukhin, Vladimir and Goyal, Naman and K{"u}ttler, Heinrich and Lewis, Mike and Yih, Wen-tau and Rockt{"a}schel, Tim and Riedel, Sebastian and Kiela, Douwe},
   title = {Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks},
   booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
   volume = {33},
@@ -88,96 +87,126 @@ Dưới đây là tập hợp 19 mã trích dẫn học thuật cốt lõi theo 
   year = {2020}
 }
 
+% [10]
+@misc{moneylover2024,
+  author = {{Finsify Hub}},
+  title = {MoneyLover - Money Manager \& Expense Tracker},
+  year = {2024},
+  url = {https://moneylover.me},
+  note = {Accessed: 10-Aug-2024}
+}
+
 % [11]
-@inproceedings{cortes2016learning,
-  author = {Cortes, Corinna and DeSalvo, Giulia and Mohri, Mehryar},
-  title = {Learning with reject option},
-  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
-  volume = {29},
-  year = {2016}
+@misc{misa2024,
+  author = {{MISA JSC}},
+  title = {Sổ thu chi MISA - Quản lý tài chính cá nhân},
+  year = {2024},
+  url = {https://www.misa.vn},
+  note = {Accessed: 10-Aug-2024}
 }
 
 % [12]
-@incollection{modigliani1954utility,
-  author = {Modigliani, Franco and Brumberg, Richard},
-  title = {Utility analysis and the consumption function: An interpretation of cross-section data},
-  booktitle = {Post-Keynesian Economics},
-  editor = {Kurihara, Kenneth K.},
-  publisher = {Rutgers University Press},
-  address = {New Brunswick, NJ, USA},
-  pages = {388--436},
-  year = {1954}
+@misc{timo2024,
+  author = {{Timo Digital Bank}},
+  title = {Timo - Ngân hàng số thế hệ mới},
+  year = {2024},
+  url = {https://timo.vn},
+  note = {Accessed: 10-Aug-2024}
 }
 
 % [13]
-@article{gardner1985exponential,
-  author = {Gardner Jr, Everette S},
-  title = {Exponential smoothing: The state of the art},
-  journal = {Journal of Forecasting},
-  volume = {4},
-  number = {1},
-  pages = {1--28},
-  year = {1985}
+@misc{flutter2024,
+  author = {{Google}},
+  title = {Flutter - Build apps for any screen},
+  year = {2024},
+  url = {https://flutter.dev/},
+  note = {Accessed: 10-Aug-2024}
 }
 
 % [14]
-@article{dastous2019peer,
-  author = {D'Astous, Philippe and Gleason, Kimberly},
-  title = {Peer effects in personal finance},
-  journal = {Journal of Economic Behavior \& Organization},
-  volume = {157},
-  pages = {583--602},
-  year = {2019}
+@misc{react2024,
+  author = {{Meta}},
+  title = {React - The library for web and native user interfaces},
+  year = {2024},
+  url = {https://react.dev/},
+  note = {Accessed: 10-Aug-2024}
 }
 
 % [15]
-@article{newman2005power,
-  author = {Newman, Mark EJ},
-  title = {Power laws, Pareto distributions and Zipf's law},
-  journal = {Contemporary Physics},
-  volume = {46},
-  number = {5},
-  pages = {323--351},
-  year = {2005}
+@misc{nodejs2024,
+  author = {{OpenJS Foundation}},
+  title = {Node.js},
+  year = {2024},
+  url = {https://nodejs.org/},
+  note = {Accessed: 10-Aug-2024}
 }
 
 % [16]
-@misc{numbeo2026vietnam,
-  author = {{Numbeo}},
-  title = {Cost of Living in Vietnam},
-  year = {2026},
-  url = {https://www.numbeo.com/cost-of-living/country_result.jsp?country=Vietnam},
-  note = {Accessed: 15-Jul-2026}
+@misc{fastapi2024,
+  author = {Ramírez, Sebastián},
+  title = {FastAPI framework, high performance, easy to learn, fast to code, ready for production},
+  year = {2024},
+  url = {https://fastapi.tiangolo.com/},
+  note = {Accessed: 10-Aug-2024}
 }
 
 % [17]
-@book{gso2024khaosat,
-  author = {{Tổng cục Thống kê Việt Nam}},
-  title = {Sách Khảo sát mức sống dân cư năm 2024},
-  publisher = {Nhà xuất bản Thống kê},
-  address = {Hà Nội, Việt Nam},
-  year = {2024}
+@techreport{rfc6455,
+  author = {Fette, Ian and Melnikov, Alexey},
+  title = {The WebSocket Protocol},
+  howpublished = {Internet Requests for Comments},
+  type = {RFC},
+  number = {6455},
+  year = {2011},
+  publisher = {RFC Editor},
+  url = {https://datatracker.ietf.org/doc/html/rfc6455}
 }
 
 % [18]
-@inproceedings{wei2019eda,
-  author = {Wei, Jason and Zou, Kai},
-  title = {EDA: Easy Data Augmentation Techniques for Boosting Performance on Text Classification Tasks},
-  booktitle = {Proceedings of the 2019 Conference on Empirical Methods in Natural Language Processing (EMNLP)},
-  year = {2019},
-  pages = {6382--6388},
-  doi = {10.18653/v1/D19-1670}
+@misc{cockroach2024,
+  author = {{Cockroach Labs}},
+  title = {CockroachDB: The most highly evolved cloud SQL database},
+  year = {2024},
+  url = {https://www.cockroachlabs.com/},
+  note = {Accessed: 10-Aug-2024}
 }
 
 % [19]
-@article{monga2006perceptual,
-  author = {Monga, Vishal and Banerjee, Arindam and Evans, Brian L.},
-  title = {A clustering based approach to perceptual image hashing},
-  journal = {IEEE Transactions on Information Forensics and Security},
-  volume = {1},
-  number = {1},
-  pages = {68--79},
-  year = {2006},
-  doi = {10.1109/TIFS.2005.863503}
+@misc{r2_2024,
+  author = {{Cloudflare}},
+  title = {Cloudflare R2 Storage},
+  year = {2024},
+  url = {https://www.cloudflare.com/developer-platform/r2/},
+  note = {Accessed: 10-Aug-2024}
+}
+
+% [20]
+@misc{paddleocr2024,
+  author = {{PaddlePaddle}},
+  title = {PaddleOCR: Awesome multilingual OCR toolkits},
+  year = {2024},
+  url = {https://github.com/PaddlePaddle/PaddleOCR},
+  note = {Accessed: 10-Aug-2024}
+}
+
+% [21]
+@misc{firebase2024,
+  author = {{Google}},
+  title = {Firebase helps you build and run successful apps},
+  year = {2024},
+  url = {https://firebase.google.com/},
+  note = {Accessed: 10-Aug-2024}
+}
+
+% [22]
+@techreport{rfc6749,
+  author = {Hardt, Dick},
+  title = {The OAuth 2.0 Authorization Framework},
+  howpublished = {Internet Requests for Comments},
+  type = {RFC},
+  number = {6749},
+  year = {2012},
+  publisher = {RFC Editor},
+  url = {https://datatracker.ietf.org/doc/html/rfc6749}
 }
 ```

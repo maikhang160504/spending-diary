@@ -364,7 +364,38 @@ class TransactionStoryCard extends StatelessWidget {
     final note = tx['note'] as String? ?? '';
     final originalText =
         tx['originalText'] as String? ?? tx['original_text'] as String? ?? '';
-    final caption = originalText.isNotEmpty ? originalText : note;
+    
+    String caption = '';
+    bool isGenericNote = note.isEmpty ||
+        note.toLowerCase() == 'giao dịch' ||
+        note.toLowerCase() == 'khoản chi' ||
+        note.toLowerCase() == 'khoản thu' ||
+        note.toLowerCase() == 'chi tiêu';
+
+    if (!isGenericNote) {
+      caption = note;
+    } else if (originalText.isNotEmpty) {
+      caption = originalText;
+    } else {
+      final aiMeta = tx['aiMeta'] ?? tx['ai_meta'];
+      if (aiMeta is Map) {
+        final ocr = aiMeta['ocr'];
+        if (ocr is Map) {
+          final seller = ocr['seller'] ?? (ocr['kie_fields'] is Map ? (ocr['kie_fields']['SELLER'] ?? ocr['kie_fields']['seller']) : null);
+          if (seller != null && seller.toString().trim().isNotEmpty) {
+            caption = seller.toString().trim();
+          } else {
+            final productNames = ocr['product_names'];
+            if (productNames is List && productNames.isNotEmpty) {
+              caption = productNames.first.toString().trim();
+            }
+          }
+        }
+      }
+    }
+    if (caption.isEmpty) {
+      caption = note.isNotEmpty ? note : 'Giao dịch';
+    }
     final displayTime = txTimestampIso(tx) ?? '';
     final isExpense = type.toLowerCase() == 'expense';
     final catStyle = CategoryTheme.of(category);

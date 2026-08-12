@@ -1076,11 +1076,22 @@ class ApiClient {
     return response['data'] as List<dynamic>? ?? [];
   }
 
-  Future<Map<String, dynamic>> createExpenseGroup(String name) async {
+  Future<Map<String, dynamic>> createExpenseGroup({
+    required String name,
+    String? description,
+    List<String>? members,
+  }) async {
+    final body = <String, dynamic>{'name': name};
+    if (description != null && description.isNotEmpty) {
+      body['description'] = description;
+    }
+    if (members != null && members.isNotEmpty) {
+      body['members'] = members;
+    }
     final response = await _request(
       'POST',
       '/expense-groups',
-      body: {'name': name},
+      body: body,
     );
     return response['data'] as Map<String, dynamic>;
   }
@@ -1090,13 +1101,26 @@ class ApiClient {
     return response['data'] as Map<String, dynamic>;
   }
 
-  Future<Map<String, dynamic>> joinExpenseGroup(String inviteCode) async {
+  Future<Map<String, dynamic>> joinExpenseGroup(String inviteCode, {String? memberId}) async {
+    final body = <String, dynamic>{'inviteCode': inviteCode};
+    if (memberId != null) {
+      body['memberId'] = memberId;
+    }
     final response = await _request(
       'POST',
       '/expense-groups/join',
-      body: {'inviteCode': inviteCode},
+      body: body,
     );
     return response['data'] as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> previewExpenseGroup(String inviteCode) async {
+    final response = await _request('GET', '/expense-groups/preview/$inviteCode');
+    return response['data'] as Map<String, dynamic>;
+  }
+
+  Future<void> removeGroupMember(String groupId, String memberId) async {
+    await _request('DELETE', '/expense-groups/$groupId/members/$memberId');
   }
 
   Future<Map<String, dynamic>> addGroupTransaction(

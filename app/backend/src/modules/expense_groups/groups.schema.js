@@ -9,7 +9,8 @@ const createGroupSchema = z.object({
 });
 
 const joinGroupSchema = z.object({
-  inviteCode: z.string().min(1)
+  inviteCode: z.string().min(1),
+  memberId: z.string().uuid().optional()
 });
 
 const addTransactionSchema = z.object({

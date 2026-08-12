@@ -465,122 +465,133 @@ class _GoalRecapScreenState extends State<GoalRecapScreen>
   }
 
   Widget _buildSlide3(String name, String emoji, double targetAmt) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          // Mascot Mood Display
-          Image.asset(
-            'assets/MiMo/emotions/$_mascotMood.png',
-            height: 84,
-            errorBuilder: (context, error, stackTrace) =>
-                const Text('🎉', style: TextStyle(fontSize: 56)),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            _title ?? 'CHỨNG NHẬN HOÀN THÀNH',
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w800,
-              color: Color(0xFFFBBF24),
-              letterSpacing: 0.5,
-            ),
-          ),
-          const SizedBox(height: 16),
-          // Certificate Card containing commentary
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  Colors.white.withValues(alpha: 0.1),
-                  Colors.white.withValues(alpha: 0.04),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(AppRadii.xl),
-              border: Border.all(
-                color: const Color(0xFFF59E0B).withValues(alpha: 0.4),
-              ),
-            ),
-            child: Column(
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(emoji, style: const TextStyle(fontSize: 24)),
-                    const SizedBox(width: 8),
-                    Flexible(
-                      child: Text(
-                        name,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                const Divider(color: Colors.white12),
-                const SizedBox(height: 14),
-                if (_loadingAi)
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Color(0xFFFBBF24),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Text(
-                        'MiMo đang viết lời nhận xét riêng cho bạn...',
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.7),
-                          fontSize: 13,
-                        ),
-                      ),
-                    ],
-                  )
-                else
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Mascot Mood Display
+                  Image.asset(
+                    'assets/MiMo/emotions/$_mascotMood.png',
+                    height: 84,
+                    errorBuilder: (context, error, stackTrace) =>
+                        const Text('🎉', style: TextStyle(fontSize: 56)),
+                  ),
+                  const SizedBox(height: 12),
                   Text(
-                    _displayedCommentary.isNotEmpty
-                        ? _displayedCommentary
-                        : (_commentary ?? ''),
-                    textAlign: TextAlign.center,
+                    _title ?? 'CHỨNG NHẬN HOÀN THÀNH',
                     style: const TextStyle(
-                      fontSize: 14,
-                      color: Colors.white,
-                      height: 1.55,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFFFBBF24),
+                      letterSpacing: 0.5,
                     ),
                   ),
-                const SizedBox(height: 18),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    Text(
-                      '— MiMo AI Assistant',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontStyle: FontStyle.italic,
-                        color: Colors.white.withValues(alpha: 0.6),
+                  const SizedBox(height: 16),
+                  // Certificate Card containing commentary
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.white.withValues(alpha: 0.1),
+                          Colors.white.withValues(alpha: 0.04),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(AppRadii.xl),
+                      border: Border.all(
+                        color: const Color(0xFFF59E0B).withValues(alpha: 0.4),
                       ),
                     ),
-                  ],
-                ),
-              ],
+                    child: Column(
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(emoji, style: const TextStyle(fontSize: 24)),
+                            const SizedBox(width: 8),
+                            Flexible(
+                              child: Text(
+                                name,
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.white,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 14),
+                        const Divider(color: Colors.white12),
+                        const SizedBox(height: 14),
+                        if (_loadingAi)
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Color(0xFFFBBF24),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  'MiMo đang viết lời nhận xét riêng cho bạn...',
+                                  style: TextStyle(
+                                    color: Colors.white.withValues(alpha: 0.7),
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          )
+                        else
+                          Text(
+                            _displayedCommentary.isNotEmpty
+                                ? _displayedCommentary
+                                : (_commentary ?? ''),
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: Colors.white,
+                              height: 1.55,
+                            ),
+                          ),
+                        const SizedBox(height: 18),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            Text(
+                              '— MiMo AI Assistant',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontStyle: FontStyle.italic,
+                                color: Colors.white.withValues(alpha: 0.6),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

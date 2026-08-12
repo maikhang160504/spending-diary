@@ -429,8 +429,15 @@ function NluBenchmarkChart({ data }) {
                     {b.label}
                     <span className="pro-max-stat-pill" style={{ background: "rgba(255,255,255,0.06)", color: b.color, fontSize: "10px" }}>{b.tag}</span>
                   </span>
-                  <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", fontWeight: "700", color: b.color }}>
-                    {lat || b.speed}
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--text-muted)", display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "3px", textAlign: "right" }}>
+                    <span style={{ fontSize: "12px", fontWeight: "700", color: b.color }}>
+                      Tổng: {lat || b.speed} ms
+                    </span>
+                    {lat > 0 && (
+                      <span style={{ fontSize: "10px", opacity: 0.85 }}>
+                        Ý định: {data[b.key]?.intent_latency_ms || 0}ms | Hạng mục: {data[b.key]?.category_latency_ms || 0}ms
+                      </span>
+                    )}
                   </span>
                 </div>
                 <div className="pro-max-bar-track">
@@ -959,7 +966,7 @@ function DashboardPage() {
             </span>
           </div>
           <p className="page-desc" style={{ fontSize: "13px", color: "var(--text-secondary)", marginBottom: "24px" }}>
-            Ngưỡng kích hoạt: NLU Category ≥ {readiness.thresholds.categoryCorrections} sửa lỗi từ người dùng · OCR KIE ≥ {readiness.thresholds.ocrKieApproved} hóa đơn được duyệt trên WebAdmin.
+            Ngưỡng kích hoạt: NLU ≥ 10,000 giao dịch trong CSDL · OCR ≥ 1,000 ảnh hóa đơn đã quét.
           </p>
           <div className="retrain-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "20px" }}>
             <ReadinessCard

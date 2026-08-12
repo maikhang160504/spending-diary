@@ -312,17 +312,8 @@ class BillProcessingService extends ChangeNotifier {
   }
 
   bool _needsReview(Map<String, dynamic> data) {
-    if (data.containsKey('needsReview')) {
-      return data['needsReview'] == true;
-    }
-    final confidence = data['aiConfidence'] is num
-        ? (data['aiConfidence'] as num).toDouble()
-        : 1.0;
-    final amount = data['amount'];
-    if (confidence < _confidenceThreshold) return true;
-    if (amount == null) return true;
-    if (amount is num && amount <= 0) return true;
-    return false;
+    // Always require review for bills per user request
+    return true;
   }
 
   Map<String, dynamic> _normalizeResult(Map<String, dynamic> data) {

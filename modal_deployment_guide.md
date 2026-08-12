@@ -67,17 +67,20 @@ volume = modal.Volume.from_name("expense-ocr-nlu-storage", create_if_missing=Tru
    ```bash
    # Tạo thư mục chứa backup
    mkdir modal_backup
-   mkdir modal_backup\layoutlmv3
-   mkdir modal_backup\exported
-   mkdir modal_backup\qwen_vismimo_lora
-   mkdir modal_backup\nlu_models
    
-   # Tải các trọng số và dữ liệu quan trọng
-   modal volume get expense-ocr-nlu-storage model_best.pth modal_backup/
-   modal volume get expense-ocr-nlu-storage layoutlmv3/* modal_backup/layoutlmv3/
-   modal volume get expense-ocr-nlu-storage exported/* modal_backup/exported/
-   modal volume get expense-ocr-nlu-storage qwen_vismimo_lora/* modal_backup/qwen_vismimo_lora/
-   modal volume get expense-ocr-nlu-storage nlu_models/* modal_backup/nlu_models/
+   # 1. Các mô hình và trọng số cốt lõi (Inference)
+   modal volume get expense-ocr-nlu-storage layoutlmv3/ modal_backup/ --force
+   modal volume get expense-ocr-nlu-storage qwen_vismimo_lora/ modal_backup/ --force
+   modal volume get expense-ocr-nlu-storage nlu_models/ modal_backup/ --force
+   
+   # 2. Dữ liệu huấn luyện OCR (LayoutLMv3 & MC-OCR)
+   modal volume get expense-ocr-nlu-storage layoutlmv3_train_df.csv modal_backup/ --force
+   modal volume get expense-ocr-nlu-storage layoutlmv3_train_imgs/ modal_backup/ --force
+
+   # 3. Dữ liệu huấn luyện LLM & Logs/Metrics
+   modal volume get expense-ocr-nlu-storage llm_finetune/ modal_backup/ --force
+   modal volume get expense-ocr-nlu-storage evaluation_metrics_layoutlmv3.txt modal_backup/ --force
+   modal volume get expense-ocr-nlu-storage visualizations/ modal_backup/ --force
    ```
 
 2. **Chuyển sang tài khoản Modal MỚI:**
@@ -89,11 +92,19 @@ volume = modal.Volume.from_name("expense-ocr-nlu-storage", create_if_missing=Tru
 3. **Upload dữ liệu từ máy tính lên Modal MỚI:**
    Đẩy các tệp đã backup lên Storage của tài khoản mới:
    ```bash
-   modal volume put expense-ocr-nlu-storage modal_backup/model_best.pth /
-   modal volume put expense-ocr-nlu-storage modal_backup/layoutlmv3 /
-   modal volume put expense-ocr-nlu-storage modal_backup/exported /
+   # 1. Các mô hình và trọng số cốt lõi (Inference)
    modal volume put expense-ocr-nlu-storage modal_backup/qwen_vismimo_lora /
+   modal volume put expense-ocr-nlu-storage modal_backup/layoutlmv3 /
    modal volume put expense-ocr-nlu-storage modal_backup/nlu_models /
+   
+   # 2. Dữ liệu huấn luyện OCR (LayoutLMv3 & MC-OCR)
+   modal volume put expense-ocr-nlu-storage modal_backup/layoutlmv3_train_df.csv /
+   modal volume put expense-ocr-nlu-storage modal_backup/layoutlmv3_train_imgs /
+
+   # 3. Dữ liệu huấn luyện LLM & Logs/Metrics
+   modal volume put expense-ocr-nlu-storage modal_backup/llm_finetune /
+   modal volume put expense-ocr-nlu-storage modal_backup/evaluation_metrics_layoutlmv3.txt /
+   modal volume put expense-ocr-nlu-storage modal_backup/visualizations /
    ```
 
 4. **Tải lại mô hình Base Qwen (Thay vì upload file 28GB):**

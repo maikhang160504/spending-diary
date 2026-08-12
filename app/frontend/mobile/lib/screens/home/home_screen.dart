@@ -1031,6 +1031,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               await api.updateTransaction(txId, {
                                 'amount': parsed,
                                 'isDraft': false,
+                                'processingStatus': 'completed',
                               });
                               notifyTransactionChanged();
                               if (ctx.mounted) ctx.pop();

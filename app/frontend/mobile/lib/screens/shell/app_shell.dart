@@ -74,11 +74,13 @@ class _AppShellState extends State<AppShell> {
     PushNotificationService.instance.initialize(
       onNotificationTap: (payload) {
         if (mounted && payload != null && payload.isNotEmpty) {
-          try {
-            context.push(payload);
-          } catch (e) {
-            debugPrint('[Notification] Navigation failed: $e');
-          }
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            try {
+              context.go(payload);
+            } catch (e) {
+              debugPrint('[Notification] Navigation failed: $e');
+            }
+          });
         }
       },
     );
@@ -92,11 +94,13 @@ class _AppShellState extends State<AppShell> {
       removeToken: (token) => _api.removeFcmToken(token),
       onDeepLink: (deepLink) {
         if (mounted && deepLink.isNotEmpty) {
-          try {
-            context.push(deepLink);
-          } catch (e) {
-            debugPrint('[FCM] Navigation failed: $e');
-          }
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            try {
+              context.go(deepLink);
+            } catch (e) {
+              debugPrint('[FCM] Navigation failed: $e');
+            }
+          });
         }
       },
     );

@@ -578,7 +578,7 @@ function BotPromptsPage() {
                     color: "var(--accent-emerald-hover)",
                     fontWeight: "600",
                     marginLeft: "auto"
-                  }}>{persona}</span>
+                  }}>{testResult?.result?.emotion || "neutral"}</span>
                 </div>
                 
                 {testResult ? (
@@ -592,15 +592,45 @@ function BotPromptsPage() {
                     lineHeight: "1.5"
                   }}>
                     <div style={{ marginBottom: "8px", color: "var(--text-muted)", display: "flex", flexWrap: "wrap", gap: "12px", borderBottom: "1px dashed var(--border-color)", paddingBottom: "8px" }}>
-                      <span><strong>Intent:</strong> {testResult.result?.intent} ({testResult.result?.intent_confidence != null ? `${Math.round(testResult.result.intent_confidence * 100)}%` : "100%"})</span>
+                      <span><strong>Intent:</strong> {testResult.result?.intent || "N/A"} ({testResult.result?.intent_confidence != null ? `${Math.round(testResult.result.intent_confidence * 100)}%` : "100%"})</span>
                       <span><strong>Rule:</strong> {testResult.result?.rule_used || "N/A"}</span>
-                      <span><strong>Backend:</strong> {testResult.result?.backend || "llm_v2"}</span>
                       <span style={{ fontSize: "11px", marginLeft: "auto" }}>{testResult.latency_ms}ms</span>
                     </div>
-                    <div>"{testResult.result?.response || testResult.result?.nlg_response || testResult.result?.note}"</div>
+                    {/* Emotion / Action type row */}
+                    {(testResult.result?.mimo_emotion || testResult.result?.emotion || testResult.result?.gemini_json?.mimo_emotion || testResult.result?.action_type) && (
+                      <div style={{ marginBottom: "8px", fontSize: "12px", color: "var(--accent-blue)", display: "flex", gap: "16px", flexWrap: "wrap" }}>
+                        {(testResult.result?.mimo_emotion || testResult.result?.emotion || testResult.result?.gemini_json?.mimo_emotion) && (
+                          <span>🎭 Emotion: <strong>{testResult.result?.mimo_emotion || testResult.result?.emotion || testResult.result?.gemini_json?.mimo_emotion}</strong></span>
+                        )}
+                        {testResult.result?.action_type && (
+                          <span>⚡ Action: <strong>{testResult.result.action_type}</strong></span>
+                        )}
+                      </div>
+                    )}
+                    {/* Response text */}
+                    {(() => {
+                      const text = testResult.result?.response
+                        || testResult.result?.nlg_response
+                        || testResult.result?.gemini_json?.response
+                        || testResult.result?.note;
+                      if (text) {
+                        return <div style={{ fontStyle: "italic" }}>"{ text }"</div>;
+                      }
+                      // Fallback: hiển thị toàn bộ result dưới dạng JSON debug
+                      return (
+                        <div>
+                          <div style={{ color: "var(--accent-amber)", marginBottom: "6px", fontSize: "12px" }}>
+                            ⚠️ Không có trường response — raw result:
+                          </div>
+                          <pre style={{ fontSize: "11px", color: "var(--text-secondary)", whiteSpace: "pre-wrap", wordBreak: "break-all", maxHeight: "200px", overflow: "auto", background: "var(--bg-obsidian-950)", padding: "8px", borderRadius: "6px", margin: 0 }}>
+                            {JSON.stringify(testResult.result, null, 2)}
+                          </pre>
+                        </div>
+                      );
+                    })()}
                     {testResult.result?.amount !== undefined && (
                       <div style={{ marginTop: "8px", fontSize: "12px", color: "var(--text-secondary)" }}>
-                        Amount: {testResult.result.amount} | Category: {testResult.result.category}
+                        Amount: {testResult.result.amount} | Category: {testResult.result.category || "General"}
                       </div>
                     )}
                   </div>

@@ -85,9 +85,13 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
         ? (extracted['confidence'] as num).toDouble()
         : 0.0;
     _recordType = extracted?['record_type'] as String? ?? 'Expense';
-    if (_confidence >= 0.9 && _amount > 0 && data?['reviewBill'] != true) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _onConfirm());
-    }
+    // Auto-confirm logic removed per user request: always show the confirm screen.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (_amount <= 0) {
+        _showEditSheet();
+      }
+    });
   }
 
   Future<void> _loadWallets() async {
@@ -219,6 +223,7 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
             'note': _note,
             'aiConfidence': _confidence,
             'isDraft': false,
+            'processingStatus': 'completed',
             ...llm.toStoryPersistFields(),
           });
         }
@@ -293,7 +298,11 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
       } else if (isGroupWallet) {
         context.go(AppRoutes.shareWallet, extra: {'walletId': targetWalletId});
       } else {
-        context.go(AppRoutes.home);
+        if (context.canPop()) {
+          context.pop();
+        } else {
+          context.go(AppRoutes.home);
+        }
       }
 
       final reviewMsg = reviewTxId != null
@@ -335,10 +344,14 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      isDismissible: false,
+      enableDrag: false,
       useSafeArea: true,
       constraints: const BoxConstraints(maxWidth: 600),
       backgroundColor: Colors.transparent,
-      builder: (ctx) => StatefulBuilder(
+      builder: (ctx) => GestureDetector(
+        onTap: () => FocusScope.of(ctx).unfocus(),
+        child: StatefulBuilder(
         builder: (ctx, setSheetState) => Padding(
           padding: EdgeInsets.only(
             bottom: MediaQuery.of(ctx).viewInsets.bottom,
@@ -490,8 +503,9 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
                     width: double.infinity,
                     child: FilledButton(
                       onPressed: () {
+                        final cleanAmountText = amountCtrl.text.replaceAll(RegExp(r'[^0-9]'), '');
                         final parsedAmount =
-                            int.tryParse(amountCtrl.text) ?? _amount;
+                            int.tryParse(cleanAmountText) ?? _amount;
                         if (parsedAmount <= 0) {
                           ScaffoldMessenger.of(ctx).showSnackBar(
                             SnackBar(
@@ -523,18 +537,24 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
                           }
                         });
                         ctx.pop();
+                        // Auto-confirm after editing to save user an extra click
+                        // and prevent confusion about whether it was saved.
+                        Future.delayed(const Duration(milliseconds: 300), () {
+                          if (mounted) _onConfirm();
+                        });
                       },
                       style: FilledButton.styleFrom(
                         backgroundColor: AppColors.teal,
                         padding: const EdgeInsets.symmetric(vertical: 14),
                       ),
-                      child: const Text('Lưu chỉnh sửa'),
+                      child: const Text('Xác nhận & Lưu'),
                     ),
                   ),
                 ],
               ),
             ),
           ),
+        ),
         ),
       ),
     );

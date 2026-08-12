@@ -251,6 +251,111 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
     );
   }
 
+  void _showAddOptions() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadii.xl)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppColors.teal.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.document_scanner_rounded, color: AppColors.teal),
+                ),
+                title: const Text('Quét hóa đơn (OCR)', style: TextStyle(fontWeight: FontWeight.bold)),
+                subtitle: const Text('Tự động bóc tách từ ảnh'),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  final imagePath = await context.push<String>(
+                    AppRoutes.camera,
+                    extra: {
+                      'groupId': widget.groupId,
+                      'initialMode': 'Bill',
+                      'returnOnlyImagePath': true,
+                    },
+                  );
+                  if (imagePath != null && mounted) {
+                    final memberId = await _showMemberPickerDialog();
+                    if (memberId != null && mounted) {
+                      BillProcessingService.instance.submitGroupBill(
+                        groupId: widget.groupId,
+                        imagePath: imagePath,
+                        paidBy: memberId,
+                      );
+                      MimoSnackBar.showSuccess(
+                        context,
+                        message: 'Đã gửi hóa đơn nhóm! Đang phân tích ngầm...',
+                      );
+                    }
+                  }
+                },
+              ),
+              const Divider(height: 1, indent: 64),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppColors.teal.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.edit_note_rounded, color: AppColors.teal),
+                ),
+                title: const Text('Thêm thủ công', style: TextStyle(fontWeight: FontWeight.bold)),
+                subtitle: const Text('Tự nhập thông tin giao dịch'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _showAddTransaction();
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _removeMember(String memberId) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Xóa thành viên'),
+        content: const Text('Bạn có chắc chắn muốn xóa thành viên này khỏi nhóm?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hủy')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
+            onPressed: () => Navigator.pop(ctx, true), 
+            child: const Text('Xóa')
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true && mounted) {
+      try {
+        await _api.removeGroupMember(widget.groupId, memberId);
+        _loadGroupData();
+        if (mounted) {
+          MimoSnackBar.showSuccess(context, message: 'Đã xóa thành viên');
+        }
+      } on ApiException catch (e) {
+        if (mounted) {
+          MimoSnackBar.showError(context, message: e.localizedMessage);
+        }
+      }
+    }
+  }
+
   void _calculateDebts() async {
     try {
       await _api.splitGroupBills(widget.groupId);
@@ -293,86 +398,30 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
 
     return Scaffold(
       backgroundColor: context.palette.bg,
-      appBar: AppBar(
-        title: Text(_group?['name'] ?? 'Chi tiết nhóm'),
-        backgroundColor: context.palette.bg,
-        elevation: 0,
-        centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.share_rounded),
-            tooltip: 'Mã tham gia',
-            onPressed: () {
-              final code = _group?['invite_code'] ?? '';
-              Clipboard.setData(ClipboardData(text: code));
-              MimoSnackBar.show(context, message: 'Đã copy mã mời: $code', type: MimoSnackBarType.success);
-            },
-          ),
-        ],
-        bottom: TabBar(
-          controller: _tabController,
-          labelColor: AppColors.teal,
-          unselectedLabelColor: Colors.grey,
-          indicatorColor: AppColors.teal,
-          tabs: const [
-            Tab(text: 'Thành viên & Công nợ'),
-            Tab(text: 'Giao dịch'),
+      body: SafeArea(
+        child: Column(
+          children: [
+            _GroupDetailHeader(
+              groupName: _group?['name'] ?? 'Chi tiết nhóm',
+              inviteCode: _group?['invite_code'] ?? '',
+              tabController: _tabController,
+            ),
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  _buildMembersTab(),
+                  _buildTransactionsTab(),
+                ],
+              ),
+            ),
           ],
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildMembersTab(),
-          _buildTransactionsTab(),
-        ],
-      ),
-      floatingActionButton: Column(
-        mainAxisAlignment: MainAxisAlignment.end,
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          FloatingActionButton.extended(
-            heroTag: 'group_add_ocr',
-            onPressed: () async {
-              final imagePath = await context.push<String>(
-                AppRoutes.camera,
-                extra: {
-                  'groupId': widget.groupId,
-                  'initialMode': 'Bill',
-                  'returnOnlyImagePath': true,
-                },
-              );
-              
-              if (imagePath != null && mounted) {
-                final memberId = await _showMemberPickerDialog();
-                if (memberId != null && mounted) {
-                  // Wait for the bill processing service to do its job
-                  BillProcessingService.instance.submitGroupBill(
-                    groupId: widget.groupId,
-                    imagePath: imagePath,
-                    paidBy: memberId,
-                  );
-                  MimoSnackBar.showSuccess(
-                    context,
-                    message: 'Đã gửi hóa đơn nhóm! Đang phân tích ngầm...',
-                  );
-                }
-              }
-            },
-            icon: const Icon(Icons.document_scanner_rounded),
-            label: const Text('Quét OCR'),
-            backgroundColor: AppColors.teal.withValues(alpha: 0.9),
-          ),
-          const SizedBox(height: 12),
-          FloatingActionButton.extended(
-            heroTag: 'group_add_tx',
-            onPressed: _showAddTransaction,
-            icon: const Icon(Icons.add_rounded),
-            label: const Text('Thêm thủ công'),
-            backgroundColor: AppColors.teal,
-          ),
-        ],
+      floatingActionButton: FloatingActionButton(
+        onPressed: _showAddOptions,
+        backgroundColor: AppColors.teal,
+        child: const Icon(Icons.add_rounded, size: 32),
       ),
     );
   }
@@ -381,46 +430,70 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
     return RefreshIndicator(
       onRefresh: _loadGroupData,
       child: ListView(
-        padding: const EdgeInsets.all(16),
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Thành viên (${_members.length})',
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-              ),
-              TextButton.icon(
-                onPressed: _calculateDebts,
-                icon: const Icon(Icons.calculate_rounded),
-                label: const Text('Tính nợ'),
-              ),
-            ],
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Thành viên (${_members.length})', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 18)),
+                TextButton.icon(
+                  onPressed: _calculateDebts,
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.teal,
+                  ),
+                  icon: const Icon(Icons.calculate_rounded),
+                  label: const Text('Tính nợ', style: TextStyle(fontSize: 16)),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 8),
           ..._members.map((m) {
             final totalPaid = _transactions
                 .where((tx) => tx['paid_by'] == m['id'])
                 .fold(0.0, (sum, tx) => sum + (num.tryParse(tx['amount'].toString()) ?? 0));
                 
-            return ListTile(
-              leading: CircleAvatar(
-                backgroundColor: AppColors.teal.withValues(alpha: 0.2),
-                child: Text(
-                  m['display_name'].toString().isNotEmpty ? m['display_name'][0].toUpperCase() : '?', 
-                  style: TextStyle(color: AppColors.teal)
-                ),
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 26,
+                    backgroundColor: AppColors.teal.withValues(alpha: 0.2),
+                    child: Text(
+                      m['display_name'].toString().isNotEmpty ? m['display_name'][0].toUpperCase() : '?', 
+                      style: const TextStyle(color: AppColors.teal, fontWeight: FontWeight.w600, fontSize: 22)
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(m['display_name'] ?? 'Unknown', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
+                        const SizedBox(height: 4),
+                        Text('Đã chi: ${formatVnd(parseToInt(totalPaid))}', style: TextStyle(color: context.palette.textSecondary)),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline_rounded, color: AppColors.danger),
+                    tooltip: 'Xóa thành viên',
+                    onPressed: () => _removeMember(m['id']),
+                  ),
+                ],
               ),
-              title: Text(m['display_name'] ?? 'Unknown'),
-              subtitle: Text('Đã chi: ${formatVnd(parseToInt(totalPaid))}'),
             );
           }),
           const SizedBox(height: 24),
-          const Text(
-            'Công nợ cần thanh toán',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            child: Text(
+              'Công nợ cần thanh toán',
+              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 18),
+            ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 16),
           if (_debts.isEmpty)
             const Padding(
               padding: EdgeInsets.all(16.0),
@@ -429,56 +502,61 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
           else
             ..._debts.map((d) {
               final isSettled = d['status'] == 'settled';
-              return Card(
-                elevation: 0,
-                color: context.palette.bg,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  side: BorderSide(color: Colors.grey.shade200),
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: context.palette.bg,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.border),
                 ),
-                margin: const EdgeInsets.only(bottom: 12),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            RichText(
-                              text: TextSpan(
-                                style: TextStyle(color: context.palette.textPrimary),
-                                children: [
-                                  TextSpan(text: d['from_member_name'], style: const TextStyle(fontWeight: FontWeight.bold)),
-                                  const TextSpan(text: ' cần trả '),
-                                  TextSpan(text: d['to_member_name'], style: const TextStyle(fontWeight: FontWeight.bold)),
-                                ],
-                              ),
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          RichText(
+                            text: TextSpan(
+                              style: TextStyle(color: context.palette.textPrimary, fontSize: 15),
+                              children: [
+                                TextSpan(text: d['from_member_name'], style: const TextStyle(fontWeight: FontWeight.w600)),
+                                const TextSpan(text: ' cần trả '),
+                                TextSpan(text: d['to_member_name'], style: const TextStyle(fontWeight: FontWeight.w600)),
+                              ],
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              formatVnd(parseToInt(d['amount'])),
-                              style: TextStyle(
-                                color: isSettled ? Colors.grey : AppColors.danger,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                                decoration: isSettled ? TextDecoration.lineThrough : null,
-                              ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            formatVnd(parseToInt(d['amount'])),
+                            style: TextStyle(
+                              color: isSettled ? context.palette.textSecondary : AppColors.danger,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 16,
+                              decoration: isSettled ? TextDecoration.lineThrough : null,
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                      if (!isSettled)
-                        OutlinedButton(
-                          onPressed: () => _settleDebt(d['id']),
-                          child: const Text('Đã trả'),
-                        )
-                      else
-                        const Icon(Icons.check_circle_rounded, color: Colors.green),
-                    ],
-                  ),
+                    ),
+                    if (!isSettled)
+                      OutlinedButton(
+                        onPressed: () => _settleDebt(d['id']),
+                        style: OutlinedButton.styleFrom(
+                          shape: const StadiumBorder(),
+                          side: const BorderSide(color: AppColors.teal),
+                          foregroundColor: AppColors.teal,
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                        ),
+                        child: const Text('Đã trả'),
+                      )
+                    else
+                      const Icon(Icons.check_circle_rounded, color: Colors.green),
+                  ],
                 ),
-              );
+              ),
+            );
             }),
         ],
       ),
@@ -522,3 +600,175 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
     );
   }
 }
+
+class _GroupDetailHeader extends StatelessWidget {
+  final String groupName;
+  final String inviteCode;
+  final TabController tabController;
+
+  const _GroupDetailHeader({
+    required this.groupName,
+    required this.inviteCode,
+    required this.tabController,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: AppGradients.teal,
+        borderRadius: const BorderRadius.vertical(
+          bottom: Radius.circular(AppRadii.xl),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.teal.withValues(alpha: 0.3),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Row(
+              children: [
+                if (Navigator.canPop(context))
+                  GestureDetector(
+                    onTap: () => Navigator.of(context).pop(),
+                    child: Container(
+                      width: 38,
+                      height: 38,
+                      margin: const EdgeInsets.only(right: 14),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.22),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.arrow_back_ios_new_rounded,
+                        color: Colors.white,
+                        size: 18,
+                      ),
+                    ),
+                  ),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        groupName,
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 21,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        'Chi tiết nhóm & giao dịch',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Colors.white.withValues(alpha: 0.88),
+                          fontSize: 12,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                Tooltip(
+                  message: 'Mã tham gia',
+                  child: GestureDetector(
+                    onTap: () {
+                      showModalBottomSheet(
+                        context: context,
+                        shape: const RoundedRectangleBorder(
+                          borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadii.xl)),
+                        ),
+                        builder: (ctx) => SafeArea(
+                          child: Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Text(
+                                  'Mã tham gia nhóm',
+                                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                                ),
+                                const SizedBox(height: 24),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 32),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.surfaceAlt,
+                                    borderRadius: BorderRadius.circular(AppRadii.lg),
+                                    border: Border.all(color: AppColors.border),
+                                  ),
+                                  child: Text(
+                                    inviteCode,
+                                    style: const TextStyle(
+                                      fontSize: 32,
+                                      fontWeight: FontWeight.w900,
+                                      letterSpacing: 4,
+                                      color: AppColors.teal,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 32),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: FilledButton.icon(
+                                    style: FilledButton.styleFrom(
+                                      backgroundColor: AppColors.teal,
+                                      padding: const EdgeInsets.symmetric(vertical: 16),
+                                    ),
+                                    onPressed: () {
+                                      Clipboard.setData(ClipboardData(text: inviteCode));
+                                      Navigator.pop(ctx);
+                                      MimoSnackBar.showSuccess(context, message: 'Đã copy mã mời: $inviteCode');
+                                    },
+                                    icon: const Icon(Icons.copy_rounded),
+                                    label: const Text('Sao chép mã', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.22),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.share_rounded, color: Colors.white, size: 20),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          TabBar(
+            controller: tabController,
+            labelColor: Colors.white,
+            unselectedLabelColor: Colors.white70,
+            indicatorColor: Colors.white,
+            dividerColor: Colors.transparent,
+            indicatorWeight: 3,
+            tabs: const [
+              Tab(text: 'Thành viên & Nợ'),
+              Tab(text: 'Giao dịch'),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+

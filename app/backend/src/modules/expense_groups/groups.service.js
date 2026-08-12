@@ -12,6 +12,12 @@ async function createGroup(userId, userName, data) {
   try {
     await client.query('BEGIN');
     
+    let finalUserName = userName;
+    if (!finalUserName) {
+      const userRes = await client.query('SELECT username FROM users WHERE id = $1', [userId]);
+      finalUserName = userRes.rows[0]?.username || 'User';
+    }
+    
     // Create group
     const inviteCode = generateInviteCode();
     const groupRes = await client.query(`
@@ -25,12 +31,12 @@ async function createGroup(userId, userName, data) {
     await client.query(`
       INSERT INTO group_members (group_id, user_id, display_name)
       VALUES ($1, $2, $3)
-    `, [group.id, userId, userName]);
+    `, [group.id, userId, finalUserName]);
     
     // Add other members if provided
     if (data.members && data.members.length > 0) {
       for (const memberName of data.members) {
-        if (memberName !== userName) {
+        if (memberName !== finalUserName) {
           await client.query(`
             INSERT INTO group_members (group_id, display_name)
             VALUES ($1, $2)
@@ -52,7 +58,8 @@ async function createGroup(userId, userName, data) {
 async function listGroups(userId) {
   // Get all groups where user is a member
   const { rows } = await pool.query(`
-    SELECT g.* 
+    SELECT g.*, 
+           (SELECT COUNT(*) FROM group_members WHERE group_id = g.id) AS member_count
     FROM expense_groups g
     JOIN group_members gm ON gm.group_id = g.id
     WHERE gm.user_id = $1
@@ -61,10 +68,17 @@ async function listGroups(userId) {
   return rows;
 }
 
-async function joinGroup(userId, userName, inviteCode) {
+async function joinGroup(userId, userName, inviteCode, memberId = null) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
+
+    let finalUserName = userName;
+    if (!finalUserName) {
+      const userRes = await client.query('SELECT username FROM users WHERE id = $1', [userId]);
+      finalUserName = userRes.rows[0]?.username || 'User';
+    }
+
     const groupRes = await client.query('SELECT * FROM expense_groups WHERE invite_code = $1', [inviteCode]);
     if (groupRes.rowCount === 0) {
       throw new Error('NOT_FOUND');
@@ -74,14 +88,32 @@ async function joinGroup(userId, userName, inviteCode) {
     // Check if already a member
     const memRes = await client.query('SELECT * FROM group_members WHERE group_id = $1 AND user_id = $2', [group.id, userId]);
     if (memRes.rowCount > 0) {
+      await client.query('ROLLBACK');
       return group; // Already joined
     }
     
-    // Insert new member
-    await client.query(`
-      INSERT INTO group_members (group_id, user_id, display_name)
-      VALUES ($1, $2, $3)
-    `, [group.id, userId, userName]);
+    if (memberId) {
+      // User chose to map to an existing member (dummy)
+      const existingMemRes = await client.query('SELECT * FROM group_members WHERE id = $1 AND group_id = $2', [memberId, group.id]);
+      if (existingMemRes.rowCount === 0) {
+        throw new Error('MEMBER_NOT_FOUND');
+      }
+      if (existingMemRes.rows[0].user_id) {
+        throw new Error('MEMBER_ALREADY_LINKED');
+      }
+      // Update this member with the user's ID and Name
+      await client.query(`
+        UPDATE group_members 
+        SET user_id = $1, display_name = $2
+        WHERE id = $3
+      `, [userId, finalUserName, memberId]);
+    } else {
+      // Insert new member
+      await client.query(`
+        INSERT INTO group_members (group_id, user_id, display_name)
+        VALUES ($1, $2, $3)
+      `, [group.id, userId, finalUserName]);
+    }
     
     await client.query('COMMIT');
     return group;
@@ -302,6 +334,52 @@ async function settleGroupDebt(groupId, userId, debtId) {
   return { success: true };
 }
 
+async function previewGroup(inviteCode) {
+  const groupRes = await pool.query('SELECT * FROM expense_groups WHERE invite_code = $1', [inviteCode]);
+  if (groupRes.rowCount === 0) {
+    throw new Error('NOT_FOUND');
+  }
+  const group = groupRes.rows[0];
+  
+  const membersRes = await pool.query('SELECT * FROM group_members WHERE group_id = $1 AND user_id IS NULL ORDER BY joined_at ASC', [group.id]);
+  return {
+    group: {
+      id: group.id,
+      name: group.name,
+      description: group.description,
+      invite_code: group.invite_code
+    },
+    availableMembers: membersRes.rows
+  };
+}
+
+async function removeMember(groupId, userId, memberId) {
+  // verify user is in group
+  const verifyRes = await pool.query('SELECT 1 FROM group_members WHERE group_id = $1 AND user_id = $2', [groupId, userId]);
+  if (verifyRes.rowCount === 0) throw new Error('FORBIDDEN');
+
+  // Check if it's the owner (created_by)
+  const groupRes = await pool.query('SELECT created_by FROM expense_groups WHERE id = $1', [groupId]);
+  if (groupRes.rowCount === 0) throw new Error('NOT_FOUND');
+  
+  // Check if the member we are trying to remove is the owner
+  const memRes = await pool.query('SELECT user_id FROM group_members WHERE id = $1', [memberId]);
+  if (memRes.rowCount === 0) throw new Error('MEMBER_NOT_FOUND');
+  
+  if (memRes.rows[0].user_id === groupRes.rows[0].created_by) {
+    throw new Error('CANNOT_REMOVE_OWNER');
+  }
+
+  // Check if member has transactions
+  const txRes = await pool.query('SELECT 1 FROM group_transactions WHERE group_id = $1 AND paid_by = $2 LIMIT 1', [groupId, memberId]);
+  if (txRes.rowCount > 0) {
+    throw new Error('CANNOT_REMOVE_MEMBER_WITH_TRANSACTIONS');
+  }
+
+  // Delete member
+  await pool.query('DELETE FROM group_members WHERE id = $1 AND group_id = $2', [memberId, groupId]);
+}
+
 module.exports = {
   createGroup,
   listGroups,
@@ -310,5 +388,7 @@ module.exports = {
   addTransaction,
   updateTransaction,
   calculateSplit,
-  settleGroupDebt
+  settleGroupDebt,
+  previewGroup,
+  removeMember
 };

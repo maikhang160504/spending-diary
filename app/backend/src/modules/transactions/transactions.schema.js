@@ -34,6 +34,8 @@ const updateTxSchema = z
     occurredAt: baseTxFields.occurredAt,
     imageUrl: baseTxFields.imageUrl,
     thumbnailUrl: baseTxFields.thumbnailUrl,
+    isDraft: z.boolean().optional(),
+    processingStatus: z.enum(['pending_review', 'completed']).optional(),
   })
   .partial();
 

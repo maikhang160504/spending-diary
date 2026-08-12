@@ -64,6 +64,10 @@ class _ShareWalletScreenState extends State<ShareWalletScreen> {
 
   Map<String, dynamic> _overview = {};
 
+  bool get isCurrentUserOwner => _members.any(
+    (m) => m['id'] == _currentUserId && m['role'] == 'owner',
+  );
+
   int get _totalIncome {
     final v = _overview['totalFund'] ?? 0;
     return v is num ? v.toInt() : 0;
@@ -708,37 +712,39 @@ class _ShareWalletScreenState extends State<ShareWalletScreen> {
                                   trailing: trailingWidget,
                                 );
                               }),
-                              const Divider(height: 1),
-                              ListTile(
-                                leading: Container(
-                                  width: 40,
-                                  height: 40,
-                                  decoration: BoxDecoration(
-                                    border: Border.all(
-                                      color: AppColors.teal,
-                                      width: 1.5,
+                              if (isCurrentUserOwner) ...[
+                                const Divider(height: 1),
+                                ListTile(
+                                  leading: Container(
+                                    width: 40,
+                                    height: 40,
+                                    decoration: BoxDecoration(
+                                      border: Border.all(
+                                        color: AppColors.teal,
+                                        width: 1.5,
+                                      ),
+                                      shape: BoxShape.circle,
                                     ),
-                                    shape: BoxShape.circle,
+                                    child: const Icon(
+                                      Icons.person_add_alt_1,
+                                      color: AppColors.teal,
+                                      size: 20,
+                                    ),
                                   ),
-                                  child: const Icon(
-                                    Icons.person_add_alt_1,
-                                    color: AppColors.teal,
-                                    size: 20,
+                                  title: const Text(
+                                    'Mời thành viên',
+                                    style: TextStyle(
+                                      color: AppColors.teal,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 14,
+                                    ),
                                   ),
+                                  onTap: () {
+                                    setState(() => _showMembers = false);
+                                    _showInviteDialog();
+                                  },
                                 ),
-                                title: const Text(
-                                  'Mời thành viên',
-                                  style: TextStyle(
-                                    color: AppColors.teal,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                                onTap: () {
-                                  setState(() => _showMembers = false);
-                                  _showInviteDialog();
-                                },
-                              ),
+                              ],
                             ],
                           ),
                         ),
@@ -869,23 +875,25 @@ class _ShareWalletScreenState extends State<ShareWalletScreen> {
                   ],
                 ),
               ),
-              GestureDetector(
-                onTap: _showInviteDialog,
-                child: Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.2),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.person_add_alt_1,
-                    color: Colors.white,
-                    size: 18,
+              if (isCurrentUserOwner) ...[
+                GestureDetector(
+                  onTap: _showInviteDialog,
+                  child: Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.person_add_alt_1,
+                      color: Colors.white,
+                      size: 18,
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 8),
+                const SizedBox(width: 8),
+              ],
               GestureDetector(
                 onTap: () => setState(() => _showMembers = true),
                 child: Container(

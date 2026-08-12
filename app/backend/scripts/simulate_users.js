@@ -1,6 +1,7 @@
 'use strict';
 
 const path = require('path');
+const fs = require('fs');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
 const { Pool } = require('pg');
@@ -138,11 +139,26 @@ async function runSimulation() {
 
     // 2. Delete existing simulated users to avoid data corruption and scale perfectly
     console.log('Cleaning up old simulated data...');
-    await client.query(`DELETE FROM transactions WHERE creator_id IN (SELECT id FROM users WHERE username LIKE 'user_%')`);
-    await client.query(`DELETE FROM wallet_members WHERE user_id IN (SELECT id FROM users WHERE username LIKE 'user_%')`);
-    await client.query(`DELETE FROM wallets WHERE owner_id IN (SELECT id FROM users WHERE username LIKE 'user_%')`);
-    await client.query(`DELETE FROM user_settings WHERE user_id IN (SELECT id FROM users WHERE username LIKE 'user_%')`);
-    await client.query(`DELETE FROM users WHERE username LIKE 'user_%'`);
+    // Delete legacy user_% accounts and new sim_%@mimo.vn accounts
+    const deleteCondition = `username LIKE 'user_%' OR email LIKE 'sim_%@mimo.vn'`;
+    await client.query(`DELETE FROM transactions WHERE creator_id IN (SELECT id FROM users WHERE ${deleteCondition})`);
+    await client.query(`DELETE FROM wallet_members WHERE user_id IN (SELECT id FROM users WHERE ${deleteCondition})`);
+    await client.query(`DELETE FROM wallets WHERE owner_id IN (SELECT id FROM users WHERE ${deleteCondition})`);
+    await client.query(`DELETE FROM user_settings WHERE user_id IN (SELECT id FROM users WHERE ${deleteCondition})`);
+    await client.query(`DELETE FROM users WHERE ${deleteCondition}`);
+    
+    // Read names from tên.md
+    let namesList = [];
+    try {
+      const namesContent = fs.readFileSync(path.join(__dirname, '../../../tên.md'), 'utf-8');
+      namesList = namesContent.split('\n').map(n => n.trim()).filter(n => n);
+    } catch (err) {
+      console.log('Cảnh báo: Không thể đọc file tên.md, sẽ sử dụng tên mặc định.', err.message);
+    }
+
+    function removeAccents(str) {
+      return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D');
+    }
     
     let startIndex = 1;
     console.log(`Generating 150 NEW realistic users starting at index ${startIndex}...`);
@@ -150,8 +166,10 @@ async function runSimulation() {
     const newUsers = [];
     for (let i = 0; i < 150; i++) {
       const idx = startIndex + i;
-      const username = `user_${idx}`;
-      const email = `${username}@mimo.vn`;
+      const rawName = namesList.length > 0 ? namesList[i % namesList.length] : `Người dùng ${idx}`;
+      const username = rawName;
+      const safeEmailName = removeAccents(rawName).toLowerCase().replace(/\s+/g, '.');
+      const email = `sim_${safeEmailName}${idx}@mimo.vn`;
       const { ageGroup, jobType } = getDemographic();
 
       // Ensure no conflict
