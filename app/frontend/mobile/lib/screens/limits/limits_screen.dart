@@ -109,8 +109,10 @@ class _LimitsScreenState extends State<LimitsScreen> {
 
         _trueTotalLimit = sumLimit;
 
+        bool hasTotal = false;
         _limits = _limits.map((l) {
           if (l.categoryCode == 'TOTAL') {
+            hasTotal = true;
             return _LimitItem(
               id: l.id,
               emoji: l.emoji,
@@ -123,6 +125,25 @@ class _LimitsScreenState extends State<LimitsScreen> {
           }
           return l;
         }).toList();
+
+        if (!hasTotal && specificLimits.isNotEmpty) {
+          _limits.add(_LimitItem(
+            id: 'virtual_total',
+            emoji: '📊',
+            label: 'Tổng chi tiêu',
+            color: AppColors.teal,
+            categoryCode: 'TOTAL',
+            limit: sumLimit,
+            spent: _trueTotalSpent,
+          ));
+        }
+
+        // Sắp xếp: thẻ Tổng chi tiêu đứng đầu, các thẻ sau giảm dần theo số tiền đã chi
+        _limits.sort((a, b) {
+          if (a.categoryCode == 'TOTAL') return -1;
+          if (b.categoryCode == 'TOTAL') return 1;
+          return b.spent.compareTo(a.spent);
+        });
       });
     }
   }
@@ -160,12 +181,14 @@ class _LimitsScreenState extends State<LimitsScreen> {
         Map<String, dynamic>? resultData;
         Map<String, int> amounts = {};
         Map<String, bool> selected = {};
+        Map<String, bool> expanded = {};
+        bool isEditing = false;
 
         return StatefulBuilder(
           builder: (ctx, setSheetState) {
             if (loading && resultData == null && err == null) {
               _api
-                  .getBudgetSuggestions()
+                  .getBudgetSuggestions(month: _currentMonth)
                   .then((data) {
                     if (!ctx.mounted) return;
                     final list = (data['suggestions'] as List<dynamic>? ?? []);
@@ -337,77 +360,125 @@ class _LimitsScreenState extends State<LimitsScreen> {
                             final isSel = selected[code] ?? true;
                             final reason = m['reason'] as String? ?? '';
 
-                            return Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: context.palette.surfaceAlt,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Row(
-                                children: [
-                                  Checkbox(
-                                    value: isSel,
-                                    activeColor: AppColors.teal,
-                                    onChanged: (v) {
-                                      setSheetState(
-                                        () => selected[code] = v ?? true,
-                                      );
-                                    },
-                                  ),
-                                  Container(
-                                    width: 34,
-                                    height: 34,
-                                    decoration: BoxDecoration(
-                                      color: style.color.withValues(
-                                        alpha: 0.15,
-                                      ),
-                                      shape: BoxShape.circle,
+                            return InkWell(
+                              onTap: () {
+                                setSheetState(() {
+                                  expanded[code] = !(expanded[code] ?? false);
+                                });
+                              },
+                              borderRadius: BorderRadius.circular(12),
+                              child: Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: context.palette.surfaceAlt,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Checkbox(
+                                      value: isSel,
+                                      activeColor: AppColors.teal,
+                                      onChanged: (v) {
+                                        setSheetState(
+                                          () => selected[code] = v ?? true,
+                                        );
+                                      },
                                     ),
-                                    child: Center(
-                                      child: CategoryTheme.iconOf(
-                                        code,
-                                        size: 18,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          style.label,
-                                          style: TextStyle(
-                                            color: context.palette.textPrimary,
-                                            fontWeight: FontWeight.w700,
-                                            fontSize: 14,
-                                          ),
+                                    Container(
+                                      width: 34,
+                                      height: 34,
+                                      decoration: BoxDecoration(
+                                        color: style.color.withValues(
+                                          alpha: 0.15,
                                         ),
-                                        if (reason.isNotEmpty)
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: Center(
+                                        child: CategoryTheme.iconOf(
+                                          code,
+                                          size: 18,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
                                           Text(
-                                            reason,
+                                            style.label,
                                             style: TextStyle(
-                                              color:
-                                                  context.palette.textSecondary,
-                                              fontSize: 11,
+                                              color: context.palette.textPrimary,
+                                              fontWeight: FontWeight.w700,
+                                              fontSize: 14,
                                             ),
-                                            maxLines: 2,
-                                            overflow: TextOverflow.ellipsis,
                                           ),
-                                      ],
+                                          if (reason.isNotEmpty)
+                                            Text(
+                                              reason,
+                                              style: TextStyle(
+                                                color:
+                                                    context.palette.textSecondary,
+                                                fontSize: 11,
+                                              ),
+                                              maxLines: (expanded[code] == true) ? null : 2,
+                                              overflow: (expanded[code] == true) ? null : TextOverflow.ellipsis,
+                                            ),
+                                        ],
+                                      ),
                                     ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    formatVnd(amt),
-                                    style: const TextStyle(
-                                      color: AppColors.teal,
-                                      fontWeight: FontWeight.w800,
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                ],
+                                    const SizedBox(width: 8),
+                                    if (isEditing)
+                                      IconButton(
+                                        icon: const Icon(Icons.edit_outlined, color: AppColors.teal, size: 20),
+                                        onPressed: () {
+                                          final ctrl = TextEditingController(text: amt.toString());
+                                          showDialog(
+                                            context: ctx,
+                                            builder: (dialogCtx) => AlertDialog(
+                                              title: Text('Sửa ${style.label}'),
+                                              content: TextField(
+                                                controller: ctrl,
+                                                keyboardType: TextInputType.number,
+                                                autofocus: true,
+                                                decoration: const InputDecoration(
+                                                  suffixText: 'đ',
+                                                ),
+                                              ),
+                                              actions: [
+                                                TextButton(
+                                                  onPressed: () => Navigator.pop(dialogCtx),
+                                                  child: const Text('Hủy'),
+                                                ),
+                                                TextButton(
+                                                  onPressed: () {
+                                                    final val = int.tryParse(ctrl.text);
+                                                    if (val != null && val > 0) {
+                                                      setSheetState(() {
+                                                        amounts[code] = val;
+                                                      });
+                                                    }
+                                                    Navigator.pop(dialogCtx);
+                                                  },
+                                                  child: const Text('Lưu'),
+                                                ),
+                                              ],
+                                            ),
+                                          );
+                                        },
+                                      )
+                                    else
+                                      Text(
+                                        formatVnd(amt),
+                                        style: const TextStyle(
+                                          color: AppColors.teal,
+                                          fontWeight: FontWeight.w800,
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                  ],
+                                ),
                               ),
                             );
                           },
@@ -419,16 +490,17 @@ class _LimitsScreenState extends State<LimitsScreen> {
                           Expanded(
                             child: OutlinedButton.icon(
                               onPressed: () {
-                                Navigator.pop(ctx);
-                                context.push('/chat');
+                                setSheetState(() {
+                                  isEditing = !isEditing;
+                                });
                               },
-                              icon: const Icon(
-                                Icons.chat_bubble_outline,
+                              icon: Icon(
+                                isEditing ? Icons.check : Icons.tune_rounded,
                                 size: 16,
                               ),
-                              label: const FittedBox(
+                              label: FittedBox(
                                 fit: BoxFit.scaleDown,
-                                child: Text('Hỏi Mimo AI'),
+                                child: Text(isEditing ? 'Xong' : 'Tự điều chỉnh'),
                               ),
                               style: OutlinedButton.styleFrom(
                                 foregroundColor: AppColors.teal,

@@ -6,7 +6,9 @@ import '../../theme/app_radii.dart';
 import '../../utils/formatters.dart';
 import '../../widgets/error_banner.dart';
 import '../../widgets/mimo_snackbar.dart';
-import '../../widgets/skeleton.dart';
+import '../../services/transaction_notifier.dart';
+import '../../widgets/notification_overlay.dart';
+import '../../widgets/bill_processing_banner.dart';
 import '../../routes/app_routes.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter/services.dart';
@@ -39,10 +41,12 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _loadGroupData();
+    transactionNotifier.addListener(_loadGroupData);
   }
 
   @override
   void dispose() {
+    transactionNotifier.removeListener(_loadGroupData);
     _tabController.dispose();
     super.dispose();
   }
@@ -70,12 +74,13 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
       if (widget.reviewExtra?['reviewGroupBill'] == true) {
         final amount = widget.reviewExtra?['amount'];
         final note = widget.reviewExtra?['note'];
-        // Note: paidBy might not be passed in reviewExtra from the backend right now unless we added it to `transaction_done` payload.
-        // Wait, the backend _processGroupBillBackground DOES NOT send paidBy in transaction_done, but we can just let them pick again or default to the first one. Or we could pass it in. For now, just pre-fill amount and note.
+        final transactionId = widget.reviewExtra?['transactionId'];
+        // Pre-fill amount, note and pass transactionId to update it
         WidgetsBinding.instance.addPostFrameCallback((_) {
           _showAddTransaction(
-            initialAmount: amount != null ? amount.toString() : null,
+            initialAmount: amount?.toString(),
             initialNote: note,
+            transactionId: transactionId,
           );
         });
       }
@@ -89,7 +94,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
       builder: (ctx) => AlertDialog(
         title: const Text('Người thanh toán'),
         content: DropdownButtonFormField<String>(
-          value: selectedMemberId,
+          initialValue: selectedMemberId,
           decoration: const InputDecoration(
             labelText: 'Ai đã trả bill này?',
           ),
@@ -116,8 +121,50 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
       ),
     );
   }
+  void _showAddManualMemberDialog() {
+    final ctrl = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Thêm thành viên thủ công', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        content: TextField(
+          controller: ctrl,
+          decoration: const InputDecoration(
+            labelText: 'Tên thành viên',
+            hintText: 'Nhập tên...',
+          ),
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Hủy'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              final name = ctrl.text.trim();
+              if (name.isEmpty) return;
+              Navigator.pop(ctx);
+              try {
+                await _api.addManualGroupMember(widget.groupId, name);
+                _loadGroupData();
+                if (mounted) {
+                  MimoSnackBar.show(context, message: 'Đã thêm thành viên mới', type: MimoSnackBarType.success);
+                }
+              } on ApiException catch (e) {
+                if (mounted) {
+                  MimoSnackBar.show(context, message: e.localizedMessage, type: MimoSnackBarType.error);
+                }
+              }
+            },
+            child: const Text('Thêm'),
+          ),
+        ],
+      ),
+    );
+  }
 
-  void _showAddTransaction({String? initialAmount, String? initialNote, String? initialPaidBy}) {
+  void _showAddTransaction({String? initialAmount, String? initialNote, String? initialPaidBy, String? transactionId}) {
     final amountCtrl = TextEditingController(text: initialAmount);
     final noteCtrl = TextEditingController(text: initialNote);
     String? selectedMemberId = initialPaidBy ?? (_members.isNotEmpty ? _members.first['id'] : null);
@@ -144,7 +191,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Thêm giao dịch nhóm',
+                transactionId != null ? 'Kiểm tra giao dịch nhóm' : 'Thêm giao dịch nhóm',
                 style: Theme.of(ctx).textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w700,
                 ),
@@ -170,7 +217,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
-                value: selectedMemberId,
+                initialValue: selectedMemberId,
                 decoration: const InputDecoration(
                   labelText: 'Người thanh toán',
                 ),
@@ -206,24 +253,36 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
 
                           setSheet(() => isSubmitting = true);
                           try {
-                            await _api.addGroupTransaction(
-                              widget.groupId,
-                              {
-                                'paidBy': selectedMemberId,
-                                'amount': amount,
-                                'note': note,
-                              },
-                            );
-                            if (mounted) {
+                            if (transactionId != null) {
+                              await _api.updateGroupTransaction(
+                                transactionId,
+                                {
+                                  'paidBy': selectedMemberId,
+                                  'amount': amount,
+                                  'note': note,
+                                },
+                              );
+                            } else {
+                              await _api.addGroupTransaction(
+                                widget.groupId,
+                                {
+                                  'paidBy': selectedMemberId,
+                                  'amount': amount,
+                                  'note': note,
+                                },
+                              );
+                            }
+                            if (ctx.mounted) {
                               Navigator.pop(ctx);
                               _loadGroupData();
                               MimoSnackBar.show(
-                                context,
-                                message: 'Đã thêm giao dịch',
+                                ctx,
+                                message: transactionId != null ? 'Đã cập nhật giao dịch' : 'Đã thêm giao dịch',
                                 type: MimoSnackBarType.success,
                               );
                             }
                           } on ApiException catch (e) {
+                            if (!mounted) return;
                             MimoSnackBar.show(
                               context,
                               message: e.localizedMessage,
@@ -364,6 +423,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
         MimoSnackBar.show(context, message: 'Đã tính toán xong công nợ', type: MimoSnackBarType.success);
       }
     } on ApiException catch (e) {
+      if (!mounted) return;
       MimoSnackBar.show(context, message: e.localizedMessage, type: MimoSnackBarType.error);
     }
   }
@@ -376,6 +436,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
         MimoSnackBar.show(context, message: 'Đã xác nhận thanh toán', type: MimoSnackBarType.success);
       }
     } on ApiException catch (e) {
+      if (!mounted) return;
       MimoSnackBar.show(context, message: e.localizedMessage, type: MimoSnackBarType.error);
     }
   }
@@ -396,27 +457,80 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
       );
     }
 
+    final topInset = MediaQuery.of(context).padding.top;
+    final billJobs = BillProcessingService.instance.activeJobs;
+    final hasInAppNotification = inAppNotificationController.current != null;
+    final billBannerTop = topInset + 12 + (hasInAppNotification ? 92 : 0);
+
     return Scaffold(
       backgroundColor: context.palette.bg,
-      body: SafeArea(
-        child: Column(
-          children: [
-            _GroupDetailHeader(
-              groupName: _group?['name'] ?? 'Chi tiết nhóm',
-              inviteCode: _group?['invite_code'] ?? '',
-              tabController: _tabController,
-            ),
-            Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                children: [
-                  _buildMembersTab(),
-                  _buildTransactionsTab(),
-                ],
+      body: Stack(
+        children: [
+          Column(
+            children: [
+              _GroupDetailHeader(
+                groupName: _group?['name'] ?? 'Chi tiết nhóm',
+                inviteCode: _group?['invite_code'] ?? '',
+                tabController: _tabController,
+                onAddManualMember: _showAddManualMemberDialog,
+              ),
+              Expanded(
+                child: TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _buildMembersTab(),
+                    _buildTransactionsTab(),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (billJobs.isNotEmpty)
+            Positioned(
+              left: 0,
+              right: 0,
+              top: billBannerTop,
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 600),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: billJobs.map((job) {
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: BillProcessingBanner(
+                            job: job,
+                            onDismiss: job.phase == BillJobPhase.failed
+                                ? () => BillProcessingService.instance
+                                      .dismissJob(job.transactionId)
+                                : null,
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ),
               ),
             ),
-          ],
-        ),
+          ListenableBuilder(
+            listenable: inAppNotificationController,
+            builder: (context, _) {
+              final notif = inAppNotificationController.current;
+              if (notif == null) return const SizedBox.shrink();
+              return Positioned(
+                top: topInset + 12,
+                left: 16,
+                right: 16,
+                child: InAppNotificationBanner(
+                  notification: notif,
+                  onDismiss: inAppNotificationController.dismiss,
+                ),
+              );
+            },
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _showAddOptions,
@@ -605,11 +719,13 @@ class _GroupDetailHeader extends StatelessWidget {
   final String groupName;
   final String inviteCode;
   final TabController tabController;
+  final VoidCallback onAddManualMember;
 
   const _GroupDetailHeader({
     required this.groupName,
     required this.inviteCode,
     required this.tabController,
+    required this.onAddManualMember,
   });
 
   @override
@@ -678,6 +794,22 @@ class _GroupDetailHeader extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ],
+                  ),
+                ),
+                Tooltip(
+                  message: 'Thêm thủ công',
+                  child: GestureDetector(
+                    onTap: onAddManualMember,
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      margin: const EdgeInsets.only(right: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.22),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.person_add_alt_1_rounded, color: Colors.white, size: 20),
+                    ),
                   ),
                 ),
                 Tooltip(

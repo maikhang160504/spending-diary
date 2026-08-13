@@ -3,8 +3,9 @@ import 'dart:math';
 class AnomalyDetectionService {
   // Hàm tính toán mức độ bất thường (Z-Score)
   double calculateZScore(double currentExpense, List<double> historyExpenses) {
-    if (historyExpenses.length < 5)
+    if (historyExpenses.length < 5) {
       return 0.0; // Cần ít nhất 5 mẫu để bắt đầu tính
+    }
 
     // 1. Tính giá trị trung bình (Mean)
     double sum = historyExpenses.fold(0, (prev, element) => prev + element);

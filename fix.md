@@ -37,5 +37,13 @@ Câu thoại của người dùng: chi tiêu ăn sáng hết 45k<|im_end|>
 - [văn] để rút ngắn thời gian thì em đã tạo trước tài khoản, và đăng nhập 2 thiết bị trên 2 app
 - [yêu cầu] chỉ demo những chức năng chính 
 
-### viết 1 báo cáo công nghệ chuẩn để chuẩn bị cho vấn đề bên dưới
-- [lưu ý] thầy yêu cầu có thể show code và giải thích 
+### Kịch bản
+1. giới thiệu sơ lược các giao diện chức năng chức năng của app và giao diện web
+2. do thời gian có hạn nên em đã tạo tài khoản và đăng nhập trên 2 app (A và B)
+3. chức năng cốt lõi mà mục tiêu đề ra  
+4. ghi chép chi tiêu bằng văn bản
+4.1. ghi chép bằng ghi chú ảnh
+
+
+## đặt câu hỏi cho hệ tthống và cách mà hệ thống thực hiện
+- làm sao để tính được lũy kế

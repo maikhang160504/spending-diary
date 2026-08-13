@@ -148,11 +148,12 @@ class _CategoryDetailReportScreenState
         });
       }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           _allItems = widget.transactions;
           _isLoading = false;
         });
+      }
     }
   }
 

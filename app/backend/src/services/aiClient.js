@@ -451,13 +451,20 @@ async function triggerLlmFinetune(epochs = 3, lr = 0.0002, batchSize = 4) {
   return r.data;
 }
 
+async function getLlmTrainStatus() {
+  const r = await client.get('/api/v1/nlu/train/llm-status');
+  return r.data;
+}
+
 async function getNluInferenceBackend() {
   const r = await client.get('/api/v1/nlu/inference-backend');
   return r.data;
 }
 
-async function setNluInferenceBackend(backend) {
-  const r = await client.post('/api/v1/nlu/inference-backend', { backend }, { timeout: 30000 });
+async function setNluInferenceBackend(payload) {
+  // payload can be string or object. Ensure it's an object for python backend.
+  const data = typeof payload === 'string' ? { backend: payload } : payload;
+  const r = await client.post('/api/v1/nlu/inference-backend', data, { timeout: 30000 });
   return r.data;
 }
 
@@ -465,7 +472,7 @@ const healthCached = withCache(5000, health);
 const getTrainStatusCached = withCache(3000, getTrainStatus);
 async function testPrompt(payload) {
   return withRetry(async () => {
-    const r = await client.post('/api/v1/nlu/test-prompt', payload);
+    const r = await client.post('/api/v1/nlu/test-prompt', payload, { timeout: 60000 });
     return r.data;
   });
 }

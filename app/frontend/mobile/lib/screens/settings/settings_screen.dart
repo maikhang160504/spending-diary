@@ -1160,7 +1160,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                                     'preferredVibe': style,
                                                   });
                                                 } catch (e) {
-                                                  if (mounted) {
+                                                  if (context.mounted) {
                                                     MimoSnackBar.showError(
                                                       context,
                                                       message:

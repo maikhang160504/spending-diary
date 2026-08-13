@@ -237,12 +237,10 @@ async function runLastWeekReminder(now = new Date()) {
 
       await dispatchUserNotification(row.user_id, {
         type: 'BUDGET_LAST_WEEK_REMINDER',
-        title: '📊 Gợi ý ngân sách tháng tới đã sẵn sàng!',
-        body: `Còn vài ngày nữa là sang tháng mới. Mimo đã phân tích ${budgetCount} hạn mức của bạn và sẵn sàng đề xuất ngân sách tháng ${nextMonth}. Xem ngay để chuẩn bị trước nhé!`,
-        data: {
-          screen: 'limits',
-          action: 'show_suggestions',
-          targetMonth: nextMonth,
+        payload: {
+          title: '📊 Gợi ý ngân sách tháng tới đã sẵn sàng!',
+          message: `Còn vài ngày nữa là sang tháng mới. Mimo đã phân tích ${budgetCount} hạn mức của bạn và sẵn sàng đề xuất ngân sách tháng ${nextMonth}. Xem ngay để chuẩn bị trước nhé!`,
+          deepLink: '/limits',
         },
       });
       notified++;

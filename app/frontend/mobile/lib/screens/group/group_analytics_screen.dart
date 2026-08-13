@@ -458,8 +458,9 @@ class _GroupAnalyticsScreenState extends State<GroupAnalyticsScreen> {
                       showTitles: true,
                       getTitlesWidget: (value, meta) {
                         final index = value.toInt();
-                        if (index < 0 || index >= recent.length)
+                        if (index < 0 || index >= recent.length) {
                           return const SizedBox.shrink();
+                        }
                         final dayStr = recent[index]['day'] as String? ?? '';
                         final shortDay = dayStr.length >= 10
                             ? '${dayStr.substring(8, 10)}/${dayStr.substring(5, 7)}'

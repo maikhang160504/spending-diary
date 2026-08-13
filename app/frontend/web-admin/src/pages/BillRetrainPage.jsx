@@ -18,6 +18,7 @@ import {
   promoteBillModel,
   rollbackBillModel,
   syncBillModelWorkspace,
+  getBillTrainStatus,
 } from "../services/api";
 
 const ENTITIES = ["OTHER", "SELLER", "ADDRESS", "TIMESTAMP", "TOTAL_COST"];
@@ -137,8 +138,8 @@ export default function BillRetrainPage() {
   useEffect(() => {
     const fetchTrainStatus = async () => {
       try {
-        const res = await api.get('/api/admin/bill-retrain/train/status');
-        setModalTrainStatus(res.data);
+        const res = await getBillTrainStatus();
+        setModalTrainStatus(res);
       } catch (err) {
         console.error("Lỗi lấy trạng thái train:", err);
       }
@@ -302,29 +303,31 @@ export default function BillRetrainPage() {
   };
 
   const onUpload = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const jobId = enqueuePrelabelJob(file.name);
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
     setMessage("");
     setMessageIsError(false);
-    try {
-      upsertPrelabelJob(jobId, { phase: "upload", phaseLabel: "Upload ảnh", progress: 12 });
-      const { sample } = await uploadBillSample(file);
-      const label = ocrStatus?.kie_backend === "layoutlmv3" ? "OCR + LayoutLMv3" : "OCR + KIE";
-      upsertPrelabelJob(jobId, { phase: "ocr", phaseLabel: label, progress: 35, sampleId: sample.id });
-      setActive(sample);
-      await loadSamples();
-      const { sample: updated, prelabel } = await rePrelabelBillSample(sample.id);
-      applyPrelabelResult(updated, prelabel);
-      await loadSamples();
-      finishPrelabelJob(jobId, true);
-    } catch (err) {
-      finishPrelabelJob(jobId, false, err.message || "Upload / gán nhãn auto thất bại");
-      setMessageIsError(true);
-      setMessage(err.message || "Upload / gán nhãn auto thất bại");
-    } finally {
-      e.target.value = "";
+    
+    for (const file of files) {
+      const jobId = enqueuePrelabelJob(file.name);
+      try {
+        upsertPrelabelJob(jobId, { phase: "upload", phaseLabel: "Upload ảnh", progress: 12 });
+        const { sample } = await uploadBillSample(file);
+        const label = ocrStatus?.kie_backend === "layoutlmv3" ? "OCR + LayoutLMv3" : "OCR + KIE";
+        upsertPrelabelJob(jobId, { phase: "ocr", phaseLabel: label, progress: 35, sampleId: sample.id });
+        setActive(sample);
+        await loadSamples();
+        const { sample: updated, prelabel } = await rePrelabelBillSample(sample.id);
+        applyPrelabelResult(updated, prelabel);
+        await loadSamples();
+        finishPrelabelJob(jobId, true);
+      } catch (err) {
+        finishPrelabelJob(jobId, false, err.message || "Upload / gán nhãn auto thất bại");
+        setMessageIsError(true);
+        setMessage(err.message || "Upload / gán nhãn auto thất bại");
+      }
     }
+    e.target.value = "";
   };
 
   const onAutoLabel = async () => {
@@ -905,7 +908,7 @@ export default function BillRetrainPage() {
           <div className="bill-box-tools" style={{ display: "flex", flexWrap: "wrap", gap: 8, paddingBottom: 16, borderBottom: "1px solid var(--border-color)", marginBottom: 16 }}>
             <label className="btn btn-primary btn-sm">
               Upload ảnh
-              <input type="file" accept="image/*" hidden onChange={onUpload} />
+              <input type="file" accept="image/*" multiple hidden onChange={onUpload} />
             </label>
             <button type="button" className="btn btn-primary btn-sm" onClick={onAutoLabel} disabled={!active || isArchivedSample}>
               Gán nhãn auto

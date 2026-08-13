@@ -645,7 +645,7 @@ class _CumulativeBudgetReportScreenState
                       showTitles: true,
                       reservedSize: 44,
                       getTitlesWidget: (val, meta) {
-                        if (val == 0)
+                        if (val == 0) {
                           return const Text(
                             '0',
                             style: TextStyle(
@@ -653,6 +653,7 @@ class _CumulativeBudgetReportScreenState
                               fontSize: 10,
                             ),
                           );
+                        }
                         return Text(
                           '${(val / 1000000).toStringAsFixed(0)}M',
                           style: const TextStyle(
@@ -668,13 +669,16 @@ class _CumulativeBudgetReportScreenState
                       showTitles: true,
                       interval: 1,
                       getTitlesWidget: (val, meta) {
-                        if (val > totalDays || val < 1)
+                        if (val > totalDays || val < 1) {
                           return const SizedBox.shrink();
+                        }
                         if (totalDays > 7) {
-                          if (val != 1 && val != totalDays && val % 5 != 0)
+                          if (val != 1 && val != totalDays && val % 5 != 0) {
                             return const SizedBox.shrink();
-                          if (val == totalDays && totalDays % 5 <= 2)
+                          }
+                          if (val == totalDays && totalDays % 5 <= 2) {
                             return const SizedBox.shrink();
+                          }
                         }
                         return Padding(
                           padding: const EdgeInsets.only(top: 6),

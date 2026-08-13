@@ -15,6 +15,7 @@ import '../../services/transaction_notifier.dart';
 import '../../services/push_notification_service.dart';
 import '../../services/fcm_service.dart';
 import '../../theme/app_colors.dart';
+import '../../widgets/budget_suggestion_modal.dart';
 import '../../theme/app_palette.dart';
 import '../../widgets/mimo_overlay.dart';
 import '../../widgets/notification_overlay.dart';
@@ -25,8 +26,9 @@ import '../../services/ads_service.dart';
 
 /// AppShell wraps the 4 ShellRoute tabs + persistent bottom nav + MiMo overlay + Notification banner
 class AppShell extends StatefulWidget {
-  final Widget child;
-  const AppShell({super.key, required this.child});
+  final StatefulNavigationShell navigationShell;
+
+  const AppShell({super.key, required this.navigationShell});
 
   @override
   State<AppShell> createState() => _AppShellState();
@@ -225,6 +227,53 @@ class _AppShellState extends State<AppShell> {
                 body: message,
                 payload: deepLink,
               );
+            } else if (json['type'] == 'BUDGET_SUGGEST_LIMIT') {
+              final payload = json['payload'] as Map<String, dynamic>? ?? {};
+              final budgetSuggestion = payload['budgetSuggestion'] as Map<String, dynamic>?;
+
+              if (budgetSuggestion != null && mounted) {
+                final targetMonth = budgetSuggestion['targetMonth'] as String? ?? '';
+                final itemsList = budgetSuggestion['items'] as List<dynamic>? ?? [];
+                if (itemsList.isNotEmpty) {
+                  final preview = BudgetSuggestionPreview(
+                    targetMonth: targetMonth,
+                    totalSuggested: 0,
+                    items: itemsList.map((i) => BudgetSuggestionItem(
+                      categoryCode: i['categoryCode'] as String? ?? '',
+                      suggestedAmount: i['suggestedAmount'] as int? ?? 0,
+                      baseSpending: i['baseSpending'] as int? ?? 0,
+                      reason: i['reason'] as String? ?? '',
+                    )).toList(),
+                  );
+                  showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    backgroundColor: Colors.transparent,
+                    builder: (ctx) => BudgetSuggestionModal(
+                      preview: preview,
+                      onApply: (overrides) async {
+                        try {
+                          for (final entry in overrides.entries) {
+                            if (entry.value >= 0) {
+                              await _api.createBudget({
+                                'period': 'month',
+                                'category_code': entry.key,
+                                'amount': entry.value,
+                              });
+                            }
+                          }
+                          if (!mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Đã áp dụng hạn mức gợi ý!')),
+                          );
+                        } catch (e) {
+                          debugPrint('Failed to apply budget suggestion: $e');
+                        }
+                      },
+                    ),
+                  );
+                }
+              }
             } else if (json['type'] == 'transaction_done') {
               final txId = json['transactionId'] as String?;
               final data = json['data'] as Map<String, dynamic>? ?? {};
@@ -339,23 +388,11 @@ class _AppShellState extends State<AppShell> {
     _reconnectTimer = Timer(delay, _connectWebSocket);
   }
 
-  static int _tabIndex(BuildContext context) {
-    final loc = GoRouterState.of(context).uri.toString();
-    if (loc.startsWith(AppRoutes.report)) return 1;
-    if (loc.startsWith(AppRoutes.goals)) return 2;
-    if (loc.startsWith(AppRoutes.settings)) return 3;
-    return 0;
-  }
-
   void _onTabTap(BuildContext context, int index) {
-    shellNavigatorKey.currentState?.popUntil((route) => route.isFirst);
-    const routes = [
-      AppRoutes.home,
-      AppRoutes.report,
-      AppRoutes.goals,
-      AppRoutes.settings,
-    ];
-    context.go(routes[index]);
+    widget.navigationShell.goBranch(
+      index,
+      initialLocation: index == widget.navigationShell.currentIndex,
+    );
   }
 
   void _onFabTap(BuildContext context) {
@@ -382,7 +419,7 @@ class _AppShellState extends State<AppShell> {
             (constraints.maxWidth > constraints.maxHeight &&
                 constraints.maxHeight < 600);
 
-        final currentIndex = _tabIndex(context);
+        final currentIndex = widget.navigationShell.currentIndex;
         final billJobs = BillProcessingService.instance.activeJobs;
         final topInset = MediaQuery.of(context).padding.top;
         final hasInAppNotification =
@@ -391,7 +428,7 @@ class _AppShellState extends State<AppShell> {
 
         final mainContent = Stack(
           children: [
-            widget.child,
+            widget.navigationShell,
             if (billJobs.isNotEmpty)
               Positioned(
                 left: 0,

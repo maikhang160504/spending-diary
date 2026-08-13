@@ -1,3 +1,0 @@
-Line 87: ### 4. Đối tượng và phạm vi nghiên cứu -> #### 4.1. Đối tượng nghiên cứu
-Line 494: ### 2.2. Nền tảng kiến trúc và máy chủ -> #### 2.2.1. Giao diện ứng dụng Flutter và React
-Line 521: ### 2.3. Phân hệ trí tuệ nhân tạo AI -> #### 2.3.1. Mạng phát hiện chữ DBNet

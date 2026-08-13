@@ -238,62 +238,63 @@ Bảng 1.1: Bảng phân rã yêu cầu chức năng chi tiết theo từng phâ
 
 Sơ đồ tổng quát thể hiện mối quan hệ giữa hai tác nhân chính gồm người dùng cuối, quản trị viên. Cả người dùng và quản trị viên đều bắt buộc phải trải qua bước xác thực tài khoản trước khi truy cập các luồng nghiệp vụ riêng biệt.
 
-```mermaid
-flowchart LR
-    User([Người dùng])
-    Admin([Quản trị viên])
+```plantuml
+@startuml
+left to right direction
+actor "Người dùng" as User
+actor "Quản trị viên" as Admin
 
-    subgraph Hệ thống Spending Diary
-        UC1(Đăng ký và đăng nhập)
-        UC2(Nâng cấp tài khoản)
-        UC3(Quản lý ví tiền)
-        UC4(Ghi chép chi tiêu bằng văn bản)
-        UC5(Quét ảnh hóa đơn)
-        UC6(Giao tiếp thông minh và ra lệnh)
-        UC7(Quản lý hạn mức và gợi ý ngân sách)
-        UC8(Báo cáo và so sánh)
-        UC14(Quản lý giao dịch)
-        UC19(Báo cáo lỗi nhận diện AI)
-        UC25(Quản lý mục tiêu tiết kiệm)
-        UC26(Chia tiền và thanh toán nhóm)
-        UC27(Quản lý sổ nợ)
-        UC28(Thiết lập giao dịch định kỳ)
-        UC29(Điểm danh và chuỗi hoạt động)
+package "Hệ thống Spending Diary" {
+    usecase "Đăng ký và đăng nhập" as UC1
+    usecase "Nâng cấp tài khoản" as UC2
+    usecase "Quản lý ví tiền" as UC3
+    usecase "Ghi chép chi tiêu bằng văn bản" as UC4
+    usecase "Quét ảnh hóa đơn" as UC5
+    usecase "Giao tiếp thông minh và ra lệnh" as UC6
+    usecase "Quản lý hạn mức và gợi ý ngân sách" as UC7
+    usecase "Báo cáo và so sánh" as UC8
+    usecase "Quản lý giao dịch" as UC14
+    usecase "Báo cáo lỗi nhận diện AI" as UC19
+    usecase "Quản lý mục tiêu tiết kiệm" as UC25
+    usecase "Chia tiền và thanh toán nhóm" as UC26
+    usecase "Quản lý sổ nợ" as UC27
+    usecase "Thiết lập giao dịch định kỳ" as UC28
+    usecase "Điểm danh và chuỗi hoạt động" as UC29
 
-        UC9(Thống kê doanh thu)
-        UC10(Quản lý người dùng)
-        UC11(Dán nhãn dữ liệu ảnh)
-        UC12(Quản lý Prompt)
-        UC13(Quản lý tiến trình huấn luyện AI)
-        UC20(Phê duyệt phiên bản trợ lý ảo)
-        UC21(Trích xuất dữ liệu huấn luyện)
-    end
+    usecase "Thống kê tổng quan" as UC9
+    usecase "Quản lý người dùng" as UC10
+    usecase "Dán nhãn dữ liệu ảnh" as UC11
+    usecase "Quản lý Prompt" as UC12
+    usecase "Quản lý tiến trình huấn luyện AI" as UC13
+    usecase "Phê duyệt phiên bản trợ lý ảo" as UC20
+    usecase "Trích xuất dữ liệu huấn luyện" as UC21
+}
 
-    User --> UC1
-    User --> UC2
-    User --> UC3
-    User --> UC4
-    User --> UC5
-    User --> UC6
-    User --> UC7
-    User --> UC8
-    User --> UC14
-    User --> UC19
-    User --> UC25
-    User --> UC26
-    User --> UC27
-    User --> UC28
-    User --> UC29
-    User --> UC30
+User --> UC1
+User --> UC2
+User --> UC3
+User --> UC4
+User --> UC5
+User --> UC6
+User --> UC7
+User --> UC8
+User --> UC14
+User --> UC19
+User --> UC25
+User --> UC26
+User --> UC27
+User --> UC28
+User --> UC29
 
-    Admin --> UC1
-    Admin --> UC9
-    Admin --> UC10
-    Admin --> UC11
-    Admin --> UC12
-    Admin --> UC13
-    Admin --> UC20
-    Admin --> UC21
+Admin --> UC1
+Admin --> UC9
+Admin --> UC10
+Admin --> UC11
+Admin --> UC12
+Admin --> UC13
+Admin --> UC20
+Admin --> UC21
+@enduml
 ```
 
 Hình 1.2: Sơ đồ Use Case tổng quát toàn bộ hệ thống.
@@ -304,126 +305,127 @@ Hình 1.2 cho thấy phân chia trách nhiệm rõ rệt giữa người dùng t
 
 Đối với người dùng trên ứng dụng di động, sơ đồ chi tiết mở rộng từng luồng chức năng lớn thành các chức năng nghiệp vụ cụ thể mà người dùng có thể chủ động thao tác trên giao diện.
 
-```mermaid
-flowchart LR
-    User([Người dùng])
+```plantuml
+@startuml
+left to right direction
+actor "Người dùng" as User
 
-    subgraph Phân hệ người dùng
-        UC1(Đăng ký và đăng nhập)
-        UC1_1(Đăng ký tài khoản mới)
-        UC1_2(Đăng nhập ứng dụng)
-        UC1_3(Khôi phục mật khẩu)
+package "Phân hệ người dùng" {
+    usecase "Đăng ký và đăng nhập" as UC1
+    usecase "Đăng ký tài khoản mới" as UC1_1
+    usecase "Đăng nhập ứng dụng" as UC1_2
+    usecase "Khôi phục mật khẩu" as UC1_3
 
-        UC2(Nâng cấp tài khoản)
-        UC2_1(Thanh toán nâng cấp Premium)
+    usecase "Nâng cấp tài khoản" as UC2
+    usecase "Thanh toán nâng cấp Premium" as UC2_1
 
-        UC3(Quản lý ví tiền)
-        UC3_1(Tạo ví chi tiêu cá nhân)
-        UC3_2(Tạo ví chia sẻ nhóm)
-        UC3_3(Mời thành viên tham gia ví)
-        UC3_4(Cập nhật hoặc xóa ví)
+    usecase "Quản lý ví tiền" as UC3
+    usecase "Tạo ví chi tiêu cá nhân" as UC3_1
+    usecase "Tạo ví chia sẻ nhóm" as UC3_2
+    usecase "Mời thành viên tham gia ví" as UC3_3
+    usecase "Cập nhật hoặc xóa ví" as UC3_4
 
-        UC4(Ghi chép chi tiêu bằng văn bản)
-        UC4_1(Ghi chép khoản chi qua trò chuyện)
+    usecase "Ghi chép chi tiêu bằng văn bản" as UC4
+    usecase "Ghi chép khoản chi qua trò chuyện" as UC4_1
 
-        UC5(Quét ảnh hóa đơn)
-        UC5_1(Chụp hoặc tải ảnh hóa đơn)
+    usecase "Quét ảnh hóa đơn" as UC5
+    usecase "Chụp hoặc tải ảnh hóa đơn" as UC5_1
 
-        UC6(Giao tiếp thông minh và ra lệnh)
-        UC6_1(Tra cứu số dư và thống kê nhanh)
-        UC6_2(Ra lệnh hệ thống điều khiển ứng dụng)
+    usecase "Giao tiếp thông minh và ra lệnh" as UC6
+    usecase "Tra cứu số dư và thống kê nhanh" as UC6_1
+    usecase "Ra lệnh hệ thống điều khiển ứng dụng" as UC6_2
 
-        UC7(Quản lý hạn mức và gợi ý ngân sách)
-        UC7_1(Thiết lập hạn mức chi tiêu tháng)
-        UC7_2(Theo dõi tiến độ ngân sách)
+    usecase "Quản lý hạn mức và gợi ý ngân sách" as UC7
+    usecase "Thiết lập hạn mức chi tiêu tháng" as UC7_1
+    usecase "Theo dõi tiến độ ngân sách" as UC7_2
 
-        UC8(Báo cáo và so sánh)
-        UC8_1(Xem biểu đồ cơ cấu chi tiêu)
-        UC8_2(So sánh thu chi giữa các chu kỳ)
+    usecase "Báo cáo và so sánh" as UC8
+    usecase "Xem biểu đồ cơ cấu chi tiêu" as UC8_1
+    usecase "So sánh thu chi giữa các chu kỳ" as UC8_2
 
-        UC9(Quản lý giao dịch)
-        UC9_1(Tra cứu lịch sử giao dịch)
-        UC9_2(Chỉnh sửa thông tin giao dịch)
-        UC9_3(Xóa giao dịch)
+    usecase "Quản lý giao dịch" as UC9
+    usecase "Tra cứu lịch sử giao dịch" as UC9_1
+    usecase "Chỉnh sửa thông tin giao dịch" as UC9_2
+    usecase "Xóa giao dịch" as UC9_3
 
-        UC10(Báo cáo lỗi nhận diện AI)
-        UC10_1(Báo cáo khi trợ lý ảo hiểu nhầm ý định)
+    usecase "Báo cáo lỗi nhận diện AI" as UC10
+    usecase "Báo cáo khi trợ lý ảo hiểu nhầm ý định" as UC10_1
 
-        UC11(Quản lý mục tiêu tiết kiệm)
-        UC11_1(Khởi tạo mục tiêu tiết kiệm)
-        UC11_2(Đóng góp tiền vào mục tiêu)
+    usecase "Quản lý mục tiêu tiết kiệm" as UC11
+    usecase "Khởi tạo mục tiêu tiết kiệm" as UC11_1
+    usecase "Đóng góp tiền vào mục tiêu" as UC11_2
 
-        UC12(Chia tiền và thanh toán nhóm)
-        UC12_1(Tạo hóa đơn chia tiền)
-        UC12_2(Thanh toán phần chia)
+    usecase "Chia tiền và thanh toán nhóm" as UC12
+    usecase "Tạo hóa đơn chia tiền" as UC12_1
+    usecase "Thanh toán phần chia" as UC12_2
 
-        UC13(Quản lý sổ nợ)
-        UC13_1(Ghi nợ hoặc cho vay)
-        UC13_2(Trả nợ)
+    usecase "Quản lý sổ nợ" as UC13
+    usecase "Ghi nợ hoặc cho vay" as UC13_1
+    usecase "Trả nợ" as UC13_2
 
-        UC14(Thiết lập giao dịch định kỳ)
-        UC14_1(Lên lịch giao dịch tự động)
-        
-        UC15(Điểm danh và chuỗi hoạt động)
-    end
+    usecase "Thiết lập giao dịch định kỳ" as UC14
+    usecase "Lên lịch giao dịch tự động" as UC14_1
 
-    User --> UC1
-    User --> UC2
-    User --> UC3
-    User --> UC4
-    User --> UC5
-    User --> UC6
-    User --> UC7
-    User --> UC8
-    User --> UC9
-    User --> UC10
-    User --> UC11
-    User --> UC12
-    User --> UC13
-    User --> UC14
-    User --> UC15
+    usecase "Điểm danh và chuỗi hoạt động" as UC15
+}
 
-    UC1 -. bao gồm .-> UC1_1
-    UC1 -. bao gồm .-> UC1_2
-    UC1 -. mở rộng .-> UC1_3
+User --> UC1
+User --> UC2
+User --> UC3
+User --> UC4
+User --> UC5
+User --> UC6
+User --> UC7
+User --> UC8
+User --> UC9
+User --> UC10
+User --> UC11
+User --> UC12
+User --> UC13
+User --> UC14
+User --> UC15
 
-    UC2 -. bao gồm .-> UC2_1
+UC1_1 --|> UC1
+UC1_2 --|> UC1
+UC1_3 ..> UC1_2 : <<extend>>
 
-    UC3 -. bao gồm .-> UC3_1
-    UC3 -. bao gồm .-> UC3_2
-    UC3 -. mở rộng .-> UC3_3
-    UC3 -. mở rộng .-> UC3_4
+UC2 ..> UC2_1 : <<include>>
 
-    UC4 -. bao gồm .-> UC4_1
+UC3_1 --|> UC3
+UC3_2 --|> UC3
+UC3_3 ..> UC3_2 : <<extend>>
+UC3_4 ..> UC3 : <<extend>>
 
-    UC5 -. bao gồm .-> UC5_1
+UC4_1 --|> UC4
 
-    UC6 -. bao gồm .-> UC6_1
-    UC6 -. bao gồm .-> UC6_2
+UC5 ..> UC5_1 : <<include>>
 
-    UC7 -. bao gồm .-> UC7_1
-    UC7 -. mở rộng .-> UC7_2
+UC6_1 --|> UC6
+UC6_2 --|> UC6
 
-    UC8 -. bao gồm .-> UC8_1
-    UC8 -. mở rộng .-> UC8_2
+UC7 ..> UC7_1 : <<include>>
+UC7_2 ..> UC7 : <<extend>>
 
-    UC9 -. bao gồm .-> UC9_1
-    UC9 -. mở rộng .-> UC9_2
-    UC9 -. mở rộng .-> UC9_3
+UC8 ..> UC8_1 : <<include>>
+UC8_2 ..> UC8 : <<extend>>
 
-    UC10 -. bao gồm .-> UC10_1
+UC9 ..> UC9_1 : <<include>>
+UC9_2 ..> UC9 : <<extend>>
+UC9_3 ..> UC9 : <<extend>>
 
-    UC11 -. bao gồm .-> UC11_1
-    UC11 -. mở rộng .-> UC11_2
+UC10_1 --|> UC10
 
-    UC12 -. bao gồm .-> UC12_1
-    UC12 -. mở rộng .-> UC12_2
+UC11 ..> UC11_1 : <<include>>
+UC11_2 ..> UC11 : <<extend>>
 
-    UC13 -. bao gồm .-> UC13_1
-    UC13 -. mở rộng .-> UC13_2
+UC12 ..> UC12_1 : <<include>>
+UC12_2 ..> UC12 : <<extend>>
 
-    UC14 -. bao gồm .-> UC14_1
+UC13 ..> UC13_1 : <<include>>
+UC13_2 ..> UC13 : <<extend>>
 
+UC14_1 --|> UC14
+@enduml
 ```
 
 Hình 1.3: Sơ đồ Use Case chi tiết phân hệ người dùng trên ứng dụng di động.
@@ -434,63 +436,65 @@ Hình 1.3 tập trung hoàn toàn vào góc độ người dùng di động, lo�
 
 Trên nền tảng trang web quản trị, sơ đồ mở rộng các chức năng điều hành của ban quản trị thành các nghiệp vụ theo dõi thống kê, kiểm soát tài khoản và quản trị chu trình học sâu cho bộ não AI.
 
-```mermaid
-flowchart LR
-    Admin([Quản trị viên])
+```plantuml
+@startuml
+left to right direction
+actor "Quản trị viên" as Admin
 
-    subgraph Phân hệ quản trị viên Spending Diary
-        UC16(Đăng nhập quản trị)
+package "Phân hệ quản trị viên Spending Diary" {
+    usecase "Đăng nhập quản trị" as UC16
 
-        UC17(Thống kê tổng quan)
-        UC17_1(Theo dõi doanh thu)
-        UC17_2(Theo dõi các thông số mô hình)
+    usecase "Thống kê tổng quan" as UC17
+    usecase "Theo dõi doanh thu" as UC17_1
+    usecase "Theo dõi các thông số mô hình" as UC17_2
 
-        UC18(Quản lý người dùng)
-        UC18_1(Tìm kiếm và lọc tài khoản)
-        UC18_2(Xem chi tiết hồ sơ người dùng)
-        UC18_3(Khóa/Mở khóa tài khoản)
+    usecase "Quản lý người dùng" as UC18
+    usecase "Tìm kiếm và lọc tài khoản" as UC18_1
+    usecase "Xem chi tiết hồ sơ người dùng" as UC18_2
+    usecase "Khóa/Mở khóa tài khoản" as UC18_3
 
-        UC19(Gán nhãn dữ liệu ảnh)
-        UC19_1(Xem danh sách hóa đơn nhận diện)
-        UC19_2(Chỉnh sửa vùng nhãn hóa đơn)
-        UC19_3(Duyệt nhãn dữ liệu chuẩn)
+    usecase "Gán nhãn dữ liệu ảnh" as UC19
+    usecase "Xem danh sách hóa đơn nhận diện" as UC19_1
+    usecase "Chỉnh sửa vùng nhãn hóa đơn" as UC19_2
+    usecase "Duyệt nhãn dữ liệu chuẩn" as UC19_3
 
-        UC20(Quản lý Prompt)
-        UC20_1(Chỉnh sửa hồ sơ tính cách)
-        UC20_2(Chỉnh sửa chỉ thị hệ thống)
+    usecase "Quản lý Prompt" as UC20
+    usecase "Chỉnh sửa hồ sơ tính cách" as UC20_1
+    usecase "Chỉnh sửa chỉ thị hệ thống" as UC20_2
 
-        UC21(Quản lý tiến trình huấn luyện)
-        UC21_1(Kích hoạt tiến trình huấn luyện)
+    usecase "Quản lý tiến trình huấn luyện" as UC21
+    usecase "Kích hoạt tiến trình huấn luyện" as UC21_1
 
-        UC22(Phê duyệt phiên bản mô hình)
-        UC22_1(Phát hành mô hình mới)
-    end
+    usecase "Phê duyệt phiên bản mô hình" as UC22
+    usecase "Phát hành mô hình mới" as UC22_1
+}
 
-    Admin --> UC16
-    Admin --> UC17
-    Admin --> UC18
-    Admin --> UC19
-    Admin --> UC20
-    Admin --> UC21
-    Admin --> UC22
+Admin --> UC16
+Admin --> UC17
+Admin --> UC18
+Admin --> UC19
+Admin --> UC20
+Admin --> UC21
+Admin --> UC22
 
-    UC17 -. bao gồm .-> UC17_1
-    UC17 -. bao gồm .-> UC17_2
+UC17_1 --|> UC17
+UC17_2 --|> UC17
 
-    UC18 -. bao gồm .-> UC18_1
-    UC18 -. bao gồm .-> UC18_2
-    UC18 -. mở rộng .-> UC18_3
+UC18 ..> UC18_1 : <<include>>
+UC18 ..> UC18_2 : <<include>>
+UC18_3 ..> UC18 : <<extend>>
 
-    UC19 -. bao gồm .-> UC19_1
-    UC19 -. bao gồm .-> UC19_2
-    UC19 -. bao gồm .-> UC19_3
+UC19 ..> UC19_1 : <<include>>
+UC19 ..> UC19_2 : <<include>>
+UC19 ..> UC19_3 : <<include>>
 
-    UC20 -. bao gồm .-> UC20_1
-    UC20 -. bao gồm .-> UC20_2
+UC20_1 --|> UC20
+UC20_2 --|> UC20
 
-    UC21 -. bao gồm .-> UC21_1
+UC21_1 --|> UC21
 
-    UC22 -. bao gồm .-> UC22_1
+UC22_1 --|> UC22
+@enduml
 ```
 
 Hình 1.4: Sơ đồ Use Case chi tiết phân hệ quản trị viên trên nền tảng web.
@@ -782,26 +786,26 @@ Về mặt logic hoạt động, chức năng này được thiết kế theo lu
 ```plantuml
 @startuml
 start
-:Người dùng nhập câu lệnh chi tiêu;
-if (Văn bản rỗng?) then (Có)
-  stop
-else (Không)
-  :Bật trạng thái Loading;
-  :Gửi văn bản lên Máy chủ để phân tích NLU;
-  if (Kết nối thành công?) then (Có)
-    :Tắt trạng thái Loading;
-    if (AI bóc tách đủ Số tiền & Danh mục?) then (Đủ)
-      :Tự động điền sẵn thông tin vào Biểu mẫu;
-      :Người dùng kiểm tra và bấm Xác nhận;
-      :Lưu giao dịch mới vào hệ thống;
-    else (Thiếu)
-      :Yêu cầu người dùng bổ sung dữ liệu;
-    endif
-  else (Lỗi mạng/Server)
-    :Tắt Loading & Hiện thông báo lỗi;
+repeat :Người dùng nhập câu lệnh chi tiêu;
+backward:Thông báo yêu cầu nhập nội dung;
+repeat while (Văn bản rỗng?) is (Có)
+->Không;
+:Bật trạng thái Loading;
+:Gửi văn bản lên Máy chủ để phân tích NLU;
+if (Phân tích NLU thành công?) then (Có)
+  :Tắt trạng thái Loading;
+  if (AI bóc tách đủ Số tiền & Danh mục?) then (Đủ)
+    :Tự động điền sẵn thông tin vào Biểu mẫu;
+  else (Thiếu)
+    :Yêu cầu người dùng bổ sung dữ liệu;
   endif
+  :Người dùng kiểm tra và bấm Xác nhận;
+  :Lưu giao dịch mới vào hệ thống;
+  stop
+else (Lỗi mạng/Server)
+  :Tắt Loading & Hiện thông báo lỗi;
+  stop
 endif
-stop
 @enduml
 ```
 *Hình 3.3: Sơ đồ khối (Flowchart) mô tả logic luồng ghi chép chi tiêu bằng văn bản.*
@@ -825,17 +829,30 @@ Bên cạnh việc gõ chữ, ứng dụng cung cấp thêm một công cụ vô
 ```plantuml
 @startuml
 start
+
 :Chụp hoặc chọn ảnh hóa đơn;
 :Nén dung lượng ảnh trực tiếp trên máy;
-:Tải ảnh đã nén lên kho Cloud (R2);
-if (Tải thành công?) then (Có)
-  :Gửi URL ảnh lên Máy chủ;
-  :Giải phóng giao diện (Xử lý ngầm);
-  :AI phân tích ảnh hóa đơn;
-  :Gửi thông báo Push trả kết quả;
-else (Lỗi mạng)
-  :Hiện thông báo lỗi tải ảnh;
-endif
+
+repeat
+    :Tải ảnh đã nén lên kho Cloud (R2);
+
+    if (Tải thành công?) then (Có)
+        break
+    else (Không)
+        :Hiện thông báo lỗi tải ảnh;
+
+        if (Người dùng bấm thử lại?) then (Có)
+        else (Không)
+            stop
+        endif
+    endif
+repeat while (Thử lại?) is (Có)
+
+:Gửi URL ảnh lên Máy chủ;
+:Chuyển sang xử lý nền;
+:AI phân tích ảnh hóa đơn;
+:Gửi thông báo Push trả kết quả;
+
 stop
 @enduml
 ```
@@ -874,20 +891,24 @@ Dưới đây là sơ đồ khối (Flowchart) mô tả thuật toán xử lý d
 start
 :Chọn mốc thời gian hoặc thẻ báo cáo;
 :Bật trạng thái Loading;
-if (Loại báo cáo?) then (Thống kê nội bộ)
+if (Loại báo cáo?) then ([Thống kê nội bộ])
   :Truy vấn dữ liệu giao dịch cục bộ;
   :Chạy Isolate ngầm để gom nhóm & tính %;
   :Dựng biểu đồ bằng thư viện fl_chart;
-else (So sánh cộng đồng)
+  :Tắt Loading & Cập nhật UI;
+  stop
+else ([So sánh cộng đồng])
   :Gọi API đối chiếu dữ liệu mức sống;
-  if (Thành công?) then (Có)
+  if (Gọi API thành công?) then (Có)
     :Nhận kết quả % và lời nhận xét;
+    :Tắt Loading & Cập nhật UI;
+    stop
   else (Lỗi mạng)
     :Báo lỗi kết nối;
+    :Tắt Loading & Hiển thị lỗi;
+    stop
   endif
 endif
-:Tắt Loading & Cập nhật UI;
-stop
 @enduml
 ```
 *Hình 3.8: Sơ đồ thuật toán xử lý dữ liệu thống kê và so sánh.*
@@ -1588,27 +1609,31 @@ Như minh họa tại Hình 3.18, hệ thống được thiết kế theo luồn
 
 ##### 3.5.1.1. Đánh giá và lựa chọn mô hình
 
-Điểm đặc biệt của hệ thống là khả năng linh hoạt hoán đổi cấu hình mô hình học máy. Thông qua cổng quản trị, quản trị viên có thể tùy ý chỉ định mô hình nào (TF-IDF, PhoBERT, hoặc Qwen 2.5) sẽ đảm nhận Tầng 1 (phân loại ý định) và Tầng 2 (bóc tách danh mục). Nhằm tìm ra cấu hình mặc định tối ưu nhất, hệ thống đã tiến hành chuẩn đối sánh với cả ba mô hình.
+4.1.1. Đánh giá và lựa chọn mô hình
+Hệ thống hỗ trợ cấu hình linh hoạt mô hình học máy thông qua cổng quản trị, cho phép quản trị viên lựa chọn TF-IDF, PhoBERT hoặc Qwen 2.5 để đảm nhận Tầng 1, thực hiện phân loại ý định, và Tầng 2, thực hiện phân loại danh mục. 
+Để xác định cấu hình phù hợp, hệ thống tiến hành đánh giá đối sánh giữa ba mô hình trên một tập dữ liệu kiểm thử độc lập với dữ liệu huấn luyện. Cụ thể, trong khi toàn bộ dữ liệu (hơn 40.000 mẫu) được phân chia thành ba tập Train, Validation và Test theo tỷ lệ 80:10:10 để huấn luyện, thì khâu đánh giá cuối cùng được thực hiện trên một tập kiểm thử benchmark độc lập gồm 200 mẫu giao dịch thực tế khó. Tập dữ liệu này được phân bổ sát với tỷ lệ sử dụng thực tế của các nhóm nghiệp vụ chính: 80 mẫu ghi chép thu chi, 80 mẫu lệnh điều khiển, và 40 mẫu hội thoại xã giao. Trong quá trình đánh giá, toàn bộ tập kiểm thử được lần lượt đưa qua từng mô hình, sau đó kết quả dự đoán được đối chiếu với nhãn chuẩn để tính các chỉ số đánh giá. 
+Bên cạnh độ chính xác, hệ thống đồng thời đo thời gian phản hồi nhằm đánh giá sự cân bằng giữa hiệu quả phân loại và chi phí xử lý của từng mô hình, từ đó lựa chọn cấu hình phù hợp với yêu cầu vận hành thực tế. Thời gian phản hồi (độ trễ) được đo lường trên nền tảng máy chủ Modal Cloud sử dụng GPU NVIDIA A100, trong đó độ trễ là trung bình trên 5 lần chạy độc lập đối với từng yêu cầu. Thời gian này chỉ bao gồm độ trễ suy luận, không tính thời gian truyền tải mạng đường truyền internet và thời gian khởi động mô hình.
+Hệ thống sử dụng hai chỉ số chính để đánh giá hiệu quả mô hình là Accuracy và Macro F1. Accuracy phản ánh tỷ lệ dự đoán đúng trên toàn bộ tập kiểm thử, trong khi Macro F1 được tính bằng cách xác định F1-Score riêng cho từng lớp rồi lấy trung bình cộng, qua đó đánh giá đồng đều hiệu quả phân loại giữa các lớp và hạn chế ảnh hưởng của sự chênh lệch về số lượng mẫu. Việc sử dụng đồng thời hai chỉ số này giúp đánh giá cả độ chính xác tổng thể và mức độ ổn định của mô hình trên từng nhóm dữ liệu.
+ 
+Bảng 3.1: Đánh giá Tầng 1 - Hiệu năng phân loại ý định người dùng
+Mô hình suy luận	Accuracy	F1-Score	Độ trễ Tầng 1
+TF-IDF 	86,00%	83,74%	1,05 ms
+PhoBERT	93,00%	91,92%	12,17 ms
+Qwen 2.5 Base	95,00%	94,77%	6.670,75 ms
+Qwen 2.5 LoRA	95,00%	95,12%	5.351,10 ms
+Ghi chú: F1-Score được tính theo phương pháp Macro Average. Độ trễ ghi nhận là thời gian xử lý trung bình của một yêu cầu riêng lẻ tại tầng này.
+Bảng 3.1 cho thấy Qwen 2.5 LoRA đạt kết quả tốt nhất trong nhiệm vụ phân loại ý định với Accuracy 95,00% và F1-Score 95,12%, cao hơn PhoBERT và TF-IDF. Mặc dù độ trễ suy luận của mô hình còn tương đối cao, khoảng 5,35 giây, đề tài ưu tiên độ chính xác của kết quả phân loại nhằm hạn chế sai lệch ngay từ bước định tuyến ban đầu. Vì vậy, Qwen 2.5 LoRA được lựa chọn làm mô hình mặc định tại Tầng 1. Việc sử dụng mô hình ngôn ngữ lớn ở tầng này giúp hệ thống xử lý tốt hơn các câu đầu vào có cách diễn đạt đa dạng, phụ thuộc ngữ cảnh hoặc không tuân theo cấu trúc cố định.
 
-Để đảm bảo tính khách quan và sát với môi trường thực tế, hệ thống không tái sử dụng dữ liệu huấn luyện mà tự động tạo một bộ dữ liệu chuẩn đối sánh độc lập. Bộ dữ liệu này được lấy mẫu từ các giao dịch thực tế và phân bổ đồng đều qua các nhóm nghiệp vụ cốt lõi bao gồm ghi chép thu chi, lệnh điều khiển và trò chuyện xã giao. Về phương pháp thực hiện, hệ thống sẽ đẩy toàn bộ tập dữ liệu kiểm thử qua lần lượt từng mô hình, sau đó tự động đối chiếu kết quả trả về với nhãn dữ liệu chuẩn để tính toán điểm số. Việc tiến hành đánh giá khắt khe như vậy là bắt buộc. Bởi lẽ, một ứng dụng tài chính thông minh không chỉ cần độ chính xác cao nhằm tránh làm sai lệch sổ sách, mà còn đòi hỏi tốc độ phản hồi phải cực kỳ thấp để duy trì trải nghiệm giao tiếp liền mạch cho người dùng. Quá trình này giúp đo lường chính xác sự đánh đổi giữa tốc độ tính toán và năng lực phân loại của từng thuật toán.
+Bảng 3.2: Đánh giá Tầng 2 - Hiệu năng xử lý giao dịch
+Mô hình suy luận	Category (Accuracy)	Category (F1)	Record Type (Accuracy)	Record Type (F1)	Action (Accuracy)	Action (F1)	Độ trễ Tầng 2
+TF-IDF 	82,15%	80,45%	90,00%	88,54%	-	-	0,79 ms
+PhoBERT 	88,60%	87,20%	93,75%	92,45%	-	-	12,03 ms
+Qwen 2.5 Base	94,20%	93,10%	93,75%	92,81%	94,15%	93,50%	9.926,80 ms
+Qwen 2.5 LoRA	96,50%	95,80%	93,75%	94,15%	96,25%	96,05%	10.166,16 ms
+Ghi chú: F1-Score được tính theo phương pháp Macro Average. Độ trễ ghi nhận là thời gian xử lý trung bình của một yêu cầu tại riêng Tầng 2. Dấu "-" biểu thị mô hình không hỗ trợ phân loại tác vụ đó do giới hạn phân luồng kiến trúc.
+Bảng 3.2 cho thấy Qwen 2.5 LoRA đạt kết quả tốt nhất trong các nhiệm vụ xử lý giao dịch tại Tầng 2. Đối với bài toán phân loại danh mục, mô hình đạt Accuracy 96,50% và F1-Score 95,80%. Với nhiệm vụ xác định loại giao dịch Income/Expense, mô hình đạt Accuracy 93,75% và F1-Score 94,15%. Đối với nhóm lệnh điều khiển hệ thống (Action), Qwen 2.5 LoRA tiếp tục đạt kết quả cao với Accuracy 96,25% và F1-Score 96,05%. Các kết quả này cho thấy mô hình có khả năng xử lý tốt các đầu vào có cách diễn đạt đa dạng và phụ thuộc vào ngữ cảnh. Đáng lưu ý, do hệ thống hoạt động theo kiến trúc hai tầng tuần tự, một yêu cầu đi qua cả hai tầng Qwen có thể gặp tổng độ trễ vượt qua mức 15 giây.
+Tuy nhiên, Qwen 2.5 Base được lựa chọn trong phạm vi triển khai thử nghiệm do cho kết quả đầu ra ổn định hơn qua quá trình kiểm tra thực tế. Dù bản LoRA có độ chính xác trên tập kiểm thử nhỉnh hơn, nhưng trong vận hành thực tiễn phiên bản này đôi khi sinh phản hồi thiếu ổn định (như tỷ lệ JSON hợp lệ thấp hơn, phản hồi sai ngôn ngữ, hoặc trích xuất thiếu các trường bắt buộc). Mô hình Base được kết hợp với hệ thống chỉ thị chặt chẽ đảm bảo duy trì định dạng đầu ra nhất quán, qua đó thực hiện trích xuất tham số và tạo kết quả phục vụ các chức năng nghiệp vụ mà không làm gãy vỡ luồng xử lý tự động của hệ thống.
 
-Hệ thống sử dụng hai thang đo chính. Độ chính xác tổng thể (Accuracy) tính bằng tỷ lệ dự đoán đúng trên toàn tập kiểm thử, giúp phản ánh hiệu suất chung. Trong khi đó, điểm số F1 (F1-Score) là trung bình điều hòa giữa độ chuẩn xác và độ phủ. Điểm F1 đóng vai trò cực kỳ quan trọng do dữ liệu chi tiêu thực tế luôn bị mất cân bằng nghiêm trọng, ví dụ số lượng giao dịch ăn uống luôn áp đảo các giao dịch nộp học phí hay sửa xe.
-
-Bảng 3.1: Đánh giá tổng hợp độ chính xác các mô hình xử lý ngôn ngữ tự nhiên (NLU)
-
-| Mô hình suy luận | Intent (Acc/F1) | Action (Acc/F1) | Category (Acc/F1) | Record (Acc/F1) | Tầng 1 (ms) | Tầng 2 (ms) | Tổng (ms) |
-| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| TF-IDF Classic | 86.00% / 83.74% | 72.50% / 70.12% | 82.15% / 80.45% | 90.00% / 88.54% | 1.05 | 0.79 | 1.84 |
-| PhoBERT Encoder | 93.00% / 91.92% | 76.25% / 74.32% | 88.60% / 87.20% | 93.75% / 92.45% | 12.17 | 12.03 | 24.20 |
-| Qwen 2.5 LoRA | 95.00% / 95.12% | 96.25% / 96.05% | 96.50% / 95.80% | 93.75% / 94.15% | 5,351.10 | 10,166.16 | 15,517.26 |
-
-Bảng 3.1 trình bày chi tiết kết quả chuẩn đối sánh giữa ba mô hình ngôn ngữ dựa trên độ chính xác phân loại và thời gian phản hồi ở cả hai tầng kiến trúc.
-
-Số liệu từ bảng đánh giá lý giải quyết định cấu hình PhoBERT làm mô hình mặc định cho quá trình định tuyến ở tầng thứ nhất. Mặc dù Qwen 2.5 đạt độ chính xác phân loại ý định (Intent) cao nhất ở mức 95.00%, độ trễ phản hồi của mô hình này lên tới hơn 5.3 giây, tạo ra rào cản lớn đối với một tác vụ chỉ mang tính chất phân luồng ban đầu. Trong khi đó, PhoBERT cung cấp một điểm cân bằng hoàn hảo khi đem lại độ chính xác lên tới 93.00% và thời gian phản hồi chỉ tốn khoảng 12 mili-giây. Tốc độ xử lý chớp nhoáng này đảm bảo hệ thống có thể phản ứng tức thời ngay khi người dùng vừa gửi tin nhắn để duy trì luồng giao tiếp liền mạch.
-
-Khi bước vào các nhiệm vụ trích xuất phức tạp hơn ở tầng thứ hai như phân loại chi tiết danh mục thu chi (Category) hay xác định luồng tiền (Record), phương pháp truyền thống bắt đầu bộc lộ điểm yếu rõ rệt. Việc thiết lập Qwen 2.5 làm mô hình mặc định tại tầng này đã chứng minh năng lực đọc hiểu sâu sắc với điểm F1 đạt 95.80% cho phân loại danh mục và 94.15% cho việc xác định luồng tiền. Khi ghép nối cả hai tầng với cấu hình tối ưu, tổng thời gian xử lý trọn vẹn một luồng dữ liệu sẽ rơi vào khoảng 10.1 giây, bao gồm 12.17 mili-giây của tầng định tuyến và hơn 10 giây của tầng trích xuất. Mặc dù giao diện phần mềm có thể kích hoạt hiệu ứng đang gõ chữ nhờ tốc độ phản hồi nhanh của tầng một để tạm thời giữ chân người dùng, độ trễ hơn 10 giây ở tầng hai vẫn là một hạn chế cần tiếp tục tối ưu hóa hạ tầng.
-
-Đối với nhóm lệnh điều khiển hệ thống (Action), quá trình xử lý đòi hỏi khả năng hiểu ngữ cảnh tinh tế nhằm bóc tách chính xác các tham số cấu hình phức tạp. Dựa vào kết quả chuẩn đối sánh, mô hình Qwen 2.5 cho thấy khả năng vượt trội hoàn toàn với độ chính xác đạt 96.25% và điểm F1 đạt 96.05% trong việc nhận diện các luồng lệnh. Chỉ số hiệu năng xuất sắc này đảm bảo người dùng hoàn toàn có thể ra lệnh cho phần mềm bằng ngôn ngữ tự nhiên hàng ngày mà không gặp phải rủi ro hệ thống thực thi sai lệch thao tác. Sự kết hợp giữa khả năng định tuyến nhanh chóng của tầng một và năng lực suy luận sâu của mô hình ngôn ngữ lớn ở tầng hai đã tạo nên một kiến trúc toàn diện và hiệu quả.
 
 ##### 3.5.1.2. Cơ chế hoạt động của cấu hình tối ưu
 
@@ -1647,54 +1672,27 @@ Thông qua cơ chế truy xuất dữ liệu độc lập trước khi tiến h�
 
 #### 3.5.2. Phân hệ nhận diện hóa đơn (Bill OCR)
 
-Đặc thù của các loại hóa đơn bán lẻ tại Việt Nam là sự đa dạng về bố cục, phông chữ và chất lượng hình ảnh đầu vào thường không ổn định do chụp từ thiết bị di động. Các phương pháp trích xuất thông tin dựa trên biểu thức chính quy (Regex) truyền thống tỏ ra kém hiệu quả đối với bài toán này, điển hình là tỷ lệ nhận diện đúng tên cửa hàng chỉ đạt mức thấp. Để giải quyết vấn đề, phân hệ nhận diện hóa đơn được thiết kế với quy trình xử lý ba bước, vận hành trên hạ tầng máy chủ Modal Cloud nhằm tận dụng khả năng tính toán song song của GPU.
+Đặc thù của các loại hóa đơn bán lẻ tại Việt Nam là sự đa dạng về bố cục, phông chữ và chất lượng hình ảnh đầu vào thường không ổn định do chụp từ thiết bị di động. Các phương pháp trích xuất thông tin dựa trên biểu thức chính quy (Regex) truyền thống tỏ ra kém hiệu quả đối với bài toán này, điển hình là tỷ lệ nhận diện đúng tên cửa hàng chỉ đạt mức 52,1%. Để giải quyết vấn đề, phân hệ nhận diện hóa đơn được thiết kế với quy trình xử lý ba bước, vận hành trên hạ tầng máy chủ Modal Cloud nhằm tận dụng khả năng tính toán song song của GPU.
+Luồng hoạt động của phân hệ được tổ chức thành các bước xử lý liên hoàn. Đầu tiên, khi ảnh hóa đơn được tải lên, PaddleOCR thực hiện phát hiện và định vị các vùng chứa văn bản, đồng thời trả về tọa độ của các khung bao tương ứng. Tiếp theo, VietOCR tiếp nhận các vùng ảnh này để nhận dạng và chuyển đổi nội dung thành chuỗi văn bản. Dựa trên chuỗi văn bản cùng thông tin tọa độ không gian, LayoutLMv3 phân tích cấu trúc tổng thể của hóa đơn và trích xuất các trường dữ liệu quan trọng như tổng tiền, tên cửa hàng và ngày giao dịch dưới định dạng JSON.
+Ở bước cuối, mô hình ngôn ngữ lớn (LLM) được sử dụng để phân loại danh mục chi tiêu. Việc sử dụng LLM xuất phát từ đặc điểm tên cửa hàng và hàng hóa trên hóa đơn thực tế rất đa dạng và thường không thể xác định danh mục chỉ dựa trên các quy tắc cố định. Chẳng hạn, các tên như “Circle K”, “Phúc Long” hoặc tên của các cửa hàng địa phương không trực tiếp thể hiện danh mục chi tiêu. Trong khi LayoutLMv3 đảm nhiệm việc trích xuất thông tin từ hóa đơn, LLM sử dụng tên cửa hàng và các thông tin liên quan đã được trích xuất để suy luận ngữ nghĩa và xác định danh mục phù hợp. Cách tiếp cận này giúp hệ thống tự động hóa quá trình phân loại và giảm sự phụ thuộc vào các bộ quy tắc được xây dựng thủ công.
+Toàn bộ quy trình nhận diện, trích xuất và phân loại thông tin hóa đơn được minh họa tại Hình 3.38.
+ 
+Hình 3.38: Sơ đồ dây chuyền ba bước nhận diện và bóc tách thông tin hóa đơn
+Về nguồn gốc triển khai, mô hình DBNet được tích hợp thông qua bộ công cụ mã nguồn mở PaddleOCR [13], trong khi VietOCR sử dụng trực tiếp các trọng số đã được huấn luyện sẵn (pre-trained) chuyên biệt cho tiếng Việt [15]. Vì hai mô hình này chỉ đóng vai trò nền tảng để trích xuất văn bản thô và đã được chứng minh có độ chính xác rất cao, đề tài quyết định tái sử dụng nguyên bản (off-the-shelf) mà không tiến hành huấn luyện lại hay đánh giá độc lập. Thay vào đó, toàn bộ trọng tâm nghiên cứu, tinh chỉnh (fine-tuning) và đánh giá hiệu năng được dồn vào mô hình đa phương thức LayoutLMv3. Khác biệt cốt lõi của LayoutLMv3 nằm ở khả năng phân tích đồng thời cả nội dung văn bản và bố cục không gian hai chiều, qua đó xác định được mối liên hệ ngữ nghĩa phức tạp giữa các dòng chữ (chẳng hạn tên cửa hàng thường in khổ lớn ở trên cùng) để bóc tách chính xác các trường dữ liệu của hóa đơn.
+Để phục vụ việc tinh chỉnh LayoutLMv3, dự án sử dụng bộ dữ liệu chuẩn từ cuộc thi RIVF2021 MC-OCR [4] bao gồm 1.321 hình ảnh hóa đơn thu thập từ các hệ thống siêu thị và nhà hàng tại Việt Nam. Toàn bộ hình ảnh được gán nhãn tọa độ khung bao (bounding box) cho các trường thông tin mục tiêu (địa chỉ, tên cửa hàng, ngày giao dịch, tổng tiền). Quá trình tiền xử lý đã lọc bỏ các mẫu dữ liệu lỗi, giữ lại 1.159 hình ảnh hợp lệ. Tập dữ liệu này được phân chia ngẫu nhiên theo tỷ lệ 90:10, trong đó 90% dữ liệu được dùng để huấn luyện mô hình (Training set) và 10% được dùng để xác thực và đánh giá (Validation set) nhằm theo dõi, ngăn chặn hiện tượng quá khớp (overfitting). Việc tinh chỉnh (fine-tuning) được thực thi trên máy chủ GPU Modal Cloud giúp tối ưu hóa thời gian hội tụ.
+Để đánh giá độ chính xác, mô hình LayoutLMv3 sau khi tinh chỉnh được đánh giá trên tập xác thực gồm 116 ảnh không tham gia vào quá trình cập nhật trọng số. Kết quả phân loại cấp độ từ (token-level classification) đối với 1.960 thực thể (token) từ tập dữ liệu này được trình bày chi tiết trong Bảng 3.3:
+Bảng 3.3: Kết quả đánh giá của mô hình LayoutLMv3 trên tập xác thực
+Trường thông tin	Precision	Recall	F1-Score	Support
+Address	0.91	0.98	0.94	489
+Seller	0.93	0.98	0.95	333
+Timestamp	0.82	0.94	0.88	355
+Total cost	0.87	0.89	0.88	783
+Macro Avg	0.88	0.95	0.91	1960
+Số liệu từ Bảng 3.3 cho thấy mô hình đạt chỉ số F1 trung bình (Macro Avg F1) 0.91. Cụ thể, các trường quan trọng nhất để ghi nhận chi tiêu là tên cửa hàng và tổng tiền đạt mức F1 lần lượt là 0.95 và 0.88. Với chỉ số Recall rất cao ở mức 0.95, hệ thống hiếm khi bỏ sót dữ liệu trên hóa đơn, qua đó đảm bảo khả năng số hóa thông tin chính xác và khắc phục được các hạn chế cố hữu của phương pháp đối sánh từ khóa truyền thống. Do tập Test ẩn của cuộc thi không công bố nhãn, đề tài chỉ sử dụng tập này để kiểm tra khả năng thực thi suy luận, không sử dụng để tính các chỉ số Precision, Recall và F1-Score.
+Để làm rõ năng lực này, Hình 3.39 minh họa kết quả đầu ra thực tế của LayoutLMv3, trong đó hệ thống đã xác định chính xác các vùng chứa dữ liệu mục tiêu trên một hóa đơn có bố cục tự do.
+ 
+Hình 3.39: Minh họa trích xuất thông tin hóa đơn của LayoutLMv3
 
-```plantuml
-@startuml
-start
-:Chụp và tải lên ảnh hóa đơn;
-:Phát hiện vùng chứa chữ (PaddleOCR);
-note right: Đầu ra: Tọa độ khung bao
-:Nhận diện và giải mã ký tự (VietOCR);
-note right: Đầu ra: Văn bản thuần túy
-:Phân tích cấu trúc không gian (LayoutLMv3);
-note right: Đầu ra: Quy luật bố cục
-:Tổng hợp và trích xuất JSON;
-:Mô hình LLM phân loại danh mục chi tiêu;
-note right: Đầu ra: Hạng mục (Food, Shopping...)
-:Hiển thị kết quả cho người dùng;
-stop
-@enduml
-```
-*Hình 3.20: Sơ đồ dây chuyền ba bước nhận diện và bóc tách thông tin hóa đơn.*
-
-Như minh họa tại Hình 3.20, luồng hoạt động của phân hệ được chia thành các bước xử lý liên hoàn. Đầu tiên, khi ảnh hóa đơn được tải lên, bộ công cụ PaddleOCR sẽ quét và định vị các vùng chứa chữ, trả về tọa độ các khung bao. Tiếp đó, VietOCR tiếp nhận các vùng ảnh này để giải mã thành chuỗi văn bản. Dựa trên chuỗi văn bản và tọa độ không gian tương ứng, LayoutLMv3 sẽ phân tích cấu trúc tổng thể của hóa đơn, từ đó trích xuất chính xác các trường dữ liệu quan trọng như tổng tiền, tên cửa hàng và ngày giao dịch dưới định dạng JSON.
-
-Điểm nổi bật của luồng xử lý này là sự tham gia của Mô hình ngôn ngữ lớn (LLM) ở bước cuối cùng nhằm phân loại danh mục chi tiêu. Lý do hệ thống không dùng thuật toán phân loại thông thường là vì tên cửa hàng hay hàng hóa trên hóa đơn bán lẻ thực tế vô cùng đa dạng và thường thiếu ngữ cảnh rõ ràng (ví dụ: "Circle K", "Phúc Long", hoặc tên cửa hàng địa phương). Mặc dù LayoutLMv3 làm rất tốt nhiệm vụ bóc tách thông tin, nó lại không có khả năng suy luận ngữ nghĩa để biết "Phúc Long" thuộc danh mục Ăn uống. Việc tích hợp LLM giúp hệ thống dựa vào tên cửa hàng và các dữ kiện liên quan đã trích xuất để suy luận thông minh, từ đó gán đúng danh mục chi tiêu một cách tự động, khắc phục hoàn toàn nhược điểm của các bộ quy tắc (rules) cứng nhắc.
-
-Về nguồn gốc triển khai, mô hình DBNet được tích hợp thông qua bộ công cụ mã nguồn mở PaddleOCR [20], trong khi VietOCR sử dụng trực tiếp các trọng số đã được huấn luyện sẵn (pre-trained) chuyên biệt cho tiếng Việt [3]. Vì hai mô hình này chỉ đóng vai trò nền tảng để trích xuất văn bản thô và đã được chứng minh có độ chính xác rất cao, đề tài quyết định tái sử dụng nguyên bản (off-the-shelf) mà không tiến hành huấn luyện lại hay đánh giá độc lập. Thay vào đó, toàn bộ trọng tâm nghiên cứu, tinh chỉnh (fine-tuning) và đánh giá hiệu năng được dồn vào mô hình đa phương thức LayoutLMv3. Khác biệt cốt lõi của LayoutLMv3 nằm ở khả năng phân tích đồng thời cả nội dung văn bản và bố cục không gian hai chiều, qua đó xác định được mối liên hệ ngữ nghĩa phức tạp giữa các dòng chữ (chẳng hạn tên cửa hàng thường in khổ lớn ở trên cùng) để bóc tách chính xác các trường dữ liệu của hóa đơn.
-
-Để phục vụ việc tinh chỉnh LayoutLMv3, dự án sử dụng bộ dữ liệu chuẩn từ cuộc thi RIVF2021 MC-OCR [1] bao gồm 1.321 hình ảnh hóa đơn thu thập từ các hệ thống siêu thị và nhà hàng tại Việt Nam. Toàn bộ hình ảnh được gán nhãn tọa độ khung bao (bounding box) cho các trường thông tin mục tiêu (địa chỉ, tên cửa hàng, ngày giao dịch, tổng tiền). Quá trình tiền xử lý đã lọc bỏ các mẫu dữ liệu lỗi, giữ lại 1.159 hình ảnh hợp lệ. Tập dữ liệu này được phân chia ngẫu nhiên theo tỷ lệ 90:10, trong đó 90% dữ liệu được dùng để huấn luyện mô hình (Training set) và 10% được dùng để xác thực và đánh giá (Validation set) nhằm theo dõi, ngăn chặn hiện tượng quá khớp (overfitting). Việc tinh chỉnh (fine-tuning) được thực thi trên máy chủ GPU Modal Cloud giúp tối ưu hóa thời gian hội tụ.
-
-Để đánh giá độ chính xác thực tế, mô hình LayoutLMv3 sau khi tinh chỉnh được đánh giá độc lập trên tập Validation (116 hình ảnh hóa đơn) không xuất hiện trong quá trình huấn luyện. Kết quả phân loại cấp độ từ (token-level classification) đối với 1.960 thực thể (token) từ tập dữ liệu này được trình bày chi tiết trong Bảng 3.2:
-
-| Trường thông tin | Precision | Recall | F1-Score | Số lượng (Support) |
-| :--- | :---: | :---: | :---: | :---: |
-| Địa chỉ (Address) | 0.91 | 0.98 | 0.94 | 489 |
-| Tên cửa hàng (Seller) | 0.93 | 0.98 | 0.95 | 333 |
-| Thời gian (Timestamp) | 0.82 | 0.94 | 0.88 | 355 |
-| Tổng tiền (Total cost) | 0.87 | 0.89 | 0.88 | 783 |
-| Trung bình (Macro Avg) | 0.88 | 0.95 | 0.91 | 1960 |
-
-*Bảng 3.2: Kết quả đánh giá F1-Score của mô hình LayoutLMv3 trên tập xác thực.*
-
-Số liệu từ Bảng 3.2 cho thấy mô hình đạt chỉ số F1 trung bình (Macro Avg F1) 0.91. Cụ thể, các trường quan trọng nhất để ghi nhận chi tiêu là tên cửa hàng và tổng tiền đạt mức F1 lần lượt là 0.95 và 0.88. Với chỉ số Recall rất cao ở mức 0.95, hệ thống hiếm khi bỏ sót dữ liệu trên hóa đơn, qua đó đảm bảo khả năng số hóa thông tin chính xác và khắc phục được các hạn chế cố hữu của phương pháp đối sánh từ khóa truyền thống. Mặc dù hệ thống cũng được triển khai để nhận diện 391 hình ảnh thô thuộc tập Test ẩn của cuộc thi, các chỉ số đo lường trong Bảng 3.2 đã phản ánh chính xác năng lực thực tế của mô hình trước các dữ liệu hoàn toàn mới.
-
-Để làm rõ năng lực này, Hình 3.21 minh họa kết quả đầu ra thực tế của LayoutLMv3, trong đó hệ thống đã xác định chính xác các vùng chứa dữ liệu mục tiêu trên một hóa đơn có bố cục tự do.
-
-![Kết quả bóc tách thông tin hóa đơn thực tế bằng LayoutLMv3](file:///d:/Luan-Van/Project/visualizations.jpg)
-
-*Hình 3.21: Minh họa trực quan khả năng nhận diện vùng không gian của LayoutLMv3.*
 
 ## 3.6. Thiết kế cơ sở dữ liệu và lưu trữ
 

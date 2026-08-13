@@ -98,23 +98,29 @@ async function joinGroup(userId, userName, inviteCode, memberId = null) {
       if (existingMemRes.rowCount === 0) {
         throw new Error('MEMBER_NOT_FOUND');
       }
-      if (existingMemRes.rows[0].user_id) {
-        throw new Error('MEMBER_ALREADY_LINKED');
-      }
-      // Update this member with the user's ID and Name
+      
+      // Update the dummy member to link with the actual user
       await client.query(`
         UPDATE group_members 
-        SET user_id = $1, display_name = $2
+        SET user_id = $1, display_name = COALESCE($2, display_name) 
         WHERE id = $3
       `, [userId, finalUserName, memberId]);
+      
+      // Reassign transactions to this user_id
+      await client.query(`
+        UPDATE group_transactions 
+        SET paid_by = $1 
+        WHERE paid_by = $2
+      `, [memberId, memberId]);
+      
     } else {
-      // Insert new member
+      // Add as a new member
       await client.query(`
         INSERT INTO group_members (group_id, user_id, display_name)
         VALUES ($1, $2, $3)
       `, [group.id, userId, finalUserName]);
     }
-    
+
     await client.query('COMMIT');
     return group;
   } catch (err) {
@@ -123,6 +129,22 @@ async function joinGroup(userId, userName, inviteCode, memberId = null) {
   } finally {
     client.release();
   }
+}
+
+async function addMember(userId, groupId, displayName) {
+  // Verify user is member of group
+  const memRes = await pool.query('SELECT 1 FROM group_members WHERE group_id = $1 AND user_id = $2', [groupId, userId]);
+  if (memRes.rowCount === 0) {
+    throw new Error('FORBIDDEN');
+  }
+
+  // Add dummy member
+  const newMemRes = await pool.query(`
+    INSERT INTO group_members (group_id, display_name)
+    VALUES ($1, $2) RETURNING *
+  `, [groupId, displayName]);
+  
+  return newMemRes.rows[0];
 }
 
 async function getGroupDetails(groupId, userId) {
@@ -380,13 +402,49 @@ async function removeMember(groupId, userId, memberId) {
   await pool.query('DELETE FROM group_members WHERE id = $1 AND group_id = $2', [memberId, groupId]);
 }
 
+async function getGroupTransaction(txId, userId) {
+  // Verify user is a member of the group that owns this transaction
+  const res = await pool.query(`
+    SELECT gt.id, gt.group_id, gt.amount, gt.note, gt.paid_by,
+           gt.processing_status, gt.image_url, gt.ai_confidence,
+           gt.occurred_at, gt.is_draft
+    FROM group_transactions gt
+    JOIN group_members gm ON gm.group_id = gt.group_id AND gm.user_id = $2
+    WHERE gt.id = $1
+    LIMIT 1
+  `, [txId, userId]);
+
+  if (res.rowCount === 0) {
+    // Check if transaction exists at all (might be access denied)
+    const txCheck = await pool.query('SELECT id FROM group_transactions WHERE id = $1', [txId]);
+    if (txCheck.rowCount === 0) throw new Error('NOT_FOUND');
+    throw new Error('FORBIDDEN');
+  }
+
+  const row = res.rows[0];
+  return {
+    id: row.id,
+    groupId: row.group_id,
+    amount: row.amount,
+    note: row.note,
+    paidBy: row.paid_by,
+    processingStatus: row.processing_status,
+    imageUrl: row.image_url,
+    aiConfidence: row.ai_confidence,
+    occurredAt: row.occurred_at,
+    isDraft: row.is_draft,
+  };
+}
+
 module.exports = {
   createGroup,
   listGroups,
   joinGroup,
+  addMember,
   getGroupDetails,
   addTransaction,
   updateTransaction,
+  getGroupTransaction,
   calculateSplit,
   settleGroupDebt,
   previewGroup,

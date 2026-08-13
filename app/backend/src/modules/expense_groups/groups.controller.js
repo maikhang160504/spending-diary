@@ -93,6 +93,23 @@ async function updateTransaction(req, res, next) {
   }
 }
 
+async function getGroupTransaction(req, res, next) {
+  try {
+    const userId = req.user.id;
+    const txId = req.params.txId;
+    const tx = await service.getGroupTransaction(txId, userId);
+    res.json({ success: true, data: tx });
+  } catch (err) {
+    if (err.message === 'FORBIDDEN') {
+      return res.status(403).json({ success: false, message: 'Access denied' });
+    }
+    if (err.message === 'NOT_FOUND') {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy giao dịch' });
+    }
+    next(err);
+  }
+}
+
 async function calculateSplit(req, res, next) {
   try {
     const userId = req.user.id;
@@ -148,6 +165,25 @@ async function removeMember(req, res, next) {
     next(err);
   }
 }
+async function addMember(req, res, next) {
+  try {
+    const userId = req.user.id;
+    const groupId = req.params.id;
+    const displayName = req.body.displayName;
+    
+    if (!displayName || displayName.trim() === '') {
+      return res.status(400).json({ success: false, message: 'Tên thành viên không được để trống' });
+    }
+
+    const member = await service.addMember(userId, groupId, displayName.trim());
+    res.json({ success: true, member });
+  } catch (err) {
+    if (err.message === 'FORBIDDEN') {
+      return res.status(403).json({ success: false, message: 'Access denied' });
+    }
+    next(err);
+  }
+}
 
 module.exports = {
   createGroup,
@@ -157,7 +193,9 @@ module.exports = {
   getGroupDetails,
   addTransaction,
   updateTransaction,
+  getGroupTransaction,
   calculateSplit,
   settleGroupDebt,
-  removeMember
+  removeMember,
+  addMember
 };

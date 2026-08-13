@@ -96,14 +96,26 @@ class _CameraScreenState extends State<CameraScreen>
       await ctrl.initialize();
       _minZoom = await ctrl.getMinZoomLevel();
       _maxZoom = await ctrl.getMaxZoomLevel();
-      await ctrl.setFlashMode(_flashMode);
-      if (mounted)
+      
+      try {
+        await ctrl.setFlashMode(_flashMode);
+      } catch (e) {
+        debugPrint('Flash mode error: $e');
+      }
+      
+      if (mounted) {
         setState(() {
           _isInitialized = true;
           _zoomLevel = _minZoom;
         });
-    } catch (_) {
-      if (mounted) setState(() => _permissionDenied = true);
+      }
+    } catch (e) {
+      debugPrint('Camera initialization error: $e');
+      if (e is CameraException && e.code == 'CameraAccessDenied') {
+        if (mounted) setState(() => _permissionDenied = true);
+      }
+      // If it's another error, we don't falsely claim permission is denied,
+      // though the camera might still not be initialized.
     }
   }
 
@@ -151,9 +163,9 @@ class _CameraScreenState extends State<CameraScreen>
   }
 
   Future<void> _handleImagePath(String imagePath) async {
-    // Guard: không xử lý nếu đang bận (ngăn double-tap tạo giao dịch trùng)
-    if (_isTakingPhoto) return;
-    setState(() => _isTakingPhoto = true);
+    // If not already set by caller, set it to prevent double-taps
+    bool wasTaking = _isTakingPhoto;
+    if (!wasTaking) setState(() => _isTakingPhoto = true);
     try {
       if (widget.returnOnlyImagePath) {
         if (mounted) context.pop(imagePath);
@@ -202,21 +214,26 @@ class _CameraScreenState extends State<CameraScreen>
         );
       }
     } finally {
-      if (mounted) setState(() => _isTakingPhoto = false);
+      if (!wasTaking && mounted) setState(() => _isTakingPhoto = false);
     }
   }
 
   Future<void> _takePhoto() async {
     if (_isTakingPhoto ||
         _controller == null ||
-        !_controller!.value.isInitialized)
+        !_controller!.value.isInitialized) {
       return;
+    }
     setState(() => _isTakingPhoto = true);
     try {
       final xFile = await _controller!.takePicture();
       if (!mounted) return;
       await _handleImagePath(xFile.path);
-    } catch (_) {
+    } catch (e) {
+      debugPrint('Error taking photo: $e');
+      if (mounted) {
+        MimoSnackBar.showError(context, message: 'Lỗi khi chụp ảnh: $e');
+      }
     } finally {
       if (mounted) setState(() => _isTakingPhoto = false);
     }

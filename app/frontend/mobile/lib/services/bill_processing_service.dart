@@ -258,7 +258,13 @@ class BillProcessingService extends ChangeNotifier {
           return;
         }
         try {
-          final tx = await _api.getTransaction(job.transactionId);
+          final Map<String, dynamic> tx;
+          if (job.isGroupBill) {
+            // Group bill dùng endpoint riêng của nhóm
+            tx = await _api.getGroupTransaction(job.transactionId);
+          } else {
+            tx = await _api.getTransaction(job.transactionId);
+          }
           final status = tx['processingStatus'] as String? ?? 'done';
           if (status == 'done') {
             job._pollTimer?.cancel();
@@ -274,8 +280,6 @@ class BillProcessingService extends ChangeNotifier {
       },
     );
   }
-
-  static const _confidenceThreshold = 0.9;
 
   Map<String, dynamic> _buildConfirmExtra(
     BillJob job,
@@ -380,7 +384,7 @@ class BillProcessingService extends ChangeNotifier {
       'aiConfidence': data['aiConfidence'] ?? data['ai_confidence'],
       'needsReview': data['needsReview'],
       'aiMeta': aiMeta ?? (nlu != null ? {'nlu': nlu} : null),
-      if (nlu != null) 'nlu': nlu,
+      'nlu': ?nlu,
     };
   }
 

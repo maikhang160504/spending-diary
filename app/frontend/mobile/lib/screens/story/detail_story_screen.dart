@@ -618,45 +618,86 @@ class _StoryPageState extends State<_StoryPage> {
     final items = _story?['items'] as List<dynamic>?;
     final categoryCode = _resolveStoryCategoryCode(items);
 
-    String title =
-        _story?['title'] as String? ?? _story?['note'] as String? ?? '';
-    final isGeneric =
-        title.isEmpty ||
-        title.toLowerCase() == 'giao dịch' ||
-        title.toLowerCase() == 'khoản chi' ||
-        title.toLowerCase() == 'khoản thu' ||
-        title.toLowerCase() == 'chi tiêu';
+    String? finalTitle;
 
-    if (isGeneric && items != null && items.isNotEmpty) {
-      final firstItem = items.first;
-      final rawText =
-          firstItem['raw_text'] as String? ?? firstItem['rawText'] as String?;
-      
-      if (rawText != null && rawText.trim().isNotEmpty) {
-        title = rawText.trim();
-      } else {
-        final txs = firstItem['transactions'] as List<dynamic>?;
+    // 1. Ưu tiên description của story (backend trả về raw_text dưới tên description)
+    final sDesc = _story?['description'] as String?;
+    if (sDesc != null && sDesc.trim().isNotEmpty) {
+      finalTitle = sDesc.trim();
+    }
+
+    // 2. Kế tiếp ưu tiên raw_text (câu user chat)
+    if (finalTitle == null || finalTitle.isEmpty) {
+      if (items != null && items.isNotEmpty) {
+        final firstItem = items.first;
+        final rawText =
+            firstItem['raw_text'] as String? ?? firstItem['rawText'] as String?;
+        if (rawText != null && rawText.trim().isNotEmpty) {
+          finalTitle = rawText.trim();
+        }
+      }
+    }
+
+    // 3. Tiếp theo ưu tiên note của transaction (nếu nhập tay qua form)
+    if (finalTitle == null || finalTitle.isEmpty) {
+      if (items != null && items.isNotEmpty) {
+        final txs = items.first['transactions'] as List<dynamic>?;
         if (txs != null && txs.isNotEmpty) {
-          final tx = txs.first;
-          final aiMeta = tx['aiMeta'] ?? tx['ai_meta'];
-          if (aiMeta is Map) {
-            final ocr = aiMeta['ocr'];
-            if (ocr is Map) {
-              final seller = ocr['seller'] ?? (ocr['kie_fields'] is Map ? (ocr['kie_fields']['SELLER'] ?? ocr['kie_fields']['seller']) : null);
-              if (seller != null && seller.toString().trim().isNotEmpty) {
-                title = seller.toString().trim();
-              } else {
-                final productNames = ocr['product_names'];
-                if (productNames is List && productNames.isNotEmpty) {
-                  title = productNames.first.toString().trim();
-                }
+          final txNote = txs.first['note'] as String? ?? txs.first['description'] as String?;
+          if (txNote != null && txNote.trim().isNotEmpty) {
+            finalTitle = txNote.trim();
+          }
+        }
+      }
+    }
+
+    // 4. Fallback về story note hoặc title (từ backend)
+    if (finalTitle == null || finalTitle.isEmpty) {
+      final sTitle = _story?['note'] as String? ?? _story?['title'] as String?;
+      if (sTitle != null && sTitle.trim().isNotEmpty) {
+        finalTitle = sTitle.trim();
+      }
+    }
+
+    // Kiểm tra xem title hiện tại có phải text chung chung không
+    bool isGeneric(String? t) {
+      if (t == null || t.isEmpty) return true;
+      final lower = t.toLowerCase();
+      return lower == 'giao dịch' ||
+          lower == 'khoản chi' ||
+          lower == 'khoản thu' ||
+          lower == 'chi tiêu';
+    }
+
+    // 4. Nếu vẫn chung chung, thử lấy seller hoặc product_names từ bill (OCR)
+    if (isGeneric(finalTitle) && items != null && items.isNotEmpty) {
+      final txs = items.first['transactions'] as List<dynamic>?;
+      if (txs != null && txs.isNotEmpty) {
+        final tx = txs.first;
+        final aiMeta = tx['aiMeta'] ?? tx['ai_meta'];
+        if (aiMeta is Map) {
+          final ocr = aiMeta['ocr'];
+          if (ocr is Map) {
+            final seller = ocr['seller'] ??
+                (ocr['kie_fields'] is Map
+                    ? (ocr['kie_fields']['SELLER'] ??
+                        ocr['kie_fields']['seller'])
+                    : null);
+            if (seller != null && seller.toString().trim().isNotEmpty) {
+              finalTitle = seller.toString().trim();
+            } else {
+              final productNames = ocr['product_names'];
+              if (productNames is List && productNames.isNotEmpty) {
+                finalTitle = productNames.first.toString().trim();
               }
             }
           }
         }
       }
     }
-    if (title.isEmpty || isGeneric && title.toLowerCase() == 'giao dịch') {
+
+    String title = finalTitle ?? 'Giao dịch';
+    if (isGeneric(title)) {
       title = 'Giao dịch';
     }
 

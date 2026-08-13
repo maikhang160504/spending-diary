@@ -263,12 +263,12 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
         _api
             .aiCorrection({
               'text': text,
-              if (reviewTxId != null) 'transactionId': reviewTxId,
+              'transactionId': ?reviewTxId,
               'intent': 'Record',
               'categoryCode': _category,
               'recordType': _recordType,
             })
-            .catchError((_) => {});
+            .catchError((_) => <String, dynamic>{});
       }
 
       if (mounted) await StreakCelebration.instance.afterActivity(context);

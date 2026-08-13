@@ -331,8 +331,9 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
                         style: TextStyle(color: palette.textPrimary),
                         onChanged: (_) => setState(() {}),
                         validator: (value) {
-                          if (value == null || value.trim().isEmpty)
+                          if (value == null || value.trim().isEmpty) {
                             return 'Vui lòng nhập tên ví';
+                          }
                           return null;
                         },
                       ),

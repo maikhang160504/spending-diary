@@ -847,29 +847,27 @@ class _GoalScreenState extends State<GoalScreen>
     super.build(context);
     return Scaffold(
       backgroundColor: context.palette.bg,
-      body: SafeArea(
-        top: false,
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 600),
-            child: RefreshIndicator(
-              onRefresh: _loadGoals,
-              color: AppColors.teal,
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.only(bottom: 32),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _GoalHeader(
-                      isChallenge: widget.isChallenge,
-                      onAdd: _showCreateGoal,
-                      onJoin: _showJoinGoal,
-                    ),
-                    if (_error != null)
-                      ErrorBanner(message: _error!, onRetry: _loadGoals),
-                    const SizedBox(height: 12),
-                    Padding(
+      // Header nằm NGOÀI scroll để không bị cuộn mất khi danh sách rỗng
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 600),
+          child: Column(
+            children: [
+              _GoalHeader(
+                isChallenge: widget.isChallenge,
+                onAdd: _showCreateGoal,
+                onJoin: _showJoinGoal,
+              ),
+              if (_error != null)
+                ErrorBanner(message: _error!, onRetry: _loadGoals),
+              Expanded(
+                child: RefreshIndicator(
+                  onRefresh: _loadGoals,
+                  color: AppColors.teal,
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.only(top: 12, bottom: 32),
+                    child: Padding(
                       padding: const EdgeInsets.symmetric(
                         horizontal: AppSpacing.xxl,
                       ),
@@ -959,8 +957,9 @@ class _GoalScreenState extends State<GoalScreen>
                                                               ),
                                                         ),
                                                       );
-                                                  if (reload == true)
+                                                  if (reload == true) {
                                                     _loadGoals();
+                                                  }
                                                 },
                                               ),
                                             ),
@@ -1006,10 +1005,10 @@ class _GoalScreenState extends State<GoalScreen>
                               },
                             ),
                     ),
-                  ],
+                  ),
                 ),
               ),
-            ),
+            ],
           ),
         ),
       ),
@@ -1031,7 +1030,6 @@ class _GoalHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final topPadding = MediaQuery.of(context).padding.top;
     return Container(
       decoration: BoxDecoration(
         gradient: AppGradients.teal,
@@ -1046,8 +1044,12 @@ class _GoalHeader extends StatelessWidget {
           ),
         ],
       ),
-      padding: EdgeInsets.fromLTRB(24, 16 + topPadding, 20, 24),
-      child: Row(
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 16, 20, 24),
+          child: Row(
+
         children: [
           if (Navigator.canPop(context)) ...[
             GestureDetector(
@@ -1137,8 +1139,10 @@ class _GoalHeader extends StatelessWidget {
             ),
           ),
         ],
+        ),
       ),
-    );
+    ),
+  );
   }
 }
 

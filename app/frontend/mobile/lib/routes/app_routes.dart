@@ -270,47 +270,66 @@ final GoRouter appRouter = GoRouter(
     ),
 
     // ── Shell (bottom nav) ───────────────────────────────────
-    ShellRoute(
-      navigatorKey: shellNavigatorKey,
-      builder: (context, state, child) => AppShell(child: child),
-      routes: [
-        GoRoute(
-          path: AppRoutes.home,
-          pageBuilder: (context, state) =>
-              const NoTransitionPage(child: HomeScreen()),
+    StatefulShellRoute.indexedStack(
+      builder: (context, state, navigationShell) => AppShell(navigationShell: navigationShell),
+      branches: [
+        StatefulShellBranch(
+          navigatorKey: GlobalKey<NavigatorState>(),
+          routes: [
+            GoRoute(
+              path: AppRoutes.home,
+              pageBuilder: (context, state) =>
+                  const NoTransitionPage(child: HomeScreen()),
+            ),
+          ],
         ),
-        GoRoute(
-          path: AppRoutes.report,
-          pageBuilder: (context, state) =>
-              const NoTransitionPage(child: ReportScreen()),
+        StatefulShellBranch(
+          navigatorKey: GlobalKey<NavigatorState>(),
+          routes: [
+            GoRoute(
+              path: AppRoutes.report,
+              pageBuilder: (context, state) =>
+                  const NoTransitionPage(child: ReportScreen()),
+            ),
+          ],
         ),
-        GoRoute(
-          path: AppRoutes.goals,
-          pageBuilder: (context, state) {
-            final tabParam = state.uri.queryParameters['tab'];
-            int initialTab = 0;
-            if (tabParam == 'challenge' ||
-                tabParam == '1' ||
-                tabParam == 'thuthach') {
-              initialTab = 1;
-            } else if (tabParam == 'loans' ||
-                tabParam == '2' ||
-                tabParam == 'vaymuon') {
-              initialTab = 2;
-            }
-            final joinCode = state.uri.queryParameters['code'];
-            return NoTransitionPage(
-              child: FinancialToolsScreen(
-                initialTabIndex: initialTab,
-                initialJoinCode: joinCode,
-              ),
-            );
-          },
+        StatefulShellBranch(
+          navigatorKey: GlobalKey<NavigatorState>(),
+          routes: [
+            GoRoute(
+              path: AppRoutes.goals,
+              pageBuilder: (context, state) {
+                final tabParam = state.uri.queryParameters['tab'];
+                int initialTab = 0;
+                if (tabParam == 'challenge' ||
+                    tabParam == '1' ||
+                    tabParam == 'thuthach') {
+                  initialTab = 1;
+                } else if (tabParam == 'loans' ||
+                    tabParam == '2' ||
+                    tabParam == 'vaymuon') {
+                  initialTab = 2;
+                }
+                final joinCode = state.uri.queryParameters['code'];
+                return NoTransitionPage(
+                  child: FinancialToolsScreen(
+                    initialTabIndex: initialTab,
+                    initialJoinCode: joinCode,
+                  ),
+                );
+              },
+            ),
+          ],
         ),
-        GoRoute(
-          path: AppRoutes.settings,
-          pageBuilder: (context, state) =>
-              const NoTransitionPage(child: SettingsScreen()),
+        StatefulShellBranch(
+          navigatorKey: GlobalKey<NavigatorState>(),
+          routes: [
+            GoRoute(
+              path: AppRoutes.settings,
+              pageBuilder: (context, state) =>
+                  const NoTransitionPage(child: SettingsScreen()),
+            ),
+          ],
         ),
       ],
     ),

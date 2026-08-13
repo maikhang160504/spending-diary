@@ -89,7 +89,9 @@ class _LoanFormScreenState extends State<LoanFormScreen> {
                           child: RadioListTile<String>(
                             title: const Text('Cho vay'),
                             value: 'lend',
+                            // ignore: deprecated_member_use
                             groupValue: _type,
+                            // ignore: deprecated_member_use
                             onChanged: (v) => setState(() => _type = v!),
                             contentPadding: EdgeInsets.zero,
                           ),
@@ -98,7 +100,9 @@ class _LoanFormScreenState extends State<LoanFormScreen> {
                           child: RadioListTile<String>(
                             title: const Text('Đi vay'),
                             value: 'borrow',
+                            // ignore: deprecated_member_use
                             groupValue: _type,
+                            // ignore: deprecated_member_use
                             onChanged: (v) => setState(() => _type = v!),
                             contentPadding: EdgeInsets.zero,
                           ),
@@ -132,13 +136,16 @@ class _LoanFormScreenState extends State<LoanFormScreen> {
                       ),
                       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                       validator: (v) {
-                        if (v == null || v.trim().isEmpty)
+                        if (v == null || v.trim().isEmpty) {
                           return 'Vui lòng nhập số tiền';
+                        }
                         final num = double.tryParse(v.replaceAll(',', ''));
-                        if (num == null || num <= 0)
+                        if (num == null || num <= 0) {
                           return 'Số tiền phải lớn hơn 0';
-                        if (num > 100000000000)
+                        }
+                        if (num > 100000000000) {
                           return 'Số tiền tối đa 100 tỷ đồng';
+                        }
                         return null;
                       },
                       onSaved: (v) => _amount = v!,

@@ -883,8 +883,9 @@ class _CashflowReportScreenState extends State<CashflowReportScreen> {
                       showTitles: true,
                       getTitlesWidget: (val, meta) {
                         final idx = val.toInt();
-                        if (idx < 0 || idx >= _chartLabels.length)
+                        if (idx < 0 || idx >= _chartLabels.length) {
                           return const SizedBox();
+                        }
                         return Padding(
                           padding: const EdgeInsets.only(top: 6),
                           child: Text(

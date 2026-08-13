@@ -2,3 +2,4 @@
 - ...
 - sao luận văn để là dùng phobert + LLM nhưng tại sao khi chạy demo lại dùng LLM+ LLM , giải thích 
 - sự khác nhau giữa phân tán và truyền thống
+- tại sao không dùng test đề đnahs giá mà lại dùng benchmark

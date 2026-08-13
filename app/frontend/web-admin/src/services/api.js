@@ -203,6 +203,10 @@ export async function getNluTrainStatus() {
   return request("/api/admin/train/status");
 }
 
+export async function getBillTrainStatus() {
+  return request("/api/admin/bill-retrain/train/status");
+}
+
 export async function resumeNluKaggle() {
   return request("/api/admin/train/kaggle/resume", {
     method: "POST",
@@ -407,7 +411,8 @@ export function reloadAiModels(scope = "ocr") {
 }
 
 export function billSampleImageUrl(id) {
-  return `${API_BASE_URL}/api/admin/bill-retrain/samples/${id}/image`;
+  const token = getAuthToken();
+  return `${API_BASE_URL}/api/admin/bill-retrain/samples/${id}/image?token=${token}`;
 }
 
 export function getSystemStatus() {
@@ -465,6 +470,10 @@ export function triggerLlmFinetune(epochs = 3, lr = 0.0002, batchSize = 4, retra
     method: "POST",
     body: JSON.stringify({ epochs, lr, batchSize, retrainPassword })
   });
+}
+
+export function getLlmTrainStatus() {
+  return request("/api/admin/train/llm-status");
 }
 
 export function getMonetizationStats() {

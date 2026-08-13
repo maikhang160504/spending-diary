@@ -62,13 +62,6 @@ function UserCacheInspector({ userId, data, loading, onRefresh }) {
           <span className="user-inspector-stat-label">Correction logs</span>
           <strong className="user-inspector-stat-value">{data.corrections?.length || 0}</strong>
         </div>
-        <div className="user-inspector-stat">
-          <span className="user-inspector-stat-label">Memory link</span>
-          <strong className="user-inspector-stat-value ok">
-            <span className="user-live-dot" />
-            Redis
-          </strong>
-        </div>
       </div>
 
       <div className="user-inspector-kv-list">

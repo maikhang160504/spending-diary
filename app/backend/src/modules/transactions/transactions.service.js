@@ -62,7 +62,7 @@ async function create(userId, payload) {
 
   const tx = await withTransaction(async (client) => {
     // 1. Create a story
-    const storyTitle = payload.note || payload.categoryCode || 'Giao dịch mới';
+    const storyTitle = payload.item || payload.categoryCode || payload.originalText || payload.note || 'Giao dịch mới';
     const storyRes = await client.query(
       `INSERT INTO stories (user_id, wallet_id, title, total_amount, cover_image_url, occurred_on)
        VALUES ($1, $2, $3, $4, $5, COALESCE($6::date, CURRENT_DATE))
@@ -493,7 +493,7 @@ async function checkBudgetLimitsAndAlert(userId, categoryCode, walletId) {
 
     const summaries = await budgetsService.summary(userId);
     const budget = summaries.find(b => b.categoryCode === categoryCode && b.isActive);
-    if (!budget) {
+    if (!budget && type === 'expense') {
       // Suggest setting a budget limit for a category that doesn't have one
       try {
         const localDateStr = new Date(Date.now() + 7 * 3600000).toISOString().split('T')[0];
@@ -532,6 +532,30 @@ async function checkBudgetLimitsAndAlert(userId, categoryCode, walletId) {
           const title = '💡 Gợi ý đặt hạn mức';
           const message = `Bạn vừa chi tiêu cho '${catLabel}' nhưng chưa đặt hạn mức. Hãy đặt hạn mức để kiểm soát chi tiêu tốt hơn nhé!`;
 
+          let budgetSuggestionData = null;
+          try {
+            const suggestionService = require('../budgets/suggestion.service');
+            const targetMonth = new Date().toISOString().substring(0, 7);
+            let suggestions = await suggestionService.getSuggestions(userId, targetMonth);
+            if (suggestions.length === 0) {
+              await suggestionService.generateForUser(userId, targetMonth);
+              suggestions = await suggestionService.getSuggestions(userId, targetMonth);
+            }
+            if (suggestions.length > 0) {
+              budgetSuggestionData = {
+                items: suggestions.map(s => ({
+                  categoryCode: s.categoryCode,
+                  suggestedAmount: s.suggestedAmount,
+                  baseSpending: s.baseSpending,
+                  reason: s.reason,
+                })),
+                targetMonth,
+              };
+            }
+          } catch (e) {
+            console.error('[Budget Suggest] Error fetching suggestion data:', e.message);
+          }
+
           await dispatchUserNotification(userId, {
             type: 'BUDGET_SUGGEST_LIMIT',
             payload: {
@@ -539,6 +563,7 @@ async function checkBudgetLimitsAndAlert(userId, categoryCode, walletId) {
               message,
               categoryCode,
               deepLink: `/limits?categoryCode=${categoryCode}`,
+              budgetSuggestion: budgetSuggestionData,
             },
           });
           console.log(`[Budget Suggest] Notification dispatched to user ${userId} to set budget limit for ${categoryCode}`);

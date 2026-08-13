@@ -5,7 +5,6 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 
 import '../firebase_options.dart';
-import '../routes/app_routes.dart';
 import '../screens/chat/chat_screen.dart';
 import 'push_notification_service.dart';
 

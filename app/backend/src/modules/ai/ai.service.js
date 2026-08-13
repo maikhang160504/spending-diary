@@ -814,8 +814,8 @@ async function _processTextBackground(userId, transactionId, payload) {
         if (!aiCommentContentTx) {
           aiCommentContentTx = summaryText;
         }
-        // Tiêu đề story dùng câu LLM nếu có, fallback về summaryText
-        const storyTitle = aiCommentContentTx || summaryText;
+        // Tiêu đề story dùng tên món đồ, hoặc câu nhập của người dùng, hoặc summaryText
+        const storyTitle = extracted.item || payload.text || summaryText;
 
         const occurredAt = payload.occurredAt ? new Date(payload.occurredAt) : new Date();
         const storyRes = await client.query(
@@ -1679,7 +1679,7 @@ async function _processAiChatBackground(userId, sessionId, userMessage, contextM
       aiResponse.nlg_response ||
       aiResponse.response ||
       aiResponse.content;
-    aiResponse = await _enrichNluWithAction(userId, { text: userMessage, walletId: walletId, runLlm: true }, aiResponse);
+    aiResponse = await _enrichNluWithAction(userId, { text: userMessage, walletId: walletId, runLlm: false }, aiResponse);
     // After enrich: nlg_response có thể là RAG narrative (Bubble 3)
     const ragNarrative =
       aiResponse.gemini_json?.story ||
@@ -1732,7 +1732,8 @@ async function _processAiChatBackground(userId, sessionId, userMessage, contextM
         const budgetsService = require('../budgets/budgets.service');
         const summaries = await budgetsService.summary(userId);
         const activeBudget = summaries.find(b => b.categoryCode === categoryCode && b.isActive);
-        if (!activeBudget) {
+        const isExpense = intentAction.record_type !== 'Income';
+        if (!activeBudget && isExpense) {
           const incomeRes = await query(
             `SELECT COALESCE(SUM(amount), 0) AS total_income 
              FROM transactions 
@@ -1760,7 +1761,10 @@ async function _processAiChatBackground(userId, sessionId, userMessage, contextM
             monthlyIncome = 8000000;
           }
 
-          const suggestedAmount = Math.round(monthlyIncome * 0.10);
+          let suggestedAmount = Math.round(monthlyIncome * 0.10);
+          if (suggestedAmount > 0) {
+            suggestedAmount = Math.max(50000, Math.round(suggestedAmount / 50000) * 50000);
+          }
           const targetMonth = new Date().toISOString().substring(0, 7);
           
           intentAction.budget_suggestion = {
@@ -1988,7 +1992,7 @@ async function _processGroupBillBackground(userId, groupId, transactionId, fileB
         imageUrl,
         mascotMood: mascotMood,
         mascot_mood: mascotMood,
-        ai_confidence: extracted.confidence != null ? Number(extracted.confidence) : null,
+        ai_confidence: aiResponse.suggestion?.confidence != null ? Number(aiResponse.suggestion.confidence) : null,
         aiComment: 'Đã bóc tách xong hóa đơn nhóm!',
         isGroupBill: true,
         groupId: groupId,

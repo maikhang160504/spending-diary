@@ -63,6 +63,20 @@ async function getRetrainReadiness() {
 
   const nlu = readinessStatus(totalTransactions, THRESHOLDS.totalTransactions);
 
+  // Cả hai mô hình chỉ ready khi đạt được CẢ HAI điều kiện (10k NLU & 1k OCR)
+  const isGlobalReady = (totalTransactions >= THRESHOLDS.totalTransactions) && (totalScanned >= THRESHOLDS.ocrScanned);
+  
+  if (!isGlobalReady) {
+    if (ocrKie.ready) {
+      ocrKie.ready = false;
+      ocrKie.level = 'building';
+    }
+    if (nlu.ready) {
+      nlu.ready = false;
+      nlu.level = 'building';
+    }
+  }
+
   const recommendations = [];
   if (bill.pending > 0) {
     recommendations.push(`${bill.pending} bill đang chờ duyệt bbox trên Bill OCR Retrain.`);

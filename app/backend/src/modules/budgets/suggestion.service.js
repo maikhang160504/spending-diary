@@ -676,13 +676,17 @@ function buildSuggestionStory(suggestions, targetMonth) {
   const totalBase = suggestions.reduce((s, v) => s + v.baseSpending, 0);
   const diff = totalBase - totalSuggested;
 
+  const now = new Date();
+  const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const monthText = targetMonth === currentMonthStr ? 'tháng này' : `tháng ${targetMonth.split('-')[1]}`;
+
   let story = '';
   if (diff > 0) {
-    story = `MiMo đã phân tích chi tiêu gần đây và thiết kế riêng cho bạn một Hạn mức thông minh: ${formatVnd(totalSuggested)}đ cho tháng tới (giúp bạn tiết kiệm thêm ${formatVnd(diff)}đ mà vẫn ăn ngon mặc đẹp 🐷).`;
+    story = `MiMo đã phân tích chi tiêu gần đây và thiết kế riêng cho bạn một Hạn mức thông minh: ${formatVnd(totalSuggested)}đ cho ${monthText} (giúp bạn tiết kiệm thêm ${formatVnd(diff)}đ mà vẫn ăn ngon mặc đẹp 🐷).`;
   } else if (diff < 0) {
-    story = `Tháng tới có dịp lễ nên MiMo đã nới rộng ngân sách cho bạn: ${formatVnd(totalSuggested)}đ (tăng ${formatVnd(Math.abs(diff))}đ so với bình thường để bạn thoải mái vui chơi 🎉).`;
+    story = `Do ${monthText} có dịp lễ nên MiMo đã nới rộng ngân sách cho bạn: ${formatVnd(totalSuggested)}đ (tăng ${formatVnd(Math.abs(diff))}đ so với bình thường để bạn thoải mái vui chơi 🎉).`;
   } else {
-    story = `MiMo gợi ý hạn mức tháng tới: ${formatVnd(totalSuggested)}đ — giữ nguyên nhịp chi tiêu ổn định hiện tại 👍.`;
+    story = `MiMo gợi ý hạn mức ${monthText}: ${formatVnd(totalSuggested)}đ — giữ nguyên nhịp chi tiêu ổn định hiện tại 👍.`;
   }
 
   // Top 3 categories

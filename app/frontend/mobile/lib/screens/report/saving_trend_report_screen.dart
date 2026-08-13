@@ -759,17 +759,29 @@ class _SavingTrendReportScreenState extends State<SavingTrendReportScreen> {
                   bottomTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
+                      reservedSize: 30,
+                      interval: 1,
                       getTitlesWidget: (val, meta) {
                         final idx = val.toInt();
-                        if (idx < 0 || idx >= labels.length)
+                        if (idx < 0 || idx >= labels.length || val != idx.toDouble()) {
                           return const SizedBox();
-                        return Padding(
-                          padding: const EdgeInsets.only(top: 6),
+                        }
+                        
+                        // Prevent overlap if there are many labels (e.g. 30 days)
+                        if (labels.length > 7) {
+                          if (idx % ((labels.length / 5).ceil()) != 0 && idx != labels.length - 1) {
+                            return const SizedBox();
+                          }
+                        }
+
+                        return SideTitleWidget(
+                          axisSide: meta.axisSide,
+                          space: 8,
                           child: Text(
                             labels[idx],
                             style: const TextStyle(
                               color: AppColors.muted,
-                              fontSize: 12,
+                              fontSize: 10,
                             ),
                           ),
                         );

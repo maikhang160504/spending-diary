@@ -1298,37 +1298,49 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
                         padding: const EdgeInsets.symmetric(
                           horizontal: AppSpacing.xxl,
                         ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            if (_topContributors.length > 1)
-                              Expanded(
-                                child: _buildPodiumItem(
-                                  context,
-                                  _topContributors[1],
-                                  2,
-                                ),
-                              ),
-                            Expanded(
-                              child: _buildPodiumItem(
-                                context,
-                                _topContributors[0],
-                                1,
-                              ),
-                            ),
-                            if (_topContributors.length > 2)
-                              Expanded(
-                                child: _buildPodiumItem(
-                                  context,
-                                  _topContributors[2],
-                                  3,
+                        // Chỉ hiện podium row khi có từ 2 người trở lên, 1 người thì hiện tập trung
+                        child: _topContributors.length == 1
+                            ? Center(
+                                child: SizedBox(
+                                  width: 140,
+                                  child: _buildPodiumItem(
+                                    context,
+                                    _topContributors[0],
+                                    1,
+                                  ),
                                 ),
                               )
-                            else if (_topContributors.length <= 2)
-                              const Spacer(),
-                          ],
-                        ),
+                            : Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  if (_topContributors.length > 1)
+                                    Expanded(
+                                      child: _buildPodiumItem(
+                                        context,
+                                        _topContributors[1],
+                                        2,
+                                      ),
+                                    ),
+                                  Expanded(
+                                    child: _buildPodiumItem(
+                                      context,
+                                      _topContributors[0],
+                                      1,
+                                    ),
+                                  ),
+                                  if (_topContributors.length > 2)
+                                    Expanded(
+                                      child: _buildPodiumItem(
+                                        context,
+                                        _topContributors[2],
+                                        3,
+                                      ),
+                                    )
+                                  else
+                                    const Expanded(child: SizedBox()),
+                                ],
+                              ),
                       ),
                     if (_contributorLeaderboard.isNotEmpty) ...[
                       const SizedBox(height: 16),
@@ -1787,20 +1799,26 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
                 ),
               ),
               const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                decoration: BoxDecoration(
-                  color: isDone
-                      ? const Color(0xFF10B981).withValues(alpha: 0.15)
-                      : AppColors.teal.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  isDone ? 'Hoàn thành 🎉' : '$pct%',
-                  style: TextStyle(
-                    color: isDone ? const Color(0xFF10B981) : AppColors.teal,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 11,
+              // Badge hiển thị % hoặc Xong - dùng ConstrainedBox để tránh tràn
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 110),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: isDone
+                        ? const Color(0xFF10B981).withValues(alpha: 0.15)
+                        : AppColors.teal.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    isDone ? 'Xong 🎉' : '$pct%',
+                    style: TextStyle(
+                      color: isDone ? const Color(0xFF10B981) : AppColors.teal,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 11,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
                   ),
                 ),
               ),

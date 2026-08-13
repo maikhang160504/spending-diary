@@ -1312,6 +1312,15 @@ router.post('/train/llm-trigger', requireRetrainPassword, async (req, res, next)
   }
 });
 
+router.get('/train/llm-status', async (req, res, next) => {
+  try {
+    const status = await aiClient.getLlmTrainStatus();
+    res.json(status);
+  } catch (err) {
+    res.json({ isTraining: false, stage: "IDLE", progress_percent: 0, message: "Sẵn sàng" });
+  }
+});
+
 router.post('/bill-retrain/modal/trigger', requireRetrainPassword, async (req, res, next) => {
   try {
     const { numEpochs, learningRate } = req.body;

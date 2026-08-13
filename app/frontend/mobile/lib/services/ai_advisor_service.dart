@@ -33,19 +33,19 @@ class AIAdvisorService {
     }
 
     if (savingRate >= 30) {
-      return 'Tuyệt vời! Kỳ $periodLabel tích lũy ròng ${_fmtM(net)} (tỉ lệ ${savingRate}%). '
+      return 'Tuyệt vời! Kỳ $periodLabel tích lũy ròng ${_fmtM(net)} (tỉ lệ $savingRate%). '
           'Thu ${_fmtM(totalIncome)}, chi ${_fmtM(totalExpense)}. '
           'Duy trì mức này và cân nhắc đầu tư phần thặng dư để tối ưu hoá tài sản!';
     }
 
     if (savingRate >= 10) {
-      return 'Kỳ $periodLabel dòng tiền dương: tích lũy ${_fmtM(net)} (${savingRate}%). '
+      return 'Kỳ $periodLabel dòng tiền dương: tích lũy ${_fmtM(net)} ($savingRate%). '
           'Thu ${_fmtM(totalIncome)}, chi ${_fmtM(totalExpense)}. '
           'Mục tiêu lý tưởng là tiết kiệm 20%+ — bạn đang trên đà tốt!';
     }
 
     // savingRate >= 0 but < 10
-    return 'Kỳ $periodLabel thu chi gần cân bằng: tích lũy ròng chỉ ${_fmtM(net)} (${savingRate}%). '
+    return 'Kỳ $periodLabel thu chi gần cân bằng: tích lũy ròng chỉ ${_fmtM(net)} ($savingRate%). '
         'Thu ${_fmtM(totalIncome)}, chi ${_fmtM(totalExpense)}. '
         'Cố gắng cắt giảm thêm để nâng tỉ lệ tiết kiệm lên 15–20%!';
   }
@@ -70,7 +70,7 @@ class AIAdvisorService {
     final top = cats.take(3).toList();
     final topLabel = top.map((c) {
       final pct = ((c['percent'] as num?)?.toDouble() ?? 0).round();
-      return '${c['categoryLabel']} (${pct}%)';
+      return '${c['categoryLabel']} ($pct%)';
     }).join(', ');
 
     if (recordType == 'expense') {
@@ -146,7 +146,7 @@ class AIAdvisorService {
         final dailyAllowed =
             daysLeft > 0 ? (remaining / daysLeft).round() : 0;
         paceMsg =
-            ' Tốc độ chi nhanh hơn kế hoạch ${((pace - 1) * 100).round()}% — chỉ nên chi tối đa ${_fmtK(dailyAllowed)}/ngày trong ${daysLeft} ngày còn lại.';
+            ' Tốc độ chi nhanh hơn kế hoạch ${((pace - 1) * 100).round()}% — chỉ nên chi tối đa ${_fmtK(dailyAllowed)}/ngày trong $daysLeft ngày còn lại.';
       } else if (pace < 0.7) {
         paceMsg = ' Tốc độ chi tiêu đang khá thận trọng, tốt!';
       }
@@ -277,17 +277,17 @@ class AIAdvisorService {
     }
 
     if (ratePct >= 30) {
-      return 'Xuất sắc! Kỳ $periodLabel tích lũy ${_fmtM(netSaving)} (${ratePct}% thu nhập).$trendMsg '
+      return 'Xuất sắc! Kỳ $periodLabel tích lũy ${_fmtM(netSaving)} ($ratePct% thu nhập).$trendMsg '
           'Với tỉ lệ này, hãy cân nhắc đầu tư phần thặng dư để sinh lời dài hạn!';
     }
 
     if (ratePct >= 15) {
-      return 'Tốt! Kỳ $periodLabel tiết kiệm được ${_fmtM(netSaving)} (${ratePct}% thu nhập).$trendMsg '
+      return 'Tốt! Kỳ $periodLabel tiết kiệm được ${_fmtM(netSaving)} ($ratePct% thu nhập).$trendMsg '
           'Hãy cố gắng duy trì hoặc nâng lên 20%+ bằng cách trích tự động đầu kỳ!';
     }
 
     if (ratePct > 0) {
-      return 'Kỳ $periodLabel tích lũy ${_fmtM(netSaving)} (${ratePct}% thu nhập) — còn thấp.$trendMsg '
+      return 'Kỳ $periodLabel tích lũy ${_fmtM(netSaving)} ($ratePct% thu nhập) — còn thấp.$trendMsg '
           'Thử áp dụng quy tắc 50/30/20: 50% nhu cầu, 30% mong muốn, 20% tích lũy!';
     }
 
@@ -304,13 +304,13 @@ class AIAdvisorService {
     if (amount >= 1000) {
       return '${(amount / 1000).round()}K';
     }
-    return '${amount}đ';
+    return '$amountđ';
   }
 
   static String _fmtK(int amount) {
     if (amount >= 1000000) return '${(amount / 1000000).toStringAsFixed(1)}tr';
     if (amount >= 1000) return '${(amount / 1000).round()}K';
-    return '${amount}đ';
+    return '$amountđ';
   }
 
   static int _pct(int part, int total) =>

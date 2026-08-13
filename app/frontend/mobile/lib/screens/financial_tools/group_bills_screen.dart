@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import '../../services/api_client.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_palette.dart';
@@ -136,8 +135,10 @@ class _GroupBillsScreenState extends State<GroupBillsScreen> {
                               description: desc,
                               members: members,
                             );
-                            if (mounted) {
+                            if (ctx.mounted) {
                               Navigator.pop(ctx);
+                            }
+                            if (mounted) {
                               _loadGroups();
                               MimoSnackBar.show(
                                 context,
@@ -146,6 +147,7 @@ class _GroupBillsScreenState extends State<GroupBillsScreen> {
                               );
                             }
                           } on ApiException catch (e) {
+                            if (!mounted) return;
                             MimoSnackBar.show(
                               context,
                               message: e.localizedMessage,
@@ -223,7 +225,7 @@ class _GroupBillsScreenState extends State<GroupBillsScreen> {
                 const Text('Vui lòng chọn vai trò của bạn (nếu chủ nhóm đã tạo sẵn tên bạn):'),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<String?>(
-                  value: selectedMemberId,
+                  initialValue: selectedMemberId,
                   isExpanded: true,
                   decoration: const InputDecoration(
                     border: OutlineInputBorder(),
@@ -268,6 +270,7 @@ class _GroupBillsScreenState extends State<GroupBillsScreen> {
                                 });
                               }
                             } on ApiException catch (e) {
+                              if (!mounted) return;
                               MimoSnackBar.show(
                                 context,
                                 message: e.localizedMessage,
@@ -282,8 +285,10 @@ class _GroupBillsScreenState extends State<GroupBillsScreen> {
                                 codeCtrl.text.trim(),
                                 memberId: selectedMemberId,
                               );
-                              if (mounted) {
+                              if (ctx.mounted) {
                                 Navigator.pop(ctx);
+                              }
+                              if (mounted) {
                                 _loadGroups();
                                 MimoSnackBar.show(
                                   context,
@@ -292,6 +297,7 @@ class _GroupBillsScreenState extends State<GroupBillsScreen> {
                                 );
                               }
                             } on ApiException catch (e) {
+                              if (!mounted) return;
                               MimoSnackBar.show(
                                 context,
                                 message: e.localizedMessage,
@@ -336,7 +342,7 @@ class _GroupBillsScreenState extends State<GroupBillsScreen> {
                   ? ListView.builder(
                       padding: const EdgeInsets.all(16),
                       itemCount: 4,
-                      itemBuilder: (_, __) => Padding(
+                      itemBuilder: (_, _) => Padding(
                         padding: const EdgeInsets.only(bottom: 12),
                         child: SkeletonCard(height: 80, borderRadius: AppRadii.lg),
                       ),

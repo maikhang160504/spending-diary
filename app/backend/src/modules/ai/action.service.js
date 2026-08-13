@@ -333,7 +333,7 @@ function resolveTargetMonthFromPayload(payload = {}) {
     }
   }
 
-  return getNextMonthRef();
+  return getCurrentMonthRef();
 }
 
 function getVietnameseDayOfWeek(dateStr) {

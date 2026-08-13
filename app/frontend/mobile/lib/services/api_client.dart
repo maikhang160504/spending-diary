@@ -429,13 +429,13 @@ class ApiClient {
       'GET',
       '/transactions',
       queryParams: {
-        if (walletId != null) 'walletId': walletId,
-        if (type != null) 'type': type,
-        if (categoryCode != null) 'categoryCode': categoryCode,
+        'walletId': ?walletId,
+        'type': ?type,
+        'categoryCode': ?categoryCode,
         'pageSize': '$pageSize',
         'page': '$page',
-        if (from != null) 'from': from,
-        if (to != null) 'to': to,
+        'from': ?from,
+        'to': ?to,
       },
     );
     return result;
@@ -475,9 +475,9 @@ class ApiClient {
       'GET',
       '/stats/dashboard',
       queryParams: {
-        if (walletId != null) 'walletId': walletId,
-        if (from != null) 'from': from,
-        if (to != null) 'to': to,
+        'walletId': ?walletId,
+        'from': ?from,
+        'to': ?to,
       },
     );
     return result['data'] as Map<String, dynamic>;
@@ -487,7 +487,7 @@ class ApiClient {
     final result = await _request(
       'GET',
       '/stats/peer-compare',
-      queryParams: {if (month != null) 'month': month},
+      queryParams: {'month': ?month},
     );
     return result['data'] as Map<String, dynamic>;
   }
@@ -613,6 +613,14 @@ class ApiClient {
 
   Future<void> deleteRecurringRule(String id) async {
     await _request('DELETE', '/recurring/$id');
+  }
+
+  Future<void> addManualGroupMember(String groupId, String displayName) async {
+    await _request(
+      'POST',
+      '/expense-groups/$groupId/members/manual',
+      body: {'displayName': displayName},
+    );
   }
 
   // ————————————————————————————————————————————————————————————————————————————
@@ -809,7 +817,7 @@ class ApiClient {
     final result = await _request(
       'POST',
       '/chat/sessions',
-      body: {'title': title, if (walletId != null) 'walletId': walletId},
+      body: {'title': title, 'walletId': ?walletId},
     );
     return result['data'] as Map<String, dynamic>;
   }
@@ -888,7 +896,7 @@ class ApiClient {
     final result = await _request(
       'GET',
       '/stories',
-      queryParams: {if (walletId != null) 'walletId': walletId},
+      queryParams: {'walletId': ?walletId},
     );
     return result['data'] as List<dynamic>;
   }
@@ -945,11 +953,11 @@ class ApiClient {
       'GET',
       '/stats/by-category',
       queryParams: {
-        if (range != null) 'range': range,
-        if (walletId != null) 'walletId': walletId,
-        if (from != null) 'from': from,
-        if (to != null) 'to': to,
-        if (type != null) 'type': type,
+        'range': ?range,
+        'walletId': ?walletId,
+        'from': ?from,
+        'to': ?to,
+        'type': ?type,
       },
     );
     return result['data'] as List<dynamic>;
@@ -958,7 +966,7 @@ class ApiClient {
   Future<List<dynamic>> getStatsByMonth({int? year, String? walletId}) async {
     final params = {
       if (year != null) 'year': year.toString(),
-      if (walletId != null) 'walletId': walletId,
+      'walletId': ?walletId,
     };
     final result = await _request(
       'GET',
@@ -972,7 +980,7 @@ class ApiClient {
     final result = await _request(
       'GET',
       '/stats/mom',
-      queryParams: {if (walletId != null) 'walletId': walletId},
+      queryParams: {'walletId': ?walletId},
     );
     return result['data'] as List<dynamic>;
   }
@@ -986,8 +994,8 @@ class ApiClient {
       'GET',
       '/stats/cumulative-vs-budget',
       queryParams: {
-        if (walletId != null) 'walletId': walletId,
-        if (timeRange != null) 'timeRange': timeRange,
+        'walletId': ?walletId,
+        'timeRange': ?timeRange,
         if (periodOffset != null) 'periodOffset': periodOffset.toString(),
       },
     );
@@ -1162,6 +1170,11 @@ class ApiClient {
       body: {'debtId': debtId},
     );
     return response['data'] as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> getGroupTransaction(String txId) async {
+    final result = await _request('GET', '/expense-groups/transactions/$txId');
+    return result['data'] as Map<String, dynamic>;
   }
 
   Future<Map<String, dynamic>> uploadGroupBill({

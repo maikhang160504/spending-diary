@@ -1204,7 +1204,7 @@ function DashboardPage() {
           zIndex: 9999
         }}>
           <div className="brand-dot" style={{ background: "var(--accent-emerald)", width: "8px", height: "8px", borderRadius: "50%" }}></div>
-          <span style={{ color: "var(--text-primary)", fontSize: "13px", fontWeight: "500" }}>Cấu hình trọng số đã được đồng bộ lên PostgreSQL & Redis!</span>
+          <span style={{ color: "var(--text-primary)", fontSize: "13px", fontWeight: "500" }}>Cấu hình trọng số đã được đồng bộ lên PostgreSQL!</span>
         </div>
       )}
     </div>

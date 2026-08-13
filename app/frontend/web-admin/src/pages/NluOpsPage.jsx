@@ -18,6 +18,7 @@ import {
   promoteNluModel,
   rollbackNluModel,
   getLlmTrainHistory,
+  getLlmTrainStatus,
 } from "../services/api";
 
 const NLU_METRIC_SOURCES = {
@@ -103,6 +104,7 @@ function NluOpsPage() {
   const [isTraining, setIsTraining] = useState(false);
   const [trainProgressInfo, setTrainProgressInfo] = useState(null);
   const [isLlmTraining, setIsLlmTraining] = useState(false);
+  const [llmTrainProgressInfo, setLlmTrainProgressInfo] = useState(null);
   const [modelsStatus, setModelsStatus] = useState(null);
   const [llmHistory, setLlmHistory] = useState([]);
   const [benchmarkResults, setBenchmarkResults] = useState(null);
@@ -192,6 +194,10 @@ function NluOpsPage() {
         setLayer1Rules(overridesData);
         setIsTraining(statusData.training_active);
         setTrainProgressInfo(statusData);
+        getLlmTrainStatus().then(llmStatus => {
+          setIsLlmTraining(llmStatus?.isTraining || false);
+          setLlmTrainProgressInfo(llmStatus);
+        }).catch(() => {});
         setModelMeta(metaData);
         setTrainHistory(historyData);
         setModelsStatus(modelsStatusData);
@@ -236,6 +242,27 @@ function NluOpsPage() {
       if (intervalId) clearInterval(intervalId);
     };
   }, [isTraining]);
+
+  useEffect(() => {
+    let intervalId;
+    if (isLlmTraining) {
+      intervalId = setInterval(() => {
+        getLlmTrainStatus()
+          .then((data) => {
+            setLlmTrainProgressInfo(data);
+            if (!data.isTraining) {
+              setIsLlmTraining(false);
+              showToast("Huấn luyện LLM hoàn tất!");
+              getLlmTrainHistory().then(data => setLlmHistory(data)).catch(() => {});
+            }
+          })
+          .catch(() => {});
+      }, 3000);
+    }
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [isLlmTraining]);
 
   // Tab switching loads specific data just in case
   const handleTabChange = (tab) => {
@@ -432,7 +459,7 @@ function NluOpsPage() {
   const handleSaveBackends = async () => {
     setSavingBackend(true);
     try {
-      const res = await setNluInferenceBackend(intentBackend, categoryBackend);
+      const res = await setNluInferenceBackend({ intent_backend: intentBackend, category_backend: categoryBackend });
       showToast(res.message || "Đã lưu cài đặt backend AI thành công!");
     } catch (err) {
       showToast("Lưu thất bại: " + (err.message || err));
@@ -644,9 +671,11 @@ function NluOpsPage() {
               height: "8px",
               borderRadius: "50%"
             }}></span>
-            {(isTraining || isLlmTraining) 
+            {isTraining 
               ? `${trainProgressInfo?.message || "Đang Retraining..."}${trainProgressInfo?.elapsed_seconds ? ` (${trainProgressInfo.elapsed_seconds}s)` : ""}`
-              : "Sẵn sàng"}
+              : isLlmTraining 
+                ? `LLM: ${llmTrainProgressInfo?.message || "Đang Fine-tune..."} - ${llmTrainProgressInfo?.progress_percent || 0}%`
+                : "Sẵn sàng"}
           </span>
         </div>
       </div>
@@ -1236,10 +1265,20 @@ function NluOpsPage() {
                   <span style={{ fontSize: "13px", color: "var(--text-secondary)", marginBottom: "4px" }}>Tiến trình huấn luyện nền (6 Stages)</span>
                   
                   {isLlmTraining ? (
-                    <span style={{ color: "var(--accent-amber-hover)", display: "flex", alignItems: "center", gap: "6px", marginTop: "8px", fontSize: "13px", fontWeight: "600" }}>
-                      <span className="status-dot pulse" style={{ background: "var(--accent-amber)", boxShadow: "0 0 8px var(--accent-amber)", width: "6px", height: "6px", borderRadius: "50%" }}></span>
-                      Modal H100 Fine-tuning...
-                    </span>
+                    <div style={{ width: "100%" }}>
+                      <div style={{ fontSize: "12px", color: "var(--accent-amber-hover)", display: "flex", alignItems: "center", gap: "6px", marginTop: "4px" }}>
+                        <span className="status-dot pulse" style={{ background: "var(--accent-amber)", boxShadow: "0 0 8px var(--accent-amber)", width: "6px", height: "6px", borderRadius: "50%" }}></span>
+                        {llmTrainProgressInfo?.progress_percent ? `${llmTrainProgressInfo.progress_percent}%` : "0%"} — {llmTrainProgressInfo?.message || "Đang Fine-tune LLM trên Modal GPU..."}
+                      </div>
+                      <div style={{ width: "100%", height: "4px", background: "var(--bg-obsidian-800)", borderRadius: "2px", marginTop: "8px", overflow: "hidden" }}>
+                        <div style={{ width: `${llmTrainProgressInfo?.progress_percent || 0}%`, height: "100%", background: "var(--accent-emerald)", transition: "width 0.5s ease" }}></div>
+                      </div>
+                      {llmTrainProgressInfo?.loss > 0 && (
+                        <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "4px" }}>
+                          Loss: {llmTrainProgressInfo.loss.toFixed(4)} | Epoch: {llmTrainProgressInfo.epoch || "-"}
+                        </div>
+                      )}
+                    </div>
                   ) : (isTraining || (trainProgressInfo && trainProgressInfo.status !== "IDLE" && trainProgressInfo.status !== "SUCCESS" && trainProgressInfo.status !== "ERROR")) ? (
                     <div style={{ width: "100%" }}>
                       {renderProgressStepper(trainProgressInfo?.stage || "PREPARING")}

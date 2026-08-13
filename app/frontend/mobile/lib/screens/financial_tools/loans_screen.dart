@@ -214,7 +214,7 @@ class _LoansScreenState extends State<LoansScreen>
                                                 'status': 'paid',
                                               },
                                             );
-                                            if (!mounted) return;
+                                            if (!context.mounted) return;
 
                                             // Hiển thị Success.png khi trả xong nợ
                                             showDialog(

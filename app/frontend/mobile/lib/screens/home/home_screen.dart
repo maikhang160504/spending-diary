@@ -22,6 +22,7 @@ import '../../widgets/skeleton.dart';
 import '../wallet/create_wallet_screen.dart';
 import '../../widgets/premium_upsell_bottom_sheet.dart';
 import '../../widgets/mimo_snackbar.dart';
+import '../../utils/budget_prompt.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -30,7 +31,10 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
   String _tab = 'Story';
   String? _selectedWalletId;
   String? _currentUserId;
@@ -66,9 +70,54 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
+  void _populateFromCache() {
+    final me = AppQueries.me().state.data;
+    final walletsData = AppQueries.wallets().state.data;
+    if (walletsData == null) return;
+
+    if (me != null) {
+      _userName = (me['user']?['username'] as String?) ?? 'bạn';
+      _userAvatar = me['user']?['avatarUrl'] as String? ?? me['user']?['avatar_url'] as String?;
+      _currentUserId = me['user']?['id'] as String?;
+    }
+
+    final walletsList = List<dynamic>.from(walletsData);
+    walletsList.sort((a, b) {
+      final aType = a['type'] as String? ?? 'personal';
+      final bType = b['type'] as String? ?? 'personal';
+      if (aType == 'personal' && bType != 'personal') return -1;
+      if (aType != 'personal' && bType == 'personal') return 1;
+      return 0;
+    });
+    _wallets = walletsList;
+
+    _selectedWalletId ??= ApiClient.lastSelectedWalletId;
+    if (_selectedWalletId == null && walletsList.isNotEmpty) {
+      final lastSelected = ApiClient.lastSelectedWalletId;
+      final lastExists = lastSelected != null && walletsList.any((w) => w['id'] == lastSelected);
+      if (lastExists) {
+        _selectedWalletId = lastSelected;
+      } else {
+        final personalWallets = walletsList.where((w) => w['type'] != 'group').toList();
+        _selectedWalletId = personalWallets.isNotEmpty 
+            ? personalWallets[0]['id'] as String? 
+            : walletsList[0]['id'] as String?;
+      }
+    }
+    ApiClient.lastSelectedWalletId = _selectedWalletId;
+
+    _dashboard = AppQueries.dashboard(_selectedWalletId).state.data ?? {};
+    final txData = AppQueries.transactions(_selectedWalletId).state.data;
+    _transactions = txData != null ? List<dynamic>.from(txData['transactions'] ?? []) : [];
+    _stories = List<dynamic>.from(AppQueries.stories(_selectedWalletId).state.data ?? []);
+  }
+
   Future<void> _loadData() async {
     // Nếu đã có cache thì không hiện skeleton (tránh chớp khi quay lại màn hình).
     final hasCache = AppQueries.wallets().state.data != null;
+    if (hasCache) {
+      _populateFromCache();
+    }
     setState(() {
       _loading = !hasCache;
       _error = null;
@@ -123,7 +172,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ApiClient.lastSelectedWalletId = _selectedWalletId;
 
       // Load dashboard + transactions for selected wallet
-      await _loadWalletData(forceRefetch: true);
+      await _loadWalletData(forceRefetch: false);
       if (mounted) {
         // ignore: unawaited_futures
         StreakCelebration.instance.checkBrokenOnLaunch(context);
@@ -428,8 +477,10 @@ class _HomeScreenState extends State<HomeScreen> {
                           }
                         } on ApiException catch (e) {
                           if (e.message.contains('PREMIUM_REQUIRED_WALLET_LIMIT')) {
-                            if (mounted) {
+                            if (ctx.mounted) {
                               Navigator.pop(ctx);
+                            }
+                            if (mounted) {
                               showPremiumUpsellSheet(context);
                             }
                           } else {
@@ -505,6 +556,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final selectedWallet = _wallets.cast<dynamic>().firstWhere(
       (w) => w is Map && w['id'] == _selectedWalletId,
       orElse: () => null,
@@ -1028,13 +1080,20 @@ class _HomeScreenState extends State<HomeScreen> {
                             setSheetState(() => saving = true);
                             try {
                               final api = ApiClient();
-                              await api.updateTransaction(txId, {
+                              final result = await api.updateTransaction(txId, {
                                 'amount': parsed,
                                 'isDraft': false,
                                 'processingStatus': 'completed',
                               });
                               notifyTransactionChanged();
                               if (ctx.mounted) ctx.pop();
+                              // Gợi ý hạn mức nếu danh mục chưa có giới hạn
+                              if (context.mounted) {
+                                final catCode = result['categoryCode'] as String?
+                                    ?? result['category_code'] as String?
+                                    ?? 'Others';
+                                await checkCategoryLimitAndSuggest(context, catCode);
+                              }
                             } catch (_) {
                               setSheetState(() => saving = false);
                               if (context.mounted) {
@@ -1575,6 +1634,8 @@ class _TransactionStoryCard extends StatelessWidget {
             backgroundColor: AppColors.teal,
           ),
         );
+        // Gợi ý đặt hạn mức nếu danh mục mới chưa có giới hạn
+        await checkCategoryLimitAndSuggest(context, picked);
       }
     } catch (_) {}
   }

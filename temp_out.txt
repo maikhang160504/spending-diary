@@ -1,2 +1,0 @@
-Line 496: ### 2.2. Nền tảng kiến trúc và máy chủ
-Line 523: ### 2.3. Phân hệ trí tuệ nhân tạo AI

@@ -13,46 +13,54 @@ class AppQueries {
   static final ApiClient _api = ApiClient();
 
   static Query<Map<String, dynamic>> me() =>
-      Query<Map<String, dynamic>>(key: 'me', queryFn: () => _api.getMe());
+      Query<Map<String, dynamic>>(
+        key: 'me',
+        queryFn: () => _api.getMe(),
+      );
 
   static Query<List<dynamic>> wallets() =>
-      Query<List<dynamic>>(key: 'wallets', queryFn: () => _api.getWallets());
+      Query<List<dynamic>>(
+        key: 'wallets',
+        queryFn: () => _api.getWallets(),
+      );
 
-  static Query<Map<String, dynamic>> streak() => Query<Map<String, dynamic>>(
-    key: 'streak',
-    queryFn: () => _api.getStreak(),
-  );
+  static Query<Map<String, dynamic>> streak() =>
+      Query<Map<String, dynamic>>(
+        key: 'streak',
+        queryFn: () => _api.getStreak(),
+      );
 
   static Query<Map<String, dynamic>> dashboard(
     String? walletId, {
     String? from,
     String? to,
-  }) => Query<Map<String, dynamic>>(
-    key:
-        'dashboard:${walletId ?? 'all'}:${from ?? 'default'}:${to ?? 'default'}',
-    queryFn: () => _api.getDashboard(walletId: walletId, from: from, to: to),
-  );
+  }) =>
+      Query<Map<String, dynamic>>(
+        key: 'dashboard:${walletId ?? 'all'}:${from ?? 'default'}:${to ?? 'default'}',
+        queryFn: () => _api.getDashboard(walletId: walletId, from: from, to: to),
+      );
 
   static Query<Map<String, dynamic>> transactions(
     String? walletId, {
     int pageSize = 50,
     String? from,
     String? to,
-  }) => Query<Map<String, dynamic>>(
-    key:
-        'transactions:${walletId ?? 'all'}:$pageSize:${from ?? 'all'}:${to ?? 'all'}',
-    queryFn: () => _api.getTransactions(
-      walletId: walletId,
-      pageSize: pageSize,
-      from: from,
-      to: to,
-    ),
-  );
+  }) =>
+      Query<Map<String, dynamic>>(
+        key: 'transactions:${walletId ?? 'all'}:$pageSize:${from ?? 'all'}:${to ?? 'all'}',
+        queryFn: () => _api.getTransactions(
+          walletId: walletId,
+          pageSize: pageSize,
+          from: from,
+          to: to,
+        ),
+      );
 
-  static Query<List<dynamic>> stories(String? walletId) => Query<List<dynamic>>(
-    key: 'stories:${walletId ?? 'all'}',
-    queryFn: () => _api.getStories(walletId: walletId),
-  );
+  static Query<List<dynamic>> stories(String? walletId) =>
+      Query<List<dynamic>>(
+        key: 'stories:${walletId ?? 'all'}',
+        queryFn: () => _api.getStories(walletId: walletId),
+      );
 
   static Query<List<dynamic>> statsByCategory(
     String? range,
@@ -60,17 +68,17 @@ class AppQueries {
     String? from,
     String? to,
     String? type,
-  }) => Query<List<dynamic>>(
-    key:
-        'statsCategory:${range ?? 'all'}:${walletId ?? 'all'}:${from ?? 'default'}:${to ?? 'default'}:${type ?? 'expense'}',
-    queryFn: () => _api.getStatsByCategory(
-      range: range,
-      walletId: walletId,
-      from: from,
-      to: to,
-      type: type,
-    ),
-  );
+  }) =>
+      Query<List<dynamic>>(
+        key: 'statsCategory:${range ?? 'all'}:${walletId ?? 'all'}:${from ?? 'default'}:${to ?? 'default'}:${type ?? 'expense'}',
+        queryFn: () => _api.getStatsByCategory(
+          range: range,
+          walletId: walletId,
+          from: from,
+          to: to,
+          type: type,
+        ),
+      );
 
   static Query<List<dynamic>> statsByMonth(int year, String? walletId) =>
       Query<List<dynamic>>(
@@ -86,10 +94,11 @@ class AppQueries {
 
   static Query<Map<String, dynamic>> statsCumulativeVsBudget(
     String? walletId,
-  ) => Query<Map<String, dynamic>>(
-    key: 'statsCumulativeVsBudget:${walletId ?? 'all'}',
-    queryFn: () => _api.getStatsCumulativeVsBudget(walletId: walletId),
-  );
+  ) =>
+      Query<Map<String, dynamic>>(
+        key: 'statsCumulativeVsBudget:${walletId ?? 'all'}',
+        queryFn: () => _api.getStatsCumulativeVsBudget(walletId: walletId),
+      );
 
   /// Khi có thay đổi giao dịch → đánh dấu các query liên quan là stale để refetch.
   static void invalidateWalletData() {
