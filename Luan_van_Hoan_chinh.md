@@ -1576,111 +1576,84 @@ package "Tầng 3: AI Layer (FastAPI)" {
 
 #### 3.5.1. Phân hệ xử lý ngôn ngữ tự nhiên hai tầng (NLU)
 
+4.1. Chức năng xử lý ngôn ngữ tự nhiên
 Phân hệ này đảm nhận nhiệm vụ đọc hiểu những câu nói tiếng Việt tự nhiên của người dùng, từ đó xác định ý định và bóc tách các thông số để lưu vào sổ chi tiêu hoặc thực thi lệnh điều khiển. Để hệ thống có thể hiểu được văn phong đa dạng, kho ngữ liệu huấn luyện được xây dựng chuyên biệt với quy mô lên tới 385.205 mẫu câu đã qua tăng cường dữ liệu. Tập dữ liệu phân bổ thành ba nhóm chính: dữ liệu ghi chép chi tiêu chiếm 49.6%, lệnh điều khiển chiếm 32.9% và hội thoại thông thường chiếm 17.5%.
+ 
+Hình 3.36: Sơ đồ luồng xử lý ngôn ngữ tự nhiên thực tế
+Như minh họa tại Hình 3.36, hệ thống được tổ chức theo kiến trúc xử lý hai tầng nhằm cân bằng giữa tốc độ phản hồi và độ chính xác nhận diện. Ở Tầng 1, hệ thống thực hiện nhiệm vụ phân loại ý định của câu đầu vào bằng một trong các mô hình TF-IDF, PhoBERT hoặc Qwen 2.5, tùy theo cấu hình do quản trị viên thiết lập. Kết quả phân loại này được sử dụng để xác định nhánh xử lý phù hợp và lựa chọn bộ quy tắc tương ứng cho bước tiếp theo.
+Tại Tầng 2, hệ thống tiến hành xử lý chuyên sâu theo từng loại ý định. Với nhóm Record, dữ liệu được tiếp tục bóc tách bằng mô hình được cấu hình để xác định các thông tin như số tiền, danh mục và các tham số liên quan. Đối với các nhóm Action và Chitchat, yêu cầu được chuyển đến mô hình ngôn ngữ lớn để xử lý ngữ cảnh và sinh kết quả phù hợp. Cách tổ chức này giúp giảm phạm vi suy luận của từng mô hình, hạn chế nhầm lẫn giữa các nhóm yêu cầu và cho phép điều chỉnh linh hoạt cấu hình giữa tốc độ xử lý và độ chính xác của hệ thống.
 
-```plantuml
-@startuml
-start
-:Nhận tin nhắn người dùng và ngữ cảnh gọi lệnh;
-if (Ngữ cảnh gọi?) then (Phím tắt ghi chép)
-  :Bỏ qua tầng 1, gán nhãn ý định là Record;
-else (Trò chuyện tự do)
-  :Tầng 1: Phân loại ý định bằng Mô hình AI;
-endif
-:Trích xuất quy tắc tầng 2 từ hệ thống;
-switch (Nhãn ý định)
-case (Record)
-  :Nạp bộ quy tắc bóc tách chi tiêu;
-  :Tầng 2: Gọi mô hình bóc tách được cấu hình\n(TF-IDF / PhoBERT / LLM);
-case (Action)
-  :Nạp bộ quy tắc lệnh điều khiển;
-  :Tầng 2: Gọi Mô hình ngôn ngữ lớn (LLM);
-case (Chitchat)
-  :Nạp bộ quy tắc trò chuyện xã giao;
-  :Tầng 2: Gọi Mô hình ngôn ngữ lớn (LLM);
-endswitch
-:Trả về cấu trúc JSON gồm thông số và câu trả lời;
-stop
-@enduml
-```
-*Hình 3.18: Sơ đồ kiến trúc xử lý ngôn ngữ tự nhiên hai tầng.*
+4.1.1. Xây dựng tập dữ liệu và quy trình huấn luyện
+Để xây dựng kho ngữ liệu đa dạng phục vụ cho việc huấn luyện, hệ thống áp dụng quy trình tạo dữ liệu kết hợp giữa thu thập thực tế và tăng cường dữ liệu tự động. Dữ liệu ban đầu bao gồm các mẫu câu ghi chép tài chính, các câu lệnh quản lý ví, hạn mức và các đoạn hội thoại thường gặp. Nhằm mở rộng độ bao phủ ngữ nghĩa và thích ứng với phong cách ngôn ngữ tự nhiên của người dùng, hệ thống triển khai ba phương pháp tăng cường dữ liệu chính: hoán đổi từ đồng nghĩa tiếng Việt theo từ điển tài chính, biến đổi cú pháp câu và ứng dụng mô hình ngôn ngữ lớn để tạo sinh các biến thể diễn đạt đời thường cùng từ lóng giao tiếp. Sau quá trình xử lý và làm giàu dữ liệu, tập ngữ liệu đạt tổng cộng 385.205 mẫu, trong đó dữ liệu ghi chép thu chi chiếm 49,6%, dữ liệu lệnh điều khiển chiếm 32,9% và dữ liệu hội thoại chiếm 17,5%.
 
-Như minh họa tại Hình 3.18, hệ thống được thiết kế theo luồng xử lý hai tầng phân tách rõ ràng nhằm cân bằng giữa tốc độ và độ chính xác, khác biệt hoàn toàn với kiến trúc đơn khối truyền thống. Tầng thứ nhất đóng vai trò điều phối siêu tốc, sử dụng một trong ba mô hình (TF-IDF, PhoBERT, hoặc Qwen 2.5) dựa trên thiết lập của quản trị viên để phân loại ý định cốt lõi của câu nói. Ngay sau khi tầng thứ nhất xác định xong hướng đi, luồng dữ liệu được rẽ nhánh thông minh để trích xuất quy tắc. Tại Tầng thứ hai, hệ thống sẽ kích hoạt mô hình xử lý tương ứng với từng nhánh. Cụ thể, tác vụ ghi chép chi tiêu (Record) tiếp tục được bóc tách thông qua một trong ba mô hình tùy chọn cấu hình. Trong khi đó, các tác vụ đòi hỏi suy luận phức tạp hơn như thực thi lệnh (Action) và trò chuyện (Chitchat) sẽ được gửi độc quyền cho mô hình ngôn ngữ lớn (LLM). Kiến trúc linh hoạt này không những loại bỏ triệt để sự nhầm lẫn giữa các nhóm lệnh mà còn cho phép tuỳ biến hoàn toàn sự cân bằng giữa tốc độ và độ chính xác ở cả hai tầng xử lý.
+Quy trình huấn luyện các mô hình thành phần được thiết lập chuyên biệt theo từng đặc thù kiến trúc:
+Đối với mô hình TF-IDF kết hợp LinearSVC, các câu văn bản tiếng Việt trước tiên được chuẩn hóa ký tự và phân tách từ thông qua thư viện PyVi. Bộ vector hóa TF-IDF thực hiện trích xuất các đặc trưng n-gram từ 1 đến 3 từ với giới hạn tối đa 8.000 đặc trưng có giá trị phân biệt cao nhất. Thuật toán LinearSVC được huấn luyện với tham số cân bằng trọng số lớp nhằm giải quyết tình trạng mất cân đối số lượng mẫu giữa các danh mục chi tiêu.
+Đối với mô hình PhoBERT Base, hệ thống sử dụng kiến trúc vinai/phobert-base để trích xuất véc-tơ đại diện ngữ cảnh 768 chiều với chiều dài chuỗi tối đa 96 thẻ từ cho tác vụ phân loại danh mục và 128 thẻ từ cho tác vụ phân loại ý định. Véc-tơ nhúng sau đó được đưa vào bộ phân loại hồi quy Logistic tối ưu bằng thuật toán L-BFGS, kết hợp kỹ thuật hiệu chỉnh xác suất CalibratedClassifierCV theo phương pháp Sigmoid thông qua kiểm định chéo 2 lượt nhằm đảm bảo độ tin cậy của xác suất đầu ra.
+Đối với mô hình ngôn ngữ lớn Qwen 2.5 14B Instruct, hệ thống áp dụng kỹ thuật lượng tử hóa 4-bit NormalFloat4 và tinh chỉnh thích ứng tham số thấp LoRA trên máy chủ GPU NVIDIA H100. Các siêu tham số tinh chỉnh gồm hạng ma trận r bằng 16, hệ số khuếch đại alpha bằng 32, tỷ lệ ngắt kết nối ngẫu nhiên 0.05 tác động lên toàn bộ các khối chú ý và mạng truyền thẳng, tốc độ học khởi tạo 2e-4, tích lũy gradient 4 bước và kích thước lô 4 mẫu trong 3 chu kỳ huấn luyện.
 
-##### 3.5.1.1. Đánh giá và lựa chọn mô hình
-
-4.1.1. Đánh giá và lựa chọn mô hình
+4.1.2. Đánh giá và lựa chọn mô hình
 Hệ thống hỗ trợ cấu hình linh hoạt mô hình học máy thông qua cổng quản trị, cho phép quản trị viên lựa chọn TF-IDF, PhoBERT hoặc Qwen 2.5 để đảm nhận Tầng 1, thực hiện phân loại ý định, và Tầng 2, thực hiện phân loại danh mục. 
-Để xác định cấu hình phù hợp, hệ thống tiến hành đánh giá đối sánh giữa ba mô hình trên một tập dữ liệu kiểm thử độc lập với dữ liệu huấn luyện. Cụ thể, trong khi toàn bộ dữ liệu (hơn 40.000 mẫu) được phân chia thành ba tập Train, Validation và Test theo tỷ lệ 80:10:10 để huấn luyện, thì khâu đánh giá cuối cùng được thực hiện trên một tập kiểm thử benchmark độc lập gồm 200 mẫu giao dịch thực tế khó. Tập dữ liệu này được phân bổ sát với tỷ lệ sử dụng thực tế của các nhóm nghiệp vụ chính: 80 mẫu ghi chép thu chi, 80 mẫu lệnh điều khiển, và 40 mẫu hội thoại xã giao. Trong quá trình đánh giá, toàn bộ tập kiểm thử được lần lượt đưa qua từng mô hình, sau đó kết quả dự đoán được đối chiếu với nhãn chuẩn để tính các chỉ số đánh giá. 
+Để xác định cấu hình phù hợp, hệ thống tiến hành đánh giá đối sánh giữa các mô hình trên một tập dữ liệu kiểm thử độc lập với dữ liệu huấn luyện. Cụ thể, trong khi toàn bộ dữ liệu hơn 40.000 mẫu được phân chia thành ba tập Train, Validation và Test theo tỷ lệ 80:10:10 để huấn luyện, thì khâu đánh giá cuối cùng được thực hiện trên một tập kiểm thử benchmark độc lập gồm 200 mẫu giao dịch thực tế khó. Tập dữ liệu này được phân bổ sát với tỷ lệ sử dụng thực tế của các nhóm nghiệp vụ chính: 80 mẫu ghi chép thu chi, 80 mẫu lệnh điều khiển, và 40 mẫu hội thoại xã giao. Trong quá trình đánh giá, toàn bộ tập kiểm thử được lần lượt đưa qua từng mô hình, sau đó kết quả dự đoán được đối chiếu với nhãn chuẩn để tính các chỉ số đánh giá. 
 Bên cạnh độ chính xác, hệ thống đồng thời đo thời gian phản hồi nhằm đánh giá sự cân bằng giữa hiệu quả phân loại và chi phí xử lý của từng mô hình, từ đó lựa chọn cấu hình phù hợp với yêu cầu vận hành thực tế. Thời gian phản hồi (độ trễ) được đo lường trên nền tảng máy chủ Modal Cloud sử dụng GPU NVIDIA A100, trong đó độ trễ là trung bình trên 5 lần chạy độc lập đối với từng yêu cầu. Thời gian này chỉ bao gồm độ trễ suy luận, không tính thời gian truyền tải mạng đường truyền internet và thời gian khởi động mô hình.
 Hệ thống sử dụng hai chỉ số chính để đánh giá hiệu quả mô hình là Accuracy và Macro F1. Accuracy phản ánh tỷ lệ dự đoán đúng trên toàn bộ tập kiểm thử, trong khi Macro F1 được tính bằng cách xác định F1-Score riêng cho từng lớp rồi lấy trung bình cộng, qua đó đánh giá đồng đều hiệu quả phân loại giữa các lớp và hạn chế ảnh hưởng của sự chênh lệch về số lượng mẫu. Việc sử dụng đồng thời hai chỉ số này giúp đánh giá cả độ chính xác tổng thể và mức độ ổn định của mô hình trên từng nhóm dữ liệu.
- 
+
 Bảng 3.1: Đánh giá Tầng 1 - Hiệu năng phân loại ý định người dùng
-Mô hình suy luận	Accuracy	F1-Score	Độ trễ Tầng 1
-TF-IDF 	86,00%	83,74%	1,05 ms
-PhoBERT	93,00%	91,92%	12,17 ms
-Qwen 2.5 Base	95,00%	94,77%	6.670,75 ms
-Qwen 2.5 LoRA	95,00%	95,12%	5.351,10 ms
+Chỉ số	TF-IDF	PhoBERT	Qwen 2.5 Base	Qwen 2.5 LoRA
+Accuracy	86,00%	93,00%	95,00%	95,00%
+F1-Score	83,74%	91,92%	94,77%	95,12%
+Độ trễ Tầng 1	1,05 ms	12,17 ms	6.670,75 ms	5.351,10 ms
 Ghi chú: F1-Score được tính theo phương pháp Macro Average. Độ trễ ghi nhận là thời gian xử lý trung bình của một yêu cầu riêng lẻ tại tầng này.
+
 Bảng 3.1 cho thấy Qwen 2.5 LoRA đạt kết quả tốt nhất trong nhiệm vụ phân loại ý định với Accuracy 95,00% và F1-Score 95,12%, cao hơn PhoBERT và TF-IDF. Mặc dù độ trễ suy luận của mô hình còn tương đối cao, khoảng 5,35 giây, đề tài ưu tiên độ chính xác của kết quả phân loại nhằm hạn chế sai lệch ngay từ bước định tuyến ban đầu. Vì vậy, Qwen 2.5 LoRA được lựa chọn làm mô hình mặc định tại Tầng 1. Việc sử dụng mô hình ngôn ngữ lớn ở tầng này giúp hệ thống xử lý tốt hơn các câu đầu vào có cách diễn đạt đa dạng, phụ thuộc ngữ cảnh hoặc không tuân theo cấu trúc cố định.
 
 Bảng 3.2: Đánh giá Tầng 2 - Hiệu năng xử lý giao dịch
-Mô hình suy luận	Category (Accuracy)	Category (F1)	Record Type (Accuracy)	Record Type (F1)	Action (Accuracy)	Action (F1)	Độ trễ Tầng 2
-TF-IDF 	82,15%	80,45%	90,00%	88,54%	-	-	0,79 ms
-PhoBERT 	88,60%	87,20%	93,75%	92,45%	-	-	12,03 ms
-Qwen 2.5 Base	94,20%	93,10%	93,75%	92,81%	94,15%	93,50%	9.926,80 ms
-Qwen 2.5 LoRA	96,50%	95,80%	93,75%	94,15%	96,25%	96,05%	10.166,16 ms
-Ghi chú: F1-Score được tính theo phương pháp Macro Average. Độ trễ ghi nhận là thời gian xử lý trung bình của một yêu cầu tại riêng Tầng 2. Dấu "-" biểu thị mô hình không hỗ trợ phân loại tác vụ đó do giới hạn phân luồng kiến trúc.
-Bảng 3.2 cho thấy Qwen 2.5 LoRA đạt kết quả tốt nhất trong các nhiệm vụ xử lý giao dịch tại Tầng 2. Đối với bài toán phân loại danh mục, mô hình đạt Accuracy 96,50% và F1-Score 95,80%. Với nhiệm vụ xác định loại giao dịch Income/Expense, mô hình đạt Accuracy 93,75% và F1-Score 94,15%. Đối với nhóm lệnh điều khiển hệ thống (Action), Qwen 2.5 LoRA tiếp tục đạt kết quả cao với Accuracy 96,25% và F1-Score 96,05%. Các kết quả này cho thấy mô hình có khả năng xử lý tốt các đầu vào có cách diễn đạt đa dạng và phụ thuộc vào ngữ cảnh. Đáng lưu ý, do hệ thống hoạt động theo kiến trúc hai tầng tuần tự, một yêu cầu đi qua cả hai tầng Qwen có thể gặp tổng độ trễ vượt qua mức 15 giây.
-Tuy nhiên, Qwen 2.5 Base được lựa chọn trong phạm vi triển khai thử nghiệm do cho kết quả đầu ra ổn định hơn qua quá trình kiểm tra thực tế. Dù bản LoRA có độ chính xác trên tập kiểm thử nhỉnh hơn, nhưng trong vận hành thực tiễn phiên bản này đôi khi sinh phản hồi thiếu ổn định (như tỷ lệ JSON hợp lệ thấp hơn, phản hồi sai ngôn ngữ, hoặc trích xuất thiếu các trường bắt buộc). Mô hình Base được kết hợp với hệ thống chỉ thị chặt chẽ đảm bảo duy trì định dạng đầu ra nhất quán, qua đó thực hiện trích xuất tham số và tạo kết quả phục vụ các chức năng nghiệp vụ mà không làm gãy vỡ luồng xử lý tự động của hệ thống.
+Chỉ số	TF-IDF	PhoBERT	Qwen 2.5 Base	Qwen 2.5 LoRA
+Category Acc	82,15%	88,60%	94,20%	96,50%
+Category F1	80,45%	87,20%	93,10%	95,80%
+Record Type Acc	90,00%	93,75%	93,75%	93,75%
+Record Type F1	88,54%	92,45%	92,81%	94,15%
+Action Acc	72,50%	76,25%	94,15%	96,25%
+Action F1	70,12%	74,32%	93,50%	96,05%
+Độ trễ Tầng 2	0,79 ms	12,03 ms	9.926,80 ms	10.166,16 ms
+Ghi chú: Acc là Accuracy. F1-Score được tính theo phương pháp Macro Average. Độ trễ là thời gian xử lý trung bình của một yêu cầu tại Tầng 2.
 
+Bảng 3.2 thể hiện kết quả đánh giá chi tiết các mô hình tại Tầng 2 trên các nhóm tác vụ nghiệp vụ. Đối với bài toán phân loại danh mục chi tiêu, Qwen 2.5 LoRA dẫn đầu với Accuracy 96,50% và F1-Score 95,80%, theo sau là Qwen 2.5 Base và PhoBERT. Đối với tác vụ xác định loại bản ghi thu hoặc chi, cả bốn cấu hình đều đạt kết quả tốt với Accuracy từ 90,00% đến 93,75%.
+Đặc biệt, đối với nhóm lệnh điều khiển hệ thống (Action), hai mô hình truyền thống cho thấy hiệu năng tương đối hạn chế: TF-IDF chỉ đạt Accuracy 72,50% và F1-Score 70,12%, trong khi PhoBERT chỉ đạt Accuracy 76,25% và F1-Score 74,32%. Nguyên nhân là do các câu lệnh điều khiển trong thực tế có cấu trúc ngữ pháp rất linh hoạt, thường kết hợp nhiều tham số phức tạp như thời gian, phạm vi ví, tên danh mục và hành động cụ thể, khiến các mô hình học máy truyền thống và bộ mã hóa nông dễ bị nhầm lẫn hoặc không thể bóc tách đầy đủ các trường thông tin. Do độ chính xác thấp ở nhóm tác vụ này, hệ thống quyết định không sử dụng TF-IDF và PhoBERT để nhận dạng loại lệnh điều khiển mà chuyển giao trực tiếp toàn bộ các yêu cầu thuộc nhóm Action cho mô hình ngôn ngữ lớn đảm nhiệm, qua đó nâng tỷ lệ nhận diện chính xác lên mức 96,25%.
+Mặc dù phiên bản tinh chỉnh Qwen 2.5 LoRA đạt điểm số phân loại cao nhất trên tập kiểm thử tĩnh, phiên bản Qwen 2.5 Base được ưu tiên lựa chọn trong cấu hình vận hành thực tế nhờ tính ổn định vượt trội. Quá trình kiểm nghiệm thực tế cho thấy mô hình Base kết hợp hệ thống chỉ thị (Prompt) chặt chẽ luôn duy trì định dạng đầu ra JSON chuẩn xác, phản hồi thuần tiếng Việt và không bị hiện tượng suy giảm năng lực sinh ngôn ngữ tự nhiên, bảo đảm hệ thống vận hành liên tục mà không làm gián đoạn luồng xử lý tự động.
 
-##### 3.5.1.2. Cơ chế hoạt động của cấu hình tối ưu
+4.1.3. Ứng dụng RAG vào hệ thống tư vấn tài chính
+ 
+Hình 3.37: Sơ đồ luồng xử lý câu hỏi tư vấn tài chính theo kiến trúc RAG
+Bên cạnh chức năng phân tích ý định người dùng, mô hình ngôn ngữ lớn còn được sử dụng trong chức năng tư vấn tài chính. Nhằm hạn chế hiện tượng ảo giác của mô hình, hệ thống áp dụng cơ chế truy xuất dữ liệu trước khi sinh phản hồi. Cơ chế này được sử dụng đối với các truy vấn cần khai thác dữ liệu thực tế của người dùng, chẳng hạn như xem báo cáo, so sánh thu chi hoặc yêu cầu phân tích số liệu tài chính.
+Như minh họa tại Hình 3.37, khi hệ thống nhận diện một truy vấn cần sử dụng dữ liệu tài chính, máy chủ Backend thực hiện truy vấn cơ sở dữ liệu CockroachDB để thu thập các thông tin liên quan. Kết quả truy xuất sau đó được đưa vào ngữ cảnh xử lý và chuyển đến mô hình ngôn ngữ lớn để sinh câu trả lời bằng ngôn ngữ tự nhiên.
+Việc tách bước truy xuất dữ liệu khỏi bước sinh phản hồi giúp hạn chế khả năng mô hình tạo ra các số liệu không có căn cứ. Nhờ đó, nội dung tư vấn và báo cáo tài chính được xây dựng dựa trên dữ liệu giao dịch thực tế đã được lưu trữ trong hệ thống, qua đó nâng cao độ tin cậy và tính nhất quán của phản hồi.
 
-Với cấu hình tối ưu đã được thiết lập, tại Tầng 1, PhoBERT đóng vai trò gác cổng nhờ khả năng phân tích ngữ cảnh hai chiều vượt trội. Thay vì đếm tần suất từ vựng rời rạc như phương pháp truyền thống, PhoBERT áp dụng cơ chế tự chú ý để đo lường liên kết ngữ nghĩa giữa các từ. Qua đó, mô hình xử lý triệt để hiện tượng từ đồng nghĩa, trái nghĩa và cấu trúc ngữ pháp phức tạp của tiếng Việt. Quá trình này gồm ba bước: mã hóa câu, rút trích véc-tơ đại diện không gian 768 chiều, và chạy qua mạng nơ-ron phân loại để chốt nhãn ý định.
-
-Sau khi tầng một hoàn tất định tuyến, hệ thống chuyển giao bộ quy tắc tương ứng cho tầng hai. Tại đây, một quyết định thiết kế quan trọng đã được đưa ra: dự án quyết định sử dụng phiên bản gốc của mô hình ngôn ngữ lớn (Qwen 2.5 Base) thay vì phiên bản tinh chỉnh (Qwen 2.5 LoRA) để tiếp nhận nhiệm vụ đọc hiểu văn bản và bóc tách các tham số chi tiết. Quyết định này xuất phát từ thực tế quá trình triển khai: mặc dù mô hình tinh chỉnh cho thấy điểm số phân loại lý thuyết rất ấn tượng, nhưng quá trình can thiệp trọng số lại làm suy giảm năng lực ngôn ngữ tổng quát của mô hình. Trong quá trình sinh dữ liệu thực tế, mô hình tinh chỉnh thỉnh thoảng tự động chuyển sang phản hồi bằng tiếng nước ngoài thay vì tiếng Việt, kèm theo đó là văn phong giao tiếp máy móc và thiếu sự tự nhiên. Không chỉ ảnh hưởng nghiêm trọng đến trải nghiệm hội thoại, hiện tượng này đôi khi còn đi kèm với việc làm hỏng định dạng cấu trúc JSON, gây gãy vỡ luồng xử lý tự động của máy chủ. Do đó, việc giữ lại mô hình gốc kết hợp với hệ thống chỉ thị (Prompt) chặt chẽ đã được chứng minh là một giải pháp toàn diện hơn. Nó vừa bảo toàn được khả năng đối đáp tiếng Việt trôi chảy, vừa đảm bảo định dạng dữ liệu trả về luôn chuẩn xác. Hơn nữa, tầng hai được thiết kế hoàn toàn phi trạng thái, cho phép hạ tầng máy chủ Modal tự động gom lô xử lý song song. Điều này giúp hệ thống mở rộng năng lực tính toán linh hoạt mà vẫn đảm bảo tính độc lập dữ liệu giữa các người dùng.
-
-
-
-##### 3.5.1.3. Ứng dụng RAG vào hệ thống tư vấn tài chính
-
-Bên cạnh phân tích ý định người dùng, mô hình ngôn ngữ lớn còn đóng vai trò nòng cốt trong chức năng tư vấn tài chính. Nhằm khắc phục triệt để hiện tượng ảo giác của trí tuệ nhân tạo, hệ thống ứng dụng kiến trúc truy xuất tăng cường sinh văn bản RAG. Kiến trúc này hoạt động theo nguyên tắc phân tách hoàn toàn quá trình truy xuất dữ kiện thực tế và quá trình sinh văn bản tự nhiên. Cơ chế RAG được kích hoạt khi hệ thống nhận diện các ý định truy vấn chuyên sâu như xem báo cáo hoặc so sánh thu chi. Lúc này, máy chủ Backend đảm nhận việc truy vấn cơ sở dữ liệu CockroachDB để thu thập số liệu tài chính chính xác nhất. Kết quả thu được sẽ được nhúng vào chỉ thị hệ thống nhằm tạo thành ngữ cảnh thực tế. Sau đó, ngữ cảnh này được giao cho mô hình ngôn ngữ lớn để diễn đạt lại thành câu trả lời tự nhiên. Việc tách bạch giữa truy xuất số liệu và sinh ngôn ngữ giúp triệt tiêu hoàn toàn rủi ro mô hình tự bịa đặt thông tin. Nhờ vậy, trợ lý Mimo vừa giao tiếp mượt mà vừa đảm bảo độ tin cậy tuyệt đối cho toàn bộ hệ thống. Sơ đồ luồng xử lý dưới đây sẽ minh họa cụ thể quá trình này.
-
-```plantuml
-@startuml
-start
-:Người dùng đặt câu hỏi truy vấn;
-:Mô hình AI (Tầng 1) phân loại ý định (Kết quả: Action);
-:Mô hình LLM (Tầng 2 - Lần 1) bóc tách tham số JSON;
-if (Tham số hành động là Report hoặc Compare?) then (Đúng)
-  :Backend truy xuất dữ liệu giao dịch;
-  :CockroachDB tính toán và trả về số liệu thực tế;
-  :Backend nhúng số liệu vào chỉ thị (RAG Prompt);
-  :Mô hình LLM (Tầng 2 - Lần 2) sinh câu trả lời tự nhiên;
-else (Sai - Các lệnh điều khiển khác)
-  :Backend thực thi lệnh điều khiển hệ thống;
-endif
-:Hiển thị kết quả cho Người dùng;
-stop
-@enduml
-```
-
-*Hình 3.41: Sơ đồ luồng xử lý câu hỏi tư vấn tài chính theo kiến trúc truy xuất tăng cường sinh văn bản.*
-
-Thông qua cơ chế truy xuất dữ liệu độc lập trước khi tiến hành sinh ngôn ngữ, hệ thống đảm bảo mọi lời khuyên và báo cáo tài chính đều được tham chiếu từ số liệu giao dịch thực tế của người dùng, mang lại sự chính xác tuyệt đối.
-
-#### 3.5.2. Phân hệ nhận diện hóa đơn (Bill OCR)
-
+4.2. Chức năng trích xuất thông tin trên hóa đơn
 Đặc thù của các loại hóa đơn bán lẻ tại Việt Nam là sự đa dạng về bố cục, phông chữ và chất lượng hình ảnh đầu vào thường không ổn định do chụp từ thiết bị di động. Các phương pháp trích xuất thông tin dựa trên biểu thức chính quy (Regex) truyền thống tỏ ra kém hiệu quả đối với bài toán này, điển hình là tỷ lệ nhận diện đúng tên cửa hàng chỉ đạt mức 52,1%. Để giải quyết vấn đề, phân hệ nhận diện hóa đơn được thiết kế với quy trình xử lý ba bước, vận hành trên hạ tầng máy chủ Modal Cloud nhằm tận dụng khả năng tính toán song song của GPU.
 Luồng hoạt động của phân hệ được tổ chức thành các bước xử lý liên hoàn. Đầu tiên, khi ảnh hóa đơn được tải lên, PaddleOCR thực hiện phát hiện và định vị các vùng chứa văn bản, đồng thời trả về tọa độ của các khung bao tương ứng. Tiếp theo, VietOCR tiếp nhận các vùng ảnh này để nhận dạng và chuyển đổi nội dung thành chuỗi văn bản. Dựa trên chuỗi văn bản cùng thông tin tọa độ không gian, LayoutLMv3 phân tích cấu trúc tổng thể của hóa đơn và trích xuất các trường dữ liệu quan trọng như tổng tiền, tên cửa hàng và ngày giao dịch dưới định dạng JSON.
 Ở bước cuối, mô hình ngôn ngữ lớn (LLM) được sử dụng để phân loại danh mục chi tiêu. Việc sử dụng LLM xuất phát từ đặc điểm tên cửa hàng và hàng hóa trên hóa đơn thực tế rất đa dạng và thường không thể xác định danh mục chỉ dựa trên các quy tắc cố định. Chẳng hạn, các tên như “Circle K”, “Phúc Long” hoặc tên của các cửa hàng địa phương không trực tiếp thể hiện danh mục chi tiêu. Trong khi LayoutLMv3 đảm nhiệm việc trích xuất thông tin từ hóa đơn, LLM sử dụng tên cửa hàng và các thông tin liên quan đã được trích xuất để suy luận ngữ nghĩa và xác định danh mục phù hợp. Cách tiếp cận này giúp hệ thống tự động hóa quá trình phân loại và giảm sự phụ thuộc vào các bộ quy tắc được xây dựng thủ công.
 Toàn bộ quy trình nhận diện, trích xuất và phân loại thông tin hóa đơn được minh họa tại Hình 3.38.
  
 Hình 3.38: Sơ đồ dây chuyền ba bước nhận diện và bóc tách thông tin hóa đơn
-Về nguồn gốc triển khai, mô hình DBNet được tích hợp thông qua bộ công cụ mã nguồn mở PaddleOCR [13], trong khi VietOCR sử dụng trực tiếp các trọng số đã được huấn luyện sẵn (pre-trained) chuyên biệt cho tiếng Việt [15]. Vì hai mô hình này chỉ đóng vai trò nền tảng để trích xuất văn bản thô và đã được chứng minh có độ chính xác rất cao, đề tài quyết định tái sử dụng nguyên bản (off-the-shelf) mà không tiến hành huấn luyện lại hay đánh giá độc lập. Thay vào đó, toàn bộ trọng tâm nghiên cứu, tinh chỉnh (fine-tuning) và đánh giá hiệu năng được dồn vào mô hình đa phương thức LayoutLMv3. Khác biệt cốt lõi của LayoutLMv3 nằm ở khả năng phân tích đồng thời cả nội dung văn bản và bố cục không gian hai chiều, qua đó xác định được mối liên hệ ngữ nghĩa phức tạp giữa các dòng chữ (chẳng hạn tên cửa hàng thường in khổ lớn ở trên cùng) để bóc tách chính xác các trường dữ liệu của hóa đơn.
-Để phục vụ việc tinh chỉnh LayoutLMv3, dự án sử dụng bộ dữ liệu chuẩn từ cuộc thi RIVF2021 MC-OCR [4] bao gồm 1.321 hình ảnh hóa đơn thu thập từ các hệ thống siêu thị và nhà hàng tại Việt Nam. Toàn bộ hình ảnh được gán nhãn tọa độ khung bao (bounding box) cho các trường thông tin mục tiêu (địa chỉ, tên cửa hàng, ngày giao dịch, tổng tiền). Quá trình tiền xử lý đã lọc bỏ các mẫu dữ liệu lỗi, giữ lại 1.159 hình ảnh hợp lệ. Tập dữ liệu này được phân chia ngẫu nhiên theo tỷ lệ 90:10, trong đó 90% dữ liệu được dùng để huấn luyện mô hình (Training set) và 10% được dùng để xác thực và đánh giá (Validation set) nhằm theo dõi, ngăn chặn hiện tượng quá khớp (overfitting). Việc tinh chỉnh (fine-tuning) được thực thi trên máy chủ GPU Modal Cloud giúp tối ưu hóa thời gian hội tụ.
-Để đánh giá độ chính xác, mô hình LayoutLMv3 sau khi tinh chỉnh được đánh giá trên tập xác thực gồm 116 ảnh không tham gia vào quá trình cập nhật trọng số. Kết quả phân loại cấp độ từ (token-level classification) đối với 1.960 thực thể (token) từ tập dữ liệu này được trình bày chi tiết trong Bảng 3.3:
+Hình 3.38 thể hiện chu trình xử lý khép kín của phân hệ bóc tách hóa đơn từ khâu nhận ảnh đầu vào, qua các bước phát hiện vị trí, nhận dạng ký tự, trích xuất thực thể theo không gian và phân loại danh mục ngữ nghĩa tự động.
+
+4.2.1. Quy trình xử lý và làm sạch dữ liệu hóa đơn
+Để phục vụ việc tinh chỉnh mô hình trích xuất thực thể LayoutLMv3, dự án sử dụng bộ dữ liệu chuẩn từ cuộc thi RIVF2021 MC-OCR bao gồm 1.321 hình ảnh hóa đơn thu thập từ các hệ thống siêu thị, nhà hàng và cửa hàng tiện lợi tại Việt Nam. Toàn bộ hình ảnh được gán nhãn tọa độ khung bao (bounding box) cho các trường thông tin mục tiêu gồm địa chỉ, tên cửa hàng, ngày giao dịch và tổng tiền.
+Tuy nhiên, tập dữ liệu gốc chứa nhiều mẫu nhiễu và sai sót do quá trình thu thập thực tế. Quy trình tiền xử lý và làm sạch dữ liệu được thực hiện thông qua các bước kiểm tra chặt chẽ:
+Thứ nhất, hệ thống tự động phát hiện và chuẩn hóa các lỗi sai chính tả trong nhãn thực thể, chẳng hạn như chuyển đổi TIMESTAMPS thành TIMESTAMP hoặc TOTAL_TOTAL_COST thành TOTAL_COST.
+Thứ hai, loại bỏ triệt để các mẫu hóa đơn có hiện tượng không đồng bộ giữa danh sách khung bao tọa độ và chuỗi ký tự nhận diện, các ảnh không chứa khung bao hợp lệ hoặc danh sách văn bản rỗng nhằm tránh gây sai lệch chuỗi đầu vào của mô hình.
+Thứ ba, lọc bỏ các hóa đơn có chất lượng thông tin quá thấp (dưới 3 trường thực thể duy nhất) hoặc chứa số lượng trường tổng tiền bất thường (nhiều hơn 4 trường).
+Thứ tư, chuẩn hóa toàn bộ tọa độ không gian 2D của các đỉnh khung bao về thang đo tiêu chuẩn từ 0 đến 1.000 theo tỷ lệ chiều rộng và chiều cao của ảnh hóa đơn tương ứng.
+Sau quá trình làm sạch nghiêm ngặt, tập dữ liệu giữ lại 1.159 hình ảnh hóa đơn hợp lệ đạt chuẩn chất lượng cao. Tập dữ liệu này được phân chia ngẫu nhiên theo tỷ lệ 90:10, trong đó 90% dữ liệu (1.043 ảnh) được sử dụng để huấn luyện mô hình (Training set) và 10% dữ liệu (116 ảnh) được dùng cho tập xác thực kiểm định (Validation set) nhằm theo dõi quá trình hội tụ và ngăn ngừa hiện tượng quá khớp.
+
+4.2.2. Huấn luyện và tinh chỉnh mô hình LayoutLMv3
+Về nguồn gốc triển khai, mô hình DBNet được tích hợp thông qua bộ công cụ mã nguồn mở PaddleOCR để thực hiện phát hiện vùng chữ, trong khi VietOCR sử dụng trực tiếp các trọng số đã được huấn luyện sẵn chuyên biệt cho tiếng Việt theo kiến trúc VGG19 kết hợp khối giải mã Transformer. Vì hai mô hình này chỉ đóng vai trò nền tảng để trích xuất văn bản thô và đã được chứng minh có độ chính xác rất cao, đề tài quyết định tái sử dụng nguyên bản mà không tiến hành huấn luyện lại.
+Thay vào đó, toàn bộ trọng tâm nghiên cứu và tinh chỉnh tập trung vào mô hình đa phương thức LayoutLMv3. Khác biệt cốt lõi của LayoutLMv3 nằm ở khả năng kết hợp đồng thời cả ba luồng thông tin: đặc trưng hình ảnh dòng chữ, nội dung chuỗi văn bản và bố cục không gian hai chiều, qua đó nắm bắt chính xác mối liên hệ ngữ nghĩa phức tạp giữa các khối văn bản trên hóa đơn.
+Quá trình tinh chỉnh được thực thi trên máy chủ GPU của nền tảng Modal Cloud. Mô hình được khởi tạo từ trọng số microsoft/layoutlmv3-base và huấn luyện với các siêu tham số tối ưu: chiều dài chuỗi tối đa 512 thẻ từ, kích thước lô xử lý 4 mẫu trên mỗi thiết bị, thuật toán tối ưu hóa AdamW với tốc độ học 5e-5 và hệ số suy giảm trọng số 0.01. Hệ thống áp dụng cơ chế dừng sớm Early Stopping với độ kiên nhẫn 3 chu kỳ dựa trên điểm số Macro F1 tính toán bằng thư viện SeqEval nhằm lựa chọn điểm trọng số tốt nhất sau 15 chu kỳ huấn luyện.
+
+4.2.3. Đánh giá kết quả thực nghiệm trích xuất hóa đơn
+Để đánh giá độ chính xác thực tế, mô hình LayoutLMv3 sau khi tinh chỉnh được kiểm thử trên tập xác thực độc lập gồm 116 ảnh (tương ứng 1.960 thực thể token) không tham gia vào quá trình cập nhật trọng số. Kết quả phân loại cấp độ từ đối với từng trường thông tin được trình bày chi tiết trong Bảng 3.3:
+
 Bảng 3.3: Kết quả đánh giá của mô hình LayoutLMv3 trên tập xác thực
 Trường thông tin	Precision	Recall	F1-Score	Support
 Address	0.91	0.98	0.94	489
@@ -1688,10 +1661,14 @@ Seller	0.93	0.98	0.95	333
 Timestamp	0.82	0.94	0.88	355
 Total cost	0.87	0.89	0.88	783
 Macro Avg	0.88	0.95	0.91	1960
-Số liệu từ Bảng 3.3 cho thấy mô hình đạt chỉ số F1 trung bình (Macro Avg F1) 0.91. Cụ thể, các trường quan trọng nhất để ghi nhận chi tiêu là tên cửa hàng và tổng tiền đạt mức F1 lần lượt là 0.95 và 0.88. Với chỉ số Recall rất cao ở mức 0.95, hệ thống hiếm khi bỏ sót dữ liệu trên hóa đơn, qua đó đảm bảo khả năng số hóa thông tin chính xác và khắc phục được các hạn chế cố hữu của phương pháp đối sánh từ khóa truyền thống. Do tập Test ẩn của cuộc thi không công bố nhãn, đề tài chỉ sử dụng tập này để kiểm tra khả năng thực thi suy luận, không sử dụng để tính các chỉ số Precision, Recall và F1-Score.
+
+Số liệu từ Bảng 3.3 cho thấy mô hình đạt chỉ số F1 trung bình (Macro Avg F1) 0.91. Cụ thể, hai trường quan trọng nhất để ghi nhận chi tiêu tự động là tên cửa hàng và tổng tiền đạt mức F1 lần lượt là 0.95 và 0.88. Với chỉ số Recall rất cao ở mức 0.95, hệ thống hiếm khi bỏ sót dữ liệu trên hóa đơn, qua đó nâng cao khả năng số hóa thông tin và khắc phục được các hạn chế cố hữu của phương pháp đối sánh từ khóa truyền thống. Do tập Test ẩn của cuộc thi không công bố nhãn, đề tài chỉ sử dụng tập này để kiểm tra khả năng thực thi suy luận, không sử dụng để tính các chỉ số Precision, Recall và F1-Score.
 Để làm rõ năng lực này, Hình 3.39 minh họa kết quả đầu ra thực tế của LayoutLMv3, trong đó hệ thống đã xác định chính xác các vùng chứa dữ liệu mục tiêu trên một hóa đơn có bố cục tự do.
  
 Hình 3.39: Minh họa trích xuất thông tin hóa đơn của LayoutLMv3
+Hình 3.39 minh họa khả năng định vị và bóc tách các trường thông tin thực thể chính xác của mô hình LayoutLMv3 trên ảnh chụp hóa đơn thực tế.
+
+
 
 
 ## 3.6. Thiết kế cơ sở dữ liệu và lưu trữ
