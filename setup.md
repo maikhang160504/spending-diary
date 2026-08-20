@@ -280,18 +280,64 @@ AI Service tiếp nhận các yêu cầu bóc tách ảnh hóa đơn, phân tíc
 
 #### Cách 2: Triển khai trên máy chủ đám mây Modal Serverless GPU
 
-Khi cần tăng tốc độ xử lý OCR bằng GPU L4 và chạy song song mô hình ngôn ngữ lớn Qwen trên GPU A10G:
+Khi cần tăng tốc độ xử lý OCR bằng GPU L4 và chạy song song mô hình ngôn ngữ lớn Qwen trên GPU A10G, hệ thống có thể triển khai trực tiếp lên hạ tầng Modal Cloud:
 ```bash
 cd d:\Luan-Van\Project\expense-ocr-nlu
 # Đăng nhập tài khoản Modal
 modal setup
 
-# Chạy thử nghiệm có nóng mã nguồn
+# Chạy thử nghiệm đồng bộ nóng mã nguồn
 modal serve modal_app.py
 
-# Hoặc triển khai chính thức lên máy chủ đám mây
+# Triển khai chính thức dịch vụ API lên cụm máy chủ đám mây
 modal deploy modal_app.py
 ```
+
+Khi vận hành trên nền tảng đám mây Modal, hệ thống sử dụng hai thành phần cốt lõi để quản lý trạng thái dữ liệu và các khóa bảo mật:
+
+1. Ổ lưu trữ đám mây bền vững Modal Volume (expense-ocr-nlu-storage):
+Được gắn trực tiếp vào đường dẫn /storage trên toàn bộ các container GPU, có nhiệm vụ lưu giữ bền vững dữ liệu huấn luyện, trạng thái tiến trình và các trọng số mô hình sau mỗi chu kỳ tái huấn luyện:
+- Thư mục layoutlmv3/: Chứa tệp trọng số tốt nhất model_best.pth của mô hình trích xuất thực thể hóa đơn, tệp lịch sử ocr_training_history.json, tệp theo dõi tiến độ training_progress.json theo thời gian thực, cùng các tệp dữ liệu đã qua gán nhãn token trong thư mục jsonl/ và cấu hình bộ tiền xử lý processor/.
+- Thư mục layoutlmv3_train_imgs/, mc_ocr_test/ và ocr_dataset/: Lưu trữ toàn bộ ảnh hóa đơn gốc, tập ảnh phục vụ huấn luyện và tập ảnh xác thực kiểm định.
+- Thư mục nlu_models/: Lưu trữ các tệp nhị phân mô hình phân loại NLU đang được áp dụng chính thức (intent_classifier.joblib, category_classifier.joblib, phobert_embeddings.pth), tệp đăng ký phiên bản nlu_model_registry.json xác định thuật toán hoạt động (TF-IDF, PhoBERT hoặc LLM), tệp lịch sử nlu_training_history.json và trạng thái tiến trình training_status.json.
+- Thư mục nlu_models_candidate/ và nlu_models_old/: Lưu trữ các phiên bản mô hình mới huấn luyện chờ quản trị viên phê duyệt cũng như lưu trữ các phiên bản cũ để khôi phục nhanh khi cần thiết.
+- Thư mục llm_finetune/, qwen_vismimo/ và qwen_vismimo_lora/: Lưu trữ các tệp trọng số thích ứng LoRA (adapter_model.safetensors, adapter_config.json) sau các chu kỳ tinh chỉnh mô hình ngôn ngữ lớn Qwen và nhật ký finetune_history.json.
+- Thư mục exported/: Lưu trữ các nhãn hóa đơn đã được người dùng chỉnh sửa và quản trị viên phê duyệt trên Web Admin, sẵn sàng đưa vào chu kỳ tái huấn luyện kế tiếp.
+
+Bảng cấu trúc lưu trữ trên Modal Persistent Storage:
+
+| Thư mục / Tệp trên /storage | Vai trò và nội dung lưu trữ |
+| --- | --- |
+| layoutlmv3/model_best.pth | Trọng số mô hình LayoutLMv3 tốt nhất sinh ra từ các job huấn luyện GPU |
+| layoutlmv3/ocr_training_history.json | Nhật ký lưu vết toàn bộ các lần huấn luyện mô hình bóc tách hóa đơn |
+| layoutlmv3/training_progress.json | Trạng thái tiến độ huấn luyện thời gian thực để Web Admin theo dõi |
+| nlu_models/nlu_model_registry.json | Bảng quản lý phiên bản mô hình NLU và cấu hình backend đang kích hoạt |
+| nlu_models/*.joblib | Các bộ phân loại ý định, danh mục và hành động của TF-IDF và PhoBERT |
+| qwen_vismimo_lora/ | Trọng số LoRA adapter của mô hình Qwen phục vụ suy luận trợ lý ảo Mimo |
+| exported/ | Dữ liệu nhãn hóa đơn đã duyệt sẵn sàng cho đợt tái huấn luyện tiếp theo |
+
+Bảng trên tóm tắt cấu trúc phân bố các tệp trọng số và nhật ký trạng thái được duy trì liên tục trên phân vùng lưu trữ Modal Volume.
+
+2. Khóa bảo mật Modal Secrets (gemini-secrets):
+Modal Secrets được sử dụng để mã hóa và truyền an toàn các thông tin xác thực nhạy cảm từ xa vào môi trường thực thi của container mà không để lộ trong mã nguồn công khai:
+- DATABASE_URL: Chuỗi kết nối bảo mật đến cơ sở dữ liệu CockroachDB Cloud (dạng postgresql://...) phục vụ việc lưu trữ lịch sử và đồng bộ dữ liệu giao dịch.
+- HF_TOKEN: Mã khóa xác thực Hugging Face Access Token dùng để tự động tải các mô hình nền tảng vinai/phobert-base, microsoft/layoutlmv3-base và Qwen/Qwen2.5-14B-Instruct khi khởi dựng môi trường.
+- gemini_API hoặc GEMINI_API_KEY: Khóa truy cập Google Gemini API phục vụ tính năng đối thoại thông minh và làm cơ chế dự phòng khi mô hình cục bộ quá tải.
+- R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET_NAME: Bộ khóa truy cập Cloudflare R2 để tải ảnh hóa đơn từ máy chủ lưu trữ đối tượng khi thực hiện các tác vụ huấn luyện trực tiếp trên đám mây.
+- KAGGLE_USERNAME, KAGGLE_KEY: Thông tin định danh API Kaggle hỗ trợ tác vụ tự động đồng bộ tập dữ liệu hóa đơn lên nền tảng Kaggle.
+
+Bảng danh mục khóa bảo mật Modal Secrets:
+
+| Tên biến bí mật | Mục đích sử dụng trên Modal Cloud |
+| --- | --- |
+| DATABASE_URL | Chuỗi kết nối bảo mật đến cơ sở dữ liệu CockroachDB Cloud |
+| HF_TOKEN | Mã xác thực tải mô hình từ kho lưu trữ Hugging Face Hub |
+| gemini_API | Khóa truy cập API Google Gemini phục vụ đối thoại và suy luận dự phòng |
+| R2_ACCESS_KEY_ID | Khóa định danh truy cập bộ lưu trữ ảnh hóa đơn Cloudflare R2 |
+| R2_SECRET_ACCESS_KEY | Khóa bí mật ký xác thực các yêu cầu đọc và ghi trên Cloudflare R2 |
+| KAGGLE_KEY | Khóa API Kaggle phục vụ đồng bộ dữ liệu hóa đơn trực tuyến |
+
+Bảng trên liệt kê các biến môi trường nhạy cảm được bảo vệ an toàn thông qua cơ chế Modal Secrets khi vận hành hệ thống trên môi trường đám mây.
 
 ### 4.2 Khởi chạy Module 2: Backend Orchestrator (Node.js Express)
 
