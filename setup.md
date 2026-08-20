@@ -12,11 +12,17 @@ Hệ thống mã nguồn của luận văn được tổ chức theo kiến trú
 
 | Thành phần | Nền tảng lưu trữ | Đường dẫn / Vị trí | Mô tả nội dung |
 | --- | --- | --- | --- |
-| Toàn bộ dự án | GitHub Repository | https://github.com/maikhang160504/spending-diary | Toàn bộ mã nguồn Backend, Web Admin, Mobile App và AI Service |
+| Kho lưu trữ chính (Monorepo) | GitHub Repository | https://github.com/maikhang160504/spending-diary | Toàn bộ mã nguồn Backend, Web Admin, Mobile App |
+| Kho lưu trữ dịch vụ AI (Submodule) | GitHub Repository | https://github.com/maikhang160504/genz-expense-ml | Dịch vụ AI Service, OCR Pipeline, NLU Pipeline |
 | Bộ dữ liệu hóa đơn gốc | Kaggle Dataset | https://www.kaggle.com/datasets/domixi1989/vietnamese-receipts-mc-ocr-2021 | Tập dữ liệu MC_OCR 2021 phục vụ huấn luyện và kiểm thử trích xuất hóa đơn |
-| Trọng số mô hình OCR và KIE | Tích hợp sẵn trong mã nguồn | `expense-ocr-nlu/bill_ocr/models/` | Trọng số đã huấn luyện sẵn cho VietOCR VGG-Transformer và LayoutLMv3 KIE |
-| Trọng số mô hình NLU | Tích hợp sẵn trong mã nguồn | `expense-ocr-nlu/text_nlu/models/` | Trọng số bộ mã hóa PhoBERT và mô hình phân loại danh mục, ý định, hành động |
-| Mô hình nền tảng Pretrained | Hugging Face Hub | vinai/phobert-base, microsoft/layoutlmv3-base, Qwen/Qwen2.5-14B-Instruct | Tự động tải từ Hugging Face Hub khi khởi chạy lần đầu |
+| Trọng số mô hình xoay ảnh MobileNetV3 | Pretrained MC_OCR | https://github.com/ndcuong91/MC_OCR | Trọng số đã huấn luyện sẵn cho mô hình xoay ảnh hóa đơn 0 và 180 độ |
+| Trọng số mô hình nhận dạng chữ VietOCR | Pretrained VietOCR | https://github.com/pbcquoc/vietocr | Trọng số VGG-Transformer chuyên biệt cho chữ viết tiếng Việt |
+| Mô hình phát hiện vùng chữ DBNet | Pretrained PaddleOCR | https://github.com/PaddlePaddle/PaddleOCR | Trọng số DBNet phát hiện khung bao văn bản hóa đơn |
+| Trọng số mô hình trích xuất thực thể LayoutLMv3 | Tinh chỉnh sẵn trong dự án | `expense-ocr-nlu/bill_ocr/models/layoutlmv3/` | Trọng số model_best.pth đã tinh chỉnh trên tập MC_OCR 2021 |
+| Trọng số mô hình phân loại NLU | Huấn luyện sẵn trong dự án | `expense-ocr-nlu/text_nlu/models/` | Trọng số bộ mã hóa PhoBERT và bộ phân loại danh mục, ý định |
+| Mô hình nền tảng PhoBERT Base | Hugging Face Hub | https://huggingface.co/vinai/phobert-base | Mô hình ngôn ngữ tiếng Việt tiền huấn luyện |
+| Mô hình nền tảng LayoutLMv3 Base | Hugging Face Hub | https://huggingface.co/microsoft/layoutlmv3-base | Mô hình ngôn ngữ đa phương thức và bố cục không gian |
+| Mô hình nền tảng Qwen 2.5 Instruct | Hugging Face Hub | https://huggingface.co/Qwen/Qwen2.5-14B-Instruct | Mô hình ngôn ngữ lớn 14 tỷ tham số |
 
 Bảng trên liệt kê các liên kết và vị trí lưu trữ tài nguyên thực nghiệm. Toàn bộ trọng số mô hình đã được đóng gói sẵn trong mã nguồn của dự án, người dùng không cần tải thêm thủ công khi chạy thử nghiệm cục bộ.
 
@@ -44,18 +50,20 @@ Bảng trên tóm tắt các yêu cầu môi trường phần mềm nền tảng
 
 ---
 
-## 3. Quy trình huấn luyện ban đầu các mô hình AI
+## 3. Quy trình huấn luyện và cấu hình các mô hình AI
 
-Hệ thống AI bao gồm ba nhóm mô hình chính: thị giác máy tính nhận diện hóa đơn, xử lý ngôn ngữ tự nhiên hiểu văn bản chi tiêu, và mô hình ngôn ngữ lớn hỗ trợ đối thoại tài chính. Dưới đây là chi tiết quy trình huấn luyện và bảng siêu tham số ban đầu của từng mô hình.
+Hệ thống AI bao gồm ba nhóm mô hình chính: thị giác máy tính nhận diện hóa đơn, xử lý ngôn ngữ tự nhiên hiểu văn bản chi tiêu, và mô hình ngôn ngữ lớn hỗ trợ đối thoại tài chính. Dự án kết hợp việc tái sử dụng các mô hình đã được huấn luyện sẵn với việc tinh chỉnh chuyên sâu trên các tập dữ liệu thực tế.
 
 ### 3.1 Mô hình xoay ảnh hóa đơn MobileNetV3
 
 Mô hình xoay ảnh giải quyết bài toán phân loại hướng nghiêng của ảnh hóa đơn hoặc từng dòng chữ được cắt ra, đưa ảnh về đúng chiều chuẩn 0 độ trước khi nhận dạng ký tự.
 
+Dự án sử dụng trực tiếp trọng số đã được huấn luyện sẵn từ giải pháp Top 1 cuộc thi MC_OCR 2021 tại kho lưu trữ [ndcuong91/MC_OCR](https://github.com/ndcuong91/MC_OCR). Tệp trọng số `mobilenetv3-Epoch-487-Loss-0.03-Acc-0.99.pth` đã được tích hợp sẵn trong mã nguồn.
+
+Trong trường hợp người phát triển cần huấn luyện lại mô hình từ đầu trên tập dữ liệu gốc:
 1. Tập dữ liệu: Dữ liệu huấn luyện gồm các ảnh hóa đơn từ cuộc thi MC_OCR 2021 kết hợp các phép xoay nhân tạo 90 độ, 180 độ và 270 độ cùng kỹ thuật tăng cường độ sáng và độ tương phản.
 2. Cấu trúc mô hình: Kiến trúc MobileNetV3 Small gọn nhẹ, nhận đầu vào ảnh xám kích thước 64x64 pixel hoặc 320x320 pixel và phân loại nhị phân hoặc đa lớp.
 3. Quy trình thực hiện:
-   Chạy lệnh tiền xử lý dữ liệu và khởi tạo huấn luyện qua tệp cấu hình:
    ```bash
    cd expense-ocr-nlu/bill_ocr
    python -m mc_ocr.rotation_corrector.data_process
@@ -80,10 +88,12 @@ Bảng trên chi tiết hóa các tham số huấn luyện mô hình MobileNetV3
 
 Mô hình chuyển đổi các vùng ảnh dòng chữ đã được cắt và căn chỉnh thẳng thành chuỗi văn bản tiếng Việt có dấu hoàn chỉnh.
 
+Dự án sử dụng trọng số mô hình VGG-Transformer đã được huấn luyện sẵn chuyên biệt cho tiếng Việt từ kho lưu trữ [pbcquoc/vietocr](https://github.com/pbcquoc/vietocr). Tệp trọng số `vgg_transformer.pth` đã được đóng gói sẵn trong thư mục `expense-ocr-nlu/bill_ocr/models/vietocr/`.
+
+Trường hợp cần tinh chỉnh bổ sung trên tập dữ liệu chữ cắt thực tế từ hóa đơn bán lẻ MC_OCR 2021:
 1. Tập dữ liệu: Kết hợp tập dữ liệu chữ tổng hợp tiếng Việt với dữ liệu chữ cắt thực tế từ hóa đơn bán lẻ MC_OCR 2021.
 2. Cấu trúc mô hình: Bộ trích xuất đặc trưng hình ảnh VGG19 kết hợp khối giải mã Transformer đa đầu tự chú ý dạng chuỗi sang chuỗi.
-3. Trọng số cơ sở: Khởi tạo từ mô hình vgg_transformer được huấn luyện trước trên kho ngữ liệu chữ viết tiếng Việt.
-4. Quy trình huấn luyện và tinh chỉnh:
+3. Quy trình thực hiện:
    ```bash
    cd expense-ocr-nlu/bill_ocr
    python -m vietocr.train --config bill_ocr/models/vietocr/config.yml
@@ -105,7 +115,9 @@ Bảng trên thể hiện các siêu tham số áp dụng cho giai đoạn tinh 
 
 ### 3.3 Mô hình trích xuất thực thể hóa đơn LayoutLMv3
 
-Mô hình LayoutLMv3 tiếp nhận đồng thời ba luồng thông tin: hình ảnh hóa đơn, chuỗi văn bản trích xuất từ VietOCR và tọa độ không gian 2D của các hộp bao từ PaddleOCR để gán nhãn thực thể bao gồm tên người bán, địa chỉ, ngày giờ và tổng tiền thanh toán.
+Mô hình LayoutLMv3 tiếp nhận đồng thời ba luồng thông tin: hình ảnh hóa đơn, chuỗi văn bản trích xuất từ VietOCR ([pbcquoc/vietocr](https://github.com/pbcquoc/vietocr)) và tọa độ không gian 2D của các hộp bao từ PaddleOCR ([PaddlePaddle/PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR)) để gán nhãn thực thể bao gồm tên người bán, địa chỉ, ngày giờ và tổng tiền thanh toán.
+
+Dự án khởi tạo từ mô hình nền tảng [microsoft/layoutlmv3-base](https://huggingface.co/microsoft/layoutlmv3-base) và tiến hành tinh chỉnh trên tập dữ liệu MC_OCR 2021 đã qua làm sạch. Trọng số sau tinh chỉnh `model_best.pth` được đóng gói sẵn trong thư mục `expense-ocr-nlu/bill_ocr/models/layoutlmv3/`.
 
 1. Chuẩn bị và làm sạch dữ liệu:
    Loại bỏ các dòng nhãn sai chính tả, lọc bỏ các mẫu không đồng bộ giữa danh sách hộp bao và văn bản, chuẩn hóa tọa độ không gian về thang đo 0 đến 1000.
