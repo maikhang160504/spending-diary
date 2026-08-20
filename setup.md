@@ -15,6 +15,7 @@ Hệ thống mã nguồn của luận văn được tổ chức theo kiến trú
 | Kho lưu trữ chính (Monorepo) | GitHub Repository | https://github.com/maikhang160504/spending-diary | Toàn bộ mã nguồn Backend, Web Admin, Mobile App |
 | Kho lưu trữ dịch vụ AI (Submodule) | GitHub Repository | https://github.com/maikhang160504/genz-expense-ml | Dịch vụ AI Service, OCR Pipeline, NLU Pipeline |
 | Bộ dữ liệu hóa đơn gốc | Kaggle Dataset | https://www.kaggle.com/datasets/domixi1989/vietnamese-receipts-mc-ocr-2021 | Tập dữ liệu MC_OCR 2021 phục vụ huấn luyện và kiểm thử trích xuất hóa đơn |
+| Dữ liệu và trọng số nén dự phòng (data) | Google Drive | https://drive.google.com/drive/folders/1G1HQT_a5VxQBRzUz3EHjzo7YpbCZPNkg?usp=sharing | Thư mục data nén lưu trữ dữ liệu huấn luyện, tập ảnh hóa đơn và trọng số mô hình |
 | Trọng số mô hình xoay ảnh MobileNetV3 | Pretrained MC_OCR | https://github.com/ndcuong91/MC_OCR | Trọng số đã huấn luyện sẵn cho mô hình xoay ảnh hóa đơn 0 và 180 độ |
 | Trọng số mô hình nhận dạng chữ VietOCR | Pretrained VietOCR | https://github.com/pbcquoc/vietocr | Trọng số VGG-Transformer chuyên biệt cho chữ viết tiếng Việt |
 | Mô hình phát hiện vùng chữ DBNet | Pretrained PaddleOCR | https://github.com/PaddlePaddle/PaddleOCR | Trọng số DBNet phát hiện khung bao văn bản hóa đơn |

@@ -135,6 +135,7 @@ Tài khoản kiểm thử nhanh đã được cấu hình sẵn trong cơ sở d
 Liên kết mã nguồn và các mô hình nền tảng:
 - Kho lưu trữ chính: https://github.com/maikhang160504/spending-diary
 - Kho lưu trữ dịch vụ AI: https://github.com/maikhang160504/genz-expense-ml
+- Dữ liệu nén dự phòng (data): https://drive.google.com/drive/folders/1G1HQT_a5VxQBRzUz3EHjzo7YpbCZPNkg?usp=sharing
 - Mô hình xoay ảnh MobileNetV3: https://github.com/ndcuong91/MC_OCR
 - Mô hình nhận dạng chữ VietOCR: https://github.com/pbcquoc/vietocr
 - Mô hình phát hiện vùng chữ PaddleOCR: https://github.com/PaddlePaddle/PaddleOCR
