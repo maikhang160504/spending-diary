@@ -319,11 +319,10 @@ Bảng cấu trúc lưu trữ trên Modal Persistent Storage:
 
 Bảng trên tóm tắt cấu trúc phân bố các tệp trọng số và nhật ký trạng thái được duy trì liên tục trên phân vùng lưu trữ Modal Volume.
 
-2. Khóa bảo mật Modal Secrets (gemini-secrets):
+2. Khóa bảo mật Modal Secrets (huggingface-secrets):
 Modal Secrets được sử dụng để mã hóa và truyền an toàn các thông tin xác thực nhạy cảm từ xa vào môi trường thực thi của container mà không để lộ trong mã nguồn công khai:
 - DATABASE_URL: Chuỗi kết nối bảo mật đến cơ sở dữ liệu CockroachDB Cloud (dạng postgresql://...) phục vụ việc lưu trữ lịch sử và đồng bộ dữ liệu giao dịch.
 - HF_TOKEN: Mã khóa xác thực Hugging Face Access Token dùng để tự động tải các mô hình nền tảng vinai/phobert-base, microsoft/layoutlmv3-base và Qwen/Qwen2.5-14B-Instruct khi khởi dựng môi trường.
-- gemini_API hoặc GEMINI_API_KEY: Khóa truy cập Google Gemini API phục vụ tính năng đối thoại thông minh và làm cơ chế dự phòng khi mô hình cục bộ quá tải.
 - R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET_NAME: Bộ khóa truy cập Cloudflare R2 để tải ảnh hóa đơn từ máy chủ lưu trữ đối tượng khi thực hiện các tác vụ huấn luyện trực tiếp trên đám mây.
 
 Bảng danh mục khóa bảo mật Modal Secrets:
@@ -332,7 +331,6 @@ Bảng danh mục khóa bảo mật Modal Secrets:
 | --- | --- |
 | DATABASE_URL | Chuỗi kết nối bảo mật đến cơ sở dữ liệu CockroachDB Cloud |
 | HF_TOKEN | Mã xác thực tải mô hình từ kho lưu trữ Hugging Face Hub |
-| gemini_API | Khóa truy cập API Google Gemini phục vụ đối thoại và suy luận dự phòng |
 | R2_ACCESS_KEY_ID | Khóa định danh truy cập bộ lưu trữ ảnh hóa đơn Cloudflare R2 |
 | R2_SECRET_ACCESS_KEY | Khóa bí mật ký xác thực các yêu cầu đọc và ghi trên Cloudflare R2 |
 
