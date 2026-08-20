@@ -1634,7 +1634,6 @@ Luồng hoạt động của phân hệ được tổ chức thành các bước
 Ở bước cuối, mô hình ngôn ngữ lớn (LLM) được sử dụng để phân loại danh mục chi tiêu. Việc sử dụng LLM xuất phát từ đặc điểm tên cửa hàng và hàng hóa trên hóa đơn thực tế rất đa dạng và thường không thể xác định danh mục chỉ dựa trên các quy tắc cố định. Chẳng hạn, các tên như “Circle K”, “Phúc Long” hoặc tên của các cửa hàng địa phương không trực tiếp thể hiện danh mục chi tiêu. Trong khi LayoutLMv3 đảm nhiệm việc trích xuất thông tin từ hóa đơn, LLM sử dụng tên cửa hàng và các thông tin liên quan đã được trích xuất để suy luận ngữ nghĩa và xác định danh mục phù hợp. Cách tiếp cận này giúp hệ thống tự động hóa quá trình phân loại và giảm sự phụ thuộc vào các bộ quy tắc được xây dựng thủ công.
 Toàn bộ quy trình nhận diện, trích xuất và phân loại thông tin hóa đơn được minh họa tại Hình 3.38.
  
-Hình 3.38: Sơ đồ dây chuyền ba bước nhận diện và bóc tách thông tin hóa đơn
 Hình 3.38 thể hiện chu trình xử lý khép kín của phân hệ bóc tách hóa đơn từ khâu nhận ảnh đầu vào, qua các bước phát hiện vị trí, nhận dạng ký tự, trích xuất thực thể theo không gian và phân loại danh mục ngữ nghĩa tự động.
 
 4.2.1. Quy trình xử lý và làm sạch dữ liệu hóa đơn
