@@ -325,7 +325,6 @@ Modal Secrets được sử dụng để mã hóa và truyền an toàn các th�
 - HF_TOKEN: Mã khóa xác thực Hugging Face Access Token dùng để tự động tải các mô hình nền tảng vinai/phobert-base, microsoft/layoutlmv3-base và Qwen/Qwen2.5-14B-Instruct khi khởi dựng môi trường.
 - gemini_API hoặc GEMINI_API_KEY: Khóa truy cập Google Gemini API phục vụ tính năng đối thoại thông minh và làm cơ chế dự phòng khi mô hình cục bộ quá tải.
 - R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET_NAME: Bộ khóa truy cập Cloudflare R2 để tải ảnh hóa đơn từ máy chủ lưu trữ đối tượng khi thực hiện các tác vụ huấn luyện trực tiếp trên đám mây.
-- KAGGLE_USERNAME, KAGGLE_KEY: Thông tin định danh API Kaggle hỗ trợ tác vụ tự động đồng bộ tập dữ liệu hóa đơn lên nền tảng Kaggle.
 
 Bảng danh mục khóa bảo mật Modal Secrets:
 
@@ -336,7 +335,6 @@ Bảng danh mục khóa bảo mật Modal Secrets:
 | gemini_API | Khóa truy cập API Google Gemini phục vụ đối thoại và suy luận dự phòng |
 | R2_ACCESS_KEY_ID | Khóa định danh truy cập bộ lưu trữ ảnh hóa đơn Cloudflare R2 |
 | R2_SECRET_ACCESS_KEY | Khóa bí mật ký xác thực các yêu cầu đọc và ghi trên Cloudflare R2 |
-| KAGGLE_KEY | Khóa API Kaggle phục vụ đồng bộ dữ liệu hóa đơn trực tuyến |
 
 Bảng trên liệt kê các biến môi trường nhạy cảm được bảo vệ an toàn thông qua cơ chế Modal Secrets khi vận hành hệ thống trên môi trường đám mây.
 
