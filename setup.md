@@ -242,7 +242,21 @@ Hệ thống được cấu trúc thành bốn thành phần hoạt động ph�
 
 Sơ đồ trên mô tả luồng giao tiếp tương tác giữa bốn module chính trong kiến trúc tổng thể của hệ thống thực nghiệm.
 
-### 4.1 Khởi chạy Module 1: AI Service (FastAPI)
+### 4.1 Khởi chạy nhanh toàn bộ hệ thống bằng Docker Compose (Khuyến nghị)
+
+Phương pháp này khởi chạy tự động toàn bộ bốn dịch vụ gồm cơ sở dữ liệu PostgreSQL cục bộ, dịch vụ AI Service FastAPI, máy chủ Backend Node.js và trang quản trị Web Admin chỉ với một câu lệnh:
+```bash
+cd d:\Luan-Van\Project\app
+# Khởi chạy toàn bộ hệ sinh thái dưới nền
+docker compose up -d
+```
+Sau khi hoàn tất, hệ thống sẵn sàng hoạt động với các cổng dịch vụ:
+- Web Admin: `http://localhost:5173`
+- Backend API và tài liệu Swagger: `http://localhost:4000/docs`
+- AI Service: `http://localhost:8000/docs`
+- PostgreSQL: `localhost:5432`
+
+### 4.2 Khởi chạy thủ công Module 1: AI Service (FastAPI)
 
 AI Service tiếp nhận các yêu cầu bóc tách ảnh hóa đơn, phân tích văn bản ghi chép chi tiêu và sinh câu phản hồi thông minh.
 
@@ -336,7 +350,7 @@ Bảng danh mục khóa bảo mật Modal Secrets:
 
 Bảng trên liệt kê các biến môi trường nhạy cảm được bảo vệ an toàn thông qua cơ chế Modal Secrets khi vận hành hệ thống trên môi trường đám mây.
 
-### 4.2 Khởi chạy Module 2: Backend Orchestrator (Node.js Express)
+### 4.3 Khởi chạy thủ công Module 2: Backend Orchestrator (Node.js Express)
 
 Backend quản lý cơ sở dữ liệu CockroachDB, lưu trữ hình ảnh trên Cloudflare R2, xác thực người dùng bằng mã khóa JWT, hỗ trợ đồng bộ thời gian thực qua WebSocket và gửi thông báo đẩy Firebase Cloud Messaging.
 
@@ -378,7 +392,7 @@ Backend quản lý cơ sở dữ liệu CockroachDB, lưu trữ hình ảnh trê
    ```
 6. Kiểm tra giao diện tài liệu API Swagger Backend: `http://localhost:4000/docs`
 
-### 4.3 Khởi chạy Module 3: Web Admin (React + Vite)
+### 4.4 Khởi chạy thủ công Module 3: Web Admin (React + Vite)
 
 Giao diện Web Admin phục vụ quản trị viên theo dõi độ sẵn sàng tái huấn luyện mô hình, kiểm tra các câu hiệu chỉnh của người dùng trên trang NLU Ops, và kiểm duyệt hộp bao văn bản trên trang Bill OCR Retrain.
 
@@ -400,7 +414,7 @@ Giao diện Web Admin phục vụ quản trị viên theo dõi độ sẵn sàng
    - Vận hành ngôn ngữ NLU Ops: `/nlu-ops` duyệt nhãn sửa đổi danh mục và kích hoạt huấn luyện lại
    - Giám sát người dùng User Inspector: `/user-inspector` xem lịch sử ghi chép theo từng tài khoản
 
-### 4.4 Khởi chạy Module 4: Ứng dụng di động Mobile App (Flutter)
+### 4.5 Khởi chạy thủ công Module 4: Ứng dụng di động Mobile App (Flutter)
 
 Ứng dụng di động Flutter cung cấp trải nghiệm ghi chép chi tiêu bằng giọng nói, chụp ảnh hóa đơn, theo dõi ngân sách thông minh và nhận gợi ý từ linh vật Mimo.
 
@@ -440,19 +454,25 @@ $bodyNlu = @{ text = "hôm nay ăn phở bò hết 45k" } | ConvertTo-Json
 Invoke-RestMethod -Method POST -Uri "http://localhost:8000/api/v1/nlu/infer" `
   -Body $bodyNlu -ContentType "application/json; charset=utf-8"
 
-# 3. Đăng nhập hệ thống Backend lấy mã khóa JWT
-$loginBody = @{ email = "demo@money.local"; password = "demo1234" } | ConvertTo-Json
-$loginRes = Invoke-RestMethod -Method POST -Uri "http://localhost:4000/api/v1/auth/login" `
-  -Body $loginBody -ContentType "application/json"
-$token = $loginRes.data.accessToken
+# 3. Đăng nhập tài khoản người dùng lấy mã khóa JWT
+$userLoginBody = @{ email = "demo@money.local"; password = "demo1234" } | ConvertTo-Json
+$userLoginRes = Invoke-RestMethod -Method POST -Uri "http://localhost:4000/api/v1/auth/login" `
+  -Body $userLoginBody -ContentType "application/json"
+$userToken = $userLoginRes.data.accessToken
 
 # 4. Lấy danh sách ví tiền của người dùng
 Invoke-RestMethod -Uri "http://localhost:4000/api/v1/wallets" `
-  -Headers @{ Authorization = "Bearer $token" }
+  -Headers @{ Authorization = "Bearer $userToken" }
 
-# 5. Kiểm tra trạng thái sẵn sàng tái huấn luyện mô hình trên Backend
+# 5. Đăng nhập tài khoản quản trị viên lấy mã khóa Admin JWT
+$adminLoginBody = @{ email = "admin@moneystory.local"; password = "admin1234" } | ConvertTo-Json
+$adminLoginRes = Invoke-RestMethod -Method POST -Uri "http://localhost:4000/api/v1/auth/login" `
+  -Body $adminLoginBody -ContentType "application/json"
+$adminToken = $adminLoginRes.data.accessToken
+
+# 6. Kiểm tra trạng thái sẵn sàng tái huấn luyện mô hình trên Backend
 Invoke-RestMethod -Uri "http://localhost:4000/api/admin/retrain-readiness" `
-  -Headers @{ Authorization = "Bearer $token" }
+  -Headers @{ Authorization = "Bearer $adminToken" }
 ```
 
 Quy trình kiểm thử trên xác nhận toàn bộ đường truyền giao tiếp giữa các thành phần đã sẵn sàng cho buổi trình diễn thực nghiệm.
