@@ -13,7 +13,7 @@ Hình trên thể hiện sơ đồ kiến trúc tổng thể 4 tầng của hệ
 Hệ thống được thiết kế theo mô hình kiến trúc phân tầng độc lập, đảm bảo tính mở rộng cao và độ tin cậy khi vận hành:
 
 1. Tầng trải nghiệm người dùng (Client Applications):
-   - Ứng dụng di động (Mobile App): Xây dựng bằng Flutter, hỗ trợ đa nền tảng Android và iOS với giao diện trực quan, tương tác giọng nói, thông báo đẩy và đồng bộ dữ liệu thời gian thực qua WebSocket.
+   - Ứng dụng di động (Mobile App): Xây dựng bằng Flutter, hỗ trợ đa nền tảng Android và iOS với giao diện trực quan, tương tác giọng nói, thông báo đẩy Firebase Cloud Messaging và đồng bộ dữ liệu thời gian thực qua WebSocket.
    - Trang quản trị (Web Admin): Xây dựng bằng React và Vite, cung cấp bảng điều khiển phân tích chi tiêu, quản trị danh mục, giám sát nhật ký giao dịch và công cụ kiểm duyệt dữ liệu để tái huấn luyện mô hình học máy.
 
 2. Tầng điều phối nghiệp vụ (Backend Orchestrator):
@@ -29,7 +29,7 @@ Hệ thống được thiết kế theo mô hình kiến trúc phân tầng đ�
 4. Tầng lưu trữ và đồng bộ dữ liệu (Data & Storage Layer):
    - Cơ sở dữ liệu quan hệ CockroachDB: Lưu trữ toàn bộ dữ liệu người dùng, tài khoản ví, lịch sử giao dịch, quy tắc định kỳ và nhật ký hoạt động với khả năng chịu lỗi và tính sẵn sàng cao.
    - Lưu trữ đám mây Cloudflare R2: Lưu trữ tập trung các tệp ảnh chụp hóa đơn gốc và ảnh đã qua xử lý.
-   - Kho dữ liệu huấn luyện Kaggle: Đồng bộ nhãn dữ liệu thực tế phục vụ quy trình đánh giá và tái huấn luyện mô hình định kỳ.
+   - Kho dữ liệu đám mây Modal Storage và Google Drive: Lưu giữ trọng số mô hình sau các chu kỳ tái huấn luyện và sao lưu dữ liệu toàn diện.
 
 ---
 
@@ -40,18 +40,21 @@ spending-diary/
 ├── app/
 │   ├── backend/             Máy chủ Node.js Express REST API (Auth, Ví, Giao dịch, Định kỳ, Báo cáo)
 │   ├── database/            Cấu trúc cơ sở dữ liệu CockroachDB / PostgreSQL và các tệp migration
+│   ├── docker-compose.yml   Cấu hình triển khai toàn bộ stack cục bộ (Postgres, AI, Backend, Web Admin)
 │   └── frontend/
 │       ├── mobile/          Ứng dụng di động Flutter dành cho người dùng cuối (Android / iOS)
 │       └── web-admin/       Trang web quản trị React + Vite (Quản lý giao dịch, NLU Ops, Retrain)
 ├── expense-ocr-nlu/         Dịch vụ AI Service FastAPI (OCR Pipeline, NLU Pipeline, Model Weights)
 │   ├── bill_ocr/            Module nhận dạng hóa đơn (DBNet, MobileNetV3, VietOCR, LayoutLMv3)
 │   ├── text_nlu/            Module xử lý văn bản (TF-IDF, PhoBERT, Qwen LLM, RAG Engine)
-│   ├── modal_deploy/        Cấu hình triển khai AI Service lên GPU Modal Cloud
+│   ├── Dockerfile           Dockerfile đóng gói dịch vụ AI Service container
+│   ├── requirements.txt     Danh sách thư viện phụ thuộc Python
+│   ├── modal_app.py         Tệp điều phối suy luận và huấn luyện trên GPU Modal Cloud
 │   └── src/api/             FastAPI endpoints và bộ điều phối suy luận AI
-├── docs/                    Tài liệu hướng dẫn kỹ thuật và đặc tả hệ thống
-├── tests_chuong4/           Kịch bản kiểm thử tự động phục vụ đánh giá thực nghiệm
+├── emotions.json            Bộ nhãn cảm xúc và trạng thái linh vật Mimo
 ├── setup.md                 Tài liệu hướng dẫn thiết lập chi tiết và quy trình chạy demo
 ├── system_architecture.png  Sơ đồ kiến trúc hệ thống tổng thể
+├── Luan_van_Hoan_chinh.md   Toàn văn báo cáo luận văn tốt nghiệp
 └── README.md                Tài liệu giới thiệu tổng quan về dự án
 ```
 
@@ -87,9 +90,18 @@ spending-diary/
 
 ## 4. Hướng dẫn khởi chạy nhanh hệ thống
 
-Chi tiết các bước cài đặt và cấu hình môi trường được mô tả đầy đủ trong tệp [setup.md](setup.md). Dưới đây là tóm tắt các lệnh khởi chạy cho từng thành phần:
+Chi tiết các bước cài đặt và cấu hình môi trường được mô tả đầy đủ trong tệp [setup.md](setup.md).
 
-### 4.1 Khởi chạy Backend Node.js
+### 4.1 Khởi chạy nhanh bằng Docker Compose (Khuyến nghị)
+```bash
+cd app
+# Khởi chạy ngầm toàn bộ 4 dịch vụ (Postgres, AI Service, Backend, Web Admin)
+docker compose up -d
+```
+
+### 4.2 Khởi chạy thủ công từng module
+
+#### Khởi chạy Backend Node.js
 ```bash
 cd app/backend
 npm install
@@ -99,7 +111,7 @@ npm run dev
 ```
 Máy chủ Backend sẵn sàng tại `http://localhost:4000`. Tài liệu API Swagger có thể truy cập tại `http://localhost:4000/docs`.
 
-### 4.2 Khởi chạy AI Service Python FastAPI
+#### Khởi chạy AI Service Python FastAPI
 ```bash
 cd expense-ocr-nlu
 python -m venv .venv
@@ -109,7 +121,7 @@ uvicorn src.api.app:app --host 127.0.0.1 --port 8000
 ```
 Dịch vụ AI sẵn sàng tại `http://127.0.0.1:8000` hoặc kết nối trực tiếp đến điểm cuối trên GPU Modal Cloud.
 
-### 4.3 Khởi chạy Web Admin React Vite
+#### Khởi chạy Web Admin React Vite
 ```bash
 cd app/frontend/web-admin
 npm install
@@ -117,7 +129,7 @@ npm run dev
 ```
 Trang quản trị sẵn sàng tại `http://localhost:5173`.
 
-### 4.4 Khởi chạy Mobile App Flutter
+#### Khởi chạy Mobile App Flutter
 ```bash
 cd app/frontend/mobile
 flutter pub get
