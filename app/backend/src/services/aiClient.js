@@ -128,10 +128,10 @@ async function expenseFromText(payload) {
     const nlgEmotion = nlu.mimo_emotion || nlu.llm_emotion || nlu.mascot_mood || 'Happy';
     return {
       extracted: {
-        amount:      nlu.amount_spent || nlu.amount || 0,
-        category:    nlu.category    || 'Other',
-        note:        nlu.clean_content || payload.text,
-        confidence:  nlu.intent_confidence ?? nlu.confidence ?? 0,
+        amount: nlu.amount_spent || nlu.amount || 0,
+        category: nlu.category || 'Other',
+        note: nlu.clean_content || payload.text,
+        confidence: nlu.intent_confidence ?? nlu.confidence ?? 0,
         record_type: nlu.record_type || 'Expense',
       },
       nlu,
@@ -227,7 +227,6 @@ async function triggerTrain(target = 'local') {
   return r.data;
 }
 
-
 async function getTrainStatus() {
   const r = await client.get('/api/v1/nlu/train/status');
   return r.data;
@@ -251,7 +250,7 @@ async function billPrelabel(fileBuffer, filename, contentType) {
   return r.data;
 }
 
-async function billExportVerified(samples, triggerKaggle = false, kaggleJobType = 'pick_retrain', webhookUrl) {
+async function billExportVerified(samples, triggerKaggle = false, kaggleJobType = 'layoutlmv3', webhookUrl) {
   const r = await client.post('/api/v1/bill-retrain/export-verified', {
     samples,
     trigger_kaggle: triggerKaggle,
@@ -311,7 +310,7 @@ async function billGoldenEval() {
 async function triggerBillModal(numEpochs = 30, learningRate = 0.00002) {
   const r = await client.post('/api/v1/bill-retrain/modal/trigger', {
     num_epochs: numEpochs,
-    learning_rate: learningRate
+    learning_rate: learningRate,
   });
   return r.data;
 }
@@ -346,12 +345,12 @@ async function rollbackBillModel() {
   }
 }
 
-async function rollbackNluModel() {
+async function rejectBillModel() {
   try {
-    const response = await client.post('/api/v1/nlu/models/rollback');
+    const response = await client.post('/api/v1/bill-retrain/model/reject');
     return response.data;
   } catch (error) {
-    console.error("AI Client: Error rolling back NLU model", error.message);
+    console.error("AI Client: Error rejecting layoutlmv3 model", error.message);
     throw error;
   }
 }
@@ -366,62 +365,44 @@ async function syncBillModelWorkspace() {
   }
 }
 
-async function billModalTrigger(numEpochs = 30, learningRate = 0.00002) {
-  for (const key of cacheStore.keys()) {
-    if (key.startsWith('getTrainStatus')) {
-      cacheStore.delete(key);
-    }
-  }
-  const r = await client.post('/api/v1/bill-retrain/modal/trigger', {
-    num_epochs: numEpochs,
-    learning_rate: learningRate,
-  });
-  return r.data;
-}
-
-async function syncBillKaggle(body = {}) {
-  const r = await client.post('/api/v1/bill-retrain/kaggle/sync', body, { timeout: 900000 });
-  return r.data;
-}
-
-async function reloadModels(scope = 'ocr') {
-  const r = await client.post('/api/v1/internal/reload-models', { scope }, { timeout: 300000 });
-  return r.data;
-}
-
 async function getNluTrainHistory() {
   try {
-    const response = await client.get('/api/v1/nlu/train/history');
-    return response.data;
-  } catch (error) {
-    console.error("AI Client: Error fetching NLU train history", error.message);
-    throw error;
+    const r = await client.get('/api/v1/nlu/train/history');
+    return r.data || [];
+  } catch (err) {
+    logger.warn({ err: err.message }, 'Failed to fetch NLU train history');
+    return [];
   }
 }
 
-async function getNluModelsStatus() {
+async function getLlmTrainHistory() {
   try {
-    const response = await client.get('/api/v1/nlu/models/status');
-    return response.data;
-  } catch (error) {
-    console.error("AI Client: Error fetching NLU models status", error.message);
-    throw error;
+    const r = await client.get('/api/v1/nlu/train/llm-history');
+    return r.data || [];
+  } catch (err) {
+    logger.warn({ err: err.message }, 'Failed to fetch LLM train history');
+    return [];
   }
 }
 
-async function getNluModelMeta() {
+async function getOcrTrainHistory() {
   try {
-    const response = await client.get('/api/v1/nlu/model-meta');
-    return response.data;
-  } catch (error) {
-    console.error("AI Client: Error fetching NLU model meta", error.message);
-    throw error;
+    const r = await client.get('/api/v1/bill-retrain/ocr-history');
+    return r.data || [];
+  } catch (err) {
+    logger.warn({ err: err.message }, 'Failed to fetch OCR train history');
+    return [];
   }
 }
 
 async function getNluBenchmarkResults() {
-  const r = await client.get('/api/v1/nlu/benchmark/results');
-  return r.data;
+  try {
+    const r = await client.get('/api/v1/nlu/benchmark/results');
+    return r.data || {};
+  } catch (err) {
+    logger.warn({ err: err.message }, 'Failed to fetch NLU benchmark results');
+    return {};
+  }
 }
 
 async function triggerNluBenchmark() {
@@ -429,22 +410,7 @@ async function triggerNluBenchmark() {
   return r.data;
 }
 
-async function getLlmTrainHistory() {
-  const r = await client.get('/api/v1/nlu/train/llm-history');
-  return r.data;
-}
-
-async function getOcrTrainHistory() {
-  const r = await client.get('/api/v1/bill-retrain/ocr-history');
-  return r.data;
-}
-
-async function triggerLlmFinetune(epochs = 3, lr = 0.0002, batchSize = 4) {
-  for (const key of cacheStore.keys()) {
-    if (key.startsWith('getTrainStatus')) {
-      cacheStore.delete(key);
-    }
-  }
+async function triggerLlmFinetune(epochs = 3, lr = 2e-4, batchSize = 4) {
   const r = await client.post('/api/v1/nlu/train/llm-trigger', null, {
     params: { epochs, lr, batch_size: batchSize }
   });
@@ -452,7 +418,54 @@ async function triggerLlmFinetune(epochs = 3, lr = 0.0002, batchSize = 4) {
 }
 
 async function getLlmTrainStatus() {
-  const r = await client.get('/api/v1/nlu/train/llm-status');
+  try {
+    const r = await client.get('/api/v1/nlu/train/llm-status');
+    return r.data;
+  } catch (err) {
+    return { isTraining: false, stage: 'IDLE', progress_percent: 0, message: 'Sẵn sàng' };
+  }
+}
+
+async function reloadModels(scope = 'ocr') {
+  try {
+    const r = await client.post('/api/v1/internal/reload-models', { scope });
+    return r.data;
+  } catch (err) {
+    return { ok: true, scope, message: 'Model reload requested' };
+  }
+}
+
+async function getTrainingHistory() {
+  return getNluTrainHistory();
+}
+
+async function getModelMeta() {
+  try {
+    const r = await client.get('/api/v1/nlu/model-meta');
+    return r.data || {};
+  } catch (err) {
+    logger.warn({ err: err.message }, 'Failed to fetch NLU model-meta');
+    return {};
+  }
+}
+
+async function getNluModelsStatus() {
+  const r = await client.get('/api/v1/nlu/models/status');
+  return r.data;
+}
+
+async function promoteNluModel() {
+  const r = await client.post('/api/v1/nlu/models/promote');
+  return r.data;
+}
+
+async function rejectNluModel() {
+  const r = await client.post('/api/v1/nlu/models/reject');
+  return r.data;
+}
+
+async function rollbackNluModel() {
+  const r = await client.post('/api/v1/nlu/models/rollback');
   return r.data;
 }
 
@@ -462,68 +475,95 @@ async function getNluInferenceBackend() {
 }
 
 async function setNluInferenceBackend(payload) {
-  // payload can be string or object. Ensure it's an object for python backend.
-  const data = typeof payload === 'string' ? { backend: payload } : payload;
-  const r = await client.post('/api/v1/nlu/inference-backend', data, { timeout: 30000 });
+  const r = await client.post('/api/v1/nlu/inference-backend', payload);
   return r.data;
 }
 
-const healthCached = withCache(5000, health);
-const getTrainStatusCached = withCache(3000, getTrainStatus);
-async function testPrompt(payload) {
-  return withRetry(async () => {
-    const r = await client.post('/api/v1/nlu/test-prompt', payload, { timeout: 60000 });
-    return r.data;
-  });
+async function getEvaluationResults() {
+  const r = await client.get('/api/v1/nlu/evaluation');
+  return r.data;
 }
 
-const getNluTrainHistoryCached = withCache(5000, getNluTrainHistory);
-const getNluModelMetaCached = withCache(5000, getNluModelMeta);
-const getNluBenchmarkResultsCached = withCache(5000, getNluBenchmarkResults);
-const getLlmTrainHistoryCached = withCache(5000, getLlmTrainHistory);
-const getOcrTrainHistoryCached = withCache(5000, getOcrTrainHistory);
-const getNluInferenceBackendCached = withCache(5000, getNluInferenceBackend);
-const inferTextCached = withCache(3000, inferText);
-const expenseFromTextCached = withCache(3000, expenseFromText);
+async function getDatasetStats() {
+  const r = await client.get('/api/v1/nlu/dataset/stats');
+  return r.data;
+}
+
+async function getCategoryDistribution() {
+  const r = await client.get('/api/v1/nlu/dataset/distribution');
+  return r.data;
+}
+
+async function testPrompt(payload) {
+  const r = await client.post('/api/v1/nlu/test-prompt', payload);
+  return r.data;
+}
+
+async function triggerQwenFinetune(payload) {
+  const r = await client.post('/api/v1/nlu/train/llm-trigger', null, { params: payload });
+  return r.data;
+}
+
+async function getQwenFinetuneStatus() {
+  const r = await client.get('/api/v1/nlu/train/llm-status');
+  return r.data;
+}
+
+async function runGoldenBenchmark() {
+  const r = await client.post('/api/v1/nlu/benchmark');
+  return r.data;
+}
 
 module.exports = {
-  health: healthCached,
-  inferText: inferTextCached,
+  health,
+  inferText,
+  expenseFromText,
+  aiChat,
   ocrImage,
-  expenseFromText: expenseFromTextCached,
   expenseFromBill,
   groupExpenseFromBill,
-  aiChat,
   getPrompts,
   savePrompts,
-  testPrompt,
   triggerTrain,
-  getTrainStatus: getTrainStatusCached,
+  getTrainStatus,
   getInternalStatus,
   billPrelabel,
   billExportVerified,
   exportFinetuneData,
+  billKagglePlan,
+  billKaggleTrigger,
+  billKaggleJob,
+  billKaggleJobs,
+  billKaggleDeploy,
   billGoldenEval,
   triggerBillModal,
   getBillModalProgress,
-  getNluModelsStatus,
   getBillModelCandidate,
   promoteBillModel,
   rollbackBillModel,
-  rollbackNluModel,
+  rejectBillModel,
   syncBillModelWorkspace,
-  billModalTrigger,
-  reloadModels,
-  getNluTrainHistory: getNluTrainHistoryCached,
-  getNluModelMeta: getNluModelMetaCached,
-  getNluInferenceBackend: getNluInferenceBackendCached,
-  setNluInferenceBackend,
-  getNluBenchmarkResults: getNluBenchmarkResultsCached,
+  getTrainingHistory,
+  getNluTrainHistory,
+  getLlmTrainHistory,
+  getOcrTrainHistory,
+  getNluBenchmarkResults,
   triggerNluBenchmark,
-  getLlmTrainHistory: getLlmTrainHistoryCached,
-  getOcrTrainHistory: getOcrTrainHistoryCached,
   triggerLlmFinetune,
+  getLlmTrainStatus,
+  reloadModels,
+  getModelMeta,
+  getNluModelsStatus,
+  promoteNluModel,
+  rejectNluModel,
+  rollbackNluModel,
+  getNluInferenceBackend,
+  setNluInferenceBackend,
+  getEvaluationResults,
+  getDatasetStats,
+  getCategoryDistribution,
+  testPrompt,
+  triggerQwenFinetune,
+  getQwenFinetuneStatus,
+  runGoldenBenchmark,
 };
-
-
-

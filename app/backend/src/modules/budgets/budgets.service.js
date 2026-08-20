@@ -21,10 +21,21 @@ function row(r) {
 
 async function list(userId) {
   const r = await query(
-    `SELECT * FROM budgets WHERE user_id = $1 AND is_active = TRUE ORDER BY created_at DESC`,
+    `SELECT * FROM budgets
+     WHERE user_id = $1 AND is_active = TRUE
+     ORDER BY updated_at DESC, created_at DESC`,
     [userId]
   );
-  return r.rows.map(row);
+  const seen = new Set();
+  const unique = [];
+  for (const item of r.rows) {
+    const key = item.category_code ? item.category_code.trim().toLowerCase() : '__TOTAL__';
+    if (!seen.has(key)) {
+      seen.add(key);
+      unique.push(item);
+    }
+  }
+  return unique.map(row);
 }
 
 async function create(userId, payload) {

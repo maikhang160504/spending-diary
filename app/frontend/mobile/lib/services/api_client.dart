@@ -1155,6 +1155,13 @@ class ApiClient {
     return response['data'] as Map<String, dynamic>? ?? {};
   }
 
+  Future<void> deleteGroupTransaction(String txId) async {
+    await _request(
+      'DELETE',
+      '/expense-groups/transactions/$txId',
+    );
+  }
+
   Future<Map<String, dynamic>> splitGroupBills(String groupId) async {
     final response = await _request('POST', '/expense-groups/$groupId/split');
     return response['data'] as Map<String, dynamic>;

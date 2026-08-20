@@ -432,25 +432,8 @@ class BillProcessingService extends ChangeNotifier {
       }
     }
 
-    if (needsReview) {
-      inAppNotificationController.show(
-        InAppNotification(
-          title: job.isGroupBill 
-              ? 'Bill nhóm cần kiểm tra lại' 
-              : (job.isText ? 'Story cần kiểm tra lại' : 'Bill cần kiểm tra lại'),
-          message: message,
-          deepLink: reviewRoute,
-          actionLabel: 'Kiểm tra lại',
-          onAction: () {
-            if (confirmExtra != null) {
-              clearPendingReviewExtra();
-              onNavigate?.call(reviewRoute, confirmExtra);
-            }
-          },
-        ),
-      );
-    }
-
+    // Chỉ hiển thị 1 thông báo duy nhất tại thanh thông báo (system notification bar).
+    // Mascot và thông báo tại app sẽ không xuất hiện lúc trích xuất — Mascot chỉ xuất hiện khi bấm xác nhận & lưu.
     PushNotificationService.instance.showNotification(
       id: job.transactionId.hashCode & 0x7fffffff,
       title: needsReview
@@ -459,8 +442,6 @@ class BillProcessingService extends ChangeNotifier {
       body: message,
       payload: needsReview ? reviewRoute : storyRoute,
     );
-
-    mimoController.show(MiMoResponse(emotionAsset: mood, message: message));
 
     Timer(const Duration(seconds: 4), () {
       _jobs.remove(job);

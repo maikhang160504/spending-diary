@@ -61,7 +61,9 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
       final details = await _api.getExpenseGroupDetails(widget.groupId);
       _group = details['group'];
       _members = details['members'] ?? [];
-      _transactions = details['transactions'] ?? [];
+      _transactions = (details['transactions'] as List<dynamic>? ?? [])
+          .where((t) => t['processingStatus'] != 'processing')
+          .toList();
       _debts = details['debts'] ?? [];
     } on ApiException catch (e) {
       _error = e.localizedMessage;
@@ -75,11 +77,13 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
         final amount = widget.reviewExtra?['amount'];
         final note = widget.reviewExtra?['note'];
         final transactionId = widget.reviewExtra?['transactionId'];
-        // Pre-fill amount, note and pass transactionId to update it
+        final paidBy = widget.reviewExtra?['paidBy'];
+        // Pre-fill amount, note, paidBy and pass transactionId to update it
         WidgetsBinding.instance.addPostFrameCallback((_) {
           _showAddTransaction(
             initialAmount: amount?.toString(),
             initialNote: note,
+            initialPaidBy: paidBy?.toString(),
             transactionId: transactionId,
           );
         });
@@ -164,11 +168,36 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
     );
   }
 
-  void _showAddTransaction({String? initialAmount, String? initialNote, String? initialPaidBy, String? transactionId}) {
-    final amountCtrl = TextEditingController(text: initialAmount);
+  void _showAddTransaction({
+    String? initialAmount,
+    String? initialNote,
+    String? initialPaidBy,
+    String? transactionId,
+  }) {
+    // Format initial amount with thousands separators
+    String initialFormattedAmount = '';
+    if (initialAmount != null && initialAmount.isNotEmpty) {
+      final digits = initialAmount.replaceAll(RegExp(r'[^0-9]'), '');
+      if (digits.isNotEmpty) {
+        final formatter = MoneyTextInputFormatter();
+        initialFormattedAmount = formatter.formatEditUpdate(
+          TextEditingValue.empty,
+          TextEditingValue(text: digits),
+        ).text;
+      }
+    }
+
+    final amountCtrl = TextEditingController(text: initialFormattedAmount);
     final noteCtrl = TextEditingController(text: initialNote);
-    String? selectedMemberId = initialPaidBy ?? (_members.isNotEmpty ? _members.first['id'] : null);
+    final validIds = _members.map((m) => m['id']?.toString()).toSet();
+    String? selectedMemberId;
+    if (initialPaidBy != null && validIds.contains(initialPaidBy)) {
+      selectedMemberId = initialPaidBy;
+    } else if (_members.isNotEmpty) {
+      selectedMemberId = _members.first['id']?.toString();
+    }
     bool isSubmitting = false;
+    bool isDeleting = false;
 
     showModalBottomSheet(
       context: context,
@@ -190,17 +219,76 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                transactionId != null ? 'Kiểm tra giao dịch nhóm' : 'Thêm giao dịch nhóm',
-                style: Theme.of(ctx).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    transactionId != null ? 'Chỉnh sửa giao dịch nhóm' : 'Thêm giao dịch nhóm',
+                    style: Theme.of(ctx).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  if (transactionId != null)
+                    IconButton(
+                      tooltip: 'Xóa giao dịch',
+                      icon: isDeleting
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.danger),
+                            )
+                          : const Icon(Icons.delete_outline_rounded, color: AppColors.danger),
+                      onPressed: (isSubmitting || isDeleting)
+                          ? null
+                          : () async {
+                              final confirm = await showDialog<bool>(
+                                context: context,
+                                builder: (c) => AlertDialog(
+                                  title: const Text('Xóa giao dịch'),
+                                  content: const Text('Bạn có chắc chắn muốn xóa giao dịch nhóm này không?'),
+                                  actions: [
+                                    TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Hủy')),
+                                    FilledButton(
+                                      style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
+                                      onPressed: () => Navigator.pop(c, true),
+                                      child: const Text('Xóa'),
+                                    ),
+                                  ],
+                                ),
+                              );
+                              if (confirm == true) {
+                                setSheet(() => isDeleting = true);
+                                try {
+                                  await _api.deleteGroupTransaction(transactionId);
+                                  if (ctx.mounted) Navigator.pop(ctx);
+                                  _loadGroupData();
+                                  if (mounted) {
+                                    MimoSnackBar.showSuccess(context, message: 'Đã xóa giao dịch nhóm');
+                                  }
+                                } on ApiException catch (e) {
+                                  if (mounted) {
+                                    MimoSnackBar.showError(context, message: e.localizedMessage);
+                                  }
+                                } catch (_) {
+                                  if (mounted) {
+                                    MimoSnackBar.showError(context, message: 'Lỗi khi xóa giao dịch');
+                                  }
+                                } finally {
+                                  if (ctx.mounted) setSheet(() => isDeleting = false);
+                                }
+                              }
+                            },
+                    ),
+                ],
               ),
               const SizedBox(height: 16),
               TextField(
                 controller: amountCtrl,
-                keyboardType: TextInputType.number,
-                inputFormatters: [MoneyTextInputFormatter()],
+                keyboardType: const TextInputType.numberWithOptions(signed: false, decimal: false),
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  MoneyTextInputFormatter(),
+                ],
                 decoration: const InputDecoration(
                   labelText: 'Số tiền',
                   suffixText: 'đ',
@@ -223,8 +311,8 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                 ),
                 items: _members.map((m) {
                   return DropdownMenuItem<String>(
-                    value: m['id'],
-                    child: Text(m['display_name'] ?? 'Unknown'),
+                    value: m['id']?.toString(),
+                    child: Text(m['display_name'] ?? 'Thành viên'),
                   );
                 }).toList(),
                 onChanged: (val) {
@@ -235,14 +323,30 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
               SizedBox(
                 width: double.infinity,
                 child: FilledButton(
-                  onPressed: isSubmitting
+                  onPressed: (isSubmitting || isDeleting)
                       ? null
                       : () async {
                           final amountText = amountCtrl.text.replaceAll(RegExp(r'[^0-9]'), '');
                           final amount = num.tryParse(amountText) ?? 0;
                           final note = noteCtrl.text.trim();
 
-                          if (amount <= 0 || note.isEmpty) {
+                          if (amount <= 0) {
+                            MimoSnackBar.show(
+                              context,
+                              message: 'Vui lòng nhập số tiền',
+                              type: MimoSnackBarType.error,
+                            );
+                            return;
+                          }
+                          if (selectedMemberId == null || selectedMemberId!.isEmpty) {
+                            MimoSnackBar.show(
+                              context,
+                              message: 'Vui lòng chọn người thanh toán',
+                              type: MimoSnackBarType.error,
+                            );
+                            return;
+                          }
+                          if (transactionId == null && note.isEmpty) {
                             MimoSnackBar.show(
                               context,
                               message: 'Vui lòng nhập đủ thông tin',
@@ -260,6 +364,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                                   'paidBy': selectedMemberId,
                                   'amount': amount,
                                   'note': note,
+                                  'isDraft': false,
                                 },
                               );
                             } else {
@@ -274,21 +379,35 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                             }
                             if (ctx.mounted) {
                               Navigator.pop(ctx);
-                              _loadGroupData();
+                            }
+                            _loadGroupData();
+                            if (mounted) {
                               MimoSnackBar.show(
-                                ctx,
+                                context,
                                 message: transactionId != null ? 'Đã cập nhật giao dịch' : 'Đã thêm giao dịch',
                                 type: MimoSnackBarType.success,
                               );
                             }
                           } on ApiException catch (e) {
-                            if (!mounted) return;
-                            MimoSnackBar.show(
-                              context,
-                              message: e.localizedMessage,
-                              type: MimoSnackBarType.error,
-                            );
-                            setSheet(() => isSubmitting = false);
+                            if (mounted) {
+                              MimoSnackBar.show(
+                                context,
+                                message: e.localizedMessage,
+                                type: MimoSnackBarType.error,
+                              );
+                            }
+                          } catch (_) {
+                            if (mounted) {
+                              MimoSnackBar.show(
+                                context,
+                                message: 'Lỗi lưu giao dịch. Vui lòng thử lại.',
+                                type: MimoSnackBarType.error,
+                              );
+                            }
+                          } finally {
+                            if (ctx.mounted) {
+                              setSheet(() => isSubmitting = false);
+                            }
                           }
                         },
                   child: isSubmitting
@@ -300,7 +419,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                             color: Colors.white,
                           ),
                         )
-                      : const Text('Lưu'),
+                      : Text(transactionId != null ? 'Cập nhật' : 'Lưu'),
                 ),
               ),
             ],
@@ -693,19 +812,42 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
             color: context.palette.bg,
             margin: const EdgeInsets.only(bottom: 12),
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(14),
               side: BorderSide(color: Colors.grey.shade200),
             ),
             child: ListTile(
+              onTap: () {
+                _showAddTransaction(
+                  initialAmount: tx['amount']?.toString(),
+                  initialNote: tx['note']?.toString(),
+                  initialPaidBy: tx['paid_by']?.toString() ?? tx['paid_by_id']?.toString(),
+                  transactionId: tx['id']?.toString(),
+                );
+              },
               leading: CircleAvatar(
                 backgroundColor: AppColors.teal.withValues(alpha: 0.1),
-                child: Icon(Icons.receipt_long_rounded, color: AppColors.teal),
+                child: const Icon(Icons.receipt_long_rounded, color: AppColors.teal),
               ),
-              title: Text(tx['note'] ?? 'Giao dịch'),
-              subtitle: Text('${tx['paid_by_name']} trả • ${formatDateTimeFull(parseToLocalDateTime(tx['occurred_at']) ?? DateTime.now())}'),
-              trailing: Text(
-                formatVnd(parseToInt(tx['amount'])),
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+              title: Text(
+                tx['note'] != null && tx['note'].toString().trim().isNotEmpty
+                    ? tx['note']
+                    : 'Giao dịch không tên',
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+              subtitle: Text(
+                '${tx['paid_by_name'] ?? 'Thành viên'} trả • ${formatDateTimeFull(parseToLocalDateTime(tx['occurred_at']) ?? DateTime.now())}',
+                style: TextStyle(fontSize: 12, color: context.palette.textSecondary),
+              ),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    formatVnd(parseToInt(tx['amount'])),
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                  ),
+                  const SizedBox(width: 4),
+                  const Icon(Icons.chevron_right_rounded, size: 18, color: AppColors.muted),
+                ],
               ),
             ),
           );
@@ -731,22 +873,14 @@ class _GroupDetailHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         gradient: AppGradients.teal,
-        borderRadius: const BorderRadius.vertical(
-          bottom: Radius.circular(AppRadii.xl),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.teal.withValues(alpha: 0.3),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-        ],
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
+      child: SafeArea(
+        bottom: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
             child: Row(
@@ -899,6 +1033,7 @@ class _GroupDetailHeader extends StatelessWidget {
             ],
           ),
         ],
+      ),
       ),
     );
   }

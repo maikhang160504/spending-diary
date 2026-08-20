@@ -480,6 +480,17 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     _generateRandomSuggestions();
     _scrollCtrl.addListener(_onScrollLoadOlder);
     chatLlmUpdateNotifier.addListener(_onChatLlmUpdateNotifier);
+
+    // 1. Phục hồi NGAY TỨC THÌ từ In-Memory Cache (0ms latency khi chuyển tab)
+    if (_inMemoryCachedMessages != null && _inMemoryCachedMessages!.isNotEmpty) {
+      _messages.addAll(_inMemoryCachedMessages!);
+      _sessionId = _inMemoryCachedSessionId;
+    }
+
+    // 2. Phục hồi từ Disk Cache khi khởi động lại app
+    _loadInitialDiskCache();
+
+    // 3. Khởi tạo session & đồng bộ dữ liệu mới nhất từ server ở chế độ nền
     _initSession().then((_) {
       if (mounted &&
           widget.initialMessage != null &&
@@ -543,7 +554,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
 
               if (update.isRag) {
                 // For RAG flow, we want 3 bubbles:
-                // 1. Original msg text (already set by chat_llm_update)
+                // 1. Original msg text (cleared so it only shows the Card)
+                msg.text = '';
                 // 2. The Card (added by _updateMessagePreviews below)
                 // 3. A NEW message for the RAG narrative
                 bool foundRag = false;
@@ -1079,65 +1091,65 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
         _scrollCtrl.jumpTo(0);
         _readyForOlderLoad = true;
       });
-      // Lưu cache sau khi tải trang mới nhất thành công
-      _saveChatCache();
+      // Cập nhật In-Memory Cache và Disk Cache sau khi tải trang mới nhất thành công
+      _inMemoryCachedMessages = List.from(_messages);
+      _inMemoryCachedSessionId = _sessionId;
+      _saveChatCache(page['messages'] as List<dynamic>?);
     }
   }
 
-  static const int _cacheMaxMessages = 30;
-  static const String _cacheKeyPrefix = 'chat_cache_v1_';
+  static List<_ChatMsg>? _inMemoryCachedMessages;
+  static String? _inMemoryCachedSessionId;
+  static const String _rawCacheKeyPrefix = 'chat_raw_cache_v2_';
 
-  /// Lưu 30 tin nhắn gần nhất vào SharedPreferences.
-  Future<void> _saveChatCache() async {
+  Future<void> _loadInitialDiskCache() async {
+    if (_messages.isNotEmpty) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final targetSessionId =
+          widget.sessionId ?? prefs.getString('last_active_chat_session_id');
+      if (targetSessionId != null && targetSessionId.isNotEmpty) {
+        _sessionId ??= targetSessionId;
+        await _loadChatCache(targetSessionId);
+      }
+    } catch (_) {}
+  }
+
+  /// Lưu payload tin nhắn nguyên bản vào SharedPreferences để cache trọn vẹn cả card/actions.
+  Future<void> _saveChatCache([List<dynamic>? rawApiMessages]) async {
     if (_sessionId == null) return;
     try {
       final prefs = await SharedPreferences.getInstance();
-      // _messages[0] = tin mới nhất (ListView reverse), lấy tối đa 30 cái đầu
-      final toSave = _messages.take(_cacheMaxMessages).toList();
-      final jsonList = toSave.map((msg) => jsonEncode({
-        'text': msg.text,
-        'isUser': msg.isUser,
-        'time': msg.time,
-        'backendMessageId': msg.backendMessageId,
-        'chatEmotion': msg.chatEmotion,
-        'isSaved': msg.isSaved,
-      })).toList();
-      await prefs.setString('$_cacheKeyPrefix$_sessionId', jsonEncode(jsonList));
-    } catch (_) {
-      // Lỗi im lặng, không ảnh hưởng UX
-    }
+      await prefs.setString('last_active_chat_session_id', _sessionId!);
+      if (rawApiMessages != null && rawApiMessages.isNotEmpty) {
+        await prefs.setString(
+          '$_rawCacheKeyPrefix$_sessionId',
+          jsonEncode(rawApiMessages),
+        );
+      }
+    } catch (_) {}
   }
 
-  /// Đọc cache từ SharedPreferences và hiển thị ngay (trước khi server trả về).
+  /// Đọc cache từ SharedPreferences và hiển thị ngay lập tức (trước khi server trả về).
   Future<void> _loadChatCache(String sessionId) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final raw = prefs.getString('$_cacheKeyPrefix$sessionId');
+      final raw = prefs.getString('$_rawCacheKeyPrefix$sessionId');
       if (raw == null || raw.isEmpty) return;
-      final List<dynamic> jsonList = jsonDecode(raw);
-      final cached = jsonList.map((item) {
-        final m = item is String ? jsonDecode(item) as Map<String, dynamic> : item as Map<String, dynamic>;
-        return _ChatMsg(
-          text: m['text'] as String? ?? '',
-          isUser: m['isUser'] as bool? ?? false,
-          time: m['time'] as String? ?? '',
-          backendMessageId: m['backendMessageId'] as String?,
-          chatEmotion: m['chatEmotion'] as String?,
-          isSaved: m['isSaved'] as bool? ?? false,
-        );
-      }).toList();
+      final List<dynamic> rawList = jsonDecode(raw);
+      final parsed = _parseMessagesFromApi(rawList);
+      final batchNewestFirst = parsed.reversed.toList();
       if (!mounted) return;
-      // Chỉ hiển cache nếu danh sách đang trống (chưa có dữ liệu server)
-      if (_messages.isEmpty && cached.isNotEmpty) {
+      if (_messages.isEmpty && batchNewestFirst.isNotEmpty) {
         setState(() {
           _messages
             ..clear()
-            ..addAll(cached);
+            ..addAll(batchNewestFirst);
         });
+        _inMemoryCachedMessages = List.from(_messages);
+        _inMemoryCachedSessionId = sessionId;
       }
-    } catch (_) {
-      // Lỗi im lặng
-    }
+    } catch (_) {}
   }
 
   Future<void> _loadOlderMessages() async {
@@ -1154,8 +1166,10 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     // If sessionId passed from history, reuse it and load messages
     if (widget.sessionId != null) {
       _sessionId = widget.sessionId;
-      // Hiển thị cache ngay lập tức trong khi đợi server
-      await _loadChatCache(_sessionId!);
+      // Hiển thị cache ngay lập tức nếu chưa có tin nhắn
+      if (_messages.isEmpty) {
+        await _loadChatCache(_sessionId!);
+      }
       try {
         await _loadMessagesPage();
       } catch (_) {}
@@ -1198,8 +1212,10 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
         );
         if (matched != null) {
           _sessionId = matched['id'] as String?;
-          // Hiển thị cache ngay khi tìm thấy session
-          if (_sessionId != null) await _loadChatCache(_sessionId!);
+          // Hiển thị cache ngay khi tìm thấy session (nếu chưa có tin nhắn)
+          if (_sessionId != null && _messages.isEmpty) {
+            await _loadChatCache(_sessionId!);
+          }
           if (mounted) {
             await _loadMessagesPage();
           }
@@ -1804,6 +1820,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
         ).toStoryPersistFields(),
         'aiExtracted': true,
         if (preview.nlu != null) 'aiMeta': {'nlu': preview.nlu},
+        'chatMessageId': msg.backendMessageId,
       });
       preview.transactionId = tx['id'] as String?;
 
@@ -3363,6 +3380,7 @@ class _MissingSlotInputCard extends StatefulWidget {
 
 class _MissingSlotInputCardState extends State<_MissingSlotInputCard> {
   final _controller = TextEditingController();
+  bool _submitted = false;
 
   @override
   void dispose() {
@@ -3385,23 +3403,14 @@ class _MissingSlotInputCardState extends State<_MissingSlotInputCard> {
       return;
     }
 
-    if (missing.contains('amount')) {
-      final cleanText = text.replaceAll(RegExp(r'[^0-9-]'), '');
-      if (cleanText.startsWith('-')) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Số tiền không được là số âm'),
-            backgroundColor: AppColors.danger,
-          ),
-        );
-        return;
-      }
-    }
     widget.onSubmit(text);
+    // Ẩn card sau khi đã gửi thành công
+    if (mounted) setState(() => _submitted = true);
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_submitted) return const SizedBox.shrink();
     final missing = widget.missingSlots;
     final isMissingAmount = missing.contains('amount');
     final hintText = isMissingAmount
@@ -3410,7 +3419,7 @@ class _MissingSlotInputCardState extends State<_MissingSlotInputCard> {
               ? 'Nhập ${missing.join(", ")}...'
               : 'Nhập thông tin tại đây...');
     final keyboardType = isMissingAmount
-        ? TextInputType.number
+        ? const TextInputType.numberWithOptions(signed: false, decimal: false)
         : TextInputType.text;
 
     return Container(
@@ -3466,6 +3475,9 @@ class _MissingSlotInputCardState extends State<_MissingSlotInputCard> {
                   controller: _controller,
                   textInputAction: TextInputAction.send,
                   keyboardType: keyboardType,
+                  inputFormatters: isMissingAmount
+                      ? [MoneyTextInputFormatter()]
+                      : null,
                   onSubmitted: _submit,
                   decoration: InputDecoration(
                     hintText: hintText,
@@ -4366,6 +4378,9 @@ class _ChatBubbleState extends State<_ChatBubble> {
                             final amount = int.parse(numStr);
                             setState(() {
                               widget.message.txPreview!.amount = amount;
+                              final cat = widget.message.txPreview!.category ?? 'này';
+                              widget.message.txPreview!.aiComment =
+                                  'Mimo đã ghi nhận giao dịch ${formatVnd(amount)} cho mục $cat nhé!';
                             });
                             if (widget.onSaveTx != null) {
                               widget.onSaveTx!(widget.message);

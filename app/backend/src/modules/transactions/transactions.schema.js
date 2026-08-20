@@ -21,6 +21,7 @@ const baseTxFields = {
   mascotMood: z.string().max(40).optional(),
   aiComment: z.string().max(2000).optional(),
   originalText: z.string().max(2000).optional(),
+  chatMessageId: z.string().uuid().optional(),
 };
 
 const createTxSchema = z.object(baseTxFields);

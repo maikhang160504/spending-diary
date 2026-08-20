@@ -251,50 +251,26 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
           if (nluMeta != null) 'aiMeta': {'nlu': nluMeta},
         });
       }
+
       if (!mounted) return;
-      setState(() => _saving = false);
       notifyTransactionChanged();
 
-      if (_category != _originalCategory) {
-        final text =
-            nluMeta?['text'] as String? ??
-            nluMeta?['clean_content'] as String? ??
-            'correction';
-        _api
-            .aiCorrection({
-              'text': text,
-              'transactionId': ?reviewTxId,
-              'intent': 'Record',
-              'categoryCode': _category,
-              'recordType': _recordType,
-            })
-            .catchError((_) => <String, dynamic>{});
-      }
-
-      if (mounted) await StreakCelebration.instance.afterActivity(context);
-      if (mounted) {
-        await checkCategoryLimitAndSuggest(
-          context,
-          _category,
-          walletId: targetWalletId,
+      // Hiển thị mascot chúc mừng / phản hồi sau khi lưu
+      final reviewMsg = reviewTxId != null
+          ? 'Đã cập nhật bill sau khi kiểm tra'
+          : null;
+      final mimoMsg = llm.text.isNotEmpty
+          ? llm.text
+          : (reviewMsg ?? 'Đã lưu! Mimo ghi nhận rồi nhé');
+      Future.delayed(const Duration(milliseconds: 300), () {
+        mimoController.show(
+          MiMoResponse(emotionAsset: llm.emotionAsset, message: mimoMsg),
         );
-      }
+      });
 
-      bool showAd = false;
-      if (mounted) {
-        showAd = AdsService.instance.incrementAndCheckIfNotPremium();
-        if (showAd) {
-          await showInterstitialAdDialog(
-            context,
-            onDismissed: () => showPremiumUpsellSheet(context),
-          );
-        }
-      }
-
-      if (!mounted) return;
-
+      // Điều hướng thoát màn hình ngay lập tức (phản hồi tức thì)
       if (isGroupBill) {
-        context.pop(); // Quay lại trang trước (có thể là trang chi tiết nhóm)
+        context.pop();
       } else if (isGroupWallet) {
         context.go(AppRoutes.shareWallet, extra: {'walletId': targetWalletId});
       } else {
@@ -305,17 +281,28 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
         }
       }
 
-      final reviewMsg = reviewTxId != null
-          ? 'Đã cập nhật bill sau khi kiểm tra'
-          : null;
+      // Các tác vụ nền / học hỏi AI / Streak chạy bất đồng bộ không gây chậm thoát màn hình
+      if (_category != _originalCategory) {
+        final text =
+            nluMeta?['text'] as String? ??
+            nluMeta?['clean_content'] as String? ??
+            'correction';
+        _api
+            .aiCorrection({
+              'text': text,
+              'transactionId': reviewTxId,
+              'intent': 'Record',
+              'categoryCode': _category,
+              'recordType': _recordType,
+            })
+            .catchError((_) => <String, dynamic>{});
+      }
 
-      final mimoMsg = llm.text.isNotEmpty
-          ? llm.text
-          : (reviewMsg ?? 'Đã lưu! Mimo ghi nhận rồi nhé');
-      Future.delayed(const Duration(milliseconds: 400), () {
-        mimoController.show(
-          MiMoResponse(emotionAsset: llm.emotionAsset, message: mimoMsg),
-        );
+      // Kiểm tra streak và hạn mức danh mục ngầm
+      Future.microtask(() async {
+        try {
+          StreakCelebration.instance.checkBrokenOnLaunch(context);
+        } catch (_) {}
       });
     } on ApiException catch (e) {
       if (!mounted) return;
@@ -344,8 +331,8 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      isDismissible: false,
-      enableDrag: false,
+      isDismissible: true,
+      enableDrag: true,
       useSafeArea: true,
       constraints: const BoxConstraints(maxWidth: 600),
       backgroundColor: Colors.transparent,
@@ -550,6 +537,23 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
                       child: const Text('Xác nhận & Lưu'),
                     ),
                   ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: TextButton(
+                      onPressed: () {
+                        ctx.pop();
+                        // Nếu amount vẫn chưa có, cho phép thoát hẳn màn hình
+                        if (_amount <= 0 && mounted && context.canPop()) {
+                          context.pop();
+                        }
+                      },
+                      child: const Text(
+                        'Hủy',
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -578,7 +582,7 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
     final confidencePct = (_confidence * 100).toStringAsFixed(0);
     final needsUserConfirm =
         _confidence < 0.9 || widget.extractedData?['reviewBill'] == true;
-    final isLowConfidence = _confidence < 0.9;
+    final isLowConfidence = _confidence > 0.0 && _confidence < 0.9;
     final isReviewBill = widget.extractedData?['reviewBill'] == true;
 
     return Scaffold(
@@ -624,7 +628,8 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
                           ],
                         ),
                         // Confidence badge
-                        const SizedBox(height: 12),
+                        if (_confidence > 0.0) ...[
+                          const SizedBox(height: 12),
                         Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 14,
@@ -660,6 +665,7 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
                             ],
                           ),
                         ),
+                        ],
                         // Low confidence warning
                         if (isLowConfidence) ...[
                           const SizedBox(height: 8),
@@ -828,7 +834,7 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
                               style: TextStyle(color: Colors.white70),
                             ),
                           ),
-                        if (needsUserConfirm)
+                        if (needsUserConfirm) ...[
                           Row(
                             children: [
                               Expanded(
@@ -885,6 +891,18 @@ class _CameraConfirmScreenState extends State<CameraConfirmScreen> {
                               ),
                             ],
                           ),
+                          const SizedBox(height: 8),
+                          SizedBox(
+                            width: double.infinity,
+                            child: TextButton(
+                              onPressed: _saving ? null : () => context.pop(),
+                              child: const Text(
+                                'Bỏ qua & không lưu',
+                                style: TextStyle(color: Colors.white70),
+                              ),
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),

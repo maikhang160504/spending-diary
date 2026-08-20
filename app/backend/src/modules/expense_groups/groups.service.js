@@ -2,6 +2,8 @@
 
 const { pool } = require('../../config/db');
 const { v4: uuidv4 } = require('uuid');
+const fcmService = require('../fcm/fcm.service');
+const { dispatchUserNotification } = require('../../services/notificationDispatch');
 
 const generateInviteCode = () => {
   return Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -122,6 +124,34 @@ async function joinGroup(userId, userName, inviteCode, memberId = null) {
     }
 
     await client.query('COMMIT');
+    
+    // Send notification to group members and creator
+    try {
+      const otherMembers = await pool.query(
+        `SELECT DISTINCT user_id FROM (
+           SELECT user_id FROM group_members WHERE group_id = $1 AND user_id IS NOT NULL
+           UNION
+           SELECT created_by AS user_id FROM expense_groups WHERE id = $1 AND created_by IS NOT NULL
+         ) sub
+         WHERE user_id != $2 AND user_id IS NOT NULL`,
+        [group.id, userId]
+      );
+      console.log(`[GroupJoin] Found ${otherMembers.rowCount} members/creator to notify in group ${group.id}`);
+      for (const row of otherMembers.rows) {
+        console.log(`[GroupJoin] Dispatching notification to user ${row.user_id}`);
+        await dispatchUserNotification(row.user_id, {
+          type: 'EXPENSE_GROUP_JOIN',
+          payload: {
+            title: 'Thành viên mới trong nhóm chia bill 🧾',
+            message: `${finalUserName} đã tham gia nhóm chia bill "${group.name}".`,
+            deepLink: `/app/groups/${group.id}`,
+          }
+        }).catch((e) => console.error('Join expense group notification error:', e));
+      }
+    } catch (e) {
+      console.error('Error sending join group notification:', e);
+    }
+    
     return group;
   } catch (err) {
     await client.query('ROLLBACK');
@@ -195,12 +225,16 @@ async function addTransaction(groupId, userId, data) {
 }
 
 async function updateTransaction(txId, userId, data) {
-  // Verify user is in group
+  // Verify user is in group or group creator
   const txRes = await pool.query('SELECT group_id, paid_by FROM group_transactions WHERE id = $1', [txId]);
   if (txRes.rowCount === 0) throw new Error('NOT_FOUND');
   const groupId = txRes.rows[0].group_id;
   
-  const verifyRes = await pool.query('SELECT 1 FROM group_members WHERE group_id = $1 AND user_id = $2', [groupId, userId]);
+  const verifyRes = await pool.query(`
+    SELECT 1 FROM group_members WHERE group_id = $1 AND user_id = $2
+    UNION
+    SELECT 1 FROM expense_groups WHERE id = $1 AND created_by = $2
+  `, [groupId, userId]);
   if (verifyRes.rowCount === 0) throw new Error('FORBIDDEN');
   
   const fields = [];
@@ -211,9 +245,18 @@ async function updateTransaction(txId, userId, data) {
     ['note', 'note'],
     ['isDraft', 'is_draft'],
   ]) {
-    if (data[k] !== undefined) {
+    if (data[k] !== undefined && data[k] !== null) {
       fields.push(`${col} = $${i++}`);
       values.push(data[k]);
+    }
+  }
+
+  // Validate and update paidBy only if a non-null valid member id is provided
+  if (data.paidBy) {
+    const memberCheck = await pool.query('SELECT 1 FROM group_members WHERE id = $1 AND group_id = $2', [data.paidBy, groupId]);
+    if (memberCheck.rowCount > 0) {
+      fields.push(`paid_by = $${i++}`);
+      values.push(data.paidBy);
     }
   }
 
@@ -228,6 +271,22 @@ async function updateTransaction(txId, userId, data) {
   `;
   const result = await pool.query(q, values);
   return result.rows[0];
+}
+
+async function deleteTransaction(txId, userId) {
+  const txRes = await pool.query('SELECT group_id, paid_by FROM group_transactions WHERE id = $1', [txId]);
+  if (txRes.rowCount === 0) throw new Error('NOT_FOUND');
+  const groupId = txRes.rows[0].group_id;
+
+  const verifyRes = await pool.query(`
+    SELECT 1 FROM group_members WHERE group_id = $1 AND user_id = $2
+    UNION
+    SELECT 1 FROM expense_groups WHERE id = $1 AND created_by = $2
+  `, [groupId, userId]);
+  if (verifyRes.rowCount === 0) throw new Error('FORBIDDEN');
+
+  await pool.query('DELETE FROM group_transactions WHERE id = $1', [txId]);
+  return { success: true };
 }
 
 async function calculateSplit(groupId, userId) {
@@ -403,13 +462,17 @@ async function removeMember(groupId, userId, memberId) {
 }
 
 async function getGroupTransaction(txId, userId) {
-  // Verify user is a member of the group that owns this transaction
+  // Verify user is a member of the group that owns this transaction or group creator
   const res = await pool.query(`
     SELECT gt.id, gt.group_id, gt.amount, gt.note, gt.paid_by,
            gt.processing_status, gt.image_url, gt.ai_confidence,
            gt.occurred_at, gt.is_draft
     FROM group_transactions gt
-    JOIN group_members gm ON gm.group_id = gt.group_id AND gm.user_id = $2
+    JOIN (
+      SELECT group_id, user_id FROM group_members WHERE user_id = $2
+      UNION
+      SELECT id AS group_id, created_by AS user_id FROM expense_groups WHERE created_by = $2
+    ) sub ON sub.group_id = gt.group_id
     WHERE gt.id = $1
     LIMIT 1
   `, [txId, userId]);
@@ -444,6 +507,7 @@ module.exports = {
   getGroupDetails,
   addTransaction,
   updateTransaction,
+  deleteTransaction,
   getGroupTransaction,
   calculateSplit,
   settleGroupDebt,

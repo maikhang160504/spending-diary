@@ -1255,6 +1255,7 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
                         ),
                         child: ListView.separated(
                           shrinkWrap: true,
+                          padding: EdgeInsets.zero,
                           physics: const NeverScrollableScrollPhysics(),
                           itemCount: _progressLeaderboard.length,
                           separatorBuilder: (ctx, i) => Divider(
@@ -1356,6 +1357,7 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
                           ),
                           child: ListView.separated(
                             shrinkWrap: true,
+                            padding: EdgeInsets.zero,
                             physics: const NeverScrollableScrollPhysics(),
                             itemCount: _contributorLeaderboard.length,
                             separatorBuilder: (ctx, i) => Divider(
@@ -1483,6 +1485,7 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
                         ),
                         child: ListView.separated(
                           shrinkWrap: true,
+                          padding: EdgeInsets.zero,
                           physics: const NeverScrollableScrollPhysics(),
                           itemCount: _contributions.length,
                           separatorBuilder: (ctx, i) => Divider(

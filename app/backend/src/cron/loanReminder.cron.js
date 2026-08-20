@@ -2,7 +2,7 @@
 
 const cron = require('node-cron');
 const { query } = require('../config/db');
-const { notifyUser } = require('../services/notificationDispatch');
+const { dispatchUserNotification } = require('../services/notificationDispatch');
 const logger = require('../config/logger');
 
 function initLoanReminderCron() {
@@ -28,19 +28,24 @@ function initLoanReminderCron() {
         const typeLabel = loan.type === 'lend' ? 'thu nợ' : 'trả nợ';
         const formattedAmount = Number(loan.amount - loan.paid_amount).toLocaleString('vi-VN');
         const title = `Đến hạn ${typeLabel}`;
-        const body = `Khoản vay với ${loan.contact_name || 'người vay'} số tiền ${formattedAmount}đ đã đến hạn hôm nay.`;
+        const message = `Khoản vay với ${loan.contact_name || 'người vay'} số tiền ${formattedAmount}đ đã đến hạn hôm nay.`;
         
-        await notifyUser(loan.user_id, {
-          notification: { title, body },
-          data: { type: 'LOAN_REMINDER', loanId: loan.id }
+        await dispatchUserNotification(loan.user_id, {
+          type: 'LOAN_REMINDER',
+          payload: {
+            title,
+            message,
+            deepLink: '/app/settings',
+          },
         }).catch(err => {
-          logger.error({ err, userId: loan.user_id }, 'Failed to send loan reminder push notification');
+          logger.error({ err: err.message, userId: loan.user_id }, 'Failed to send loan reminder push notification');
         });
       }
     } catch (err) {
-      logger.error({ err }, 'Error in loanReminder cronjob');
+      logger.error({ err: err.message }, 'Error in loanReminder cronjob');
     }
   });
 }
 
 module.exports = { initLoanReminderCron };
+

@@ -3,6 +3,8 @@
 const { query } = require('../../config/db');
 const ApiError = require('../../utils/ApiError');
 const crypto = require('crypto');
+const fcmService = require('../fcm/fcm.service');
+const { dispatchUserNotification } = require('../../services/notificationDispatch');
 
 async function list(userId, type) {
   let whereType = '';
@@ -353,6 +355,41 @@ async function joinByInviteCode(userId, inviteCode) {
      ON CONFLICT DO NOTHING`,
     [goalId, userId]
   );
+  
+  // Send notification to other members
+  try {
+    const userRes = await query('SELECT username FROM users WHERE id = $1', [userId]);
+    const finalUserName = userRes.rows[0]?.username || 'Thành viên mới';
+    
+    const goalRes = await query('SELECT name FROM goals WHERE id = $1', [goalId]);
+    const goalName = goalRes.rows[0]?.name || 'Mục tiêu chung';
+    
+    const isChallenge = type.startsWith('challenge');
+    const typeName = isChallenge ? 'thử thách' : 'mục tiêu tiết kiệm';
+    const icon = isChallenge ? '🏁' : '🎯';
+    
+    const otherMembers = await query(
+      `SELECT DISTINCT user_id FROM (
+         SELECT user_id FROM goal_members WHERE goal_id = $1
+         UNION
+         SELECT user_id FROM goals WHERE id = $1
+       ) sub
+       WHERE user_id != $2 AND user_id IS NOT NULL`,
+      [goalId, userId]
+    );
+    for (const row of otherMembers.rows) {
+      await dispatchUserNotification(row.user_id, {
+        type: isChallenge ? 'CHALLENGE_JOIN' : 'GOAL_JOIN',
+        payload: {
+          title: `Thành viên mới trong ${typeName} ${icon}`,
+          message: `${finalUserName} đã tham gia ${typeName} "${goalName}".`,
+          deepLink: `/app/goals/${goalId}`,
+        }
+      }).catch((e) => console.error('Join goal notification error:', e));
+    }
+  } catch (e) {
+    console.error('Error sending join goal notification:', e);
+  }
 
   return getById(userId, goalId);
 }

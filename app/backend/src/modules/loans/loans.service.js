@@ -3,6 +3,7 @@
 const { query } = require('../../config/db');
 const ApiError = require('../../utils/ApiError');
 const transactionsService = require('../transactions/transactions.service');
+const { dispatchUserNotification } = require('../../services/notificationDispatch');
 
 async function list(userId) {
   const r = await query(
@@ -47,6 +48,42 @@ async function create(userId, data) {
       amount: amount,
       note: (type === 'lend' ? 'Cho vay: ' : 'Đi vay: ') + contact_name
     }).catch(e => console.error('Failed to create transaction for loan:', e));
+  }
+
+  // Tự động gửi thông báo ngay nếu ngày đến hạn <= 2 ngày kể từ hôm nay (ví dụ: ngày mai)
+  if (due_date) {
+    try {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const due = new Date(due_date);
+      due.setHours(0, 0, 0, 0);
+      const diffDays = Math.round((due - today) / (1000 * 60 * 60 * 24));
+      if (diffDays >= 0 && diffDays <= 2) {
+        const typeLabel = type === 'lend' ? 'thu nợ' : 'trả nợ';
+        const isDueToday = diffDays === 0;
+        const isDueTomorrow = diffDays === 1;
+        const title = isDueToday
+          ? `Đến hạn ${typeLabel} hôm nay 🔔`
+          : isDueTomorrow
+          ? `Sắp đến hạn ${typeLabel} ngày mai ⏳`
+          : `Sắp đến hạn ${typeLabel} (còn 2 ngày) ⏳`;
+        const timeStr = isDueToday ? 'hôm nay' : isDueTomorrow ? 'vào ngày mai' : 'sau 2 ngày nữa';
+        const formattedAmount = Number(amount || 0).toLocaleString('vi-VN');
+        const formattedDate = `${due.getDate().toString().padStart(2, '0')}/${(due.getMonth() + 1).toString().padStart(2, '0')}/${due.getFullYear()}`;
+        const message = `Khoản ${typeLabel} với ${contact_name || 'người liên hệ'} số tiền ${formattedAmount}đ sẽ đến hạn ${timeStr} (${formattedDate}).`;
+        
+        await dispatchUserNotification(userId, {
+          type: 'LOAN_REMINDER',
+          payload: {
+            title,
+            message,
+            deepLink: '/app/settings',
+          },
+        });
+      }
+    } catch (e) {
+      console.error('Error dispatching immediate loan notification:', e);
+    }
   }
 
   return loan;

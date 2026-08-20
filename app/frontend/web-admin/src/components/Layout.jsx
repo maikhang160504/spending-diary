@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
-import { fetchBillKaggleJob, getSystemStatus } from "../services/api";
+import { fetchAppeals, fetchBillKaggleJob, getSystemStatus } from "../services/api";
 
 const navItems = [
   { path: "/", label: "Fusion & AI Quality" },
@@ -97,9 +97,38 @@ function useSystemStatus() {
   return status;
 }
 
+function usePendingAppealsCount() {
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    const fetchCount = async () => {
+      try {
+        const token = localStorage.getItem("admin_token");
+        if (!token) return;
+        const res = await fetchAppeals();
+        if (cancelled) return;
+        const pending = (res.data || []).filter(a => a.status === 'pending');
+        setCount(pending.length);
+      } catch {
+        // silent
+      }
+    };
+    fetchCount();
+    const timer = setInterval(fetchCount, 12000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, []);
+
+  return count;
+}
+
 function Layout() {
   const activeKaggleJob = useActiveKaggleRetrainJob();
   const systemStatus = useSystemStatus();
+  const pendingAppealsCount = usePendingAppealsCount();
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -185,6 +214,28 @@ function Layout() {
           {navItems.map((item) => (
             <NavLink key={item.path} to={item.path} end className="nav-item">
               <span className="nav-item-label">{item.label}</span>
+              {item.path === "/users" && pendingAppealsCount > 0 && (
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    background: "var(--accent-rose, #f43f5e)",
+                    color: "#ffffff",
+                    fontSize: "11px",
+                    fontWeight: "700",
+                    minWidth: "18px",
+                    height: "18px",
+                    padding: "0 6px",
+                    borderRadius: "10px",
+                    marginLeft: "8px",
+                    boxShadow: "0 0 8px rgba(244, 63, 94, 0.4)",
+                  }}
+                  title={`${pendingAppealsCount} khiếu nại đang chờ xử lý`}
+                >
+                  {pendingAppealsCount}
+                </span>
+              )}
               {item.path === "/bill-retrain" && activeKaggleJob && (
                 <span className="nav-retrain-badge" title={`Kaggle ${jobStatus}`}>
                   GPU

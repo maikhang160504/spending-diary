@@ -19,6 +19,7 @@ router.delete('/:id/members/:memberId', controller.removeMember);
 router.post('/:id/members/manual', controller.addMember);
 router.post('/:id/transactions', validate({ body: addTransactionSchema }), controller.addTransaction);
 router.put('/transactions/:txId', controller.updateTransaction);
+router.delete('/transactions/:txId', controller.deleteTransaction);
 router.get('/transactions/:txId', controller.getGroupTransaction);
 router.post('/:id/split', controller.calculateSplit);
 router.post('/:id/settle', controller.settleGroupDebt);

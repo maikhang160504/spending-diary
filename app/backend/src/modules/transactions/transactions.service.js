@@ -155,6 +155,23 @@ async function create(userId, payload) {
     );
     const tx = r.rows[0];
     tx.story_id = storyId;
+
+    if (payload.chatMessageId) {
+      const existingMsg = await client.query('SELECT intent_action FROM chat_messages WHERE id = $1', [payload.chatMessageId]);
+      if (existingMsg.rowCount > 0) {
+        const prev = existingMsg.rows[0].intent_action || {};
+        const merged = {
+          ...prev,
+          nlu: {
+            ...(prev.nlu || {}),
+            isSaved: true,
+            transactionId: tx.id,
+          },
+        };
+        await client.query('UPDATE chat_messages SET intent_action = $1 WHERE id = $2', [merged, payload.chatMessageId]);
+      }
+    }
+
     return row(tx);
   });
 

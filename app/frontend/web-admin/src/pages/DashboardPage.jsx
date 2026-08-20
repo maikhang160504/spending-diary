@@ -366,7 +366,8 @@ function NluBenchmarkChart({ data }) {
   const backends = [
     { key: "tfidf", label: "TF-IDF + SVM (Local CPU)", color: "var(--accent-blue)", speed: "< 2 ms", tag: "Siêu nhanh" },
     { key: "phobert", label: "PhoBERT Encoder (Modal GPU)", color: "var(--accent-emerald)", speed: "~ 45 ms", tag: "Cân bằng" },
-    { key: "qwen25_lora", label: "Qwen 2.5-14B LoRA (GPU 4-bit)", color: "#a855f7", speed: "~ 1480 ms", tag: "Suy luận sâu" }
+    { key: "qwen_base", label: "Qwen 2.5-14B Base (GPU 4-bit)", color: "var(--accent-amber)", speed: "~ 1200 ms", tag: "Suy luận cơ sở" },
+    { key: "qwen_lora", label: "Qwen 2.5-14B LoRA (GPU 4-bit)", color: "#a855f7", speed: "~ 1480 ms", tag: "Suy luận sâu" }
   ];
   
   return (
@@ -440,14 +441,39 @@ function NluBenchmarkChart({ data }) {
                     )}
                   </span>
                 </div>
-                <div className="pro-max-bar-track">
-                  <div className="pro-max-bar-fill" style={{ width: `${logWidth}%`, background: b.color }}></div>
+                <div className="pro-max-bar-track" style={{ display: "flex" }}>
+                  {lat > 0 ? (
+                    <>
+                      {/* Tầng 1: Intent */}
+                      <div className="pro-max-bar-fill" style={{ width: `${((data[b.key]?.intent_latency_ms || 0) / lat) * logWidth}%`, background: b.color, borderRight: "1px solid rgba(0,0,0,0.2)" }}></div>
+                      {/* Tầng 2: Category */}
+                      <div className="pro-max-bar-fill" style={{ width: `${((data[b.key]?.category_latency_ms || 0) / lat) * logWidth}%`, background: b.color, opacity: 0.65, borderRight: "1px solid rgba(0,0,0,0.2)" }}></div>
+                      {/* Overhead / Other */}
+                      <div className="pro-max-bar-fill" style={{ width: `${Math.max(0, lat - (data[b.key]?.intent_latency_ms || 0) - (data[b.key]?.category_latency_ms || 0)) / lat * logWidth}%`, background: b.color, opacity: 0.3 }}></div>
+                    </>
+                  ) : (
+                    <div className="pro-max-bar-fill" style={{ width: `${logWidth}%`, background: b.color }}></div>
+                  )}
                 </div>
               </div>
             );
           })}
         </div>
 
+        <div style={{ display: "flex", gap: "16px", fontSize: "11px", color: "var(--text-muted)", borderTop: "1px solid var(--border-color)", paddingTop: "12px", marginBottom: "8px" }}>
+          <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+            <span style={{ width: "10px", height: "10px", borderRadius: "3px", background: "currentColor" }}></span>
+            Ý định (Tầng 1)
+          </span>
+          <span style={{ display: "flex", alignItems: "center", gap: "6px", opacity: 0.65 }}>
+            <span style={{ width: "10px", height: "10px", borderRadius: "3px", background: "currentColor" }}></span>
+            Hạng mục (Tầng 2)
+          </span>
+          <span style={{ display: "flex", alignItems: "center", gap: "6px", opacity: 0.3 }}>
+            <span style={{ width: "10px", height: "10px", borderRadius: "3px", background: "currentColor" }}></span>
+            Overhead (Xử lý, Mạng)
+          </span>
+        </div>
         <p style={{ fontSize: "11px", color: "var(--text-muted)", fontStyle: "italic", borderTop: "1px solid var(--border-color)", paddingTop: "12px" }}>
           💡 TF-IDF phản hồi tức thì (&lt;2ms), PhoBERT đạt cân bằng tốt (~45ms), Qwen2.5-14B-Instruct thực hiện suy luận sinh ngữ cảnh sâu.
         </p>

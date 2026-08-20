@@ -93,6 +93,23 @@ async function updateTransaction(req, res, next) {
   }
 }
 
+async function deleteTransaction(req, res, next) {
+  try {
+    const userId = req.user.id;
+    const txId = req.params.txId;
+    await service.deleteTransaction(txId, userId);
+    res.json({ success: true, message: 'Đã xóa giao dịch' });
+  } catch (err) {
+    if (err.message === 'FORBIDDEN') {
+      return res.status(403).json({ success: false, message: 'Access denied' });
+    }
+    if (err.message === 'NOT_FOUND') {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy giao dịch' });
+    }
+    next(err);
+  }
+}
+
 async function getGroupTransaction(req, res, next) {
   try {
     const userId = req.user.id;
@@ -193,6 +210,7 @@ module.exports = {
   getGroupDetails,
   addTransaction,
   updateTransaction,
+  deleteTransaction,
   getGroupTransaction,
   calculateSplit,
   settleGroupDebt,

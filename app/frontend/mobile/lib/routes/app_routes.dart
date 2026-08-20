@@ -438,6 +438,12 @@ final GoRouter appRouter = GoRouter(
       },
     ),
     GoRoute(
+      path: '/app/wallets/:walletId',
+      builder: (context, state) {
+        return ShareWalletScreen(walletId: state.pathParameters['walletId']);
+      },
+    ),
+    GoRoute(
       path: AppRoutes.groupAnalytics,
       builder: (context, state) {
         return GroupAnalyticsScreen(
@@ -447,6 +453,16 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: AppRoutes.groupDetail,
+      builder: (context, state) {
+        final extra = state.extra as Map<String, dynamic>?;
+        return GroupDetailScreen(
+          groupId: state.pathParameters['groupId'] ?? '',
+          reviewExtra: extra,
+        );
+      },
+    ),
+    GoRoute(
+      path: '/app/groups/:groupId',
       builder: (context, state) {
         final extra = state.extra as Map<String, dynamic>?;
         return GroupDetailScreen(

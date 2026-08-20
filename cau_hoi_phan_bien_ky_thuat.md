@@ -1,67 +1,112 @@
-Dựa trên quá trình phân tích tài liệu báo cáo luận văn, tài liệu ghi chú sửa lỗi và kiến trúc phần mềm, hội đồng phản biện đưa ra 12 câu hỏi chất vấn chuyên sâu nhằm đánh giá năng lực giải quyết các bài toán kỹ thuật cốt lõi trong hệ thống quản lý chi tiêu.
+Dựa trên quá trình phân tích tài liệu báo cáo luận văn, tài liệu ghi chú sửa lỗi, kiến trúc phần mềm và các buổi thảo luận chuyên sâu, hội đồng phản biện đưa ra 15 câu hỏi chất vấn trọng tâm nhằm đánh giá năng lực giải quyết các bài toán kỹ thuật cốt lõi trong hệ thống quản lý chi tiêu.
 
-### Nhóm 1: Logic nghiệp vụ và thuật toán
+### Nhóm 1: Xử lý ngôn ngữ tự nhiên và mô hình học máy
 
-Câu 1: Xử lý xung đột đồng thời trong ví nhóm
-- Vị trí logic: Đoạn đề cập đến hạn chế của tính năng ví nhóm ở phần kết luận và sơ đồ luồng tham gia ví chung.
-- Điểm yếu tiềm ẩn: Khi nhiều thành viên thao tác thêm, sửa hoặc xóa giao dịch cùng một thời điểm, hệ quản trị cơ sở dữ liệu CockroachDB nếu chỉ thực hiện thao tác đọc và ghi tuần tự mà không có cơ chế khóa lock sẽ dẫn đến hiện tượng ghi đè dữ liệu lost update. Hậu quả là số dư của ví nhóm bị tính toán sai lệch hoàn toàn so với thực tế.
-- Gợi ý trả lời: Cần trình bày việc áp dụng cơ chế kiểm soát đồng thời lạc quan optimistic concurrency control bằng cách thêm trường phiên bản version vào bảng dữ liệu ví tiền. Mỗi lần cập nhật, hệ thống sẽ kiểm tra đối chiếu phiên bản hiện tại, nếu phát hiện xung đột thì từ chối giao dịch và yêu cầu người dùng tải lại số liệu mới nhất. Hoặc có thể ứng dụng mức độ cô lập giao dịch tuần tự hóa serializable transactions của CockroachDB kết hợp với vòng lặp thử lại tự động ở tầng backend Node.js.
+Câu 1: Cơ chế khai thác ngữ cảnh hai chiều của mô hình PhoBERT trong phân loại câu lệnh tiếng Việt
+- Vị trí logic: Mục mô hình xử lý ngữ nghĩa tiếng Việt PhoBERT và bảng đánh giá so sánh các mô hình NLU tại chương 3.
+- Điểm yếu tiềm ẩn: Tiếng Việt có đặc thù là ngôn ngữ đơn lập với nhiều từ ghép và hiện tượng từ đa nghĩa. Khi người dùng nhập liệu chi tiêu tự do, họ thường sử dụng cấu trúc câu rút gọn, từ lóng hoặc viết tắt, ví dụ như ăn phở 50 cành. Nếu hệ thống chỉ áp dụng phương pháp đếm từ khóa truyền thống như TF-IDF, mô hình sẽ không thể hiểu được mối quan hệ giữa các từ và dẫn đến phân loại sai lệch ý định hoặc danh mục.
+- Gợi ý trả lời: Để hiểu và nhận dạng ngôn ngữ tự nhiên tiếng Việt, PhoBERT thực hiện ba bước cốt lõi:
+  1. Nối đúng từ ghép tiếng Việt: Tự động gom các tiếng đi liền có nghĩa thành một từ ghép bằng dấu gạch dưới, ví dụ ăn phở thành ăn_phở, cà phê thành cà_phê, giúp mô hình không bị hiểu sai nghĩa của từng từ đơn lẻ.
+  2. Đọc toàn bộ câu cùng lúc để hiểu ngữ cảnh: Sử dụng cơ chế tự chú ý hai chiều để nhìn toàn bộ câu ở cả trước và sau cùng một lúc, tính toán sự liên kết giữa các từ. Nhờ đó, từ lóng như 50 cành được hiểu chính xác là 50 nghìn đồng vì đứng cạnh số 50 và món ăn phở.
+  3. Đúc kết ý nghĩa và phân loại: Gom toàn bộ ngữ cảnh câu thành một dãy số đặc trưng véc-tơ và đưa qua bộ phân loại để xác định chính xác ý định thêm chi tiêu và phân vào danh mục ăn uống.
 
-Câu 2: Xử lý nhiều giao dịch trong một câu lệnh ngôn ngữ tự nhiên
-- Vị trí logic: Lỗi hai giao dịch trong một tin nhắn được liệt kê tại tài liệu ghi chú sửa lỗi.
-- Điểm yếu tiềm ẩn: Kiến trúc nhận diện ý định hai tầng PhoBERT và Qwen hiện tại được tối ưu để bóc tách một thực thể cho mỗi câu lệnh. Khi người dùng nhập một câu dài chứa nhiều khoản chi tiêu, ví dụ sáng ăn phở 40k, trưa đổ xăng 50k, hệ thống phân loại ý định ở tầng một dễ dàng bỏ sót thông tin, khiến tầng hai phân tích sai cấu trúc và làm mất mát dữ liệu giao dịch của người dùng.
-- Gợi ý trả lời: Khẳng định sự cần thiết của việc tái cấu trúc lại câu lệnh nền tảng system prompt để yêu cầu mô hình ngôn ngữ trả về định dạng mảng các đối tượng array of objects thay vì một đối tượng đơn lẻ. Đồng thời, tầng PhoBERT cần được tinh chỉnh bổ sung nhãn đa ý định multi-record để phân luồng chính xác các câu nói chứa nhiều khoản chi phức tạp.
+Câu 2: Động lực lựa chọn và đối sánh ba mô hình TF-IDF, PhoBERT và Qwen 2.5
+- Vị trí logic: Bảng đánh giá và so sánh hiệu năng các mô hình NLU tại chương 3 và kiến trúc suy luận phân tầng.
+- Điểm yếu tiềm ẩn: Việc tích hợp đồng thời ba mô hình học máy khác nhau cho cùng một bài toán phân loại có thể bị đánh giá là dư thừa hoặc làm phức tạp hóa kiến trúc hệ thống nếu không làm rõ được lý do kỹ thuật và mục tiêu khoa học.
+- Gợi ý trả lời: Đề tài lựa chọn và so sánh ba mô hình này dựa trên hai mục tiêu cốt lõi:
+  1. Về mặt khoa học: Đánh giá thực nghiệm ba thế hệ công nghệ xử lý ngôn ngữ trên cùng một tập dữ liệu, từ phương pháp thống kê từ khóa TF-IDF, học sâu hiểu ngữ cảnh PhoBERT, đến mô hình ngôn ngữ lớn Qwen 2.5, qua đó chứng minh rõ ràng sự đánh đổi giữa độ chính xác và tài nguyên phần cứng.
+  2. Về mặt thực tế: Xây dựng kiến trúc phân tầng tối ưu cho hệ thống. TF-IDF và PhoBERT có tốc độ phản hồi cực nhanh từ một đến vài chục mili-giây giúp tiết kiệm tài nguyên máy chủ cho các câu thông thường, trong khi Qwen 2.5 đạt độ chính xác cao nhất để giải quyết các câu khó và tác vụ hội thoại. Đồng thời, hệ thống cho phép quản trị viên linh hoạt chuyển đổi bộ máy suy luận trên Web Admin tùy theo tải máy chủ tại từng thời điểm.
 
-Câu 3: Hiện tượng phá vỡ định dạng cấu trúc dữ liệu của mô hình ngôn ngữ
-- Vị trí logic: Lỗi phân tích cú pháp JSON thất bại khi mô hình sinh ra đoạn văn bản hội thoại được trích xuất từ log hệ thống.
-- Điểm yếu tiềm ẩn: Việc ép buộc một mô hình ngôn ngữ vừa phải đóng vai trò là một trợ lý vui vẻ, dùng từ lóng, vừa phải làm nhiệm vụ bóc tách dữ liệu JSON nghiêm ngặt trong cùng một lượt xử lý là một thiết kế sai lầm. Sự xung đột về chỉ thị này khiến mô hình dễ dàng sinh ra ảo giác, trả về văn bản tự do và làm sập toàn bộ luồng xử lý trích xuất thông số của backend.
-- Gợi ý trả lời: Đề xuất giải pháp chia tách mối quan tâm. Luồng thứ nhất sử dụng mô hình với nhiệt độ temperature bằng không chuyên biệt để trích xuất JSON. Luồng thứ hai chạy độc lập với nhiệt độ cao hơn để sinh câu thoại tương tác tự nhiên. Hai luồng này được gọi song song để vừa đảm bảo tính chính xác của dữ liệu vừa giữ được trải nghiệm giao tiếp thân thiện.
+Câu 3: Bản chất cơ chế nhận dạng của ba thế hệ công nghệ
+- Vị trí logic: Mục tổng quan các kỹ thuật xử lý ngôn ngữ tự nhiên tại chương 2 và chương 3.
+- Điểm yếu tiềm ẩn: Cần làm rõ sự khác biệt cốt lõi về mặt toán học và cơ chế trích xuất đặc trưng giữa ba phương pháp để không bị nhầm lẫn giữa véc-tơ đếm từ và véc-tơ ngữ nghĩa.
+- Gợi ý trả lời:
+  1. TF-IDF: Nhận dạng bằng tần suất từ khóa rời rạc. Mô hình đếm sự xuất hiện của các từ trên mặt chữ và chuyển thành véc-tơ tần suất để phân loại, không có khả năng hiểu ý nghĩa câu.
+  2. PhoBERT: Nhận dạng bằng ngữ nghĩa theo ngữ cảnh hai chiều. Mô hình sử dụng cơ chế tự chú ý của kiến trúc Transformer Encoder để liên kết các từ ghép tiếng Việt đứng trước và sau, hiểu được nghĩa của câu dù có chứa từ lóng.
+  3. Qwen 2.5: Nhận dạng bằng suy luận logic đa tầng. Mô hình ngôn ngữ lớn dựa trên hàng tỷ tham số để suy luận theo ngữ cảnh sâu, xử lý tốt các câu phức tạp đa ý định, câu tỉnh lược và xuất dữ liệu JSON có cấu trúc nghiêm ngặt.
 
-Câu 4: Tính lũy đẳng trong giao dịch qua mạng chập chờn
-- Vị trí logic: Yêu cầu phi chức năng về việc chống tạo trùng lặp bản ghi trong trường hợp đường truyền mạng gián đoạn.
-- Điểm yếu tiềm ẩn: Khi ứng dụng trên điện thoại gửi yêu cầu lưu chi tiêu, backend đã lưu thành công nhưng mạng bị rớt trước khi trả về kết quả. Ứng dụng sẽ tự động gửi lại yêu cầu khi có mạng, dẫn đến việc tạo ra hai giao dịch giống hệt nhau. Kiến trúc hệ thống hiện tại chưa đề cập rõ cách phòng chống vấn đề này bằng mã định danh luồng.
-- Gợi ý trả lời: Trình bày cơ chế khóa lũy đẳng idempotency key. Ứng dụng di động tự sinh ra một mã định danh duy nhất UUID cho mỗi lần bấm lưu và gửi kèm trên tiêu đề yêu cầu header. Backend sẽ kiểm tra mã này trong bộ nhớ đệm Redis hoặc cơ sở dữ liệu, nếu trùng khớp trong khoảng thời gian ngắn thì sẽ bỏ qua yêu cầu thứ hai và trả về kết quả thành công ngay lập tức.
+Câu 4: Lý do ưu tiên độ chính xác hơn tốc độ phản hồi và định hướng phát triển
+- Vị trí logic: Đoạn phân tích sự đánh đổi giữa độ trễ và độ chính xác tại bảng đánh giá NLU chương 3.
+- Điểm yếu tiềm ẩn: Qwen 2.5 có độ trễ suy luận khoảng vài giây, có thể bị đánh giá là làm giảm trải nghiệm người dùng so với các mô hình phản hồi tức thì.
+- Gợi ý trả lời:
+  1. Lý do ưu tiên độ chính xác: Trong bài toán tài chính, sự chính xác của số tiền và danh mục là yếu tố sống còn. Tầng 1 đóng vai trò định tuyến, nếu Tầng 1 nhận diện sai ý định thì Tầng 2 sẽ nạp sai bộ quy tắc và dẫn đến việc lưu sai cơ sở dữ liệu mà không thể cứu vãn.
+  2. Định hướng tương lai: Áp dụng kỹ thuật lượng tử hóa để nén mô hình ngôn ngữ lớn nhằm giảm độ trễ, hoặc tiếp tục thu thập dữ liệu phản hồi thực tế của người dùng để huấn luyện PhoBERT và TF-IDF đạt độ chính xác cao tương đương để thay thế dần cho mô hình ngôn ngữ lớn.
 
-### Nhóm 2: Thiết kế kiến trúc và chất lượng mã nguồn
+Câu 5: Lý do chia luồng xử lý AI thành 2 tầng độc lập thay vì 1 tầng đơn khối
+- Vị trí logic: Sơ đồ luồng phân tầng xử lý ngôn ngữ tự nhiên tại chương 3.
+- Điểm yếu tiềm ẩn: Thiết kế 2 tầng có thể bị xem là làm tăng số bước xử lý so với việc dùng một câu lệnh prompt duy nhất cho mô hình ngôn ngữ lớn làm toàn bộ tác vụ.
+- Gợi ý trả lời:
+  1. Tránh quá tải chỉ thị cho mô hình: Nếu dùng 1 câu lệnh prompt duy nhất để giải quyết mọi việc (vừa phân loại, vừa bóc tách, vừa đóng vai trợ lý), mô hình rất dễ bị quá tải, dẫn đến sinh ảo giác và làm vỡ định dạng cấu trúc dữ liệu JSON.
+  2. Đảm bảo độ chính xác theo ý định: Chia làm 2 tầng giúp Tầng 1 chốt sẵn hướng đi, Tầng 2 chỉ cần nạp đúng một bộ quy tắc chuyên biệt cho ý định đó, giúp phản hồi chuẩn xác.
+  3. Cho phép nâng cấp độc lập: Quản trị viên có thể huấn luyện lại và thay thế mô hình mới cho từng tầng riêng biệt trực tiếp trên Web Admin theo cơ chế nạp nóng mà không cần khởi động lại máy chủ.
 
-Câu 5: Nghẽn cổ chai do kỹ thuật truy vấn liên tục trong thanh toán
-- Vị trí logic: Sơ đồ thuật toán thanh toán nâng cấp tài khoản qua VNPay bằng kỹ thuật vòng lặp chạy ngầm polling.
-- Điểm yếu tiềm ẩn: Việc ứng dụng di động liên tục gọi API hai giây một lần lên máy chủ Node.js để kiểm tra trạng thái thanh toán là một thiết kế kém hiệu quả. Cách làm này gây lãng phí tài nguyên kết nối và dễ dàng đánh sập máy chủ DDoS nội bộ nếu có lượng lớn người dùng cùng lúc nâng cấp tài khoản, trong khi hệ thống vốn dĩ đã có sẵn kết nối WebSocket theo thời gian thực.
-- Gợi ý trả lời: Phương án tối ưu là ứng dụng chỉ cần duy trì kết nối WebSocket. Khi cổng thanh toán VNPay gửi webhook báo giao dịch thành công về máy chủ, Node.js sẽ chủ động đẩy thông báo qua WebSocket xuống thiết bị để cập nhật giao diện lập tức, triệt tiêu hoàn toàn sự lãng phí từ việc truy vấn liên tục.
+Câu 6: Xử lý câu lệnh hỗn hợp chứa cả giao dịch chi tiêu và câu lệnh điều khiển
+- Vị trí logic: Luồng điều phối AI Chat tại máy chủ Backend.
+- Điểm yếu tiềm ẩn: Khi người dùng nhập một câu chứa cả việc lưu tiền và yêu cầu báo cáo (ví dụ: ăn phở 40k rồi xem báo cáo tháng này), hệ thống đơn luồng dễ bỏ sót một trong hai hành động.
+- Gợi ý trả lời:
+  1. Hiện trạng thực tế tại Backend: Trường intent trong kết quả phân loại là một giá trị đơn, do đó hệ thống ưu tiên một ý định chính có trọng số cao nhất (nếu là Record thì lưu giao dịch, nếu là Action thì mở thẻ tính năng). Đối với câu chứa nhiều giao dịch chi tiêu cùng lúc (Multi-Record), Backend đã hỗ trợ mảng multi_records để lưu đầy đủ.
+  2. Hướng nâng cấp tối ưu: Tái cấu trúc chỉ thị mô hình ngôn ngữ để trả về danh sách các tác vụ cần thực thi, kết hợp bộ điều phối chuỗi tại Backend để lưu giao dịch vào cơ sở dữ liệu trước rồi kích hoạt truy vấn báo cáo hiển thị cho người dùng.
 
-Câu 6: Suy giảm hiệu năng khi phân trang trên cơ sở dữ liệu phân tán
-- Vị trí logic: Chức năng hiển thị danh sách lịch sử giao dịch.
-- Điểm yếu tiềm ẩn: Đối với các hệ quản trị cơ sở dữ liệu phân tán như CockroachDB, việc sử dụng cơ chế phân trang dựa trên độ lệch limit và offset sẽ trở thành thảm họa hiệu năng khi người dùng cuộn xem các giao dịch cũ. Nút điều phối sẽ phải quét và loại bỏ hàng chục ngàn bản ghi qua nhiều phân mảnh mạng trước khi trả về kết quả, khiến tốc độ tải trang chậm dần theo độ sâu của danh sách.
-- Gợi ý trả lời: Đề xuất chuyển đổi sang phương pháp phân trang dựa trên con trỏ cursor-based pagination. Hệ thống sẽ sử dụng mốc thời gian tạo hoặc mã định danh của giao dịch cuối cùng trong danh sách làm điều kiện truy vấn cho trang tiếp theo, ví dụ where id nhỏ hơn last_id. Cách này tận dụng tối đa chỉ mục của cơ sở dữ liệu và giữ tốc độ truy vấn luôn ổn định.
+Câu 7: Kỹ thuật tinh chỉnh LoRA cho mô hình ngôn ngữ lớn Qwen 2.5
+- Vị trí logic: Mục phương pháp tinh chỉnh mô hình ngôn ngữ lớn tại chương 3.
+- Điểm yếu tiềm ẩn: Tại sao không huấn luyện toàn bộ trọng số (Full Fine-tuning) mà lại chọn giải pháp tinh chỉnh tham số hiệu quả LoRA?
+- Gợi ý trả lời: Thay vì tinh chỉnh toàn bộ hàng tỷ tham số gây tốn kém tài nguyên và dễ làm mất đi tri thức tổng quát của mô hình gốc, đề tài áp dụng LoRA để đóng băng mô hình nền tảng và chỉ huấn luyện thêm các ma trận biến đổi phụ có thứ hạng thấp. Nhờ đó, tốc độ huấn luyện nhanh hơn nhiều lần, tiết kiệm tối đa bộ nhớ GPU và tệp chuyển đổi xuất ra chỉ nặng vài chục megabyte, rất thuận tiện để lưu trữ và triển khai.
 
-Câu 7: Rủi ro rác dữ liệu lưu trữ do luồng xử lý ảnh hóa đơn
-- Vị trí logic: Sơ đồ luồng hoạt động quét và nén ảnh hóa đơn tải lên Cloudflare R2.
-- Điểm yếu tiềm ẩn: Nếu người dùng chụp ảnh hóa đơn, tải lên đám mây thành công nhưng sau đó bấm nút hủy ở màn hình xác nhận thay vì lưu giao dịch, bức ảnh đó vẫn tồn tại vĩnh viễn trên kho lưu trữ R2. Theo thời gian, lượng dữ liệu mồ côi này sẽ phình to và tiêu tốn chi phí bảo trì không cần thiết.
-- Gợi ý trả lời: Thiết lập vòng đời luân chuyển tệp tin. Hình ảnh mới tải lên sẽ nằm ở thư mục tạm thời trên đám mây với quy tắc vòng đời tự động xóa sau 24 giờ. Chỉ khi giao dịch thực sự được xác nhận lưu vào CockroachDB, backend mới tiến hành di chuyển hình ảnh sang thư mục lưu trữ chính thức.
+Câu 8: Lý do lựa chọn chỉ số Macro F1-Score thay vì Accuracy để đánh giá mô hình
+- Vị trí logic: Các bảng đánh giá hiệu năng mô hình NLU và OCR tại chương 3.
+- Điểm yếu tiềm ẩn: Đánh giá mô hình phân loại đa lớp chỉ dựa trên độ chính xác Accuracy sẽ phản ánh sai lệch hiệu quả thực tế khi tập dữ liệu bị mất cân bằng.
+- Gợi ý trả lời: Dữ liệu chi tiêu thực tế có sự chênh lệch lớn giữa các danh mục (Ăn uống chiếm đa số mẫu, trong khi Y tế hay Giáo dục chiếm rất ít). Nếu dùng Accuracy, mô hình chỉ cần đoán thiên lệch vào nhãn chiếm số đông cũng đạt tỷ lệ phần trăm cao. Macro F1 tính điểm bình quân độc lập cho từng nhãn với trọng số ngang nhau, buộc mô hình phải nhận diện chính xác cả những danh mục hiếm.
 
-Câu 8: Điểm thắt cổ chai về độ trễ trải nghiệm của mô hình ngôn ngữ lớn
-- Vị trí logic: Bảng đánh giá hiệu năng bóc tách danh mục, ghi nhận độ trễ của Qwen lên tới hơn 9 giây.
-- Điểm yếu tiềm ẩn: Việc bắt người dùng chờ gần 10 giây cho một tin nhắn phản hồi trên di động sẽ phá hủy hoàn toàn trải nghiệm tương tác mượt mà. Hơn nữa, việc giữ một luồng kết nối API treo trong 10 giây sẽ làm cạn kiệt tài nguyên của máy chủ Node.js nếu có nhiều người cùng gửi tin nhắn.
-- Gợi ý trả lời: Ứng dụng mô hình giao tiếp bất đồng bộ. Khi nhận tin nhắn, Node.js trả về ngay mã giao tiếp và đóng kết nối HTTP để giải phóng tài nguyên. Ứng dụng di động hiển thị trạng thái đang nhập chữ. Trong khi đó, máy chủ AI xử lý ngầm, hoàn tất sẽ gọi lại Node.js để đẩy kết quả qua WebSocket xuống điện thoại. Song song đó, cần đề xuất kỹ thuật lượng tử hóa quantization để nén mô hình, giảm độ trễ xử lý xuống mức thấp nhất.
+### Nhóm 2: Nhận diện hóa đơn và thị giác máy tính
 
-### Nhóm 3: Bảo mật và tối ưu hóa
+Câu 9: Bản chất con số 1.960 Support trên 116 ảnh hóa đơn kiểm thử LayoutLMv3
+- Vị trí logic: Bảng 3.3 kết quả đánh giá mô hình LayoutLMv3 trên tập xác thực tại chương 3.
+- Điểm yếu tiềm ẩn: Sự chênh lệch giữa số lượng 116 bức ảnh hóa đơn và 1.960 đơn vị Support dễ gây hiểu nhầm về quy mô tập kiểm thử.
+- Gợi ý trả lời: Chỉ số Support trong bảng đánh giá đại diện cho tổng số lượng các từ và thực thể (Token-level count) thuộc các trường thông tin mục tiêu (Địa chỉ 489, Cửa hàng 333, Thời gian 355, Tổng tiền 783). Mỗi tờ hóa đơn chứa trung bình khoảng 17 từ thuộc các trường quan trọng này, và mô hình LayoutLMv3 được đánh giá chi tiết trên từng từ để đảm bảo không bỏ sót chữ trên hóa đơn.
 
-Câu 9: Lỗ hổng tấn công từ chối dịch vụ thông qua cơ chế cấm tự động
-- Vị trí logic: Bảng kết quả kiểm thử chức năng xử lý ngầm, phần cơ chế giới hạn tần suất phát hiện và khóa kết nối lập tức.
-- Điểm yếu tiềm ẩn: Nếu hệ thống chặn trực tiếp mã định danh tài khoản khi phát hiện lưu lượng truy cập cao, kẻ tấn công chỉ cần lấy cắp mã thông báo truy cập cũ hoặc biết được mã định danh của một người dùng bất kỳ để spam API. Cơ chế này vô tình tiếp tay cho kẻ xấu khóa oan tài khoản của nạn nhân mà người đó không hề hay biết.
-- Gợi ý trả lời: Cơ chế giới hạn tần suất phải được áp dụng dựa trên địa chỉ IP hoặc định danh thiết bị vật lý để chặn nguồn tấn công trước. Đối với mã định danh tài khoản, thay vì cấm vĩnh viễn, hệ thống chỉ nên áp dụng hình phạt đóng băng tạm thời cooldown để bảo vệ quyền lợi của người dùng chân chính, kết hợp lưu vết log để quản trị viên đánh giá.
+Câu 10: Lý do lưu 1 hóa đơn thành 1 giao dịch tổng thay vì chia nhỏ từng món hàng
+- Vị trí logic: Luồng xử lý dữ liệu hóa đơn sau khi quét OCR.
+- Điểm yếu tiềm ẩn: Tại sao hệ thống không tự động bóc tách chi tiết từng dòng mặt hàng (Line-items) trên hóa đơn để tạo thành các giao dịch con tương ứng?
+- Gợi ý trả lời:
+  1. Hạn chế sai số tích lũy: Hóa đơn bán lẻ tại Việt Nam có bố cục không đồng nhất, phông chữ phức tạp và chứa nhiều dòng phụ (thuế VAT, giảm giá, chiết khấu). Việc cố gắng bóc tách từng món hàng rất dễ dẫn đến sai sót tích lũy khiến tổng tiền các món không khớp với số tiền thực tế người dùng đã trả.
+  2. Phù hợp mục tiêu quản lý dòng tiền: Người dùng cá nhân cần ghi chép nhanh tổng tiền theo danh mục và hạn mức. Việc lưu 1 giao dịch tổng kết hợp lưu trữ ảnh chụp hóa đơn gốc trên Cloudflare R2 là giải pháp tối ưu: vừa đảm bảo số dư kế toán chuẩn xác 100%, vừa cho phép người dùng mở lại ảnh gốc để xem chi tiết từng món khi cần.
 
-Câu 10: Rủi ro tiêm mã độc vào chỉ thị hệ thống qua cơ chế truy xuất
-- Vị trí logic: Sơ đồ luồng xử lý câu hỏi tư vấn tài chính theo kiến trúc RAG, phần nhúng số liệu vào chỉ thị hệ thống.
-- Điểm yếu tiềm ẩn: Cơ chế RAG sẽ truy xuất các ghi chú giao dịch do chính người dùng nhập và ghép thẳng vào câu lệnh nền tảng của mô hình ngôn ngữ. Nếu một giao dịch chứa dòng ghi chú ác ý mang tính thao túng prompt injection, mô hình Qwen sẽ bị đánh lừa và dễ dàng tiết lộ các bí mật nghiệp vụ nội bộ ra bên ngoài.
-- Gợi ý trả lời: Cần trình bày quy trình làm sạch dữ liệu đầu vào. Nội dung lịch sử giao dịch phải được tách biệt hoàn toàn khỏi các lệnh điều khiển bằng hệ thống dấu phân cách rõ ràng. Đồng thời, cần bổ sung quy tắc phòng thủ ở cuối câu lệnh để ra lệnh cho AI tuyệt đối không được thực thi bất kỳ lời nhắc nào nằm trong khối văn bản dữ liệu giao dịch.
+Câu 11: Cơ chế xử lý khi ảnh hóa đơn bị thiếu hoặc nhận diện sai số tiền
+- Vị trí logic: Giao diện xác nhận hóa đơn và phân hệ xử lý giao dịch tại chương 3.
+- Điểm yếu tiềm ẩn: Nếu ảnh chụp hóa đơn bị mờ, rách hoặc mất góc khiến OCR không trích xuất được số tiền, hệ thống có bắt người dùng chụp lại từ đầu hay không?
+- Gợi ý trả lời:
+  1. Không bắt chụp lại gây phiền toái: Hệ thống giữ lại toàn bộ các thông tin đã nhận diện đúng như ảnh bill, tên quán, danh mục và thời gian.
+  2. Bật bảng nhập tiền trực tiếp: Tại màn hình xác nhận (CameraConfirmScreen), nếu số tiền nhỏ hơn hoặc bằng 0, ứng dụng tự động mở bảng trượt và trỏ con trỏ vào ô số tiền để người dùng điền bổ sung trong một giây.
+  3. Cơ chế bản nháp: Nếu người dùng thoát ngang, giao dịch được lưu ở trạng thái chờ và hiển thị trên Thẻ cảnh báo giao dịch thiếu tiền tại Trang chủ để người dùng bấm vào bổ sung bất cứ lúc nào.
 
-Câu 11: Lỗ hổng trong quy trình thu hồi mã thông báo không trạng thái
-- Vị trí logic: Cơ chế khóa tài khoản có hiệu lực tức thời thông qua thu hồi mã xác thực được đề cập ở bảng đặc tả quản lý người dùng.
-- Điểm yếu tiềm ẩn: Bản chất của mã thông báo JSON Web Token là không lưu trạng thái stateless, nghĩa là máy chủ Node.js không cần kiểm tra cơ sở dữ liệu khi xác thực. Do đó, lời khẳng định thu hồi tức thời là mâu thuẫn. Nếu không có danh sách chặn blacklist, người dùng bị khóa vẫn có thể tiếp tục sử dụng ứng dụng bằng mã thông báo cũ cho đến khi nó tự hết hạn.
-- Gợi ý trả lời: Giải quyết mâu thuẫn bằng cách triển khai danh sách đen trên Redis để lưu lại các mã thông báo bị vô hiệu hóa với thời gian tồn tại bằng đúng thời hạn của mã đó. Máy chủ sẽ kiểm tra nhanh Redis trước khi duyệt. Hoặc sử dụng kiến trúc mã thông báo đôi, trong đó mã truy cập access token có thời hạn cực ngắn khoảng vài phút, khi khóa tài khoản chỉ cần hủy mã làm mới refresh token ở cơ sở dữ liệu.
+### Nhóm 3: Logic nghiệp vụ, kiến trúc hệ thống và bảo mật
 
-Câu 12: Thông báo rác từ cơ chế dự phòng kép
-- Vị trí logic: Sơ đồ luồng xử lý thông báo theo cơ chế dự phòng kép kết hợp thông báo nội bộ và thông báo đẩy.
-- Điểm yếu tiềm ẩn: Việc gửi song song thông báo qua cả WebSocket và hệ thống đám mây Firebase sẽ gây phiền toái. Nếu ứng dụng đang chạy ngầm nhưng kết nối mạng WebSocket chưa kịp ngắt, điện thoại của người dùng sẽ hiển thị hai thông báo trùng lặp cho cùng một sự kiện, gây rác màn hình và giảm tính chuyên nghiệp của hệ thống.
-- Gợi ý trả lời: Bổ sung cơ chế loại bỏ trùng lặp deduplication trên thiết bị di động thông qua một mã định danh thông báo duy nhất. Ngoài ra, thay vì đẩy song song lập tức, máy chủ Node.js nên đợi khoảng hai giây, nếu không nhận được tín hiệu hồi đáp ack từ WebSocket chứng tỏ ứng dụng đã đóng, thì lúc đó mới quyết định gửi thông báo qua kênh Firebase.
+Câu 12: Bản chất cơ chế RAG và lý do chọn Structured RAG trên cơ sở dữ liệu quan hệ
+- Vị trí logic: Mục ứng dụng kiến trúc RAG vào hệ thống tư vấn tài chính tại chương 3.
+- Điểm yếu tiềm ẩn: Việc truy xuất dữ liệu SQL từ cơ sở dữ liệu rồi nhúng vào câu lệnh prompt có được xem là RAG hay không, và tại sao không dùng cơ sở dữ liệu véc-tơ?
+- Gợi ý trả lời:
+  1. Khẳng định bản chất: Nhúng dữ liệu truy xuất từ cơ sở dữ liệu vào câu lệnh prompt chính là bản chất cốt lõi của RAG (Retrieval-Augmented Generation).
+  2. Lý do chọn Structured RAG: Bài toán tài chính đòi hỏi sự chính xác tuyệt đối về mặt số học và cập nhật dữ liệu thời gian thực. Phương pháp Vector RAG chỉ tìm kiếm tương đồng gần đúng nên dễ gây sai lệch số dư, trong khi Structured RAG truy vấn SQL trực tiếp trên CockroachDB giúp số liệu luôn đúng tuyệt đối và tiết kiệm tài nguyên máy chủ.
+
+Câu 13: Quy trình thanh toán nâng cấp tài khoản tự động qua VietQR và Webhook SePay
+- Vị trí logic: Sơ đồ luồng tự động hóa và tích hợp cổng thanh toán tại chương 3.
+- Điểm yếu tiềm ẩn: Làm thế nào hệ thống đối soát tự động người dùng nào vừa thanh toán mà không sợ tin tặc gửi yêu cầu giả mạo nâng cấp tài khoản?
+- Gợi ý trả lời:
+  1. Sinh mã đơn hàng và mã VietQR động: Backend tạo mã đơn hàng duy nhất và tạo mã VietQR có gắn sẵn số tài khoản, số tiền và nội dung chuyển khoản chứa mã đơn hàng đó.
+  2. Bắt biến động số dư qua Webhook: Khi tiền vào tài khoản, SePay gửi Webhook kèm chữ ký số HMAC-SHA256 về máy chủ Backend.
+  3. Đối soát và kích hoạt tức thì: Backend xác thực chữ ký số bảo mật, trích xuất mã đơn hàng từ nội dung chuyển khoản, kiểm tra khớp số tiền trong CockroachDB và cập nhật cờ is_premium = true, sau đó gửi thông báo đẩy FCM xuống thiết bị để mở khóa tính năng cho người dùng.
+
+Câu 14: Cơ chế tự động khóa tài khoản (Auto Ban) và quy trình khiếu nại
+- Vị trí logic: Tầng trung gian bảo mật và bảng quản lý người dùng tại trang quản trị Web Admin.
+- Điểm yếu tiềm ẩn: Hệ thống phát hiện và ngăn chặn hành vi lạm dụng hoặc phá hoại của người dùng như thế nào?
+- Gợi ý trả lời:
+  1. Khóa do lạm dụng tần suất: Tầng trung gian theo dõi số lượng yêu cầu của từng người dùng theo cửa sổ trượt 1 phút. Nếu vượt quá 60 yêu cầu/phút, hệ thống tự động khóa tài khoản với lý do spam và gửi email thông báo.
+  2. Khóa do vi phạm tiêu chuẩn cộng đồng: Tự động kiểm duyệt nội dung tin nhắn chat/NLU, nếu phát hiện từ ngữ thù địch hoặc xúc phạm nghiêm trọng thì lập tức khóa tài khoản.
+  3. Quy trình khiếu nại: Người dùng bị khóa có thể gửi đơn khiếu nại từ màn hình đăng nhập để người quản trị xem xét và bấm duyệt mở khóa trên Web Admin.
+
+Câu 15: Nền tảng công cụ gán nhãn và cơ sở của ngưỡng 10.000 mẫu NLU / 1.000 ảnh OCR
+- Vị trí logic: Bảng điều khiển MLOps và trang huấn luyện lại mô hình trên Web Admin.
+- Điểm yếu tiềm ẩn: Công cụ gán nhãn được xây dựng bằng cách nào và dựa vào đâu để đặt ngưỡng sẵn sàng tái huấn luyện là 10.000 giao dịch và 1.000 ảnh?
+- Gợi ý trả lời:
+  1. Công cụ gán nhãn tự lập trình: Giao diện gán nhãn hóa đơn BillLabelCanvas được tự viết hoàn toàn bằng React và HTML5 Canvas, hỗ trợ kéo vẽ khung tọa độ, co giãn 8 điểm neo và tích hợp AI gán nhãn bán tự động (Pre-labeling).
+  2. Cơ sở của ngưỡng kích hoạt: Căn cứ vào quy mô của tập huấn luyện gốc giúp mô hình hội tụ ban đầu (1.159 ảnh MC-OCR và 14.000 mẫu NLU) kết hợp điểm uốn của đường cong học tập (Learning Curve). Đây là các tham số cấu hình mở để thông báo cho quản trị viên biết khi nào dữ liệu đã đủ độ dày thống kê để tiến hành bấm nút huấn luyện lại.

@@ -162,7 +162,25 @@ class _LimitsScreenState extends State<LimitsScreen> {
 
   String get _currentMonth {
     final now = DateTime.now();
-    return 'Tháng ${now.month}/${now.year}';
+    return '${now.year}-${now.month.toString().padLeft(2, '0')}';
+  }
+
+  String get _targetSuggestionMonth {
+    final now = DateTime.now();
+    final next = DateTime(now.year, now.month + 1, 1);
+    return '${next.year}-${next.month.toString().padLeft(2, '0')}';
+  }
+
+  String _formatDisplayMonth(String raw) {
+    if (raw.isEmpty) return '';
+    if (raw.startsWith('Tháng ')) return raw;
+    final parts = raw.split('-');
+    if (parts.length >= 2) {
+      final month = int.tryParse(parts[1]) ?? parts[1];
+      final year = parts[0];
+      return 'Tháng $month/$year';
+    }
+    return raw;
   }
 
   void _showSmartBudgetSuggestions() {
@@ -188,7 +206,7 @@ class _LimitsScreenState extends State<LimitsScreen> {
           builder: (ctx, setSheetState) {
             if (loading && resultData == null && err == null) {
               _api
-                  .getBudgetSuggestions(month: _currentMonth)
+                  .getBudgetSuggestions(month: _targetSuggestionMonth)
                   .then((data) {
                     if (!ctx.mounted) return;
                     final list = (data['suggestions'] as List<dynamic>? ?? []);
@@ -264,7 +282,7 @@ class _LimitsScreenState extends State<LimitsScreen> {
                               ),
                               if (targetMonth.isNotEmpty)
                                 Text(
-                                  'Áp dụng cho tháng $targetMonth',
+                                  'Áp dụng cho ${_formatDisplayMonth(targetMonth)}',
                                   style: TextStyle(
                                     color: context.palette.textSecondary,
                                     fontSize: 12,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../services/api_client.dart';
 import '../theme/app_colors.dart';
 import '../theme/categories.dart';
@@ -144,7 +145,13 @@ class _SmartLimitDialogState extends State<_SmartLimitDialog> {
       final parsed = int.tryParse(
         _customCtrl.text.replaceAll(RegExp(r'[^\d]'), ''),
       );
-      if (parsed == null || parsed <= 0) return;
+      if (parsed == null || parsed <= 0) {
+        MimoSnackBar.showWarning(
+          context,
+          message: 'Vui lòng nhập số tiền hạn mức lớn hơn 0.',
+        );
+        return;
+      }
       _selectedAmount = parsed;
     }
 
@@ -183,27 +190,44 @@ class _SmartLimitDialogState extends State<_SmartLimitDialog> {
   @override
   Widget build(BuildContext context) {
     final style = CategoryTheme.of(widget.categoryCode);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
       child: Container(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(22),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(28),
           color: Theme.of(context).scaffoldBackgroundColor,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.18),
+              blurRadius: 30,
+              offset: const Offset(0, 10),
+            ),
+          ],
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // Header: Category Icon + Title + Close Button
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(12),
+                  width: 52,
+                  height: 52,
                   decoration: BoxDecoration(
                     color: style.color.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: style.color.withValues(alpha: 0.3),
+                      width: 1.5,
+                    ),
                   ),
+                  alignment: Alignment.center,
                   child: CategoryTheme.iconOf(widget.categoryCode, size: 28),
                 ),
                 const SizedBox(width: 14),
@@ -211,193 +235,315 @@ class _SmartLimitDialogState extends State<_SmartLimitDialog> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'AI Gợi ý Hạn mức',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.teal,
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: AppColors.teal.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.auto_awesome, size: 12, color: AppColors.teal),
+                            const SizedBox(width: 4),
+                            Text(
+                              'AI Gợi ý Hạn mức',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.teal,
+                                letterSpacing: 0.3,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      const SizedBox(height: 2),
+                      const SizedBox(height: 4),
                       Text(
                         style.label,
                         style: const TextStyle(
-                          fontSize: 18,
+                          fontSize: 19,
                           fontWeight: FontWeight.w800,
+                          letterSpacing: -0.3,
                         ),
                       ),
                     ],
                   ),
                 ),
+                IconButton(
+                  onPressed: () => Navigator.of(context, rootNavigator: true).pop(),
+                  icon: const Icon(Icons.close_rounded, size: 20),
+                  style: IconButton.styleFrom(
+                    backgroundColor: isDark
+                        ? Colors.white.withValues(alpha: 0.08)
+                        : Colors.black.withValues(alpha: 0.05),
+                    padding: const EdgeInsets.all(8),
+                    minimumSize: const Size(36, 36),
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 16),
-            // Mô tả + context peer
-            Text(
-              _peerAvgAmount != null
-                  ? 'Gợi ý dựa trên chi tiêu trung bình của nhóm người dùng tương tự (${formatVnd(_peerAvgAmount!)}/tháng):'
-                  : 'Danh mục này chưa được đặt hạn mức. Hãy chọn nhanh hạn mức gợi ý dưới đây để kiểm soát chi tiêu tốt hơn:',
-              style: TextStyle(
-                fontSize: 13,
-                color: AppColors.textPrimary.withValues(alpha: 0.75),
-                height: 1.4,
-              ),
-            ),
-            const SizedBox(height: 16),
-            // Chip gợi ý
-            _loadingSuggestions
-                ? const Center(
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(vertical: 12),
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                  )
-                : Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: List.generate(_suggestions.length, (i) {
-                      final amt = _suggestions[i];
-                      final selected =
-                          !_showCustomInput && _selectedAmount == amt;
-                      // Nhãn mô tả tầng khi có dữ liệu peer
-                      final tierLabels = _peerAvgAmount != null
-                          ? ['Tiết kiệm', 'Chuẩn nhóm', 'Thoải mái']
-                          : <String>['', '', ''];
-                      return Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          ChoiceChip(
-                            label: Text(
-                              formatVnd(amt),
-                              style: TextStyle(
-                                fontWeight: selected
-                                    ? FontWeight.w700
-                                    : FontWeight.w500,
-                                color: selected
-                                    ? Colors.white
-                                    : AppColors.textPrimary,
-                              ),
-                            ),
-                            selected: selected,
-                            selectedColor: AppColors.teal,
-                            onSelected: (val) {
-                              if (val) {
-                                setState(() {
-                                  _selectedAmount = amt;
-                                  _showCustomInput = false;
-                                  _ctrl.text = amt.toString();
-                                });
-                              }
-                            },
-                          ),
-                          if (tierLabels[i].isNotEmpty)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 2),
-                              child: Text(
-                                tierLabels[i],
-                                style: TextStyle(
-                                  fontSize: 9,
-                                  color: selected
-                                      ? AppColors.teal
-                                      : AppColors.textPrimary.withValues(
-                                          alpha: 0.45,
-                                        ),
-                                  fontWeight: selected
-                                      ? FontWeight.w700
-                                      : FontWeight.w400,
-                                ),
-                              ),
-                            ),
-                        ],
-                      );
-                    }),
-                  ),
-            // Ô nhập tùy chỉnh (hiện ra khi bấm Tùy chỉnh)
-            if (_showCustomInput) ...[
-              const SizedBox(height: 14),
-              TextField(
-                controller: _customCtrl,
-                autofocus: true,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  labelText: 'Nhập số tiền hạn mức',
-                  hintText: 'Ví dụ: 3000000',
-                  suffixText: 'đ',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: AppColors.teal),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: AppColors.teal, width: 2),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
+
+            // Peer Context Banner
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.05)
+                    : AppColors.teal.withValues(alpha: 0.06),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: AppColors.teal.withValues(alpha: 0.2),
                 ),
               ),
-            ],
-            const SizedBox(height: 24),
+              child: Row(
+                children: [
+                  const Icon(Icons.insights_rounded, size: 18, color: AppColors.teal),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      _peerAvgAmount != null
+                          ? 'Nhóm tương tự chi trung bình ${formatVnd(_peerAvgAmount!)}/tháng'
+                          : 'Thiết lập hạn mức giúp bạn kiểm soát chi tiêu tốt hơn',
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w500,
+                        color: isDark ? Colors.white70 : AppColors.textSecondary,
+                        height: 1.3,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 18),
+
+            // 3 Tier Suggestion Cards (Side by Side in 1 Row)
+            if (_loadingSuggestions)
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(vertical: 24),
+                  child: CircularProgressIndicator(strokeWidth: 2.5, color: AppColors.teal),
+                ),
+              )
+            else if (!_showCustomInput)
+              Row(
+                children: List.generate(_suggestions.length, (i) {
+                  final amt = _suggestions[i];
+                  final isSelected = _selectedAmount == amt;
+                  final tierLabels = _peerAvgAmount != null
+                      ? ['Tiết kiệm', 'Chuẩn nhóm ⭐', 'Thoải mái']
+                      : ['Mức thấp', 'Đề xuất ⭐', 'Mức cao'];
+
+                  return Expanded(
+                    child: Padding(
+                      padding: EdgeInsets.only(
+                        left: i == 0 ? 0 : 4,
+                        right: i == _suggestions.length - 1 ? 0 : 4,
+                      ),
+                      child: InkWell(
+                        onTap: () {
+                          setState(() {
+                            _selectedAmount = amt;
+                            _ctrl.text = amt.toString();
+                          });
+                        },
+                        borderRadius: BorderRadius.circular(16),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 6),
+                          decoration: BoxDecoration(
+                            gradient: isSelected ? AppGradients.teal : null,
+                            color: isSelected
+                                ? null
+                                : (isDark
+                                    ? Colors.white.withValues(alpha: 0.04)
+                                    : AppColors.surface),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: isSelected
+                                  ? AppColors.teal
+                                  : (isDark
+                                      ? Colors.white.withValues(alpha: 0.12)
+                                      : AppColors.border),
+                              width: isSelected ? 2 : 1.2,
+                            ),
+                            boxShadow: isSelected
+                                ? [
+                                    BoxShadow(
+                                      color: AppColors.teal.withValues(alpha: 0.35),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ]
+                                : null,
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                tierLabels[i],
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 10.5,
+                                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                                  color: isSelected
+                                      ? Colors.white.withValues(alpha: 0.9)
+                                      : (isDark ? Colors.white60 : AppColors.muted),
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(
+                                  formatVnd(amt),
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w800,
+                                    color: isSelected
+                                        ? Colors.white
+                                        : (isDark ? Colors.white : AppColors.textPrimary),
+                                    letterSpacing: -0.2,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+              ),
+
+            // Custom Input View
+            if (_showCustomInput)
+              Container(
+                margin: const EdgeInsets.only(top: 4),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.white.withValues(alpha: 0.04) : AppColors.surface,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: AppColors.teal.withValues(alpha: 0.3)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Tùy chỉnh hạn mức tháng',
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.teal,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _customCtrl,
+                      autofocus: true,
+                      keyboardType: const TextInputType.numberWithOptions(signed: false, decimal: false),
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                        MoneyTextInputFormatter(),
+                      ],
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                      decoration: InputDecoration(
+                        hintText: 'Ví dụ: 3,000,000',
+                        suffixText: 'đ',
+                        suffixStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                        filled: true,
+                        fillColor: isDark ? Colors.black26 : Colors.white,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: AppColors.border),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: AppColors.teal, width: 2),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+            const SizedBox(height: 22),
+
+            // Action Buttons
             Row(
               children: [
-                // Nút Tùy chỉnh: toggle ô nhập inline
+                // Custom Toggle Button
                 OutlinedButton(
                   onPressed: () {
                     setState(() {
                       _showCustomInput = !_showCustomInput;
                       if (_showCustomInput) {
-                        _customCtrl.text = '';
+                        final digits = _selectedAmount.toString();
+                        final formatter = MoneyTextInputFormatter();
+                        final formatted = formatter.formatEditUpdate(
+                          TextEditingValue.empty,
+                          TextEditingValue(text: digits),
+                        );
+                        _customCtrl.text = formatted.text;
                       }
                     });
                   },
                   style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 14,
-                      horizontal: 16,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                     side: BorderSide(
                       color: _showCustomInput
                           ? AppColors.teal
-                          : Colors.grey.shade400,
+                          : (isDark ? Colors.white24 : AppColors.border),
+                      width: 1.5,
                     ),
+                    backgroundColor: _showCustomInput
+                        ? AppColors.teal.withValues(alpha: 0.1)
+                        : Colors.transparent,
                   ),
                   child: Text(
                     _showCustomInput ? 'Gợi ý' : 'Tùy chỉnh',
                     style: TextStyle(
-                      color: _showCustomInput ? AppColors.teal : null,
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w700,
+                      color: _showCustomInput
+                          ? AppColors.teal
+                          : (isDark ? Colors.white70 : AppColors.textSecondary),
                     ),
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 10),
+
+                // Save / Apply Button
                 Expanded(
                   child: FilledButton(
                     onPressed: _submitting ? null : _saveQuickLimit,
                     style: FilledButton.styleFrom(
                       backgroundColor: AppColors.teal,
                       padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      elevation: 2,
+                      shadowColor: AppColors.teal.withValues(alpha: 0.4),
                     ),
                     child: _submitting
                         ? const SizedBox(
                             width: 20,
                             height: 20,
                             child: CircularProgressIndicator(
-                              strokeWidth: 2,
+                              strokeWidth: 2.2,
                               color: Colors.white,
                             ),
                           )
-                        : Text(
-                            _showCustomInput
-                                ? '✨ Lưu hạn mức'
-                                : '✨ Lưu nhanh ${formatVnd(_selectedAmount)}',
-                            style: const TextStyle(fontWeight: FontWeight.w700),
+                        : const Text(
+                            '✨ Thiết lập hạn mức',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                              letterSpacing: -0.2,
+                            ),
                           ),
                   ),
                 ),

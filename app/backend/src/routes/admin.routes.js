@@ -598,7 +598,7 @@ router.get('/train/status', async (req, res, next) => {
 // 14. GET /api/admin/train/model-meta
 router.get('/train/model-meta', async (req, res, next) => {
   try {
-    const meta = await aiClient.getNluModelMeta();
+    const meta = await aiClient.getModelMeta();
     res.json(meta);
   } catch (err) {
     next(err);
@@ -687,6 +687,15 @@ router.post('/train/promote', requireRetrainPassword, async (req, res, next) => 
 router.post('/train/rollback', requireRetrainPassword, async (req, res, next) => {
   try {
     const result = await aiClient.rollbackNluModel();
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/train/reject', requireRetrainPassword, async (req, res, next) => {
+  try {
+    const result = await aiClient.rejectNluModel();
     res.json(result);
   } catch (err) {
     next(err);
@@ -1175,6 +1184,26 @@ router.delete('/bill-retrain/samples/:id', async (req, res, next) => {
   }
 });
 
+router.post('/bill-retrain/approve-all', requireRetrainPassword, async (req, res, next) => {
+  try {
+    const samples = billRetrainStore.getSamples();
+    const pendingSamples = samples.filter(s => s.status === 'pending');
+    for (const sample of pendingSamples) {
+      const labels = sample.adminLabels?.length ? sample.adminLabels : (sample.autoLabels || []);
+      billRetrainStore.upsertSample({ 
+        ...sample, 
+        status: 'approved',
+        adminLabels: labels,
+        reviewedBy: 'admin',
+        reviewedAt: new Date().toISOString()
+      });
+    }
+    res.json({ ok: true, count: pendingSamples.length });
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.post('/bill-retrain/samples/:id/prelabel', async (req, res, next) => {
   try {
     const existing = billRetrainStore.getSample(req.params.id);
@@ -1367,6 +1396,15 @@ router.post('/bill-retrain/model/rollback', requireRetrainPassword, async (req, 
   }
 });
 
+router.post('/bill-retrain/model/reject', requireRetrainPassword, async (req, res, next) => {
+  try {
+    const result = await aiClient.rejectBillModel();
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.post('/bill-retrain/model/sync-workspace', requireRetrainPassword, async (req, res, next) => {
   try {
     const result = await aiClient.syncBillModelWorkspace();
@@ -1424,7 +1462,7 @@ router.put('/users/:id/status', async (req, res, next) => {
       return res.status(404).json({ error: 'User not found' });
     }
     
-    // Send push notification if user was banned
+    // Send push notification if user was banned or unbanned
     if (status === 'banned') {
       try {
         await sendPushToUser(id, {
@@ -1439,6 +1477,21 @@ router.put('/users/:id/status', async (req, res, next) => {
         }
       } catch (err) {
         logger.error({ err, userId: id }, 'Failed to send ban notification (push or email)');
+      }
+    } else if (status === 'active') {
+      try {
+        await sendPushToUser(id, {
+          title: 'Tài khoản đã được mở khóa',
+          body: 'Tài khoản của bạn đã được mở khóa. Bạn có thể đăng nhập bình thường.',
+          data: { type: 'UNBANNED' }
+        });
+        
+        if (result.rows[0].email) {
+          const { sendUnbanNotification } = require('../utils/mailer');
+          await sendUnbanNotification(result.rows[0].email, result.rows[0].username);
+        }
+      } catch (err) {
+        logger.error({ err, userId: id }, 'Failed to send unban notification (push or email)');
       }
     }
     
@@ -1468,22 +1521,56 @@ router.get('/appeals', async (req, res, next) => {
 router.post('/appeals/:id/resolve', async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { status } = req.body; // 'approved' or 'rejected'
+    const { status, adminNote } = req.body; // 'approved' or 'rejected'
     if (!['approved', 'rejected'].includes(status)) {
       return res.status(400).json({ error: 'Invalid status' });
     }
     
-    const appealRes = await query('UPDATE ban_appeals SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING user_id', [status, id]);
+    const appealRes = await query(
+      'UPDATE ban_appeals SET status = $1, admin_note = $2, updated_at = NOW() WHERE id = $3 RETURNING id, user_id, reason',
+      [status, adminNote || null, id]
+    );
     if (appealRes.rows.length === 0) {
       return res.status(404).json({ error: 'Appeal not found' });
     }
     
+    const userId = appealRes.rows[0].user_id;
+    const userRes = await query('SELECT id, email, username FROM users WHERE id = $1', [userId]);
+    const user = userRes.rows[0];
+    
+    const { sendAppealApprovedNotification, sendAppealRejectedNotification } = require('../utils/mailer');
+    
     if (status === 'approved') {
-      const userId = appealRes.rows[0].user_id;
       await query('UPDATE users SET status = $1, ban_reason = NULL, updated_at = NOW() WHERE id = $2', ['active', userId]);
+      
+      try {
+        await sendPushToUser(userId, {
+          title: 'Khiếu nại được chấp thuận',
+          body: 'Tài khoản của bạn đã được mở khóa thành công. Bạn có thể đăng nhập lại ngay.',
+          data: { type: 'APPEAL_APPROVED', action: 'UNBANNED' }
+        });
+        if (user?.email) {
+          await sendAppealApprovedNotification(user.email, user.username);
+        }
+      } catch (e) {
+        logger.error({ err: e, userId }, 'Failed to send appeal approved notification');
+      }
+    } else {
+      try {
+        await sendPushToUser(userId, {
+          title: 'Khiếu nại bị từ chối',
+          body: `Khiếu nại mở khóa tài khoản của bạn đã bị từ chối.${adminNote ? ` Lý do: ${adminNote}` : ''}`,
+          data: { type: 'APPEAL_REJECTED' }
+        });
+        if (user?.email) {
+          await sendAppealRejectedNotification(user.email, user.username, adminNote);
+        }
+      } catch (e) {
+        logger.error({ err: e, userId }, 'Failed to send appeal rejected notification');
+      }
     }
     
-    res.json({ success: true, message: 'Appeal resolved successfully' });
+    res.json({ success: true, message: `Appeal ${status === 'approved' ? 'approved' : 'rejected'} successfully` });
   } catch (err) {
     next(err);
   }

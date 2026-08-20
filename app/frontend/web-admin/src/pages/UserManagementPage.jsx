@@ -82,6 +82,10 @@ function UserManagementPage() {
   const [appeals, setAppeals] = useState([]);
   const [loadingAppeals, setLoadingAppeals] = useState(false);
 
+  const pendingAppealsCount = useMemo(() => {
+    return appeals.filter(a => a.status === 'pending').length;
+  }, [appeals]);
+
   const loadUsers = useCallback(() => {
     setListLoading(true);
     setListError("");
@@ -113,10 +117,6 @@ function UserManagementPage() {
       .finally(() => setInspectorLoading(false));
   }, []);
 
-  useEffect(() => {
-    loadUsers();
-  }, [loadUsers]);
-
   const loadAppeals = useCallback(async () => {
     setLoadingAppeals(true);
     try {
@@ -134,13 +134,26 @@ function UserManagementPage() {
   }, []);
 
   useEffect(() => {
+    loadUsers();
+    loadAppeals();
+  }, [loadUsers, loadAppeals]);
+
+  useEffect(() => {
     if (activeTab === 'appeals') {
       loadAppeals();
     }
   }, [activeTab, loadAppeals]);
 
   const handleResolveAppeal = async (id, status) => {
-    if (!window.confirm(`Xác nhận ${status === 'approved' ? 'chấp nhận' : 'từ chối'} khiếu nại này?`)) return;
+    let adminNote = "";
+    if (status === 'rejected') {
+      const input = window.prompt("Nhập lý do từ chối khiếu nại (sẽ gửi email thông báo trực tiếp cho người dùng):", "Thông tin khiếu nại chưa đủ cơ sở để mở khóa tài khoản.");
+      if (input === null) return;
+      adminNote = input.trim();
+    } else {
+      if (!window.confirm("Xác nhận chấp thuận khiếu nại và mở khóa tài khoản này? Hệ thống sẽ gửi email thông báo cho người dùng.")) return;
+    }
+
     try {
       const res = await fetch(`${API}/api/admin/appeals/${id}/resolve`, {
         method: "POST",
@@ -148,9 +161,10 @@ function UserManagementPage() {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${localStorage.getItem("admin_token")}`
         },
-        body: JSON.stringify({ status })
+        body: JSON.stringify({ status, adminNote })
       });
       if (!res.ok) throw new Error("Failed to resolve appeal");
+      alert(status === 'approved' ? "Đã duyệt mở khóa tài khoản và gửi email thông báo thành công!" : "Đã từ chối khiếu nại và gửi email thông báo thành công!");
       loadAppeals();
       loadUsers();
     } catch (err) {
@@ -346,9 +360,42 @@ function UserManagementPage() {
         </button>
         <button 
           onClick={() => setActiveTab('appeals')}
-          style={{ background: 'none', border: 'none', padding: '12px 16px', fontSize: '15px', fontWeight: '600', cursor: 'pointer', color: activeTab === 'appeals' ? 'var(--text-primary)' : 'var(--text-muted)', borderBottom: activeTab === 'appeals' ? '2px solid var(--accent-blue)' : '2px solid transparent' }}
+          style={{
+            background: 'none',
+            border: 'none',
+            padding: '12px 16px',
+            fontSize: '15px',
+            fontWeight: '600',
+            cursor: 'pointer',
+            color: activeTab === 'appeals' ? 'var(--text-primary)' : 'var(--text-muted)',
+            borderBottom: activeTab === 'appeals' ? '2px solid var(--accent-blue)' : '2px solid transparent',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}
         >
-          Khiếu Nại
+          <span>Khiếu Nại</span>
+          {pendingAppealsCount > 0 && (
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                background: "var(--accent-rose, #f43f5e)",
+                color: "#ffffff",
+                fontSize: "11px",
+                fontWeight: "700",
+                minWidth: "20px",
+                height: "20px",
+                padding: "0 6px",
+                borderRadius: "10px",
+                boxShadow: "0 0 6px rgba(244, 63, 94, 0.4)",
+              }}
+              title={`${pendingAppealsCount} khiếu nại đang chờ xử lý`}
+            >
+              {pendingAppealsCount}
+            </span>
+          )}
         </button>
       </div>
 
@@ -716,9 +763,16 @@ function UserManagementPage() {
                             <button onClick={() => handleResolveAppeal(a.id, 'rejected')} style={{ background: "var(--accent-rose)", color: "#fff", border: "none", padding: "6px 12px", borderRadius: "4px", cursor: "pointer", fontSize: "13px" }}>Từ chối</button>
                           </div>
                         ) : (
-                          <span style={{ fontSize: "13px", fontWeight: "600", color: a.status === 'approved' ? 'var(--accent-emerald-hover)' : 'var(--accent-rose)' }}>
-                            {a.status === 'approved' ? 'Đã duyệt' : 'Đã từ chối'}
-                          </span>
+                          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "2px" }}>
+                            <span style={{ fontSize: "13px", fontWeight: "600", color: a.status === 'approved' ? 'var(--accent-emerald-hover)' : 'var(--accent-rose)' }}>
+                              {a.status === 'approved' ? 'Đã duyệt' : 'Đã từ chối'}
+                            </span>
+                            {a.admin_note && (
+                              <span style={{ fontSize: "11px", color: "var(--text-muted)", maxWidth: "180px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={`Lý do phản hồi: ${a.admin_note}`}>
+                                {a.admin_note}
+                              </span>
+                            )}
+                          </div>
                         )}
                       </td>
                     </tr>

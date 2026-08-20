@@ -36,12 +36,9 @@ exports.getSuggestions = asyncHandler(async (req, res) => {
 // Removed last week restriction
 
   const month = req.query.month || getNextMonth();
-  // Generate on-demand if not yet computed
-  let suggestions = await suggestionService.getSuggestions(req.user.id, month);
-  if (suggestions.length === 0) {
-    await suggestionService.generateForUser(req.user.id, month);
-    suggestions = await suggestionService.getSuggestions(req.user.id, month);
-  }
+  // Tự động tính toán lại để luôn cập nhật theo số liệu chi tiêu mới nhất và làm tròn chuẩn
+  await suggestionService.generateForUser(req.user.id, month);
+  const suggestions = await suggestionService.getSuggestions(req.user.id, month);
   const story = suggestionService.buildSuggestionStory(suggestions, month);
   res.json({ success: true, data: { targetMonth: month, suggestions, story } });
 });
@@ -65,9 +62,9 @@ exports.dismissSuggestions = asyncHandler(async (req, res) => {
 
 function getNextMonth() {
   const now = new Date();
-  const y = now.getFullYear();
-  const m = now.getMonth() + 2; // next month (0-indexed + 1 + 1)
-  if (m > 12) return `${y + 1}-01`;
-  return `${y}-${String(m).padStart(2, '0')}`;
+  const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  const y = nextMonth.getFullYear();
+  const m = String(nextMonth.getMonth() + 1).padStart(2, '0');
+  return `${y}-${m}`;
 }
 

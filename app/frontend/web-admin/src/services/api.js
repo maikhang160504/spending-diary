@@ -265,6 +265,8 @@ export async function promoteNluModel(retrainPassword) {
     body: JSON.stringify({ retrainPassword }),
   });
 }
+
+
 export async function exportFinetuneData() {
   const token = getAuthToken();
   const res = await fetch(`${API_BASE_URL}/api/admin/train/export-finetune`, {
@@ -338,13 +340,21 @@ export function approveBillSample(id, adminLabels, category = null) {
   });
 }
 
+export function approveAllBillSamples(retrainPassword) {
+  return request("/api/admin/bill-retrain/approve-all", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ retrainPassword }),
+  });
+}
+
 export function billRetrainKaggleWebhookUrl() {
   return `${API_BASE_URL}/api/admin/bill-retrain/kaggle/webhook`;
 }
 
 export function exportBillVerified(
   triggerKaggle = false,
-  kaggleJobType = "pick_retrain",
+  kaggleJobType = "layoutlmv3",
   webhookUrl,
   archiveImages = true
 ) {
@@ -499,9 +509,15 @@ export function getBillModelCandidate() {
   return request("/api/admin/bill-retrain/model/candidate");
 }
 
-
 export function rollbackNluModel(retrainPassword) {
   return request("/api/admin/train/rollback", {
+    method: "POST",
+    body: JSON.stringify({ retrainPassword })
+  });
+}
+
+export function rejectNluModel(retrainPassword) {
+  return request("/api/admin/train/reject", {
     method: "POST",
     body: JSON.stringify({ retrainPassword })
   });
@@ -521,9 +537,20 @@ export function rollbackBillModel(retrainPassword) {
   });
 }
 
+export function rejectBillModel(retrainPassword) {
+  return request("/api/admin/bill-retrain/model/reject", {
+    method: "POST",
+    body: JSON.stringify({ retrainPassword })
+  });
+}
+
 export function syncBillModelWorkspace(retrainPassword) {
   return request("/api/admin/bill-retrain/model/sync-workspace", {
     method: "POST",
     body: JSON.stringify({ retrainPassword })
   });
+}
+
+export function fetchAppeals() {
+  return request("/api/admin/appeals");
 }

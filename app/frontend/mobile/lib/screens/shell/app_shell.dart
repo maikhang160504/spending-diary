@@ -351,6 +351,42 @@ class _AppShellState extends State<AppShell> {
                 body: message,
                 payload: deepLink,
               );
+            } else if (json['type'] == 'LOAN_REMINDER' ||
+                json['type'] == 'WALLET_JOIN' ||
+                json['type'] == 'GOAL_JOIN' ||
+                json['type'] == 'CHALLENGE_JOIN' ||
+                json['type'] == 'EXPENSE_GROUP_JOIN' ||
+                (json['payload'] != null && json['payload'] is Map<String, dynamic>)) {
+              final payload = json['payload'] as Map<String, dynamic>? ?? {};
+              final title = payload['title'] as String? ?? 'Thông báo 🔔';
+              final message = payload['message'] as String? ?? '';
+              final deepLink = payload['deepLink'] as String?;
+
+              if (title.isNotEmpty || message.isNotEmpty) {
+                inAppNotificationController.show(
+                  InAppNotification(
+                    title: title,
+                    message: message,
+                    deepLink: deepLink,
+                    actionLabel: deepLink != null ? 'Xem chi tiết' : null,
+                    onAction: deepLink != null
+                        ? () {
+                            try {
+                              context.push(deepLink);
+                            } catch (_) {
+                              context.go(deepLink);
+                            }
+                          }
+                        : null,
+                  ),
+                );
+                PushNotificationService.instance.showNotification(
+                  id: DateTime.now().millisecondsSinceEpoch % 100000,
+                  title: title,
+                  body: message,
+                  payload: deepLink,
+                );
+              }
             }
           } catch (e) {
             debugPrint('[WebSocket] Error parsing message: $e');

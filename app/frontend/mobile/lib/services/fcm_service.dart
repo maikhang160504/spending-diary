@@ -40,11 +40,17 @@ class FcmService {
     Future<void> Function(String token)? removeToken,
     void Function(String deepLink)? onDeepLink,
   }) async {
-    if (!isSupported || _initialized) return;
+    if (!isSupported) return;
 
     _registerToken = registerToken;
     _removeToken = removeToken;
     _onDeepLink = onDeepLink;
+
+    if (_initialized) {
+      // Khi đăng nhập lại hoặc chuyển tài khoản, tái đồng bộ FCM token cho user hiện tại
+      await syncCurrentToken();
+      return;
+    }
 
     try {
       if (Firebase.apps.isEmpty) {
@@ -80,6 +86,19 @@ class FcmService {
 
     _initialized = true;
     debugPrint('[FCM] initialized');
+  }
+
+  Future<void> syncCurrentToken() async {
+    if (!isSupported) return;
+    try {
+      _messaging ??= FirebaseMessaging.instance;
+      final token = await _messaging!.getToken();
+      if (token != null) {
+        await _syncToken(token);
+      }
+    } catch (e) {
+      debugPrint('[FCM] syncCurrentToken failed: $e');
+    }
   }
 
   Future<void> unregisterCurrentToken() async {

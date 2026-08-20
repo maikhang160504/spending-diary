@@ -3,6 +3,7 @@ import BillLabelCanvas from "../components/BillLabelCanvas";
 import BillHelpModal, { BillHelpTrigger } from "../components/BillHelpModal";
 import {
   approveBillSample,
+  approveAllBillSamples,
   billSampleImageUrl,
   deleteBillSample,
   exportBillVerified,
@@ -16,6 +17,7 @@ import {
   triggerBillModal,
   getBillModelCandidate,
   promoteBillModel,
+  rejectBillModel,
   rollbackBillModel,
   syncBillModelWorkspace,
   getBillTrainStatus,
@@ -70,6 +72,46 @@ function formatPrelabelMessage(prelabel) {
   }
   const kieLabel = kie === "layoutlmv3" ? "LayoutLMv3 KIE" : `heuristic (${kie})`;
   return `Gán nhãn auto: ${n} boxes · entity: ${kieLabel} · ${engine}`;
+}
+
+function formatDuration(sec) {
+  if (!sec || isNaN(sec)) return "-";
+  const m = Math.floor(sec / 60);
+  const h = Math.floor(m / 60);
+  const remainingM = m % 60;
+  if (h > 0) return `${h}h ${remainingM.toString().padStart(2, "0")}m`;
+  return `${m}m`;
+}
+
+function calcMetricDiff(newVal, oldVal) {
+  if (newVal === undefined || newVal === null) return null;
+  const numNew = Number(newVal);
+  if (isNaN(numNew)) return null;
+  if (oldVal === undefined || oldVal === null) {
+    return {
+      formattedNew: `${numNew.toFixed(2)}%`,
+      formattedOld: "-",
+      diff: null,
+    };
+  }
+  const numOld = Number(oldVal);
+  if (isNaN(numOld)) {
+    return {
+      formattedNew: `${numNew.toFixed(2)}%`,
+      formattedOld: "-",
+      diff: null,
+    };
+  }
+  const diff = numNew - numOld;
+  return {
+    formattedNew: `${numNew.toFixed(2)}%`,
+    formattedOld: `${numOld.toFixed(2)}%`,
+    diff: diff,
+    diffSign: diff > 0 ? `+${diff.toFixed(2)}%` : diff < 0 ? `${diff.toFixed(2)}%` : "0.00%",
+    isPositive: diff > 0,
+    isNegative: diff < 0,
+    arrow: diff > 0 ? "▲" : diff < 0 ? "▼" : "•",
+  };
 }
 
 function PrelabelQueuePanel({ jobs }) {
@@ -130,6 +172,7 @@ export default function BillRetrainPage() {
   const handledJobsRef = useRef(new Set());
   const toastTimerRef = useRef(null);
   const prelabelTimersRef = useRef({});
+  const isTriggeringRef = useRef(0);
 
   const upsertPrelabelJob = useCallback((id, patch) => {
     setPrelabelJobs((prev) => prev.map((j) => (j.id === id ? { ...j, ...patch } : j)));
@@ -139,7 +182,18 @@ export default function BillRetrainPage() {
     const fetchTrainStatus = async () => {
       try {
         const res = await getBillTrainStatus();
-        setModalTrainStatus(res);
+        if (Date.now() < isTriggeringRef.current && !res?.isTraining) {
+          // Container is still in cold start, retain optimistic training state
+          return;
+        }
+        if (res?.isTraining) {
+          isTriggeringRef.current = 0;
+        }
+        setModalTrainStatus(res || { isTraining: false });
+        if (!res?.isTraining) {
+          const candidateData = await getBillModelCandidate();
+          setModelStaging(candidateData);
+        }
       } catch (err) {
         console.error("Lỗi lấy trạng thái train:", err);
       }
@@ -147,13 +201,13 @@ export default function BillRetrainPage() {
 
     fetchTrainStatus();
     const interval = setInterval(() => {
-      if (modalTrainStatus?.isTraining) {
-        fetchTrainStatus();
-      }
+      fetchTrainStatus();
     }, 3000);
 
     return () => clearInterval(interval);
-  }, [modalTrainStatus?.isTraining]); const filteredSamples = useMemo(() => {
+  }, []);
+
+  const filteredSamples = useMemo(() => {
     return samples.filter(s => {
       if (s.status === "exported_archived") return false;
       if (filterStatus !== "all" && s.status !== filterStatus) return false;
@@ -450,6 +504,21 @@ export default function BillRetrainPage() {
     }
   };
 
+  const handleApproveAll = async () => {
+    const pw = window.prompt("Nhập mật khẩu quản trị để duyệt tất cả hóa đơn pending:", "");
+    if (!pw) return;
+    setBusy(true, "Đang duyệt tất cả...");
+    try {
+      const res = await approveAllBillSamples(pw);
+      showToast("success", `Đã duyệt thành công ${res.count} hóa đơn.`);
+      await loadSamples();
+    } catch (err) {
+      showToast("error", "Lỗi duyệt tất cả: " + err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const onExport = async () => {
     if (!window.confirm("Bạn có chắc chắn muốn xuất toàn bộ mẫu hóa đơn đã duyệt sang thư mục hệ thống để retrain không?")) return;
     setBusy(true, "Đang export nhãn đã duyệt...");
@@ -485,6 +554,11 @@ export default function BillRetrainPage() {
   };
 
   const onModalTrigger = async () => {
+    if (modelStaging?.candidate) {
+      setMessageIsError(true);
+      setMessage("Đang có mô hình Candidate chờ duyệt áp dụng. Vui lòng Triển khai ngay hoặc Từ chối trước khi bắt đầu đợt huấn luyện mới.");
+      return;
+    }
     const pw = window.prompt("Bạn có chắc chắn muốn khởi chạy huấn luyện mô hình LayoutLMv3 trên đám mây Modal (sử dụng GPU) không?\n\nTác vụ này sẽ chạy nền và có thể tốn tài nguyên đám mây.\n\nNhập mật khẩu quản trị hệ thống (PASSWORD_RETRAIN) để xác nhận:");
     if (!pw) return;
     setBusy(true, "Đang khởi chạy training LayoutLMv3 trên Modal Cloud...");
@@ -496,6 +570,15 @@ export default function BillRetrainPage() {
           ? `Modal training đã khởi động thành công — Job: ${res.job_id || "running"}`
           : res.error || "Không thể khởi chạy training trên Modal"
       );
+      if (res.ok) {
+        isTriggeringRef.current = Date.now() + 15000;
+        setModalTrainStatus({
+          isTraining: true,
+          stage: "starting",
+          progress_percent: 1,
+          message: "Đang khởi động Modal GPU container...",
+        });
+      }
     } catch (err) {
       setMessageIsError(true);
       setMessage(err.message || "Trigger Modal training thất bại");
@@ -523,17 +606,48 @@ export default function BillRetrainPage() {
   const onPromoteModel = async () => {
     const pw = window.prompt("Bạn có chắc chắn muốn triển khai (promote) candidate model thành model_best (production) không?\n\nThao tác này sẽ thay thế model hiện tại.\n\nNhập mật khẩu quản trị hệ thống (PASSWORD_RETRAIN) để xác nhận:");
     if (!pw) return;
-    setBusy(true, "Đang triển khai model...");
+    setBusy(true, "Đang triển khai model lên Production...");
     try {
       const res = await promoteBillModel(pw);
       setMessageIsError(!res.ok);
-      setMessage(res.message || "Đã triển khai model thành công.");
+      const msg = res.message || (res.ok ? "Đã triển khai model thành công." : (res.error || "Lỗi khi triển khai model"));
+      setMessage(msg);
+      showToast(res.ok ? "success" : "error", msg);
+      window.alert(msg);
       // Refresh
       const data = await getBillModelCandidate();
       setModelStaging(data);
     } catch (err) {
       setMessageIsError(true);
-      setMessage(err.message || "Lỗi khi triển khai model");
+      const errMsg = err.message || "Lỗi khi triển khai model";
+      setMessage(errMsg);
+      showToast("error", errMsg);
+      window.alert(errMsg);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const onRejectModel = async () => {
+    const pw = window.prompt("Bạn có chắc chắn muốn TỪ CHỐI (reject) candidate model không?\n\nThao tác này sẽ xóa candidate hiện tại.\n\nNhập mật khẩu quản trị hệ thống (PASSWORD_RETRAIN) để xác nhận:");
+    if (!pw) return;
+    setBusy(true, "Đang từ chối và xóa mô hình candidate...");
+    try {
+      const res = await rejectBillModel(pw);
+      setMessageIsError(!res.ok);
+      const msg = res.message || (res.ok ? "Đã từ chối mô hình candidate thành công." : (res.error || "Lỗi khi từ chối model"));
+      setMessage(msg);
+      showToast(res.ok ? "success" : "error", msg);
+      window.alert(msg);
+      // Refresh
+      const data = await getBillModelCandidate();
+      setModelStaging(data);
+    } catch (err) {
+      setMessageIsError(true);
+      const errMsg = err.message || "Lỗi khi từ chối model";
+      setMessage(errMsg);
+      showToast("error", errMsg);
+      window.alert(errMsg);
     } finally {
       setBusy(false);
     }
@@ -542,16 +656,22 @@ export default function BillRetrainPage() {
   const onRollbackModel = async () => {
     const pw = window.prompt("Bạn có chắc chắn muốn khôi phục (rollback) lại model trước đó không?\n\nThao tác này sẽ ghi đè model production hiện tại bằng bản lưu trước đó.\n\nNhập mật khẩu quản trị hệ thống (PASSWORD_RETRAIN) để xác nhận:");
     if (!pw) return;
-    setBusy(true, "Đang khôi phục model...");
+    setBusy(true, "Đang khôi phục model phiên bản trước...");
     try {
       const res = await rollbackBillModel(pw);
       setMessageIsError(!res.ok);
-      setMessage(res.message || "Đã khôi phục model thành công.");
+      const msg = res.message || (res.ok ? "Đã khôi phục model thành công." : (res.error || "Lỗi khi khôi phục model"));
+      setMessage(msg);
+      showToast(res.ok ? "success" : "error", msg);
+      window.alert(msg);
       const data = await getBillModelCandidate();
       setModelStaging(data);
     } catch (err) {
       setMessageIsError(true);
-      setMessage(err.message || "Lỗi khi khôi phục model");
+      const errMsg = err.message || "Lỗi khi khôi phục model";
+      setMessage(errMsg);
+      showToast("error", errMsg);
+      window.alert(errMsg);
     } finally {
       setBusy(false);
     }
@@ -662,24 +782,6 @@ export default function BillRetrainPage() {
 
       <div className="bill-toolbar">
         <div className="bill-toolbar-group">
-          <span className="bill-toolbar-label">Category</span>
-          <div className="bill-toolbar-actions">
-            <select
-              className="bill-select"
-              value={activeCategory}
-              onChange={(e) => setActiveCategory(e.target.value)}
-              disabled={!active || isArchivedSample}
-            >
-              {["Food", "Essentials", "Social", "Transport", "Shopping", "Housing", "Health", "Beauty", "Education", "Entertainment", "Investment", "Others"].map((cat) => (
-                <option key={cat} value={cat}>{cat}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        <div className="bill-toolbar-divider" aria-hidden="true" />
-
-        <div className="bill-toolbar-group">
           <span className="bill-toolbar-label">Export</span>
           <div className="bill-toolbar-actions">
             <button type="button" className="btn btn-secondary" onClick={onExport} disabled={loading}>
@@ -697,20 +799,29 @@ export default function BillRetrainPage() {
         <div className="bill-toolbar-group">
           <span className="bill-toolbar-label">Modal Cloud</span>
           <div className="bill-toolbar-actions">
-            <button type="button" className="btn btn-secondary" onClick={onModalTrigger} disabled={loading || modalTrainStatus?.isTraining}>
-              {modalTrainStatus?.isTraining ? "Đang train..." : "Train LayoutLMv3"}
-            </button>
+            {!modalTrainStatus?.isTraining && (
+              <button 
+                type="button" 
+                className="btn btn-secondary" 
+                onClick={onModalTrigger} 
+                disabled={loading || Boolean(modelStaging?.candidate)}
+                title={modelStaging?.candidate ? "Đang có mô hình Candidate chờ duyệt. Vui lòng Triển khai ngay hoặc Từ chối trước khi train mới." : "Khởi chạy training trên Modal GPU"}
+                style={modelStaging?.candidate ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+              >
+                Train LayoutLMv3
+              </button>
+            )}
             {modalTrainStatus?.isTraining && (
               <div style={{ marginLeft: 16, display: 'flex', flexDirection: 'column', minWidth: 240 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: 6, color: 'var(--accent-amber-hover)' }}>
                   <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <span className="status-dot pulse" style={{ background: "var(--accent-amber)", boxShadow: "0 0 8px var(--accent-amber)", width: "6px", height: "6px", borderRadius: "50%" }}></span>
-                    {modalTrainStatus.message}
+                    {modalTrainStatus.message || "Đang huấn luyện LayoutLMv3..."}
                   </span>
-                  <span style={{ fontWeight: 600 }}>{modalTrainStatus.progress_percent}%</span>
+                  <span style={{ fontWeight: 600 }}>{modalTrainStatus.progress_percent || 0}%</span>
                 </div>
                 <div style={{ width: "100%", height: "4px", background: "var(--bg-obsidian-800)", borderRadius: "2px", overflow: "hidden" }}>
-                  <div style={{ width: `${modalTrainStatus.progress_percent}%`, height: '100%', background: 'var(--accent-emerald)', transition: 'width 0.5s ease' }}></div>
+                  <div style={{ width: `${modalTrainStatus.progress_percent || 0}%`, height: '100%', background: 'var(--accent-emerald)', transition: 'width 0.5s ease' }}></div>
                 </div>
               </div>
             )}
@@ -718,63 +829,376 @@ export default function BillRetrainPage() {
         </div>
       </div>
 
-      <div className="bill-surface" style={{ marginBottom: 24 }}>
-        <div className="bill-surface-head">
-          <div>
-            <h2 className="bill-surface-title">Quản lý Mô hình LayoutLMv3</h2>
-          </div>
-        </div>
-        <div className="grid-2" style={{ gap: 16, marginTop: 16 }}>
-          {/* Production Model Card */}
-          <div className="bill-model-card" style={{ display: 'flex', flexDirection: 'column', padding: 16, border: '1px solid var(--border-color)', borderRadius: 8, background: 'var(--surface-color-2)' }}>
-            <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: 'var(--text-color)' }}>Mô hình Hiện tại (Production)</h3>
+      {/* SECTION: Quản lý & Đối chiếu Mô hình LayoutLMv3 */}
+      {(() => {
+        const currentMetrics = modelStaging.current?.metrics;
+        const candidateMetrics = modelStaging.candidate?.metrics;
+        const f1Diff = calcMetricDiff(candidateMetrics?.f1, currentMetrics?.f1);
+        const precisionDiff = calcMetricDiff(candidateMetrics?.precision, currentMetrics?.precision);
+        const recallDiff = calcMetricDiff(candidateMetrics?.recall, currentMetrics?.recall);
 
-            <div style={{ flex: 1 }}>
-              {modelStaging.current ? (
-                <div style={{ fontSize: 13, marginBottom: 16 }}>
-                  <p style={{ marginBottom: 4 }}><strong>Ngày train:</strong> {new Date(modelStaging.current.trained_at).toLocaleString('vi-VN')}</p>
-                  <p style={{ marginBottom: 4 }}><strong>F1 Score:</strong> {modelStaging.current.metrics?.f1}%</p>
-                  <p style={{ marginBottom: 0 }}><strong>Precision:</strong> {modelStaging.current.metrics?.precision}% <span style={{ margin: '0 8px', color: 'var(--border-color)' }}>|</span> <strong>Recall:</strong> {modelStaging.current.metrics?.recall}%</p>
+        return (
+          <div className="bill-surface" style={{ marginBottom: 24, padding: "20px 24px", background: "var(--bg-obsidian-900)", border: "1px solid var(--border-color)", borderRadius: 16 }}>
+            <div className="bill-surface-head" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, paddingBottom: 16, borderBottom: "1px solid var(--border-color)" }}>
+              <div>
+                <h2 className="bill-surface-title" style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span>🧠</span> Quản lý Mô hình LayoutLMv3 (Staging & Đối chiếu)
+                </h2>
+                <span style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2, display: 'block' }}>
+                  Kiểm tra và so sánh trực quan chỉ số chất lượng giữa mô hình Production và mô hình Candidate mới huấn luyện trước khi duyệt áp dụng.
+                </span>
+              </div>
+              <button 
+                type="button" 
+                className="btn btn-secondary btn-sm"
+                onClick={async () => {
+                  try {
+                    const data = await getBillModelCandidate();
+                    setModelStaging(data);
+                  } catch (e) {
+                    console.error(e);
+                  }
+                }}
+                disabled={loading}
+                style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 6, borderRadius: 8 }}
+              >
+                ↻ Làm mới trạng thái
+              </button>
+            </div>
+
+            {modelStaging?.candidate && (
+              <div style={{
+                background: "rgba(168, 85, 247, 0.1)",
+                border: "1px solid rgba(168, 85, 247, 0.4)",
+                borderRadius: "10px",
+                padding: "12px 18px",
+                marginTop: "16px",
+                display: "flex",
+                alignItems: "center",
+                gap: "10px",
+                color: "#e9d5ff",
+                fontSize: "13px",
+                fontWeight: "500",
+                boxShadow: "0 0 15px rgba(168, 85, 247, 0.1)"
+              }}>
+                <span style={{ fontSize: "18px" }}>⚠️</span>
+                <span>
+                  <strong>Đang có mô hình Candidate chờ duyệt áp dụng.</strong> Tính năng huấn luyện mới tạm thời bị khóa. Vui lòng <strong>Triển khai ngay</strong> hoặc <strong>Từ chối</strong> trước khi bắt đầu đợt huấn luyện tiếp theo.
+                </span>
+              </div>
+            )}
+
+            <div className="grid-2" style={{ gap: 20, marginTop: 20 }}>
+              {/* PRODUCTION MODEL CARD */}
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                padding: 20,
+                border: '1px solid var(--border-color)',
+                borderRadius: 14,
+                background: 'var(--bg-obsidian-950)',
+                position: 'relative'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                      <span style={{ fontSize: 18 }}>🛡️</span>
+                      <h3 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Mô hình Hiện tại (Production)</h3>
+                    </div>
+                    <span style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                      {modelStaging.current ? `Phiên bản: Run #${modelStaging.current.run_index || 1}` : "Chưa có bản log"}
+                    </span>
+                  </div>
+                  <span style={{
+                    background: 'var(--accent-emerald-glow)',
+                    color: 'var(--accent-emerald-hover)',
+                    border: '1px solid rgba(16, 185, 129, 0.3)',
+                    padding: '4px 10px',
+                    borderRadius: 6,
+                    fontSize: 11,
+                    fontWeight: 700,
+                    letterSpacing: '0.04em'
+                  }}>
+                    ● ĐANG HOẠT ĐỘNG
+                  </span>
                 </div>
-              ) : (
-                <p className="muted" style={{ fontSize: 13, marginBottom: 16 }}>Chưa có mô hình production (được log trong history).</p>
-              )}
-            </div>
 
-            <div style={{ display: 'flex', gap: '8px', borderTop: '1px solid var(--border-color)', paddingTop: 12, marginTop: 'auto' }}>
-              <button type="button" className="btn btn-secondary btn-sm" onClick={onSyncWorkspace} disabled={loading} title="Tải model mới nhất từ Cloud về thư mục máy tính" style={{ flex: 1, justifyContent: 'center' }}>
-                Đồng bộ về máy
-              </button>
-              <button type="button" className="btn btn-secondary btn-sm" onClick={onRollbackModel} disabled={loading} title="Khôi phục lại model trước đó" style={{ flex: 1, justifyContent: 'center' }}>
-                Khôi phục bản cũ
-              </button>
-            </div>
-          </div>
+                <div style={{ flex: 1 }}>
+                  {modelStaging.current ? (
+                    <div>
+                      <div style={{ display: 'flex', gap: 16, fontSize: 12, color: 'var(--text-secondary)', marginBottom: 16, padding: '10px 12px', background: 'var(--bg-obsidian-900)', borderRadius: 8, border: '1px solid var(--border-color)', flexWrap: 'wrap' }}>
+                        <span>📅 <strong>Huấn luyện:</strong> {new Date(modelStaging.current.trained_at).toLocaleString('vi-VN')}</span>
+                        <span>⏱️ <strong>Thời lượng:</strong> {formatDuration(modelStaging.current.duration_sec)}</span>
+                      </div>
 
-          {/* Candidate Model Card */}
-          <div className="bill-model-card" style={{ display: 'flex', flexDirection: 'column', padding: 16, border: '1px solid var(--primary-color, #10a37f)', borderRadius: 8, background: 'rgba(16, 163, 127, 0.05)' }}>
-            <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: 'var(--primary-color, #10a37f)' }}>Candidate Model (Mới huấn luyện)</h3>
+                      {/* 3 Metric Tiles */}
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 16 }}>
+                        <div style={{ padding: '12px 10px', background: 'rgba(16, 185, 129, 0.05)', border: '1px solid rgba(16, 185, 129, 0.2)', borderRadius: 10, textAlign: 'center' }}>
+                          <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--accent-emerald-hover)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>F1-Score</div>
+                          <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>
+                            {currentMetrics?.f1 != null ? `${Number(currentMetrics.f1).toFixed(2)}%` : "-"}
+                          </div>
+                          <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>Độ đo tổng thể</div>
+                        </div>
 
-            <div style={{ flex: 1 }}>
-              {modelStaging.candidate ? (
-                <div style={{ fontSize: 13, marginBottom: 16 }}>
-                  <p style={{ marginBottom: 4 }}><strong>Ngày train:</strong> {new Date(modelStaging.candidate.trained_at).toLocaleString('vi-VN')}</p>
-                  <p style={{ marginBottom: 4 }}><strong>F1 Score:</strong> {modelStaging.candidate.metrics?.f1}%</p>
-                  <p style={{ marginBottom: 0 }}><strong>Precision:</strong> {modelStaging.candidate.metrics?.precision}% <span style={{ margin: '0 8px', color: 'var(--primary-color, #10a37f)', opacity: 0.3 }}>|</span> <strong>Recall:</strong> {modelStaging.candidate.metrics?.recall}%</p>
+                        <div style={{ padding: '12px 10px', background: 'var(--bg-obsidian-900)', border: '1px solid var(--border-color)', borderRadius: 10, textAlign: 'center' }}>
+                          <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Precision</div>
+                          <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>
+                            {currentMetrics?.precision != null ? `${Number(currentMetrics.precision).toFixed(2)}%` : "-"}
+                          </div>
+                          <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>Độ chuẩn xác</div>
+                        </div>
+
+                        <div style={{ padding: '12px 10px', background: 'var(--bg-obsidian-900)', border: '1px solid var(--border-color)', borderRadius: 10, textAlign: 'center' }}>
+                          <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Recall</div>
+                          <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>
+                            {currentMetrics?.recall != null ? `${Number(currentMetrics.recall).toFixed(2)}%` : "-"}
+                          </div>
+                          <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>Độ bao phủ</div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+                      Chưa có thông tin mô hình production được ghi nhận trong lịch sử.
+                    </div>
+                  )}
                 </div>
-              ) : (
-                <p className="muted" style={{ fontSize: 13, marginBottom: 16 }}>Không có candidate model nào đang chờ duyệt.</p>
-              )}
-            </div>
 
-            <div style={{ display: 'flex', gap: '8px', borderTop: '1px solid rgba(16, 163, 127, 0.2)', paddingTop: 12, marginTop: 'auto' }}>
-              <button type="button" className="btn btn-primary btn-sm" onClick={onPromoteModel} disabled={loading || !modelStaging.candidate} style={{ flex: 1, justifyContent: 'center' }}>
-                Triển khai ngay
-              </button>
+                <div style={{ display: 'flex', gap: 10, borderTop: '1px solid var(--border-color)', paddingTop: 14, marginTop: 'auto' }}>
+                  <button type="button" className="btn btn-secondary btn-sm" onClick={onSyncWorkspace} disabled={loading} title="Tải model mới nhất từ Cloud về thư mục máy tính" style={{ flex: 1, justifyContent: 'center', borderRadius: 8 }}>
+                    ⬇ Đồng bộ về máy
+                  </button>
+                  <button type="button" className="btn btn-secondary btn-sm" onClick={onRollbackModel} disabled={loading} title="Khôi phục lại model trước đó" style={{ flex: 1, justifyContent: 'center', borderRadius: 8 }}>
+                    ↺ Khôi phục bản cũ
+                  </button>
+                </div>
+              </div>
+
+              {/* CANDIDATE MODEL CARD (WITH DIFF EVALUATION) */}
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                padding: 20,
+                border: modelStaging.candidate ? '1px solid #a855f7' : '1px dashed var(--border-color)',
+                borderRadius: 14,
+                background: modelStaging.candidate ? 'rgba(168, 85, 247, 0.03)' : 'var(--bg-obsidian-950)',
+                boxShadow: modelStaging.candidate ? '0 0 20px rgba(168, 85, 247, 0.12)' : 'none',
+                position: 'relative'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                      <span style={{ fontSize: 18 }}>✨</span>
+                      <h3 style={{ fontSize: 15, fontWeight: 700, color: modelStaging.candidate ? '#c084fc' : 'var(--text-primary)', margin: 0 }}>Candidate Model (Mới huấn luyện)</h3>
+                    </div>
+                    <span style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                      {modelStaging.candidate ? `Phiên bản: Run #${modelStaging.candidate.run_index}` : "Chưa có ứng viên chờ duyệt"}
+                    </span>
+                  </div>
+                  {modelStaging.candidate ? (
+                    <span style={{
+                      background: 'rgba(168, 85, 247, 0.15)',
+                      color: '#c084fc',
+                      border: '1px solid rgba(168, 85, 247, 0.3)',
+                      padding: '4px 10px',
+                      borderRadius: 6,
+                      fontSize: 11,
+                      fontWeight: 700,
+                      letterSpacing: '0.04em'
+                    }}>
+                      ⚡ CHỜ DUYỆT ÁP DỤNG
+                    </span>
+                  ) : (
+                    <span style={{
+                      background: 'rgba(255, 255, 255, 0.04)',
+                      color: 'var(--text-muted)',
+                      border: '1px solid var(--border-color)',
+                      padding: '4px 10px',
+                      borderRadius: 6,
+                      fontSize: 11,
+                      fontWeight: 600
+                    }}>
+                      TRỐNG
+                    </span>
+                  )}
+                </div>
+
+                <div style={{ flex: 1 }}>
+                  {modelStaging.candidate ? (
+                    <div>
+                      <div style={{ display: 'flex', gap: 16, fontSize: 12, color: 'var(--text-secondary)', marginBottom: 16, padding: '10px 12px', background: 'var(--bg-obsidian-900)', borderRadius: 8, border: '1px solid var(--border-color)', flexWrap: 'wrap' }}>
+                        <span>📅 <strong>Huấn luyện:</strong> {new Date(modelStaging.candidate.trained_at).toLocaleString('vi-VN')}</span>
+                        <span>⏱️ <strong>Thời lượng:</strong> {formatDuration(modelStaging.candidate.duration_sec)}</span>
+                      </div>
+
+                      {/* 3 Metric Tiles with Delta Badges */}
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 14 }}>
+                        {/* F1 Tile */}
+                        <div style={{ padding: '12px 10px', background: 'rgba(168, 85, 247, 0.06)', border: '1px solid rgba(168, 85, 247, 0.25)', borderRadius: 10, textAlign: 'center' }}>
+                          <div style={{ fontSize: 10, fontWeight: 700, color: '#c084fc', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>F1-Score</div>
+                          <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>
+                            {f1Diff?.formattedNew || "-"}
+                          </div>
+                          <div style={{ marginTop: 4 }}>
+                            {f1Diff?.diff !== null && f1Diff?.diff !== undefined ? (
+                              <span style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 2,
+                                fontSize: 11,
+                                fontWeight: 700,
+                                color: f1Diff.isPositive ? 'var(--accent-emerald-hover)' : f1Diff.isNegative ? 'var(--accent-rose)' : 'var(--text-muted)',
+                                background: f1Diff.isPositive ? 'var(--accent-emerald-glow)' : f1Diff.isNegative ? 'var(--accent-rose-glow)' : 'rgba(255,255,255,0.05)',
+                                padding: '1px 6px',
+                                borderRadius: 4
+                              }}>
+                                {f1Diff.arrow} {f1Diff.diffSign}
+                              </span>
+                            ) : (
+                              <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>Mới</span>
+                            )}
+                          </div>
+                          <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 4 }}>
+                            Cũ: {f1Diff?.formattedOld || "-"}
+                          </div>
+                        </div>
+
+                        {/* Precision Tile */}
+                        <div style={{ padding: '12px 10px', background: 'var(--bg-obsidian-900)', border: '1px solid var(--border-color)', borderRadius: 10, textAlign: 'center' }}>
+                          <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Precision</div>
+                          <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>
+                            {precisionDiff?.formattedNew || "-"}
+                          </div>
+                          <div style={{ marginTop: 4 }}>
+                            {precisionDiff?.diff !== null && precisionDiff?.diff !== undefined ? (
+                              <span style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 2,
+                                fontSize: 11,
+                                fontWeight: 700,
+                                color: precisionDiff.isPositive ? 'var(--accent-emerald-hover)' : precisionDiff.isNegative ? 'var(--accent-rose)' : 'var(--text-muted)',
+                                background: precisionDiff.isPositive ? 'var(--accent-emerald-glow)' : precisionDiff.isNegative ? 'var(--accent-rose-glow)' : 'rgba(255,255,255,0.05)',
+                                padding: '1px 6px',
+                                borderRadius: 4
+                              }}>
+                                {precisionDiff.arrow} {precisionDiff.diffSign}
+                              </span>
+                            ) : (
+                              <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>Mới</span>
+                            )}
+                          </div>
+                          <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 4 }}>
+                            Cũ: {precisionDiff?.formattedOld || "-"}
+                          </div>
+                        </div>
+
+                        {/* Recall Tile */}
+                        <div style={{ padding: '12px 10px', background: 'var(--bg-obsidian-900)', border: '1px solid var(--border-color)', borderRadius: 10, textAlign: 'center' }}>
+                          <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Recall</div>
+                          <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>
+                            {recallDiff?.formattedNew || "-"}
+                          </div>
+                          <div style={{ marginTop: 4 }}>
+                            {recallDiff?.diff !== null && recallDiff?.diff !== undefined ? (
+                              <span style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 2,
+                                fontSize: 11,
+                                fontWeight: 700,
+                                color: recallDiff.isPositive ? 'var(--accent-emerald-hover)' : recallDiff.isNegative ? 'var(--accent-rose)' : 'var(--text-muted)',
+                                background: recallDiff.isPositive ? 'var(--accent-emerald-glow)' : recallDiff.isNegative ? 'var(--accent-rose-glow)' : 'rgba(255,255,255,0.05)',
+                                padding: '1px 6px',
+                                borderRadius: 4
+                              }}>
+                                {recallDiff.arrow} {recallDiff.diffSign}
+                              </span>
+                            ) : (
+                              <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>Mới</span>
+                            )}
+                          </div>
+                          <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 4 }}>
+                            Cũ: {recallDiff?.formattedOld || "-"}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Comparative Verdict Banner */}
+                      {f1Diff && f1Diff.diff > 0 ? (
+                        <div style={{ background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.25)', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 12, color: 'var(--accent-emerald-hover)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span style={{ fontSize: 15 }}>🚀</span>
+                          <span><strong>Khuyến nghị triển khai:</strong> Mô hình mới có F1-Score tăng <strong>{f1Diff.diffSign}</strong> so với bản hiện tại, cải thiện độ chính xác bóc tách hóa đơn.</span>
+                        </div>
+                      ) : f1Diff && f1Diff.diff < 0 ? (
+                        <div style={{ background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.25)', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 12, color: 'var(--accent-rose-hover)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span style={{ fontSize: 15 }}>⚠️</span>
+                          <span><strong>Cần cân nhắc:</strong> F1-Score giảm <strong>{f1Diff.diffSign}</strong> so với bản Production. Đề nghị kiểm tra kỹ chất lượng trước khi duyệt áp dụng.</span>
+                        </div>
+                      ) : (
+                        <div style={{ background: 'rgba(2, 132, 199, 0.08)', border: '1px solid rgba(2, 132, 199, 0.25)', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 12, color: 'var(--accent-blue-hover)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span style={{ fontSize: 15 }}>⚖️</span>
+                          <span><strong>Đánh giá:</strong> Chất lượng mô hình tương đương phiên bản Production hiện tại (chênh lệch F1: 0.00%).</span>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div style={{ padding: '30px 16px', textAlign: 'center' }}>
+                      <div style={{ fontSize: 32, marginBottom: 8, opacity: 0.7 }}>📦</div>
+                      <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 6 }}>
+                        Không có candidate model nào đang chờ duyệt.
+                      </p>
+                      <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5, maxWidth: 360, margin: '0 auto 16px' }}>
+                        Sau khi nhấn <strong>Train LayoutLMv3</strong> và hoàn tất trên Cloud GPU, kết quả đối chiếu chỉ số F1, Precision, Recall sẽ xuất hiện tại đây.
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', gap: 10, borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: 14, marginTop: 'auto' }}>
+                  <button 
+                    type="button" 
+                    className="btn btn-primary btn-sm" 
+                    onClick={onPromoteModel} 
+                    disabled={loading || !modelStaging.candidate} 
+                    style={{
+                      flex: 1,
+                      justifyContent: 'center',
+                      borderRadius: 8,
+                      fontWeight: 700,
+                      background: modelStaging.candidate ? 'var(--accent-emerald)' : 'var(--bg-obsidian-800)',
+                      borderColor: modelStaging.candidate ? 'var(--accent-emerald)' : 'var(--border-color)',
+                      color: modelStaging.candidate ? 'var(--bg-obsidian-950)' : 'var(--text-muted)',
+                      boxShadow: modelStaging.candidate ? '0 0 12px var(--accent-emerald-glow)' : 'none',
+                      cursor: (loading || !modelStaging.candidate) ? 'not-allowed' : 'pointer'
+                    }}
+                  >
+                    🚀 Triển khai ngay
+                  </button>
+                  <button 
+                    type="button" 
+                    className="btn btn-danger btn-sm" 
+                    onClick={onRejectModel} 
+                    disabled={loading || !modelStaging.candidate} 
+                    style={{
+                      flex: 1,
+                      justifyContent: 'center',
+                      borderRadius: 8,
+                      background: modelStaging.candidate ? 'var(--accent-rose)' : 'var(--bg-obsidian-800)',
+                      borderColor: modelStaging.candidate ? 'var(--accent-rose)' : 'var(--border-color)',
+                      color: modelStaging.candidate ? '#fff' : 'var(--text-muted)',
+                      cursor: (loading || !modelStaging.candidate) ? 'not-allowed' : 'pointer'
+                    }}
+                  >
+                    ✕ Từ chối
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
+        );
+      })()}
 
       <div className="grid-3 bill-retrain-grid">
         <section className="bill-surface bill-queue-panel">
@@ -855,9 +1279,25 @@ export default function BillRetrainPage() {
         </section>
 
         <section className="bill-surface bill-canvas-panel">
-          <div className="bill-surface-head">
-            <div>
-              <h2 className="bill-surface-title">Canvas nhãn</h2>
+          <div className="bill-surface-head" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <h2 className="bill-surface-title" style={{ margin: 0 }}>Canvas nhãn</h2>
+              {active && (
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(255, 255, 255, 0.04)', padding: '2px 8px', borderRadius: 8, border: '1px solid var(--border-color)' }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Category:</span>
+                  <select
+                    className="bill-select"
+                    value={activeCategory}
+                    onChange={(e) => setActiveCategory(e.target.value)}
+                    disabled={!active || isArchivedSample}
+                    style={{ padding: '2px 6px', fontSize: 12, height: 26, borderRadius: 6, border: 'none', background: 'transparent', color: 'var(--text-primary)', fontWeight: 600, cursor: 'pointer' }}
+                  >
+                    {["Food", "Essentials", "Social", "Transport", "Shopping", "Housing", "Health", "Beauty", "Education", "Entertainment", "Investment", "Others"].map((cat) => (
+                      <option key={cat} value={cat} style={{ background: 'var(--bg-obsidian-900)', color: 'var(--text-primary)' }}>{cat}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
             {active && boxes.length > 0 && (
               <span className="bill-edit-tag">{boxes.length} box · kéo thả để chỉnh</span>
@@ -900,12 +1340,35 @@ export default function BillRetrainPage() {
         </section>
 
         <section className="bill-surface bill-box-panel">
-          <div className="bill-surface-head" style={{ marginBottom: 12 }}>
+          <div className="bill-surface-head" style={{ marginBottom: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
               <h2 className="bill-surface-title">Công cụ gán nhãn</h2>
             </div>
+            <button 
+              type="button" 
+              className="btn btn-secondary btn-sm" 
+              onClick={handleApproveAll} 
+              disabled={loading || pendingCount === 0} 
+              style={{ background: 'var(--accent-emerald)', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 500, padding: '4px 12px' }}
+            >
+              Duyệt tất cả {pendingCount > 0 ? `(${pendingCount})` : ''}
+            </button>
           </div>
-          <div className="bill-box-tools" style={{ display: "flex", flexWrap: "wrap", gap: 8, paddingBottom: 16, borderBottom: "1px solid var(--border-color)", marginBottom: 16 }}>
+          <div className="bill-box-tools" style={{ display: "flex", flexWrap: "wrap", gap: 8, paddingBottom: 16, borderBottom: "1px solid var(--border-color)", marginBottom: 16, alignItems: 'center' }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, width: '100%', marginBottom: 4 }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>Category:</span>
+              <select
+                className="bill-select"
+                value={activeCategory}
+                onChange={(e) => setActiveCategory(e.target.value)}
+                disabled={!active || isArchivedSample}
+                style={{ flex: 1, height: 32, fontSize: 12, borderRadius: 6, background: 'var(--bg-obsidian-950)', border: '1px solid var(--border-color)' }}
+              >
+                {["Food", "Essentials", "Social", "Transport", "Shopping", "Housing", "Health", "Beauty", "Education", "Entertainment", "Investment", "Others"].map((cat) => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
+            </div>
             <label className="btn btn-primary btn-sm">
               Upload ảnh
               <input type="file" accept="image/*" multiple hidden onChange={onUpload} />

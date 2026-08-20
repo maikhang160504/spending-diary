@@ -210,6 +210,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
         } else {
           _transactions = [];
         }
+        _transactions = _transactions.where((t) => t['processingStatus'] != 'processing').toList();
         _transactions.sort((a, b) => compareByTimestampDesc(
           Map<String, dynamic>.from(a as Map),
           Map<String, dynamic>.from(b as Map),

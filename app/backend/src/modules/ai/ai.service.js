@@ -914,19 +914,24 @@ async function _processBillBackground(userId, walletId, transactionId, fileBuffe
     let occurredAt = new Date();
     let dateExtracted = false;
     
-    const timestampStr = aiResponse.ocr?.kie_fields?.TIMESTAMP;
-    if (timestampStr) {
-      const parsedDate = parseBillDate(timestampStr);
-      if (parsedDate) {
-        occurredAt = parsedDate;
-        dateExtracted = true;
-      }
-    }
-    
-    if (dateFallback === 'current' && !dateExtracted) {
+    if (dateFallback === 'current') {
       occurredAt = new Date();
-    } else if (dateFallback === 'reject' && !dateExtracted) {
-      throw new Error('Date Convergence Policy: Missing or invalid receipt date.');
+      dateExtracted = true;
+    } else {
+      const timestampStr = aiResponse.ocr?.kie_fields?.TIMESTAMP;
+      if (timestampStr) {
+        const parsedDate = parseBillDate(timestampStr);
+        if (parsedDate) {
+          occurredAt = parsedDate;
+          dateExtracted = true;
+        }
+      }
+      
+      if (dateFallback === 'reject' && !dateExtracted) {
+        throw new Error('Date Convergence Policy: Missing or invalid receipt date.');
+      } else if (!dateExtracted) {
+        occurredAt = new Date();
+      }
     }
 
     const extracted = aiResponse.extracted || {};
@@ -1507,9 +1512,10 @@ async function _runChatLlmFollowUp(userId, sessionId, messageId, context) {
     };
     if (mergedNlu.multi_records && Array.isArray(mergedNlu.multi_records) && mergedNlu.multi_records.length >= 2) {
       completeIntentAction.multi_records = mergedNlu.multi_records.map(r => ({
-        text: r.text || '',
+        text: r.text || r.item || r.segment || '',
+        item: r.item || r.text || r.segment || '',
+        note: r.note || r.item || r.text || r.segment || '',
         amount: Number(r.amount) || 0,
-
         category: r.category || 'Other',
         record_type: r.record_type || 'Expense',
       }));
@@ -1719,7 +1725,9 @@ async function _processAiChatBackground(userId, sessionId, userMessage, contextM
 
     if (aiResponse.multi_records && Array.isArray(aiResponse.multi_records) && aiResponse.multi_records.length >= 2) {
       intentAction.multi_records = aiResponse.multi_records.map(r => ({
-        text: r.text || '',
+        text: r.text || r.item || r.segment || '',
+        item: r.item || r.text || r.segment || '',
+        note: r.note || r.item || r.text || r.segment || '',
         amount: Number(r.amount) || 0,
         category: r.category || 'Other',
         record_type: r.record_type || 'Expense',
@@ -1834,6 +1842,17 @@ async function _processAiChatBackground(userId, sessionId, userMessage, contextM
         mood: intentAction.mood || 'Happy',
         intentAction,
       });
+      
+      // Send FCM push notification if user left the app
+      const fcmService = require('../fcm/fcm.service');
+      fcmService.sendPushToUser(userId, {
+        title: 'Mimo',
+        body: assistantContent.length > 50 ? assistantContent.substring(0, 50) + '...' : assistantContent,
+        data: {
+          type: 'CHAT_REPLY',
+          deepLink: '/chat',
+        }
+      }).catch(e => logger.warn({ err: e.message }, 'Failed to send FCM push for normal chat reply'));
     }
 
     await logAi(userId, 'chat', { sessionId, userMessage }, aiResponse, {
@@ -1919,12 +1938,30 @@ async function _processGroupBillBackground(userId, groupId, transactionId, fileB
       confidence: aiResponse.suggestion?.confidence,
     });
     
+    // Resolve Date Convergence setting
+    const sysSettings = await _getSystemSettings();
+    const dateFallback = sysSettings.dateFallback || 'transaction';
+    
     let occurredAt = new Date();
-    const timestampStr = aiResponse.extra_fields?.kie_fields?.TIMESTAMP;
-    if (timestampStr) {
-      const parsedDate = parseBillDate(timestampStr);
-      if (parsedDate) {
-        occurredAt = parsedDate;
+    let dateExtracted = false;
+    
+    if (dateFallback === 'current') {
+      occurredAt = new Date();
+      dateExtracted = true;
+    } else {
+      const timestampStr = aiResponse.extra_fields?.kie_fields?.TIMESTAMP;
+      if (timestampStr) {
+        const parsedDate = parseBillDate(timestampStr);
+        if (parsedDate) {
+          occurredAt = parsedDate;
+          dateExtracted = true;
+        }
+      }
+      
+      if (dateFallback === 'reject' && !dateExtracted) {
+        throw new Error('Date Convergence Policy: Missing or invalid receipt date.');
+      } else if (!dateExtracted) {
+        occurredAt = new Date();
       }
     }
     

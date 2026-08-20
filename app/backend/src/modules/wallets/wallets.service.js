@@ -3,6 +3,8 @@
 const crypto = require('crypto');
 const { query, withTransaction } = require('../../config/db');
 const ApiError = require('../../utils/ApiError');
+const fcmService = require('../fcm/fcm.service');
+const { dispatchUserNotification } = require('../../services/notificationDispatch');
 
 function row(r) {
   return {
@@ -301,6 +303,38 @@ async function joinByInviteCode(userId, code) {
      WHERE w.id = $1 AND wm.user_id = $2`,
     [invite.wallet_id, userId]
   );
+
+  // Send notification to other members & owner
+  try {
+    const userRes = await query('SELECT username FROM users WHERE id = $1', [userId]);
+    const finalUserName = userRes.rows[0]?.username || 'Thành viên mới';
+    const w = walletRes.rows[0];
+
+    const otherMembers = await query(
+      `SELECT DISTINCT user_id FROM (
+         SELECT user_id FROM wallet_members WHERE wallet_id = $1
+         UNION
+         SELECT owner_id AS user_id FROM wallets WHERE id = $1
+       ) sub
+       WHERE user_id != $2 AND user_id IS NOT NULL`,
+      [invite.wallet_id, userId]
+    );
+    console.log(`[WalletJoin] Found ${otherMembers.rowCount} members/owner to notify in wallet ${invite.wallet_id}`);
+    for (const row of otherMembers.rows) {
+      console.log(`[WalletJoin] Dispatching notification to user ${row.user_id}`);
+      await dispatchUserNotification(row.user_id, {
+        type: 'WALLET_JOIN',
+        payload: {
+          title: 'Thành viên mới trong ví chung 👥',
+          message: `${finalUserName} đã tham gia ví chung "${w.name}".`,
+          deepLink: `/app/wallets/${invite.wallet_id}`,
+        }
+      }).catch((e) => console.error('Join wallet notification error:', e));
+    }
+  } catch (e) {
+    console.error('Error sending join wallet notification:', e);
+  }
+
   return row(walletRes.rows[0]);
 }
 

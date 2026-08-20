@@ -1,5 +1,0 @@
-- Chương 4: Bổ sung Testcase kiểm thử API Push Notification (Cảnh báo lạm chi) bằng Postman (thể hiện rõ Request/Response để chứng minh Backend hoạt động chuẩn xác). Khỏi cần chèn ảnh Postman ở chương 3.
-- ...
-- sao luận văn để là dùng phobert + LLM nhưng tại sao khi chạy demo lại dùng LLM+ LLM , giải thích 
-- sự khác nhau giữa phân tán và truyền thống
-- tại sao không dùng test đề đnahs giá mà lại dùng benchmark

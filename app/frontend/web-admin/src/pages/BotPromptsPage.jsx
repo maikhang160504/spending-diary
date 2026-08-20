@@ -73,9 +73,6 @@ function BotPromptsPage() {
     ])
       .then(([prompts, settings]) => {
         setPromptsData(prompts);
-        if (prompts.emotions && prompts.emotions[persona]) {
-          setCustomPrompt(prompts.emotions[persona].system);
-        }
         // Load NLU classification prompts
         setIntentPrompt(prompts.llm_intent_classification?.system || "");
         setCategoryPrompt(prompts.llm_record_slot_extraction?.system || "");
@@ -103,11 +100,14 @@ function BotPromptsPage() {
       });
   }, []);
 
+  useEffect(() => {
+    if (promptsData && promptsData.emotions && promptsData.emotions[persona]) {
+      setCustomPrompt(promptsData.emotions[persona].system || "");
+    }
+  }, [persona, promptsData]);
+
   const handlePersonaChange = (val) => {
     setPersona(val);
-    if (promptsData && promptsData.emotions && promptsData.emotions[val]) {
-      setCustomPrompt(promptsData.emotions[val].system);
-    }
   };
 
   const handleSaveAllSettings = (e) => {
@@ -330,6 +330,8 @@ function BotPromptsPage() {
                   <span>System Instruction Prompt</span>
                   <span className="monospaced" style={{ color: "var(--accent-blue-hover)", fontSize: "12px" }}>{persona}.system</span>
                 </label>
+                <div style={{color: "white"}}>DEBUG keys: {promptsData ? Object.keys(promptsData).join(", ") : "null"} | type: {typeof promptsData}</div>
+
                 <textarea
                   className="form-textarea monospaced"
                   value={customPrompt}
@@ -706,55 +708,6 @@ function BotPromptsPage() {
             </div>
           </div>
 
-          {/* LLM Sampling Sliders */}
-          <div className="panel" style={{
-            background: "var(--bg-obsidian-900)",
-            border: "1px solid var(--border-color)",
-            borderRadius: "16px",
-            padding: "24px",
-            boxShadow: "0 4px 20px rgba(0, 0, 0, 0.15)"
-          }}>
-            <div className="panel-header" style={{ paddingBottom: "16px", borderBottom: "1px solid var(--border-color)", marginBottom: "20px" }}>
-              <h2 className="panel-title" style={{ fontSize: "16px", fontWeight: "600", color: "var(--text-primary)", marginBottom: "4px" }}>LLM Sampling Parameters</h2>
-              <span className="form-desc" style={{ fontSize: "12px", color: "var(--text-muted)" }}>Hiệu chỉnh tham số suy diễn của mô hình fine-tuned.</span>
-            </div>
-
-            <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-              <div className="form-group">
-                <label className="form-label" style={{ color: "var(--text-primary)", fontWeight: "500", display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
-                  <span>Inference Temperature</span>
-                  <strong style={{ color: "var(--accent-blue-hover)", fontFamily: "var(--font-mono)" }}>{systemSettings.llmTemperature}</strong>
-                </label>
-                <input
-                  type="range"
-                  min="0.1"
-                  max="1.5"
-                  step="0.05"
-                  value={systemSettings.llmTemperature}
-                  onChange={(e) => setSystemSettings({ ...systemSettings, llmTemperature: parseFloat(e.target.value) })}
-                  style={{ accentColor: "var(--accent-blue)", width: "100%", height: "6px", background: "var(--bg-obsidian-950)", borderRadius: "3px" }}
-                />
-                <span className="form-desc" style={{ fontSize: "11px", color: "var(--text-muted)" }}>Nhiệt độ cao giúp câu trả lời ngẫu nhiên & sáng tạo hơn. Thấp giúp câu trả lời nhất quán & chính xác.</span>
-              </div>
-
-              <div className="form-group">
-                <label className="form-label" style={{ color: "var(--text-primary)", fontWeight: "500", display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
-                  <span>Top-K Sampling Limit</span>
-                  <strong style={{ color: "var(--accent-violet-hover)", fontFamily: "var(--font-mono)" }}>{systemSettings.llmTopK}</strong>
-                </label>
-                <input
-                  type="range"
-                  min="1"
-                  max="100"
-                  step="1"
-                  value={systemSettings.llmTopK}
-                  onChange={(e) => setSystemSettings({ ...systemSettings, llmTopK: parseInt(e.target.value) })}
-                  style={{ accentColor: "var(--accent-violet)", width: "100%", height: "6px", background: "var(--bg-obsidian-950)", borderRadius: "3px" }}
-                />
-                <span className="form-desc" style={{ fontSize: "11px", color: "var(--text-muted)" }}>Giới hạn tập hợp các token có xác suất cao nhất được xem xét khi generate câu tiếp theo.</span>
-              </div>
-            </div>
-          </div>
 
           {/* Mimo Alert Calibration */}
           <div className="panel" style={{

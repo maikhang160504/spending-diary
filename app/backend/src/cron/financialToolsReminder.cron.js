@@ -108,9 +108,7 @@ async function runFinancialToolsReminders() {
       WHERE l.status = 'active'
         AND l.paid_amount < l.amount
         AND (
-          l.due_date = CURRENT_DATE
-          OR l.due_date = CURRENT_DATE + INTERVAL '1 day'
-          OR l.due_date = CURRENT_DATE + INTERVAL '3 days'
+          (l.due_date >= CURRENT_DATE AND l.due_date <= CURRENT_DATE + INTERVAL '2 days')
           OR (l.reminder_date IS NOT NULL AND l.reminder_date::date = CURRENT_DATE AND l.is_reminded = FALSE)
         )
     `);
@@ -118,14 +116,22 @@ async function runFinancialToolsReminders() {
     for (const loan of loansRes.rows) {
       const typeLabel = loan.type === 'lend' ? 'thu nợ' : 'trả nợ';
       const remaining = Number(loan.amount - loan.paid_amount);
-      const isDueToday = new Date(loan.due_date).toDateString() === new Date().toDateString();
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const due = new Date(loan.due_date);
+      due.setHours(0, 0, 0, 0);
+      const diffDays = Math.round((due - today) / (1000 * 60 * 60 * 24));
+
+      const isDueToday = diffDays === 0;
+      const isDueTomorrow = diffDays === 1;
 
       const title = isDueToday
           ? `Đến hạn ${typeLabel} hôm nay 🔔`
-          : `Sắp đến hạn ${typeLabel} ⏳`;
-      const message = isDueToday
-          ? `Khoản ${typeLabel} với ${loan.contact_name || 'người liên hệ'} số tiền ${formatMoney(remaining)}đ đã đến hạn hôm nay (${formatDate(loan.due_date)}).`
-          : `Khoản ${typeLabel} với ${loan.contact_name || 'người liên hệ'} số tiền ${formatMoney(remaining)}đ sắp đến hạn vào ${formatDate(loan.due_date)}.`;
+          : isDueTomorrow
+          ? `Sắp đến hạn ${typeLabel} ngày mai ⏳`
+          : `Sắp đến hạn ${typeLabel} (còn 2 ngày) ⏳`;
+      const timeStr = isDueToday ? 'hôm nay' : isDueTomorrow ? 'vào ngày mai' : 'sau 2 ngày nữa';
+      const message = `Khoản ${typeLabel} với ${loan.contact_name || 'người liên hệ'} số tiền ${formatMoney(remaining)}đ sẽ đến hạn ${timeStr} (${formatDate(loan.due_date)}).`;
 
       await dispatchUserNotification(loan.user_id, {
         type: 'LOAN_REMINDER',

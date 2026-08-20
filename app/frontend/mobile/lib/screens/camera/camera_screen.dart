@@ -619,7 +619,7 @@ class _CameraScreenState extends State<CameraScreen>
                         ),
                         const SizedBox(height: 32),
                         GestureDetector(
-                          onTap: _takePhoto,
+                          onTap: _isTakingPhoto ? null : _takePhoto,
                           child: Container(
                             width: 72,
                             height: 72,
@@ -684,7 +684,7 @@ class _CameraScreenState extends State<CameraScreen>
                                   onTap: _pickFromGallery,
                                 ),
                                 GestureDetector(
-                                  onTap: _takePhoto,
+                                  onTap: _isTakingPhoto ? null : _takePhoto,
                                   child: Container(
                                     width: 72,
                                     height: 72,

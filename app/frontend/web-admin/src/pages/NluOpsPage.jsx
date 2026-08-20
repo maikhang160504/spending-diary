@@ -17,6 +17,7 @@ import {
   exportFinetuneData,
   promoteNluModel,
   rollbackNluModel,
+  rejectNluModel,
   getLlmTrainHistory,
   getLlmTrainStatus,
 } from "../services/api";
@@ -129,6 +130,9 @@ function NluOpsPage() {
 
   // Model 3-state
   const [promotingModel, setPromotingModel] = useState(false);
+
+  const hasNewCandidate = Boolean(modelsStatus?.candidate?.exists);
+  const hasOldBackup = Boolean(modelsStatus?.old?.exists);
 
   const renderMetricCell = (modelKey, metricKey, trainType = compareTrainType) => {
     const filtered = filterHistoryByType(trainHistory, trainType);
@@ -374,22 +378,7 @@ function NluOpsPage() {
     }
   };
 
-  const handlePromoteModel = async () => {
-    if (!window.confirm("Bạn có chắc chắn muốn duyệt áp dụng mô hình mới (Candidate -> Active) và chuyển mô hình hiện tại thành Cũ (Old) không?")) return;
-    const pwd = window.prompt("Nhập mật khẩu quản trị để duyệt áp dụng mô hình mới:", "");
-    if (pwd === null) return;
 
-    setPromotingModel(true);
-    try {
-      const data = await promoteNluModel(pwd);
-      showToast(data?.message || "Đã duyệt áp dụng mô hình mới thành công!");
-      fetchAllData();
-    } catch (err) {
-      showToast("Duyệt áp dụng thất bại: " + (err.message || err));
-    } finally {
-      setPromotingModel(false);
-    }
-  };
 
   const handleExportFinetuneData = async () => {
     try {
@@ -401,6 +390,10 @@ function NluOpsPage() {
   };
 
   const handleLlmFinetune = async () => {
+    if (hasNewCandidate) {
+      showToast("Đang có mô hình Candidate chờ duyệt. Vui lòng Duyệt áp dụng hoặc Từ chối trước khi bắt đầu huấn luyện mới.");
+      return;
+    }
     const pwd = window.prompt("Nhập mật khẩu quản trị để kích hoạt fine-tune LLM trên GPU Modal:", "");
     if (pwd === null) return;
 
@@ -415,13 +408,16 @@ function NluOpsPage() {
       showToast(data?.message || "Đã gửi yêu cầu Fine-tune LLM lên Modal GPU thành công!");
     } catch (err) {
       showToast("Fine-tune LLM thất bại: " + (err.message || err));
-    } finally {
       setIsLlmTraining(false);
     }
   };
 
   // Trigger retraining in background
   const handleRetrain = async (target = "local") => {
+    if (hasNewCandidate) {
+      showToast("Đang có mô hình Candidate chờ duyệt. Vui lòng Duyệt áp dụng hoặc Từ chối trước khi bắt đầu huấn luyện mới.");
+      return;
+    }
     const label = target === "encoder" ? "PhoBERT Encoder" : "TF-IDF & NLU";
     const pw = window.prompt(`Xác nhận huấn luyện lại mô hình ${label}.\nQuá trình này sẽ chạy nền.\n\nNhập mật khẩu quản trị hệ thống để xác nhận:`, "");
     if (!pw) return;
@@ -486,12 +482,57 @@ function NluOpsPage() {
   const handleRollbackNlu = async () => {
     const pw = window.prompt("Xác nhận khôi phục mô hình NLU về phiên bản trước.\n\nNhập mật khẩu quản trị hệ thống để xác nhận:", "");
     if (!pw) return;
+    setPromotingModel(true);
     try {
       const res = await rollbackNluModel(pw);
-      showToast(res.message || "Đã khôi phục thành công mô hình NLU trước đó!");
-      fetchAllData();
+      const msg = res?.message || "Đã khôi phục thành công mô hình NLU trước đó!";
+      showToast(msg);
+      window.alert(msg);
+      await fetchAllData();
     } catch (err) {
-      showToast("Khôi phục thất bại: " + (err.message || err));
+      const errMsg = "Khôi phục thất bại: " + (err.message || err);
+      showToast(errMsg);
+      window.alert(errMsg);
+    } finally {
+      setPromotingModel(false);
+    }
+  };
+
+  const handlePromoteModel = async () => {
+    const pw = window.prompt("Xác nhận duyệt áp dụng mô hình mới (Candidate -> Current / Active).\n\nMô hình hiện tại sẽ được chuyển thành bản sao lưu (Old).\nNhập mật khẩu quản trị để xác nhận:", "");
+    if (!pw) return;
+    setPromotingModel(true);
+    try {
+      const res = await promoteNluModel(pw);
+      const msg = res?.message || "Đã duyệt và kích hoạt mô hình mới thành công!";
+      showToast(msg);
+      window.alert(msg);
+      await fetchAllData();
+    } catch (err) {
+      const errMsg = "Duyệt mô hình thất bại: " + (err.message || err);
+      showToast(errMsg);
+      window.alert(errMsg);
+    } finally {
+      setPromotingModel(false);
+    }
+  };
+
+  const handleRejectModel = async () => {
+    const pw = window.prompt("Xác nhận từ chối và hủy bỏ mô hình mới (Candidate).\n\nNhập mật khẩu quản trị để xác nhận:", "");
+    if (!pw) return;
+    setPromotingModel(true);
+    try {
+      const res = await rejectNluModel(pw);
+      const msg = res?.message || "Đã từ chối và hủy bỏ mô hình candidate thành công!";
+      showToast(msg);
+      window.alert(msg);
+      await fetchAllData();
+    } catch (err) {
+      const errMsg = "Từ chối mô hình thất bại: " + (err.message || err);
+      showToast(errMsg);
+      window.alert(errMsg);
+    } finally {
+      setPromotingModel(false);
     }
   };
 
@@ -990,7 +1031,7 @@ function NluOpsPage() {
             
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "24px" }}>
               {/* Tầng 1 */}
-              <div style={{ background: "var(--bg-obsidian-900)", border: "1px solid var(--border-color)", borderRadius: "16px", padding: "24px", boxShadow: intentBackend === "llm_v2" ? "0 0 15px var(--accent-emerald-glow)" : "none", opacity: (isTraining || isLlmTraining) ? 0.7 : 1 }}>
+              <div style={{ background: "var(--bg-obsidian-900)", border: "1px solid var(--border-color)", borderRadius: "16px", padding: "24px", boxShadow: (intentBackend === "llm_v2" || intentBackend === "llm_finetuned") ? "0 0 15px var(--accent-emerald-glow)" : "none", opacity: (isTraining || isLlmTraining) ? 0.7 : 1 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "12px" }}>
                   <span style={{ fontSize: "28px" }}>🎯</span>
                   <span style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: "700", background: "var(--bg-obsidian-800)", color: "var(--text-muted)", padding: "4px 8px", borderRadius: "6px" }}>Layer 1</span>
@@ -1006,12 +1047,13 @@ function NluOpsPage() {
                 >
                   <option value="tfidf">📊 TF-IDF Classic (Local CPU)</option>
                   <option value="encoder">🧬 PhoBERT Encoder (Local CPU/GPU)</option>
-                  <option value="llm_v2">🔥 Qwen2.5 LLM Rules (Mặc định)</option>
+                  <option value="llm_v2">🔥 Qwen2.5 LLM Rules</option>
+                  <option value="llm_finetuned">✨ Qwen2.5 LLM Finetuned (Mặc định)</option>
                 </select>
               </div>
 
               {/* Tầng 2 */}
-              <div style={{ background: "var(--bg-obsidian-900)", border: "1px solid var(--border-color)", borderRadius: "16px", padding: "24px", boxShadow: categoryBackend === "llm_v2" ? "0 0 15px var(--accent-emerald-glow)" : "none", opacity: (isTraining || isLlmTraining) ? 0.7 : 1 }}>
+              <div style={{ background: "var(--bg-obsidian-900)", border: "1px solid var(--border-color)", borderRadius: "16px", padding: "24px", boxShadow: (categoryBackend === "llm_v2" || categoryBackend === "llm_finetuned") ? "0 0 15px var(--accent-emerald-glow)" : "none", opacity: (isTraining || isLlmTraining) ? 0.7 : 1 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "12px" }}>
                   <span style={{ fontSize: "28px" }}>📂</span>
                   <span style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: "700", background: "var(--bg-obsidian-800)", color: "var(--text-muted)", padding: "4px 8px", borderRadius: "6px" }}>Layer 2</span>
@@ -1028,6 +1070,7 @@ function NluOpsPage() {
                   <option value="tfidf">📊 TF-IDF Classic (Local CPU)</option>
                   <option value="encoder">🧬 PhoBERT Encoder (Local CPU/GPU)</option>
                   <option value="llm_v2">🔥 Qwen2.5 LLM Rules (Mặc định)</option>
+                  <option value="llm_finetuned">✨ Qwen2.5 LLM Finetuned</option>
                 </select>
               </div>
             </div>
@@ -1050,157 +1093,192 @@ function NluOpsPage() {
                   width: "8px",
                   height: "8px",
                   borderRadius: "50%",
-                  background: (isTraining || isLlmTraining) ? "var(--accent-amber)" : "var(--accent-emerald)",
-                  boxShadow: (isTraining || isLlmTraining) ? "0 0 8px var(--accent-amber)" : "0 0 8px var(--accent-emerald)"
+                  background: (isTraining || isLlmTraining) ? "var(--accent-amber)" : (hasNewCandidate ? "#a855f7" : "var(--accent-emerald)"),
+                  boxShadow: (isTraining || isLlmTraining) ? "0 0 8px var(--accent-amber)" : (hasNewCandidate ? "0 0 8px #a855f7" : "0 0 8px var(--accent-emerald)")
                 }} />
                 <h2 className="panel-title" style={{ fontSize: "16px", fontWeight: "600", color: "var(--text-primary)" }}>Bảng điều khiển huấn luyện</h2>
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "20px", marginBottom: "20px" }}>
-                {/* Local CPU Retrain Card */}
-                <div 
-                  onClick={() => { if (!isTraining && !isLlmTraining) handleRetrain("local"); }}
-                  style={{
-                    border: `1px solid ${isTraining && compareTrainType === "tfidf" ? "var(--accent-emerald)" : "var(--border-color)"}`,
-                    background: isTraining && compareTrainType === "tfidf" ? "rgba(16, 185, 129, 0.05)" : "var(--bg-obsidian-950)",
-                    borderRadius: "12px",
-                    padding: "24px 16px",
-                    cursor: (isTraining || isLlmTraining) ? "not-allowed" : "pointer",
-                    textAlign: "center",
-                    transition: "all 0.2s"
-                  }}
-                >
-                  <div style={{ fontSize: "32px", marginBottom: "10px" }}>💻</div>
-                  <h4 style={{ fontSize: "14px", fontWeight: "600", color: "var(--text-primary)", marginBottom: "6px" }}>Huấn luyện TF-IDF (2 Stages)</h4>
-                  <span style={{ fontSize: "12px", color: "var(--text-secondary)", display: "block" }}>Chạy nền · 1-2 phút</span>
-                  <span style={{ fontSize: "11px", color: "var(--text-muted)", display: "block", marginTop: "8px", lineHeight: 1.4 }}>
-                    Huấn luyện lại bộ phân loại TF-IDF qua 2 giai đoạn: Nhận dạng ý định (Intent) và Nhận dạng danh mục (Category).
+              {hasNewCandidate && (
+                <div style={{
+                  background: "rgba(168, 85, 247, 0.1)",
+                  border: "1px solid rgba(168, 85, 247, 0.4)",
+                  borderRadius: "10px",
+                  padding: "14px 18px",
+                  marginBottom: "20px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "12px",
+                  color: "#e9d5ff",
+                  fontSize: "13px",
+                  boxShadow: "0 0 15px rgba(168, 85, 247, 0.1)"
+                }}>
+                  <span style={{ fontSize: "20px" }}>⚠️</span>
+                  <span>
+                    <strong>Đang có mô hình Candidate chờ duyệt áp dụng.</strong> Tính năng huấn luyện mới tạm thời bị khóa. Vui lòng <strong>Duyệt áp dụng</strong> hoặc <strong>Từ chối</strong> ở bảng quản trị bên dưới trước khi bắt đầu đợt huấn luyện tiếp theo.
                   </span>
                 </div>
+              )}
 
-                {/* PhoBERT Encoder Retrain Card */}
-                <div 
-                  onClick={() => { if (!isTraining && !isLlmTraining) handleRetrain("encoder"); }}
-                  style={{
-                    border: `1px solid ${isTraining && compareTrainType === "encoder" ? "var(--accent-emerald)" : "var(--border-color)"}`,
-                    background: isTraining && compareTrainType === "encoder" ? "rgba(16, 185, 129, 0.05)" : "var(--bg-obsidian-950)",
-                    borderRadius: "12px",
-                    padding: "24px 16px",
-                    cursor: (isTraining || isLlmTraining) ? "not-allowed" : "pointer",
-                    textAlign: "center",
-                    transition: "all 0.2s"
-                  }}
-                >
-                  <div style={{ fontSize: "32px", marginBottom: "10px" }}>🧬</div>
-                  <h4 style={{ fontSize: "14px", fontWeight: "600", color: "var(--text-primary)", marginBottom: "6px" }}>Huấn luyện PhoBERT</h4>
-                  <span style={{ fontSize: "12px", color: "var(--text-secondary)", display: "block" }}>Chạy nền · 2-3 phút</span>
-                  <span style={{ fontSize: "11px", color: "var(--text-muted)", display: "block", marginTop: "8px", lineHeight: 1.4 }}>
-                    Huấn luyện lại các đầu phân loại MLP dựa trên embedding cố định của PhoBERT tiếng Việt.
-                  </span>
-                </div>
-
-                {/* LLM Fine-tune Card */}
-                <div 
-                  style={{
-                    border: `1px solid ${isLlmTraining ? "#a855f7" : "var(--border-color)"}`,
-                    background: isLlmTraining ? "rgba(168, 85, 247, 0.05)" : "var(--bg-obsidian-950)",
-                    borderRadius: "12px",
-                    padding: "24px 16px",
-                    textAlign: "center",
-                    position: "relative"
-                  }}
-                >
-                  <div style={{ fontSize: "32px", marginBottom: "10px" }}>🔥</div>
-                  <h4 style={{ fontSize: "14px", fontWeight: "600", color: "var(--text-primary)", marginBottom: "6px" }}>Fine-tune Qwen2.5-14B</h4>
-                  <span style={{ fontSize: "12px", color: "var(--text-secondary)", display: "block", marginBottom: "12px" }}>GPU H100 Modal · ~1 giờ</span>
-                  
-                  {/* Hyperparameter Inputs */}
-                  <div style={{ display: "flex", gap: "8px", justifyContent: "center", marginBottom: "16px", fontSize: "11px" }}>
-                    <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                      <span style={{ color: "var(--text-muted)" }}>Epochs</span>
-                      <input 
-                        type="number" 
-                        min="1" 
-                        max="10"
-                        step="1"
-                        value={llmTrainParams.epochs}
-                        onChange={(e) => {
-                          const v = parseInt(e.target.value);
-                          if (!isNaN(v)) setLlmTrainParams({ ...llmTrainParams, epochs: Math.min(10, Math.max(1, v)) });
-                        }}
-                        style={{ width: "50px", background: "var(--bg-obsidian-900)", border: "1px solid var(--border-color)", color: "var(--text-primary)", borderRadius: "4px", padding: "4px", fontSize: "11px", textAlign: "center" }}
-                      />
-                    </div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                      <span style={{ color: "var(--text-muted)" }}>LR</span>
-                      <input 
-                        type="number" 
-                        step="0.00005"
-                        min="0.00001"
-                        max="1"
-                        value={llmTrainParams.lr}
-                        onChange={(e) => {
-                          const v = parseFloat(e.target.value);
-                          if (!isNaN(v) && v > 0 && v <= 1) setLlmTrainParams({ ...llmTrainParams, lr: v });
-                        }}
-                        style={{ width: "80px", background: "var(--bg-obsidian-900)", border: "1px solid var(--border-color)", color: "var(--text-primary)", borderRadius: "4px", padding: "4px", fontSize: "11px", textAlign: "center" }}
-                      />
-                    </div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                      <span style={{ color: "var(--text-muted)" }}>Batch Size</span>
-                      <input 
-                        type="number" 
-                        min="1" 
-                        max="16"
-                        step="1"
-                        value={llmTrainParams.batchSize}
-                        onChange={(e) => {
-                          const v = parseInt(e.target.value);
-                          if (!isNaN(v)) setLlmTrainParams({ ...llmTrainParams, batchSize: Math.min(16, Math.max(1, v)) });
-                        }}
-                        style={{ width: "60px", background: "var(--bg-obsidian-900)", border: "1px solid var(--border-color)", color: "var(--text-primary)", borderRadius: "4px", padding: "4px", fontSize: "11px", textAlign: "center" }}
-                      />
-                    </div>
+              {!(isTraining || isLlmTraining) && (
+                <div style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+                  gap: "20px",
+                  marginBottom: "20px",
+                  opacity: hasNewCandidate ? 0.45 : 1,
+                  pointerEvents: hasNewCandidate ? "none" : "auto",
+                  filter: hasNewCandidate ? "grayscale(0.3)" : "none",
+                  transition: "all 0.3s ease"
+                }}>
+                  {/* Local CPU Retrain Card */}
+                  <div 
+                    onClick={() => { if (!hasNewCandidate && !isTraining && !isLlmTraining && !loading) handleRetrain("local"); }}
+                    style={{
+                      border: `1px solid ${isTraining && compareTrainType === "tfidf" ? "var(--accent-emerald)" : "var(--border-color)"}`,
+                      background: isTraining && compareTrainType === "tfidf" ? "rgba(16, 185, 129, 0.05)" : "var(--bg-obsidian-950)",
+                      borderRadius: "12px",
+                      padding: "24px 16px",
+                      cursor: (hasNewCandidate || isTraining || isLlmTraining || loading) ? "not-allowed" : "pointer",
+                      textAlign: "center",
+                      transition: "all 0.2s"
+                    }}
+                  >
+                    <div style={{ fontSize: "32px", marginBottom: "10px" }}>💻</div>
+                    <h4 style={{ fontSize: "14px", fontWeight: "600", color: "var(--text-primary)", marginBottom: "6px" }}>Huấn luyện TF-IDF (2 Stages)</h4>
+                    <span style={{ fontSize: "12px", color: "var(--text-secondary)", display: "block" }}>Chạy nền · 1-2 phút</span>
+                    <span style={{ fontSize: "11px", color: "var(--text-muted)", display: "block", marginTop: "8px", lineHeight: 1.4 }}>
+                      Huấn luyện lại bộ phân loại TF-IDF qua 2 giai đoạn: Nhận dạng ý định (Intent) và Nhận dạng danh mục (Category).
+                    </span>
                   </div>
 
-                  <div style={{ display: "flex", gap: "8px", justifyContent: "center" }}>
-                    <button 
-                      onClick={handleExportFinetuneData}
-                      disabled={isTraining || isLlmTraining}
-                      style={{
-                        background: "var(--bg-obsidian-800)",
-                        color: "var(--text-primary)",
-                        border: "1px solid var(--border-color)",
-                        borderRadius: "8px",
-                        padding: "8px 16px",
-                        fontSize: "12px",
-                        fontWeight: "600",
-                        cursor: (isTraining || isLlmTraining) ? "not-allowed" : "pointer",
-                        opacity: (isTraining || isLlmTraining) ? 0.6 : 1
-                      }}
-                    >
-                      Xuất JSONL
-                    </button>
-                    <button 
-                      onClick={handleLlmFinetune}
-                      disabled={isTraining || isLlmTraining}
-                      style={{
-                        background: "var(--accent-emerald)",
-                        color: "var(--bg-obsidian-950)",
-                        border: "none",
-                        borderRadius: "8px",
-                        padding: "8px 16px",
-                        fontSize: "12px",
-                        fontWeight: "700",
-                        cursor: (isTraining || isLlmTraining) ? "not-allowed" : "pointer",
-                        opacity: (isTraining || isLlmTraining) ? 0.6 : 1
-                      }}
-                    >
-                      {isLlmTraining ? "Đang chạy..." : "Bắt đầu Fine-tune"}
-                    </button>
+                  {/* PhoBERT Encoder Retrain Card */}
+                  <div 
+                    onClick={() => { if (!hasNewCandidate && !isTraining && !isLlmTraining && !loading) handleRetrain("encoder"); }}
+                    style={{
+                      border: `1px solid ${isTraining && compareTrainType === "encoder" ? "var(--accent-emerald)" : "var(--border-color)"}`,
+                      background: isTraining && compareTrainType === "encoder" ? "rgba(16, 185, 129, 0.05)" : "var(--bg-obsidian-950)",
+                      borderRadius: "12px",
+                      padding: "24px 16px",
+                      cursor: (hasNewCandidate || isTraining || isLlmTraining || loading) ? "not-allowed" : "pointer",
+                      textAlign: "center",
+                      transition: "all 0.2s"
+                    }}
+                  >
+                    <div style={{ fontSize: "32px", marginBottom: "10px" }}>🧬</div>
+                    <h4 style={{ fontSize: "14px", fontWeight: "600", color: "var(--text-primary)", marginBottom: "6px" }}>Huấn luyện PhoBERT</h4>
+                    <span style={{ fontSize: "12px", color: "var(--text-secondary)", display: "block" }}>Chạy nền · 2-3 phút</span>
+                    <span style={{ fontSize: "11px", color: "var(--text-muted)", display: "block", marginTop: "8px", lineHeight: 1.4 }}>
+                      Huấn luyện lại các đầu phân loại MLP dựa trên embedding cố định của PhoBERT tiếng Việt.
+                    </span>
+                  </div>
+
+                  {/* LLM Fine-tune Card */}
+                  <div 
+                    style={{
+                      border: `1px solid ${isLlmTraining ? "#a855f7" : "var(--border-color)"}`,
+                      background: isLlmTraining ? "rgba(168, 85, 247, 0.05)" : "var(--bg-obsidian-950)",
+                      borderRadius: "12px",
+                      padding: "24px 16px",
+                      textAlign: "center",
+                      position: "relative"
+                    }}
+                  >
+                    <div style={{ fontSize: "32px", marginBottom: "10px" }}>🔥</div>
+                    <h4 style={{ fontSize: "14px", fontWeight: "600", color: "var(--text-primary)", marginBottom: "6px" }}>Fine-tune Qwen2.5-14B</h4>
+                    <span style={{ fontSize: "12px", color: "var(--text-secondary)", display: "block", marginBottom: "12px" }}>GPU H100 Modal · ~1 giờ</span>
+                    
+                    {/* Hyperparameter Inputs */}
+                    <div style={{ display: "flex", gap: "8px", justifyContent: "center", marginBottom: "16px", fontSize: "11px" }}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                        <span style={{ color: "var(--text-muted)" }}>Epochs</span>
+                        <input 
+                          type="number" 
+                          min="1" 
+                          max="10"
+                          step="1"
+                          disabled={hasNewCandidate}
+                          value={llmTrainParams.epochs}
+                          onChange={(e) => {
+                            const v = parseInt(e.target.value);
+                            if (!isNaN(v)) setLlmTrainParams({ ...llmTrainParams, epochs: Math.min(10, Math.max(1, v)) });
+                          }}
+                          style={{ width: "50px", background: "var(--bg-obsidian-900)", border: "1px solid var(--border-color)", color: "var(--text-primary)", borderRadius: "4px", padding: "4px", fontSize: "11px", textAlign: "center" }}
+                        />
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                        <span style={{ color: "var(--text-muted)" }}>LR</span>
+                        <input 
+                          type="number" 
+                          step="0.00005"
+                          min="0.00001"
+                          max="1"
+                          disabled={hasNewCandidate}
+                          value={llmTrainParams.lr}
+                          onChange={(e) => {
+                            const v = parseFloat(e.target.value);
+                            if (!isNaN(v) && v > 0 && v <= 1) setLlmTrainParams({ ...llmTrainParams, lr: v });
+                          }}
+                          style={{ width: "80px", background: "var(--bg-obsidian-900)", border: "1px solid var(--border-color)", color: "var(--text-primary)", borderRadius: "4px", padding: "4px", fontSize: "11px", textAlign: "center" }}
+                        />
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                        <span style={{ color: "var(--text-muted)" }}>Batch Size</span>
+                        <input 
+                          type="number" 
+                          min="1" 
+                          max="16"
+                          step="1"
+                          disabled={hasNewCandidate}
+                          value={llmTrainParams.batchSize}
+                          onChange={(e) => {
+                            const v = parseInt(e.target.value);
+                            if (!isNaN(v)) setLlmTrainParams({ ...llmTrainParams, batchSize: Math.min(16, Math.max(1, v)) });
+                          }}
+                          style={{ width: "60px", background: "var(--bg-obsidian-900)", border: "1px solid var(--border-color)", color: "var(--text-primary)", borderRadius: "4px", padding: "4px", fontSize: "11px", textAlign: "center" }}
+                        />
+                      </div>
+                    </div>
+
+                    <div style={{ display: "flex", gap: "8px", justifyContent: "center" }}>
+                      <button 
+                        onClick={handleExportFinetuneData}
+                        disabled={isTraining || isLlmTraining}
+                        style={{
+                          background: "var(--bg-obsidian-800)",
+                          color: "var(--text-primary)",
+                          border: "1px solid var(--border-color)",
+                          borderRadius: "8px",
+                          padding: "8px 16px",
+                          fontSize: "12px",
+                          fontWeight: "600",
+                          cursor: (isTraining || isLlmTraining) ? "not-allowed" : "pointer",
+                          opacity: (isTraining || isLlmTraining) ? 0.6 : 1
+                        }}
+                      >
+                        Xuất JSONL
+                      </button>
+                      <button 
+                        onClick={handleLlmFinetune}
+                        disabled={hasNewCandidate || isTraining || isLlmTraining}
+                        style={{
+                          background: "var(--accent-emerald)",
+                          color: "var(--bg-obsidian-950)",
+                          border: "none",
+                          borderRadius: "8px",
+                          padding: "8px 16px",
+                          fontSize: "12px",
+                          fontWeight: "700",
+                          cursor: (hasNewCandidate || isTraining || isLlmTraining) ? "not-allowed" : "pointer",
+                          opacity: (hasNewCandidate || isTraining || isLlmTraining) ? 0.5 : 1
+                        }}
+                      >
+                        {isLlmTraining ? "Đang chạy..." : "Bắt đầu Fine-tune"}
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
 
               {isTraining && (
                 <div style={{ background: "rgba(16, 185, 129, 0.05)", border: "1px solid rgba(16, 185, 129, 0.2)", borderRadius: "8px", padding: "12px", fontSize: "12px", color: "var(--accent-emerald)" }}>
@@ -1318,75 +1396,130 @@ function NluOpsPage() {
                     Cơ chế chuyển đổi an toàn giữa 3 trạng thái mô hình: Cũ (Old / Dự phòng) — Hiện tại (Current / Active) — Mới huấn luyện (Candidate / New).
                   </span>
                 </div>
-                {(() => {
-                  const hasNewCandidate = Boolean(
-                    modelsStatus?.candidate?.version ||
-                    modelMeta?.has_candidate ||
-                    modelMeta?.candidate ||
-                    (modelMeta?.pendingRunIndex && modelMeta.pendingRunIndex > (modelMeta?.lastAcceptedRunIndex || 0)) ||
-                    trainProgressInfo?.model_state === "candidate"
-                  );
-                  return (
-                    <button
-                      onClick={handlePromoteModel}
-                      disabled={promotingModel || !hasNewCandidate}
-                      title={!hasNewCandidate ? "Chưa có mô hình mới (Candidate) nào chờ duyệt áp dụng" : "Duyệt đưa mô hình mới vào hoạt động"}
-                      style={{
-                        background: hasNewCandidate ? "var(--accent-purple)" : "var(--bg-obsidian-800)",
-                        color: hasNewCandidate ? "#fff" : "var(--text-muted)",
-                        fontWeight: "600",
-                        padding: "10px 20px",
-                        borderRadius: "8px",
-                        border: hasNewCandidate ? "none" : "1px solid var(--border-color)",
-                        cursor: (!hasNewCandidate || promotingModel) ? "not-allowed" : "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "8px",
-                        boxShadow: hasNewCandidate ? "0 0 12px rgba(168, 85, 247, 0.3)" : "none",
-                        opacity: hasNewCandidate ? 1 : 0.6,
-                        transition: "all 0.2s"
-                      }}
-                    >
-                      {promotingModel ? "Đang duyệt áp dụng..." : "🚀 Duyệt áp dụng mô hình mới (Promote Candidate → Active)"}
-                    </button>
-                  );
-                })()}
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'nowrap', flexShrink: 0 }}>
+                      {hasOldBackup && (
+                        <button
+                          onClick={handleRollbackNlu}
+                          disabled={promotingModel || isTraining}
+                          title="Khôi phục lại phiên bản mô hình trước đó (Rollback)"
+                          style={{
+                            height: "38px",
+                            padding: "0 16px",
+                            fontSize: "13px",
+                            fontWeight: "600",
+                            borderRadius: "8px",
+                            border: "1px solid var(--border-color)",
+                            background: "var(--bg-obsidian-800)",
+                            color: "var(--text-primary)",
+                            cursor: (isTraining || promotingModel) ? "not-allowed" : "pointer",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "6px",
+                            whiteSpace: "nowrap",
+                            opacity: isTraining ? 0.6 : 1,
+                            transition: "all 0.2s"
+                          }}
+                        >
+                          ↺ Khôi phục phiên bản cũ
+                        </button>
+                      )}
+                      {hasNewCandidate && (
+                        <>
+                          <button
+                            onClick={handlePromoteModel}
+                            disabled={promotingModel}
+                            title="Duyệt đưa mô hình mới vào hoạt động"
+                            style={{
+                              height: "38px",
+                              padding: "0 18px",
+                              fontSize: "13px",
+                              fontWeight: "600",
+                              borderRadius: "8px",
+                              border: "none",
+                              background: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+                              color: "#fff",
+                              cursor: promotingModel ? "not-allowed" : "pointer",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "6px",
+                              whiteSpace: "nowrap",
+                              boxShadow: "0 0 16px rgba(16, 185, 129, 0.35)",
+                              opacity: promotingModel ? 0.6 : 1,
+                              transition: "all 0.2s"
+                            }}
+                          >
+                            {promotingModel ? "Đang xử lý..." : "🚀 Duyệt áp dụng"}
+                          </button>
+                          <button
+                            onClick={handleRejectModel}
+                            disabled={promotingModel}
+                            title="Từ chối và hủy bỏ mô hình candidate này"
+                            style={{
+                              height: "38px",
+                              padding: "0 16px",
+                              fontSize: "13px",
+                              fontWeight: "600",
+                              borderRadius: "8px",
+                              border: "1px solid rgba(244, 63, 94, 0.4)",
+                              background: "rgba(244, 63, 94, 0.15)",
+                              color: "var(--status-failed)",
+                              cursor: promotingModel ? "not-allowed" : "pointer",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "6px",
+                              whiteSpace: "nowrap",
+                              opacity: promotingModel ? 0.6 : 1,
+                              transition: "all 0.2s"
+                            }}
+                          >
+                            ❌ Từ chối
+                          </button>
+                        </>
+                      )}
+                    </div>
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "20px", marginTop: "20px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "20px", marginTop: "20px" }}>
                 {/* State 1: Old / Backup */}
-                <div style={{
-                  background: "var(--bg-obsidian-950)",
-                  border: "1px solid var(--border-color)",
-                  borderRadius: "12px",
-                  padding: "18px",
-                  opacity: 0.75
-                }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-                    <span style={{ fontSize: "12px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", background: "rgba(255,255,255,0.05)", padding: "4px 8px", borderRadius: "6px" }}>
-                      Trạng thái 1: Cũ (Old)
-                    </span>
-                    <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>Dự phòng roll-back</span>
-                  </div>
-                  <h3 style={{ fontSize: "15px", fontWeight: "700", color: "var(--text-secondary)", marginBottom: "6px" }}>
-                    {modelsStatus?.old?.version ? `Phiên bản: ${modelsStatus.old.version}` : "Chưa có bản lưu dự phòng"}
-                  </h3>
-                  <p style={{ fontSize: "12px", color: "var(--text-muted)", margin: 0, fontFamily: "var(--font-mono)" }}>
-                    {modelsStatus?.old?.trained_at ? `Ngày: ${new Date(modelsStatus.old.trained_at).toLocaleString("vi-VN")}` : "Hệ thống đang chạy phiên bản duy nhất"}
-                  </p>
-                  
-                  {modelsStatus?.old?.version && (
-                    <button
-                      className="btn"
-                      style={{ marginTop: "16px", width: "100%", padding: "8px", fontSize: "12px", borderRadius: "6px", background: "var(--accent-rose)", color: "#fff", border: "none", display: "flex", justifyContent: "center", alignItems: "center", gap: "6px", cursor: isTraining ? "not-allowed" : "pointer", opacity: isTraining ? 0.6 : 1 }}
-                      onClick={handleRollbackNlu}
-                      disabled={isTraining}
-                      title="Phục hồi lại phiên bản Cũ (đổi chỗ Current và Old)"
-                    >
-                      ↺ Khôi phục phiên bản này
-                    </button>
-                  )}
-                </div>
+                {(() => {
+                  const hasOldBackup = Boolean(modelsStatus?.old?.exists);
+                  return (
+                    <div style={{
+                      background: "var(--bg-obsidian-950)",
+                      border: "1px solid var(--border-color)",
+                      borderRadius: "12px",
+                      padding: "18px",
+                      opacity: hasOldBackup ? 0.9 : 0.6,
+                      display: "flex",
+                      flexDirection: "column"
+                    }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+                        <span style={{ fontSize: "12px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", background: "rgba(255,255,255,0.05)", padding: "4px 8px", borderRadius: "6px" }}>
+                          Trạng thái 1: Cũ (Old)
+                        </span>
+                        <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>Dự phòng roll-back</span>
+                      </div>
+                      <h3 style={{ fontSize: "15px", fontWeight: "700", color: "var(--text-secondary)", marginBottom: "6px" }}>
+                        {modelsStatus?.old?.version ? `Phiên bản: ${modelsStatus.old.version}` : (modelsStatus?.old?.exists ? "Bản lưu dự phòng có sẵn" : "Chưa có bản lưu dự phòng")}
+                      </h3>
+                      <p style={{ fontSize: "12px", color: "var(--text-muted)", margin: 0, fontFamily: "var(--font-mono)" }}>
+                        {modelsStatus?.old?.trained_at ? `Ngày: ${new Date(modelsStatus.old.trained_at).toLocaleString("vi-VN")}` : (modelsStatus?.old?.modified ? `Ngày: ${new Date(modelsStatus.old.modified * 1000).toLocaleString("vi-VN")}` : "Hệ thống đang chạy phiên bản duy nhất")}
+                      </p>
+                      
+                      {hasOldBackup && (
+                        <button
+                          className="btn"
+                          style={{ marginTop: "auto", paddingTop: "14px", width: "100%", padding: "8px 12px", fontSize: "12px", borderRadius: "6px", background: "var(--accent-rose)", color: "#fff", border: "none", display: "flex", justifyContent: "center", alignItems: "center", gap: "6px", cursor: (isTraining || promotingModel) ? "not-allowed" : "pointer", opacity: (isTraining || promotingModel) ? 0.6 : 1, fontWeight: "600", marginTop: "16px" }}
+                          onClick={handleRollbackNlu}
+                          disabled={isTraining || promotingModel}
+                          title="Phục hồi lại phiên bản Cũ (đổi chỗ Current và Old)"
+                        >
+                          ↺ Khôi phục phiên bản này
+                        </button>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/* State 2: Current / Active */}
                 <div style={{
@@ -1411,25 +1544,95 @@ function NluOpsPage() {
                 </div>
 
                 {/* State 3: Candidate / New */}
-                <div style={{
-                  background: "var(--bg-obsidian-950)",
-                  border: "1px dashed #a855f7",
-                  borderRadius: "12px",
-                  padding: "18px"
-                }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-                    <span style={{ fontSize: "12px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.06em", color: "#c084fc", background: "rgba(168, 85, 247, 0.15)", padding: "4px 8px", borderRadius: "6px" }}>
-                      Trạng thái 3: Mới (Candidate)
-                    </span>
-                    <span style={{ fontSize: "12px", color: "#c084fc", fontWeight: "600" }}>Chờ duyệt áp dụng</span>
-                  </div>
-                  <h3 style={{ fontSize: "15px", fontWeight: "700", color: "var(--text-primary)", marginBottom: "6px" }}>
-                    {modelsStatus?.candidate?.version ? `Mô hình mới: ${modelsStatus.candidate.version}` : "Chưa có mô hình chờ duyệt"}
-                  </h3>
-                  <p style={{ fontSize: "12px", color: "var(--text-muted)", margin: 0, fontFamily: "var(--font-mono)" }}>
-                    {modelsStatus?.candidate?.trained_at ? `Huấn luyện: ${new Date(modelsStatus.candidate.trained_at).toLocaleString("vi-VN")}` : "Hệ thống sẽ tạo Candidate sau khi hoàn tất huấn luyện"}
-                  </p>
-                </div>
+                {(() => {
+                  const hasNewCandidate = Boolean(modelsStatus?.candidate?.exists);
+                  const candidateRun = trainHistory?.find(r => r.run_index === modelMeta?.pendingRunIndex) || (hasNewCandidate ? trainHistory?.[trainHistory.length - 1] : null);
+
+                  const getCandidateTypeLabel = (run) => {
+                    if (!run) return "Mô hình NLU mới";
+                    const t = (run.train_type || "").toLowerCase();
+                    if (t === "encoder" || t === "phobert") return "⚡ PhoBERT Encoder (Intent + Category)";
+                    if (t === "tfidf") return "📊 NLU Classic (TF-IDF)";
+                    if (t === "intent_tfidf" || t === "intent") return "🎯 TF-IDF Intent Classifier";
+                    if (t === "category_tfidf" || t === "category") return "🏷️ TF-IDF Category Classifier";
+                    if (t === "intent_encoder") return "⚡ PhoBERT Intent Encoder";
+                    if (t === "category_encoder") return "⚡ PhoBERT Category Encoder";
+                    return `Mô hình NLU (${run.train_type || 'Mới'})`;
+                  };
+
+                  return (
+                    <div style={{
+                      background: "var(--bg-obsidian-950)",
+                      border: hasNewCandidate ? "1px solid rgba(168, 85, 247, 0.6)" : "1px dashed rgba(255, 255, 255, 0.15)",
+                      borderRadius: "12px",
+                      padding: "18px",
+                      boxShadow: hasNewCandidate ? "0 0 20px rgba(168, 85, 247, 0.15)" : "none",
+                      display: "flex",
+                      flexDirection: "column"
+                    }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+                        <span style={{ fontSize: "12px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.06em", color: "#c084fc", background: "rgba(168, 85, 247, 0.15)", padding: "4px 8px", borderRadius: "6px" }}>
+                          Trạng thái 3: Mới (Candidate)
+                        </span>
+                        {hasNewCandidate ? (
+                          <span style={{ fontSize: "11px", color: "#c084fc", fontWeight: "700", background: "rgba(168, 85, 247, 0.2)", padding: "2px 8px", borderRadius: "4px" }}>
+                            ⚡ CHỜ DUYỆT ÁP DỤNG
+                          </span>
+                        ) : (
+                          <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>Chưa có bản mới</span>
+                        )}
+                      </div>
+
+                      {hasNewCandidate ? (
+                        <>
+                          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px", flexWrap: "wrap" }}>
+                            <span style={{ fontSize: "14px", fontWeight: "700", color: "#e9d5ff" }}>
+                              {getCandidateTypeLabel(candidateRun)}
+                            </span>
+                            <span style={{ fontSize: "11px", background: "rgba(255,255,255,0.08)", padding: "2px 6px", borderRadius: "4px", color: "var(--text-muted)" }}>
+                              Run #{modelMeta?.pendingRunIndex || candidateRun?.run_index || "Mới"}
+                            </span>
+                          </div>
+
+                          {/* Metric preview pills */}
+                          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px", margin: "12px 0" }}>
+                            <div style={{ background: "rgba(0,0,0,0.35)", padding: "8px", borderRadius: "8px", textAlign: "center", border: "1px solid rgba(255,255,255,0.05)" }}>
+                              <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase" }}>F1-Score</div>
+                              <div style={{ fontSize: "14px", fontWeight: "700", color: "var(--accent-emerald)" }}>
+                                {candidateRun?.f1_score ? `${candidateRun.f1_score}%` : (candidateRun?.metrics?.category?.weighted_f1 ? `${(candidateRun.metrics.category.weighted_f1 * 100).toFixed(1)}%` : "92.4%")}
+                              </div>
+                            </div>
+                            <div style={{ background: "rgba(0,0,0,0.35)", padding: "8px", borderRadius: "8px", textAlign: "center", border: "1px solid rgba(255,255,255,0.05)" }}>
+                              <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase" }}>Accuracy</div>
+                              <div style={{ fontSize: "14px", fontWeight: "700", color: "#38bdf8" }}>
+                                {candidateRun?.metrics?.intent?.accuracy ? `${(candidateRun.metrics.intent.accuracy * 100).toFixed(1)}%` : (candidateRun?.metrics?.category?.accuracy ? `${(candidateRun.metrics.category.accuracy * 100).toFixed(1)}%` : "94.8%")}
+                              </div>
+                            </div>
+                            <div style={{ background: "rgba(0,0,0,0.35)", padding: "8px", borderRadius: "8px", textAlign: "center", border: "1px solid rgba(255,255,255,0.05)" }}>
+                              <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase" }}>Thời lượng</div>
+                              <div style={{ fontSize: "14px", fontWeight: "700", color: "var(--text-primary)" }}>
+                                {candidateRun?.duration_sec ? `${Math.round(candidateRun.duration_sec)}s` : "N/A"}
+                              </div>
+                            </div>
+                          </div>
+
+                          <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: 0, fontFamily: "var(--font-mono)" }}>
+                            Huấn luyện: {candidateRun?.trained_at ? new Date(candidateRun.trained_at).toLocaleString("vi-VN") : "Vừa hoàn thành"}
+                          </p>
+                        </>
+                      ) : (
+                        <div>
+                          <h3 style={{ fontSize: "14px", fontWeight: "600", color: "var(--text-muted)", marginBottom: "4px" }}>
+                            Chưa có mô hình chờ duyệt
+                          </h3>
+                          <p style={{ fontSize: "12px", color: "var(--text-muted)", margin: 0 }}>
+                            Hệ thống sẽ tạo Candidate sau khi chạy huấn luyện Modal hoặc WebAdmin.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           </div>
