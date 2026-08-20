@@ -1,15 +1,16 @@
 # ---------------------------------------------------------------------------
-# Stack:
-#   - postgres   : DB local cho dev
-#   - ai-service : FastAPI (mock fallback bật sẵn, không cần GPU)
-#   - backend    : Node.js orchestrator + Swagger UI ở /docs
-#
-# Mỗi service đọc env từ file riêng (ai-service/.env, backend/.env);
-# các biến quan trọng có thể override qua docker compose .env ở thư mục `app/`.
+# Stack Spending Diary:
+#   - postgres   : CSDL PostgreSQL cục bộ cho môi trường phát triển / kiểm thử
+#   - ai-service : Dịch vụ AI Service (FastAPI NLU & OCR Pipeline)
+#   - backend    : Máy chủ điều phối nghiệp vụ Node.js Express + Swagger UI tại /docs
+#   - web-admin  : Trang web quản trị React + Vite phục vụ NLU Ops và quản lý
 # ---------------------------------------------------------------------------
+version: "3.8"
+
 services:
   postgres:
     image: postgres:16-alpine
+    container_name: spending-diary-postgres
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
@@ -27,27 +28,24 @@ services:
 
   ai-service:
     build:
-      context: ./ai-service
+      context: ../expense-ocr-nlu
+      dockerfile: Dockerfile
+    container_name: spending-diary-ai-service
     restart: unless-stopped
-    env_file:
-      - ./ai-service/.env
     environment:
-      # Override những biến chỉ có ý nghĩa trong docker (network nội bộ).
-      HOST: 0.0.0.0
+      HOST: "0.0.0.0"
       PORT: "8000"
-      # Trong container mặc định KHÔNG load model thật để image nhẹ.
-      # Bật real bằng cách: 1) build image kèm requirements-real.txt
-      # 2) mount expense-ocr-nlu/ + set USE_REAL_NLU=true ở .env
-      USE_REAL_NLU: ${USE_REAL_NLU:-false}
+      DEVICE: ${DEVICE:-cpu}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      USE_REAL_NLU: ${USE_REAL_NLU:-true}
       USE_REAL_OCR: ${USE_REAL_OCR:-false}
+      LAZY_LOAD_MODELS: ${LAZY_LOAD_MODELS:-true}
     ports:
       - "8000:8000"
     volumes:
-      # Mount repo gốc để pipeline thật load được (chỉ dùng khi USE_REAL_*=true)
-      - ../expense-ocr-nlu:/expense-ocr-nlu:ro
+      - ../expense-ocr-nlu:/app
     healthcheck:
-      test:
-        ["CMD-SHELL", "python -c \"import urllib.request,sys; \\\nurllib.request.urlopen('http://localhost:8000/health'); sys.exit(0)\""]
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; urllib.request.urlopen('http://localhost:8000/health'); sys.exit(0)\""]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -55,29 +53,41 @@ services:
   backend:
     build:
       context: ./backend
+      dockerfile: Dockerfile
+    container_name: spending-diary-backend
     restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
       ai-service:
         condition: service_started
-    env_file:
-      - ./backend/.env
     environment:
-      # Override URL khi chạy trong network docker
-      NODE_ENV: production
+      NODE_ENV: ${NODE_ENV:-production}
       PORT: "4000"
       DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-expense_ai}
       DATABASE_SSL: "false"
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-me-for-spending-diary}
       AI_SERVICE_URL: http://ai-service:8000
       AI_SERVICE_TIMEOUT_MS: "30000"
       SCHEMA_SQL_PATH: /app/database/schema.sql
     ports:
       - "4000:4000"
     volumes:
-      # Schema + migrations mounted so `npm run migrate` finds them inside the container.
       - ./database:/app/database:ro
       - ./backend/src/db/migrations:/app/src/db/migrations:ro
+
+  web-admin:
+    build:
+      context: ./frontend/web-admin
+      dockerfile: Dockerfile
+    container_name: spending-diary-web-admin
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      - VITE_API_BASE_URL=http://localhost:4000/api
+    ports:
+      - "5173:80"
 
 volumes:
   pgdata:
