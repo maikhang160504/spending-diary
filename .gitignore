@@ -19,6 +19,7 @@ Thumbs.db
 
 #codegraph
 .codegraph/
+.cursor/
 
 # Env files
 .env
