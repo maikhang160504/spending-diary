@@ -15,7 +15,7 @@ Hệ thống mã nguồn của luận văn được tổ chức theo kiến trú
 | Kho lưu trữ chính (Monorepo) | GitHub Repository | https://github.com/maikhang160504/spending-diary | Toàn bộ mã nguồn Backend, Web Admin, Mobile App |
 | Kho lưu trữ dịch vụ AI (Submodule) | GitHub Repository | https://github.com/maikhang160504/genz-expense-ml | Dịch vụ AI Service, OCR Pipeline, NLU Pipeline |
 | Bộ dữ liệu hóa đơn gốc | Kaggle Dataset | https://www.kaggle.com/datasets/domixi1989/vietnamese-receipts-mc-ocr-2021 | Tập dữ liệu MC_OCR 2021 phục vụ huấn luyện và kiểm thử trích xuất hóa đơn |
-| Dữ liệu và trọng số nén dự phòng (data) | Google Drive | https://drive.google.com/drive/folders/1G1HQT_a5VxQBRzUz3EHjzo7YpbCZPNkg?usp=sharing | Thư mục data nén lưu trữ dữ liệu huấn luyện, tập ảnh hóa đơn và trọng số mô hình |
+| Dữ liệu nén dự phòng (data) | Google Drive | https://drive.google.com/drive/folders/1G1HQT_a5VxQBRzUz3EHjzo7YpbCZPNkg?usp=sharing | Thư mục data nén lưu trữ dữ liệu huấn luyện text, tập ảnh hóa đơn và nhãn trích xuất |
 | Trọng số mô hình xoay ảnh MobileNetV3 | Pretrained MC_OCR | https://github.com/ndcuong91/MC_OCR | Trọng số đã huấn luyện sẵn cho mô hình xoay ảnh hóa đơn 0 và 180 độ |
 | Trọng số mô hình nhận dạng chữ VietOCR | Pretrained VietOCR | https://github.com/pbcquoc/vietocr | Trọng số VGG-Transformer chuyên biệt cho chữ viết tiếng Việt |
 | Mô hình phát hiện vùng chữ DBNet | Pretrained PaddleOCR | https://github.com/PaddlePaddle/PaddleOCR | Trọng số DBNet phát hiện khung bao văn bản hóa đơn |
@@ -53,68 +53,18 @@ Bảng trên tóm tắt các yêu cầu môi trường phần mềm nền tảng
 
 ## 3. Quy trình huấn luyện và cấu hình các mô hình AI
 
-Hệ thống AI bao gồm ba nhóm mô hình chính: thị giác máy tính nhận diện hóa đơn, xử lý ngôn ngữ tự nhiên hiểu văn bản chi tiêu, và mô hình ngôn ngữ lớn hỗ trợ đối thoại tài chính. Dự án kết hợp việc tái sử dụng các mô hình đã được huấn luyện sẵn với việc tinh chỉnh chuyên sâu trên các tập dữ liệu thực tế.
+Hệ thống AI bao gồm ba nhóm mô hình chính: thị giác máy tính nhận diện hóa đơn, xử lý ngôn ngữ tự nhiên hiểu văn bản chi tiêu, và mô hình ngôn ngữ lớn hỗ trợ đối thoại tài chính. Dự án tích hợp trực tiếp các mô hình đã được huấn luyện sẵn chất lượng cao cho các tác vụ nền tảng (phát hiện chữ, xoay ảnh, nhận dạng chữ) và tập trung tinh chỉnh chuyên sâu trên các mô hình bóc tách thực thể và phân loại nghiệp vụ (LayoutLMv3, NLU PhoBERT, Qwen 2.5 LoRA).
 
-### 3.1 Mô hình xoay ảnh hóa đơn MobileNetV3
+### 3.1 Các mô hình tiền huấn luyện tích hợp sẵn
 
-Mô hình xoay ảnh giải quyết bài toán phân loại hướng nghiêng của ảnh hóa đơn hoặc từng dòng chữ được cắt ra, đưa ảnh về đúng chiều chuẩn 0 độ trước khi nhận dạng ký tự.
+Để tối ưu hóa hiệu năng và độ ổn định của hệ thống, các mô hình xử lý hình ảnh và nhận dạng ký tự cơ bản được kế thừa trực tiếp từ các giải pháp mã nguồn mở hàng đầu:
+- Mô hình phát hiện vùng chữ DBNet: Sử dụng mô hình tiền huấn luyện từ PaddleOCR (https://github.com/PaddlePaddle/PaddleOCR) để định vị nhanh các khung bao chứa văn bản trên ảnh hóa đơn.
+- Mô hình xoay ảnh hóa đơn MobileNetV3: Sử dụng trực tiếp trọng số đã huấn luyện sẵn từ giải pháp Top 1 cuộc thi MC_OCR 2021 tại kho lưu trữ https://github.com/ndcuong91/MC_OCR (tệp trọng số `mobilenetv3-Epoch-487-Loss-0.03-Acc-0.99.pth` đã nằm sẵn trong thư mục `bill_ocr/receipt_ocr/`), có nhiệm vụ phân loại hướng nghiêng và đưa ảnh hóa đơn về góc chuẩn 0 độ.
+- Mô hình nhận dạng ký tự tiếng Việt VietOCR: Sử dụng trực tiếp trọng số VGG-Transformer chuyên biệt cho tiếng Việt từ kho lưu trữ https://github.com/pbcquoc/vietocr (tệp `vgg_transformer.pth` đã nằm sẵn trong thư mục `bill_ocr/models/vietocr/`) để chuyển đổi ảnh dòng chữ thành chuỗi văn bản hoàn chỉnh có dấu.
 
-Dự án sử dụng trực tiếp trọng số đã được huấn luyện sẵn từ giải pháp Top 1 cuộc thi MC_OCR 2021 tại kho lưu trữ [ndcuong91/MC_OCR](https://github.com/ndcuong91/MC_OCR). Tệp trọng số `mobilenetv3-Epoch-487-Loss-0.03-Acc-0.99.pth` đã được tích hợp sẵn trong mã nguồn.
+Toàn bộ các tệp trọng số trên đã được tích hợp sẵn trong mã nguồn dự án, người dùng không cần huấn luyện lại hay cấu hình thêm khi triển khai.
 
-Trong trường hợp người phát triển cần huấn luyện lại mô hình từ đầu trên tập dữ liệu gốc:
-1. Tập dữ liệu: Dữ liệu huấn luyện gồm các ảnh hóa đơn từ cuộc thi MC_OCR 2021 kết hợp các phép xoay nhân tạo 90 độ, 180 độ và 270 độ cùng kỹ thuật tăng cường độ sáng và độ tương phản.
-2. Cấu trúc mô hình: Kiến trúc MobileNetV3 Small gọn nhẹ, nhận đầu vào ảnh xám kích thước 64x64 pixel hoặc 320x320 pixel và phân loại nhị phân hoặc đa lớp.
-3. Quy trình thực hiện:
-   ```bash
-   cd expense-ocr-nlu/bill_ocr
-   python -m mc_ocr.rotation_corrector.data_process
-   python -m mc_ocr.rotation_corrector.train_config --cfg experiments/mobilenetv3_filtered_public_train.yaml
-   ```
-
-Bảng siêu tham số huấn luyện mô hình MobileNetV3:
-
-| Siêu tham số | Giá trị thiết lập | Giải thích ý nghĩa |
-| --- | --- | --- |
-| Kích thước ảnh đầu vào | 64x64 hoặc 320x320 pixel | Chuẩn hóa kích thước khung hình trước khi đưa vào mạng |
-| Thuật toán tối ưu | Adam | Thuật toán cập nhật trọng số thích ứng |
-| Tốc độ học ban đầu | 0.001 | Tốc độ học khởi tạo cho bộ trích xuất đặc trưng |
-| Kích thước lô | 64 | Số lượng mẫu xử lý đồng thời trong một bước lặp |
-| Số lượng chu kỳ huấn luyện | 500 epochs | Tổng số vòng huấn luyện qua toàn bộ tập dữ liệu |
-| Hệ số triệt tiêu Dropout | 0.2 | Tỷ lệ ngắt kết nối ngẫu nhiên để chống hiện tượng quá khớp |
-| Hàm mất mát | Cross Entropy Loss | Đo lường độ sai lệch xác suất phân loại góc xoay |
-
-Bảng trên chi tiết hóa các tham số huấn luyện mô hình MobileNetV3, giúp mô hình đạt độ chính xác trên 99 phần trăm sau 487 chu kỳ huấn luyện.
-
-### 3.2 Mô hình nhận diện ký tự tiếng Việt VietOCR VGG-Transformer
-
-Mô hình chuyển đổi các vùng ảnh dòng chữ đã được cắt và căn chỉnh thẳng thành chuỗi văn bản tiếng Việt có dấu hoàn chỉnh.
-
-Dự án sử dụng trọng số mô hình VGG-Transformer đã được huấn luyện sẵn chuyên biệt cho tiếng Việt từ kho lưu trữ [pbcquoc/vietocr](https://github.com/pbcquoc/vietocr). Tệp trọng số `vgg_transformer.pth` đã được đóng gói sẵn trong thư mục `expense-ocr-nlu/bill_ocr/models/vietocr/`.
-
-Trường hợp cần tinh chỉnh bổ sung trên tập dữ liệu chữ cắt thực tế từ hóa đơn bán lẻ MC_OCR 2021:
-1. Tập dữ liệu: Kết hợp tập dữ liệu chữ tổng hợp tiếng Việt với dữ liệu chữ cắt thực tế từ hóa đơn bán lẻ MC_OCR 2021.
-2. Cấu trúc mô hình: Bộ trích xuất đặc trưng hình ảnh VGG19 kết hợp khối giải mã Transformer đa đầu tự chú ý dạng chuỗi sang chuỗi.
-3. Quy trình thực hiện:
-   ```bash
-   cd expense-ocr-nlu/bill_ocr
-   python -m vietocr.train --config bill_ocr/models/vietocr/config.yml
-   ```
-
-Bảng siêu tham số tinh chỉnh mô hình VietOCR:
-
-| Siêu tham số | Giá trị thiết lập | Giải thích ý nghĩa |
-| --- | --- | --- |
-| Chiều cao ảnh dòng | 32 pixel | Kích thước chiều cao chuẩn hóa của dòng chữ |
-| Chiều rộng ảnh tối đa | 512 pixel | Chiều rộng tối đa cho phép của dòng chữ |
-| Bộ giải mã | Transformer Seq2Seq | Kiến trúc chú ý đa đầu giải mã chuỗi ký tự |
-| Thuật toán tối ưu | Adam | Bộ tối ưu hóa vi sai thích ứng |
-| Tốc độ học | 0.0001 | Tốc độ học nhỏ nhằm duy trì các đặc trưng đã học từ trước |
-| Kích thước lô | 32 | Số dòng chữ xử lý song song trên mỗi bước |
-| Chiến lược tìm kiếm | Beam Search độ rộng 5 | Giải mã tìm chuỗi ký tự có xác suất cao nhất |
-
-Bảng trên thể hiện các siêu tham số áp dụng cho giai đoạn tinh chỉnh mô hình VietOCR trên tập dữ liệu chữ hóa đơn tiếng Việt.
-
-### 3.3 Mô hình trích xuất thực thể hóa đơn LayoutLMv3
+### 3.2 Mô hình trích xuất thực thể hóa đơn LayoutLMv3
 
 Mô hình LayoutLMv3 tiếp nhận đồng thời ba luồng thông tin: hình ảnh hóa đơn, chuỗi văn bản trích xuất từ VietOCR ([pbcquoc/vietocr](https://github.com/pbcquoc/vietocr)) và tọa độ không gian 2D của các hộp bao từ PaddleOCR ([PaddlePaddle/PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR)) để gán nhãn thực thể bao gồm tên người bán, địa chỉ, ngày giờ và tổng tiền thanh toán.
 
@@ -151,7 +101,7 @@ Bảng siêu tham số huấn luyện mô hình LayoutLMv3:
 
 Bảng trên tóm lược các siêu tham số then chốt giúp mô hình LayoutLMv3 đạt điểm số F1 cao nhất trong việc định danh các trường thông tin trên hóa đơn.
 
-### 3.4 Mô hình phân loại ý định và danh mục NLU
+### 3.3 Mô hình phân loại ý định và danh mục NLU
 
 Hệ thống NLU áp dụng kiến trúc hai tầng gồm mô hình cơ sở TF-IDF kết hợp LinearSVC và mô hình nâng cao sử dụng PhoBERT nhúng ngữ cảnh kết hợp bộ phân loại Logistic Regression được hiệu chỉnh xác suất.
 
@@ -182,7 +132,7 @@ Bảng siêu tham số huấn luyện các mô hình NLU:
 
 Bảng trên mô tả toàn bộ cấu hình huấn luyện của hệ thống NLU xử lý văn bản tiếng Việt từ tầng cơ sở đến tầng véc tơ ngữ cảnh chuyên sâu.
 
-### 3.5 Mô hình ngôn ngữ lớn tài chính cá nhân Qwen2.5-14B qua QLoRA
+### 3.4 Mô hình ngôn ngữ lớn tài chính cá nhân Qwen2.5-14B qua QLoRA
 
 Mô hình ngôn ngữ lớn đảm nhiệm việc phản hồi các câu thoại phiếm mang phong cách Gen Z, tư vấn tài chính và suy luận các câu mô tả chi tiêu phức tạp vượt ngoài khả năng của các mô hình phân loại truyền thống.
 
@@ -214,33 +164,6 @@ Bảng trên trình bày các thông số kỹ thuật cho quá trình tinh ch�
 ---
 
 ## 4. Hướng dẫn chi tiết chạy demo từng module
-
-Hệ thống được cấu trúc thành bốn thành phần hoạt động phối hợp thông qua các giao thức mạng RESTful API và WebSocket.
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Mobile App (Flutter)                     │
-│                  Giao diện người dùng cuối                  │
-└──────────────┬───────────────────────────────▲──────────────┘
-               │ HTTP REST                     │ WebSocket / HTTP
-               ▼                               │
-┌──────────────────────────────┐ ┌─────────────┴──────────────┐
-│          AI Service          │ │    Backend Orchestrator    │
-│    (FastAPI - Port 8000)     │ │   (Node.js - Port 4000)    │
-│   OCR + NLU + Qwen LLM       │ │ CockroachDB + R2 + Token   │
-└──────────────▲───────────────┘ └─────────────┬──────────────┘
-               │                               │
-               │ HTTP Sync & Retrain Data      │ Admin API
-               └───────────────────────────────┼──────────────┐
-                                               │              │
-                                ┌──────────────▼──────────────┴┐
-                                │          Web Admin           │
-                                │     (React - Port 5173)      │
-                                │  NLU Ops + Bill Retrain KIE  │
-                                └──────────────────────────────┘
-```
-
-Sơ đồ trên mô tả luồng giao tiếp tương tác giữa bốn module chính trong kiến trúc tổng thể của hệ thống thực nghiệm.
 
 ### 4.1 Khởi chạy nhanh toàn bộ hệ thống bằng Docker Compose (Khuyến nghị)
 
